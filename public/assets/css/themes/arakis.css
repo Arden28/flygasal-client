@@ -1,0 +1,662 @@
+/* POPPINS FONT  */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+
+:root {
+    --theme-bg: #FE7237 !important;
+    --heading-clr: #121212;
+    --subheading-clr: #636363;
+}
+
+/* HEADER START  */
+
+/* HEADER NAVBAR  */
+header.navbar {
+    position: absolute;
+    top: 0; left: 0;
+}
+
+/* HEADRE NAVLINKS  */
+.navbar-nav .nav-link {
+    font-size: 14px !important;
+    color: var(--heading-clr);
+    text-transform: capitalize !important;
+}
+.navbar-nav .nav-link:hover {
+    /* background-color: rgba(254, 114, 55, 7%); */
+}
+
+/* HEADER RIGHT NAVLINKS  */
+.nav-item--right>.navbar-nav {
+    align-items: center;
+}
+
+/* DROPDOWN  */
+.nav-item.dropdown strong {
+    color: var(--heading-clr) !important;
+    text-transform: capitalize !important;
+}
+.nav-item.dropdown svg {
+    stroke: var(--heading-clr);
+}
+
+/* WHEN HOVER  */
+.nav-item.dropdown:hover strong {
+    color: var(--theme-bg) !important;
+}
+.nav-item.dropdown:hover svg {
+    stroke: var(--theme-bg);
+}
+
+/* HEADER SING:In/UP BUTTON  */
+.nav-item--right .nav-item:last-of-type {
+    margin-left: 20px;
+}
+
+.nav-item--right .nav-item:last-of-type>.nav-link::before,
+.nav-item--right .nav-item:last-of-type>.nav-link::after {
+    content: unset;
+}
+.nav-item--right .nav-item:last-of-type>.nav-link {
+    background-color: var(--theme-bg) !important;
+    /* border-radius: 30px !important; */
+    /* border-radius: 0px !important; */
+    /* padding: 14px 32px !important; */
+    padding: 5px 28px !important;
+    margin-left: -18px;
+}
+.nav-item--right .nav-item:last-of-type>.nav-link svg {
+    display: none;
+}
+.nav-item--right .nav-item:last-of-type>.nav-link strong {
+    color: #fff !important;
+}
+
+/* HEADER END  */
+
+
+/* HERO SECTION START  */
+
+/* HERO CONTAINER  */
+div.mb-0:has(.hero) {
+    position: relative;
+    min-height: unset !important;
+}
+
+.hero {
+    position: relative;
+    background-color: #fff;
+    background-image: url("http://localhost/v9/assets/img/themes/arakis/hero_img.jpg");
+    background-position: right 142px top;
+    /* background-position: right top; */
+    background-repeat: no-repeat;
+    background-size: contain;
+    min-height: 363px;
+}
+.hero::before,
+.hero::after {
+    content: unset;
+}
+
+.hero~.search-panel {
+    margin-top: 0 !important;
+}
+
+/* HERO TXT WRAPPER  */
+.hero_text {
+    position: absolute;
+    /* top: 18%; */
+    margin-left: 20px;
+}
+.hero_text h4,
+.hero_text p {
+    position: static !important;
+    margin-top: 0 !important;
+}
+.hero_text h4 {
+    color: var(--heading-clr) !important;
+}
+.hero_text p {
+    color: var(--theme-bg) !important;
+    width: 50%;
+    line-height: 1.25;
+}
+
+
+/* HERO NAVTABS & CONTENT WRAPPER  */
+.ShowSearchBox {
+    box-shadow: 0px 0px 50px -12px rgba(99, 99, 99, 0.34);
+    /* border-radius: 10px; */
+}
+
+.main_search .p-5.hide_loading {
+    min-height: 233px;
+    background: rgba(254, 114, 55, 7%);
+}
+.main_search {
+    border-radius: unset !important;
+}
+.main_search .nav.nav-tabs {
+    padding: 12px;
+    /* border-radius: 10px 10px 0 0; */
+    overflow: hidden;
+    border-radius: 0 !important;
+}
+.main_search .nav-item {
+    margin: unset !important;
+    color: var(--heading-clr);
+}
+.main_search .nav-item .nav-link {
+    border-radius: 30px;
+    padding: 14px 32px;
+}
+.main_search .nav-item .nav-link::before {
+    content: unset;
+}
+.main_search .nav-item .nav-link svg {
+    fill: var(--heading-clr) !important;
+}
+
+/* HOVER  */
+.main_search .nav-item .nav-link:hover {
+    background: transparent;
+}
+.main_search .nav-item:hover .nav-link svg {
+    fill: var(--theme-bg) !important;
+}
+.main_search .nav-item:hover .nav-link span {
+    color: var(--theme-bg);
+}
+
+/* WHEN ACTIVE  */
+.main_search .nav-item .nav-link.active {
+    background: rgb(235 235 235) !important;
+    color: var(--theme-bg) !important;
+    /* border-bottom: unset !important; */
+    color: #121212;
+}
+.main_search .nav-item .nav-link.active svg {
+    fill: #fff !important;
+}
+.main_search .nav-item .nav-link.active span {
+    color: #000 !important;
+}
+
+/* FLIGHTS TYPES LABEL  */
+#tab-flights .form-check .form-check-label {
+    color: var(--heading-clr) !important;
+}
+/* FLIGT SELCTION  */
+#tab-flights .col-md-2.mt-0 .form-select:focus {
+    box-shadow: 0 0 0 0.25rem var(--theme-bg);
+    border-color: var(--theme-bg);
+}
+/* FLIGHTS SWAP BUTTON  */
+.swap-places {
+    border-color: var(--subheading-clr);
+}
+.swap-places__arrow svg {
+    fill: var(--heading-clr);
+}
+
+/* USER INPUT SELECTED TEXT  */
+.guest_flights,
+.select2-selection__rendered .mt-1,
+.select2-selection__rendered .mt-2,
+.form-control,
+.guest_cars,
+.guest_hotels,
+.roomTotal,
+.select2-selection__rendered,
+.guest_tours,
+.form-select {
+    color: var(--subheading-clr) !important;
+    font-size: 13px !important;
+}
+
+/* SEARCH INPUT BORDER  */
+#tab-flights .select2-selection.select2-selection--single,
+#tab-hotels .select2-selection.select2-selection--single,
+#tab-tours .select2-selection.select2-selection--single,
+#tab-cars .select2-selection.select2-selection--single,
+#tab-flights .form-floating .form-control,
+#tab-hotels .form-floating .form-control,
+#tab-tours .form-floating .form-control,
+#tab-cars .form-floating .form-control,
+#tab-flights .dropdown-toggle,
+#tab-hotels .dropdown-toggle,
+#tab-tours .dropdown-toggle,
+#tab-cars .dropdown-toggle {
+    border-color: var(--subheading-clr);
+}
+
+/* SEARCH INPUT WHEN HOVER  */
+#tab-flights .select2-selection.select2-selection--single:hover,
+#tab-flights .select2-selection.select2-selection--single:focus,
+#tab-hotels .select2-selection.select2-selection--single:hover,
+#tab-hotels .select2-selection.select2-selection--single:focus,
+#tab-tours .select2-selection.select2-selection--single:hover,
+#tab-tours .select2-selection.select2-selection--single:focus,
+#tab-cars .select2-selection.select2-selection--single:hover,
+#tab-cars .select2-selection.select2-selection--single:focus,
+#tab-flights .form-floating .form-control:hover,
+#tab-flights .form-floating .form-control:focus,
+#tab-hotels .form-floating .form-control:hover,
+#tab-hotels .form-floating .form-control:focus,
+#tab-tours .form-floating .form-control:hover,
+#tab-tours .form-floating .form-control:focus,
+#tab-cars .form-floating .form-control:hover,
+#tab-cars .form-floating .form-control:focus,
+#tab-flights .dropdown-toggle:hover,
+#tab-flights .dropdown-toggle:focus,
+#tab-hotels .dropdown-toggle:hover,
+#tab-hotels .dropdown-toggle:focus,
+#tab-tours .dropdown-toggle:hover,
+#tab-tours .dropdown-toggle:focus,
+#tab-cars .dropdown-toggle:hover,
+#tab-cars .dropdown-toggle:focus {
+    border-color: var(--theme-bg);
+    background: transparent !important;
+}
+
+/* SEARCH INPUT LABELS  */
+#tab-flights .form-floating label,
+#tab-hotels .form-floating label,
+#tab-tours .form-floating label,
+#tab-cars .form-floating label {
+    color: var(--heading-clr);
+    opacity: 1;
+}
+
+/* SEARCH INPUT ICON */
+#tab-flights .input-items>.show.active svg path:last-child,
+#tab-cars .input-items>.show.active svg path:last-child {
+    fill: var(--heading-clr);
+}
+#tab-hotels .input-items>.show.active svg,
+#tab-tours .input-items>.show.active svg {
+    stroke: var(--heading-clr);
+}
+#tab-flights .form-floating label svg,
+#tab-hotels .form-floating label svg,
+#tab-tours .form-floating label svg,
+#tab-cars .form-floating label svg {
+    stroke: var(--heading-clr);
+}
+
+/* INPUT DROPDOWN  */
+#tab-flights .dropdown.dropdown-contain .dropdown-btn,
+#tab-hotels .dropdown.dropdown-contain .dropdown-btn,
+#tab-tours .dropdown.dropdown-contain .dropdown-btn,
+#tab-cars .dropdown.dropdown-contain .dropdown-btn {
+    color: var(--heading-clr);
+    font-weight: bold;
+}
+/* DROPDOWN SVG  */
+#tab-flights .dropdown.dropdown-contain .dropdown-btn svg,
+#tab-hotels .dropdown.dropdown-contain .dropdown-btn svg,
+#tab-tours .dropdown.dropdown-contain .dropdown-btn svg,
+#tab-cars .dropdown.dropdown-contain .dropdown-btn svg {
+    stroke: var(--heading-clr) !important;
+}
+
+/* SERACH BTN  */
+button.search_button:hover {
+    background-color: var(--theme-bg) !important;
+    border-color: var(--theme-bg) !important;
+    opacity: 0.8;
+}
+
+/* HERO SECTION END */
+
+/* NEWS LETTER START */
+.newsletter-section .form-control:hover {
+    background: white !important;
+}
+/* NEWS LETTER END  */
+
+/* MEDIA QUERIES  */
+@media screen and (min-width: 320px) {
+    .round-trip-flight .tab-pane.fade .row>.col-md-3,
+    .round-trip-flight .tab-pane.fade .row>.col-md-9 {
+        flex: 100%;
+    }
+
+    /* INFO BOX  */
+    .newsletter-section > div {
+        background-color: rgba(254, 114, 55, 7%) !important;
+        border-radius: 0 !important;
+        /* border-top-left-radius: 30px !important;
+        border-top-right-radius: 30px !important; */
+        padding: 60px 21px !important;
+    }
+    .newsletter-section button.subscribe {
+        padding-block: 14px;
+    }
+
+    /* FOOTER LOGO  */
+    .footer-area .footer-item .footer-logo {
+        text-align: center;
+    }
+    .footer-area .footer-item .list-items {
+        text-align: left;
+    }
+
+
+}
+
+@media screen and (min-width: 320px) and (max-width: 425px) {
+    .main_search .nav li {
+        flex: 50% !important;
+    }
+
+    /* INFO AREA  */
+    .info-area {
+        padding: 1rem !important;
+    }
+}
+
+@media screen and (min-width: 320px) and (max-width: 767px) {
+    .row:has(.flight_types) {
+        margin-block: unset !important;
+        padding-top: unset !important;
+        margin-bottom: 8px !important;
+    }
+}
+
+@media screen and (min-width: 320px) and (max-width: 1023px) {
+    .hero {
+        display: none;
+    }
+
+    .main_search .bgw.rounded-3 {
+        /* padding-top: 130px; */
+        padding-top: 50px;
+    }
+}
+
+@media screen and (min-width: 425px) and (max-width: 767px) {
+    /* FOOTER NAVLINKS  */
+    .dropdown-menu-item .col-md-4 {
+        flex: 50% !important;
+        white-space: nowrap;
+    }
+}
+
+@media screen and (min-width: 768px) {
+    /* NEWS LETTER  */
+    .newsletter-section > div {
+        background-color: rgba(254, 114, 55, 7%) !important;
+        border-radius: 0 !important;
+        /* border-top-left-radius: 70px !important;
+        border-top-right-radius: 70px !important; */
+        padding: 100px 50px !important;
+    }
+
+    /* .newsletter-section div.col-12.col-md-3:not(:first-of-type :last-of-type) {
+        flex: 30%;
+    }
+    .newsletter-section div.col-12.col-md-3:last-of-type {
+        flex: 20%;
+    } */
+
+    /* FOOTER LOGO && NAVLINK */
+    .footer-area .footer-item .footer-logo {
+        text-align: left;
+    }
+
+    .footer-area .featured .col-lg-3.responsive-column {
+        flex: 25%;
+    }
+    .footer-area .featured .col-lg-9.responsive-column {
+        flex: 75%;
+    }
+
+    /* FOOTER TERMS AND MEDIA ELEMENTS  */
+    /* .footer-area .col-lg-8:has(.term-box) {
+        flex: 33.33%;
+    }
+    .footer-area .col-lg-4:has(.footer-social-box) {
+        flex: 66.66%;
+    }
+    .footer-area .col-lg-4:has(.footer-social-box) .social-profile {
+        justify-content: flex-end;
+    } */
+}
+
+@media screen and (min-width: 1024px) {
+    .hero {
+        background-position: left 90% top;
+    }
+
+    .hero_text {
+        top: 140px;
+    }
+
+    .hero_text h4 {
+        font-size: 35px !important;
+    }
+
+    .hero_text p {
+        font-size: 20px !important;
+    }
+
+    /* FEATURED SECTION  */
+    .hotel-area .section-heading > h4,
+    .round-trip-flight .section-heading h4,
+    .featured_tours > h4 {
+        font-size: 2.5rem;
+    }
+
+    /* FEATURED FLIGHTS  */
+    .round-trip-flight .tab-pane.fade .row > .col-md-3 {
+        flex: 25%;
+    }
+    .round-trip-flight .tab-pane.fade .row > .col-md-3 .card-item.p-2,
+    .round-trip-flight .tab-pane.fade .row > .col-md-3 .card-item.p-2 .card-img,
+    .round-trip-flight .tab-pane.fade .row > .col-md-3 .card-item.p-2 .card-img a {
+        height: 100%;
+
+    }
+    .round-trip-flight .tab-pane.fade .row > .col-md-9 {
+        flex: 75%;
+    }
+
+    /* FOOTER  */
+    /* .footer-area.pt-5 {
+        margin-top: 65px !important;
+    } */
+
+}
+
+@media screen and (min-width: 1200px) {
+    .hero_text {
+        top: 100px;
+    }
+
+    .hero_text h4 {
+        font-size: 52px !important;
+        margin-top: 80px !important;
+    }
+
+    .hero_text p {
+        font-size: 16px !important;
+        display: unset
+    }
+}
+
+
+/* FEATURED SECTION START  */
+
+/* SLIDER CONTROLS  */
+.slick-arrow::before {
+    border-color: var(--heading-clr);
+}
+.slick-arrow:hover {
+    background-color: var(--theme-bg) !important;
+}
+.slick-arrow:hover:before {
+    border-color: #fff;
+}
+
+/* FEATURED SECTION BACKGROUND-COLOR & BORDER RADIUS  */
+.hotel-area .featured,
+.round-trip-flight,
+.featured_tours,
+.hotel-area.featured_flights {
+    background: transparent !important;
+    border-radius: 10px !important;
+}
+
+/* FEATURES SECTION HEADING & SUB HEADING  */
+.hotel-area .section-heading > h4,
+.round-trip-flight .section-heading h4,
+.featured_tours > h4 {
+    color: var(--heading-clr);
+}
+.round-trip-flight .section-heading small,
+.featured_tours > small {
+    color: var(--subheading-clr);
+    font-size: 16px;
+}
+
+/* DISCOVER GRETA DEALS  */
+.hotel-area .col-12.col-md-12 > .card-item.p-2 div.pt-5,
+.round-trip-flight .tab-pane.fade .row > .col-md-3 div.pt-5  {
+    background: linear-gradient(to bottom,transparent, var(--theme-bg)) !important;
+}
+
+/* FEATURED HOTELS  */
+.hotel-area .card-item.p-2 {
+    background-color: transparent;
+    padding: 0 !important;
+}
+.hotel-area .card-item.p-2>.bg-white.p-3 {
+    display: none;
+}
+.hotel-area .card-item.p-2>.card-img img {
+    height: 350px !important;
+    object-fit: cover;
+}
+.hotel-area .col-12.col-md-12>.card-item.p-2 img {
+    min-height: 350px !important;
+}
+
+.container:has(.featured_tours.featured),
+.container:has(.hotel-area:last-of-type) {
+    margin-top: 48px;
+}
+
+/* FEATURED SECTION END  */
+
+/* NEWLETTER START  */
+
+/* .newsletter-section div.col-12.col-md-3:first-of-type {
+    display: none;
+} */
+
+/* INPUT  */
+.newsletter-section .form-floating input[type="text"]:focus {
+    border-color: var(--theme-bg);
+}
+
+/* LABELS  */
+.newsletter-section .form-floating label {
+    color: var(--subheading-clr);
+    font-size: 13px;
+    font-weight: bold;
+}
+
+/* SUBSCRIBE BTN  */
+.newsletter-section .subscribe {
+    border-color: var(--theme-bg);
+    background-color: var(--theme-bg);
+    color: #fff !important;
+    white-space: nowrap;
+}
+
+/* WHEN ACTIVE  */
+.newsletter-section .subscribe:active {
+    border-color: var(--theme-bg) !important;
+    background-color: var(--theme-bg) !important;
+    color: #fff !important;
+    opacity: 0.8 !important;
+}
+
+/* NEWLETTER END  */
+
+/* INFO BOX START */
+.info-area.info-bg {
+    border-radius: 10px !important;
+}
+
+.info-area .icon-box div.mt-4 h4 {
+    font-size: 16px;
+}
+.info-area .icon-box div.mt-4 p {
+    font-size: 14px;
+}
+
+/* INFO BOX END */
+
+
+/* FOOTER START  */
+
+.footer-area {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+}
+
+.footer-area > .container > .featured {
+    border-width: 0 !important;
+    /* border-radius: 10px !important; */
+    border-radius: 0px !important;
+    background: transparent !important;
+    /* background: rgba(254, 114, 55, 7%) !important; */
+}
+
+.footer-area .row.my-3 {
+    margin-block: 0 !important;
+}
+
+.footer-area .dropdown-menu-item.row li>a {
+    color: var(--subheading-clr) !important;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.footer-area .footer-item li:first-of-type>strong {
+    font-weight: 400 !important;
+}
+
+.footer-area .term-box.footer-item>ul {
+    color: var(--subheading-clr) !important;
+    font-size: 12px !important;
+}
+
+/* SOICAL MEDIA ICONS  */
+
+.footer-area .footer-social-box .social-profile {
+    display: flex;
+    gap: 3px;
+}
+.footer-area .footer-social-box li {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #fff;
+    border-radius: 100%;
+    box-shadow: 0px 0px 20px -8px rgba(99, 99, 99, 0.34);
+    height: 40px;
+    width: 40px;
+    margin-bottom: 10px;
+}
+.footer-area .footer-social-box li:hover {
+    background-color: var(--theme-bg);
+}
+
+/* FOOTER END  */
+
+
+
+

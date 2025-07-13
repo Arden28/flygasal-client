@@ -1,0 +1,62 @@
+.hero::after {
+    background-image: none;
+    display: none;
+}
+
+.hero:before {
+    background: none;
+    display: none;
+}
+
+.hero {
+    background-image : none;
+    background : none;
+    min-height: 400px;
+}
+
+.hotel-area,.featured,.featured_tours,.home-body-container,.newsletter-section,.featured_flights {
+    display: none;
+}
+
+/* .main_search {
+    background : #1e1e1e !important
+} */
+
+.main_search .form-check-label {
+    /* color : #fff !important */
+}
+
+.border.rounded.p-3.main_search.bg-white {
+    border: 0px !important;
+}
+
+.main_search.rounded-F3 {
+    border-radius: 10px !important;
+    /* overflow: hidden; */
+}
+
+.homepage {
+    background: #0a6fe2;
+    padding-bottom: 50px !important;
+}
+
+.hero_text {
+    display: none;
+}
+
+.hide_loading {
+    background-color: #fff !important;
+}
+
+[data-aos="fade-up"]{
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.header_menu {
+    display: none;
+}
+
+.mobile_apps {
+    display: none;
+}

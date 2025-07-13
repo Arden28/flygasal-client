@@ -1,0 +1,740 @@
+/* theme color  */
+:root {
+  --theme-bg: #399af4 !important;
+  --navbar-link: #234;
+  /* --navbar-link-hover: #212529; */
+
+  --navbar-link-drop: #6d8494;
+  /* --icon-clr: #626d78; */
+  /* --border-clr: #a4adb5; */
+
+  --search-btn: #f58220;
+  --search-btn-hover: #e26d0a;
+
+  /* --heading-clr: var(--navbar-link-drop); */
+  /* --subheading-clr: var(--navbar-link-drop); */
+}
+
+
+body {
+   line-height: 1.5;
+}
+
+header {
+  border-bottom: 1px solid #c4c4c4;
+}
+
+/* NAVBAR START  */
+
+/* @HEADER LEFT NAVLINKS */
+.navbar-nav .nav-link {
+  border: 1px solid transparent;
+  border-radius: 4px;
+  min-height: unset;
+  padding: 5px 9px !important;
+  color: var(--navbar-link);
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  text-transform: capitalize !important;
+}
+.navbar-nav .nav-link::before {
+  content: unset;
+}
+/* ### STATE ###  */
+/* HOVER  */
+.navbar-nav .nav-link {
+  background: unset !important;
+}
+
+/* @HEADER RIGHT NAVLINKS */
+.nav-link.dropdown-toggle::after {
+  content: unset;
+}
+
+.nav-link.dropdown-toggle strong {
+  color: var(--navbar-link) !important;
+  font-weight: initial;
+  font-weight: 400 !important;
+  line-height: inherit !important;
+  text-transform: capitalize;
+}
+/* ### STATE ### */
+/* HOVER  */
+.nav-link.dropdown-toggle:hover strong {
+  color: var(--theme-bg) !important;
+}
+.nav-link.dropdown-toggle:hover svg {
+  stroke: var(--theme-bg);
+}
+
+/* DROPDOWN ITEMS  */
+.nav-item--right .dropdown-item {
+  color: var(--navbar-link-drop);
+  font-size: 14px !important;
+}
+.nav-item--right .dropdown-item span,
+.nav-item--right .dropdown-item strong,
+.nav-item--right .dropdown-item small {
+  font-size: 14px !important;
+  font-weight: initial !important;
+}
+/* ### STATE ###  */
+/* HOVER  */
+.nav-item--right .dropdown-item:hover {
+  background-color: transparent;
+}
+.nav-item--right .dropdown-item:hover strong {
+  color: var(--navbar-link-drop) !important;
+}
+
+/* NVABAR END  */
+
+
+.homepage {
+  background: #e1e1e1;
+  color: #000;
+}
+
+.hero_text h4 strong {
+  color: #000;
+  font-weight: bold !important;
+}
+
+.hero~.container .hero_text p {
+  color: #000 !important;
+}
+
+.main_search .nav.nav-tabs .nav-link span {
+  color: #000;
+}
+
+.main_search .nav-item .nav-link svg {
+  fill: #000 !important
+}
+
+/* HERO START  */
+
+div.mb-0:has(> .hero) {
+  position: relative;
+  background: url("http://localhost/v9/uploads/global/bg.png") no-repeat;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  margin-bottom: 48px !important;
+  /* padding-block: 35px 54px; */
+  z-index: 1;
+}
+div.mb-0:has(> .hero)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-color: #000;
+  width: 100%;
+  height: 100%;
+  opacity: 0.6;
+  z-index: -1;
+}
+
+.hero {
+  display: none;
+}
+
+/* @HERO CONTAINER  */
+.hero~.search-panel {
+  display: flex;
+  flex-direction: column;
+  margin-top: unset !important;
+  margin-bottom: unset !important;
+}
+
+/* @HERO TEXT  */
+.search-panel .hero_text {
+  /* margin-block: 48px 8px; */
+  margin-top: 48px;
+}
+.hero~.container .hero_text h4,
+.hero~.container .hero_text p {
+  position: unset;
+  margin-top: unset;
+}
+.hero~.container .hero_text h4 {
+  line-height: 1.1;
+}
+.hero~.container .hero_text p {
+  line-height: 1.2;
+}
+
+.main_search.rounded-F3 {
+  border-radius: unset !important;
+  /* margin-top: 48px; */
+}
+
+.main_search .bgw.rounded-3 {
+  background-color: unset;
+  border-radius: unset !important;
+}
+
+/* @LOADING ANIMATION  */
+.main_search .hide_loading.featured {
+  position: absolute;
+  top: 0;
+  left: 0;
+  min-height: unset !important;
+  height: 100%;
+  width: 100%;
+  background-color: #fff !important;
+  border-radius: 6px !important;
+}
+
+/* @HERO NAVTABS  */
+.main_search .nav.nav-tabs {
+  /* background-color: unset; */
+  backdrop-filter: unset;
+}
+
+.main_search .nav.nav-tabs .nav-item {
+  color: #fff;
+}
+.main_search .nav.nav-tabs .nav-link {
+  border-bottom: unset !important;
+  height: 100%;
+  font-weight: normal;
+}
+
+
+/* WHEN ACTIVE  */
+.main_search .nav.nav-tabs .nav-link.active {
+  background-color: rgba(57, 154, 244, .8) !important;
+  /* border-top-right-radius: 4px !important;
+  border-top-left-radius: 4px !important; */
+  color: #fff !important;
+}
+
+.main_search .nav-item .nav-link.active span {
+  color: #fff !important;
+}
+
+.main_search .nav-item .nav-link.active svg {
+  fill: #fff !important;
+}
+
+/* ### STATE ###  */
+/* HOVER  */
+.main_search .nav-item .nav-link:hover,
+.main_search .nav-item .nav-link:focus {
+  background: transparent !important;
+  color: #fff;
+}
+
+/* @HERO NAVCONTENT START */
+
+/* SEARCH INPUT ICON */
+#tab-flights .input-items>.show.active svg path:last-child,
+#tab-cars .input-items>.show.active svg path:last-child {
+  fill: var(--theme-bg);
+}
+#tab-hotels .input-items>.show.active svg,
+#tab-tours .input-items>.show.active svg,
+#tab-flights .form-floating label svg,
+#tab-hotels .form-floating label svg,
+#tab-tours .form-floating label svg,
+#tab-cars .form-floating label svg {
+  stroke: var(--theme-bg);
+}
+
+/* SEARCH INPUT LABEL  */
+#tab-flights .form-floating label,
+#tab-hotels .form-floating label,
+#tab-tours .form-floating label,
+#tab-cars .form-floating label {
+  color: var(--navbar-link-drop) !important;
+  font-size: 12px;
+  font-weight: 400 !important;
+  opacity: 1;
+}
+
+/* SEARCH INPUT  */
+.main_search .input-items .select2-selection,
+.main_search input:not([type="radio"], .qtyBtn input),
+.main_search .dropdown-btn {
+  border: unset;
+  border-radius: 4px;
+}
+/* ### STATE ###  */
+/* HOVER  */
+.main_search .input-items .select2-selection:hover,
+.main_search input:not([type="radio"], .qtyBtn input):hover,
+.main_search .dropdown-btn:hover {
+  background-color: #fff !important;
+  border: unset;
+}
+/* FOCUS  */
+.main_search .input-items .select2-selection:focus,
+.main_search input:not([type="radio"]):focus,
+.main_search .dropdown-btn:focus {
+  background-color: #fff !important;
+  border: unset;
+}
+
+/* SEARCH INPUT VALUE*/
+.main_search .guest_flights,
+.main_search .select2-selection__rendered .mt-1,
+.main_search .select2-selection__rendered .mt-2,
+.main_search .form-control,
+.main_search .guest_cars,
+.main_search .guest_hotels,
+.main_search .roomTotal,
+.main_search .select2-selection__rendered,
+.main_search .guest_tours,
+.main_search .dropdown-btn,
+.main_search .form-select {
+  color: var(--navbar-link) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+}
+
+/* SEARCH DROPDOWN SVG  */
+#tab-flights .dropdown.dropdown-contain .dropdown-btn svg,
+#tab-hotels .dropdown.dropdown-contain .dropdown-btn svg,
+#tab-tours .dropdown.dropdown-contain .dropdown-btn svg,
+#tab-cars .dropdown.dropdown-contain .dropdown-btn svg {
+  stroke: var(--theme-bg) !important;
+}
+
+/* SEARCH DROPDOWN LIST  */
+.main_search .dropdown-menu-wrap {
+  /* border: unset; */
+  border-radius: 4px;
+  margin-top: 2px;
+  box-shadow: 0 10px 15px rgba(0,0,0,.05);
+}
+.main_search .dropdown-menu-wrap label {
+  color: var(--navbar-link);
+  font-size: 14px;
+  font-weight: normal;
+}
+.main_search .dropdown-menu-wrap small {
+  color: var(--navbar-link-drop);
+  font-size: 12px;
+  font-weight: normal !important;
+}
+.main_search .dropdown-menu-wrap input {
+  color: var(--navbar-link);
+  font-size: 16px;
+}
+.main_search .dropdown-menu-wrap svg {
+  stroke: var(--navbar-link);
+  stroke-width: 1;
+}
+/* ### STATE ###  */
+/* HOVER  */
+.main_search .dropdown-menu-wrap .qtyDec:hover,
+.main_search .dropdown-menu-wrap .qtyInc:hover,
+.main_search .dropdown-menu-wrap .roomDec:hover,
+.main_search .dropdown-menu-wrap .roomInc:hover {
+  background-color: unset;
+}
+
+/* TABS CONTAINER  */
+.main_search #tab-group-events {
+  background-color: rgba(57, 154, 244, .8) !important;
+  border: unset !important;
+  min-height: 180px;
+}
+
+/* FLIGHTS MODULE  */
+.row:has(.flight_types) {
+  margin-block: unset !important;
+  padding-top: unset !important;
+  margin-bottom: 8px !important;
+}
+
+#tab-flights .form-check input {
+  background-color: unset;
+  border-color: #fff !important;
+}
+#tab-flights .form-check label {
+  color: #fff;
+  font-weight: 500;
+}
+
+/* USER SELECT  */
+#tab-flights .form-select {
+  background-color: hsla(0, 0%, 100%, .1);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-size: unset;
+  border: unset;
+  color: #fff !important;
+}
+#tab-flights .form-select option {
+  color: var(--navbar-link-drop);
+}
+
+/* FLIGHTS SWAP  */
+div:has(> #swap) {
+  position: relative;
+}
+.main_search #swap {
+  z-index: 1;
+}
+
+.main_search .swap-places {
+  background: var(--theme-bg);
+  border: unset;
+  width: 36px;
+  height: 36px;
+  margin-top: unset;
+  margin-left: unset;
+  transform: unset;
+  -webkit-transform: unset;
+}
+.main_search .swap-places svg {
+  fill: #fff;
+}
+/* ### STATE ### */
+/* HOVER  */
+.main_search .swap-places {
+  width: 36px;
+  height: 36px;
+}
+
+/* SEARCH BTN  */
+.main_search .search_button {
+  background-color: var(--search-btn) !important;
+  border-color: var(--search-btn) !important;
+  border-radius: 4px !important;
+}
+/* ### STATE ###  */
+/* HOVER  */
+.main_search .search_button:hover {
+  background-color: var(--search-btn-hover) !important;
+  border-color: var(--search-btn-hover) !important;
+}
+
+/* @HERO NAVCONTENT END */
+
+/* HERO END  */
+
+/* FEATURES START  */
+
+/* @SLICK CONTROLS  */
+.slick-arrow {
+  border: unset !important;
+  box-shadow: -1px 0 0 rgba(0, 0, 0, .1), 4px 0 4px rgba(0, 0, 0, .1);
+}
+.slick-arrow::before {
+  border-color: var(--theme-bg);
+}
+/* ### STATE ### */
+/* HOVER  */
+.slick-arrow:hover {
+  background-color: #fff !important;
+}
+
+/* @FEATURED BACKGROUND COLOR  */
+.featured {
+  background: transparent !important;
+}
+
+/* @FEATURED HEADING  */
+.section-heading,
+.featured_tours {
+  text-align: left !important;
+}
+.section-heading h4,
+.featured_tours>h4 {
+  color: var(--navbar-link);
+}
+
+/* @FEATURED SUBHEAIDNG  */
+.round-trip-flight .section-heading small,
+.featured_tours>small {
+  color: var(--navbar-link-drop);
+  font-size: 16px;
+}
+
+/* FEATURES END  */
+
+/* INFO AREA START  */
+
+/* @HEADING  */
+.info-area .icon-box h4 strong {
+  font-size: 16px;
+  font-weight: 500;
+}
+/* @DESCRIPTION  */
+.info-area .icon-box .info__desc {
+  font-size: 14px;
+  font-weight: normal;
+}
+
+/* INFO AREA END  */
+
+/* NEWSLETTER START  */
+
+.newsletter-section {
+  background-color: unset !important;
+  margin-top: 40px !important;
+  padding: unset !important;
+}
+.newsletter-section > .container {
+  background-color: #f1f4f7;
+  border-radius: 4px !important;
+  padding: 35px 24px;
+}
+
+/* @FIRST CHILD  */
+.newsletter-section .row > :first-of-type {
+  width: 100%;
+  margin-bottom: 24px;
+}
+.newsletter-section .row > :first-of-type .d-flex {
+  justify-content: center !important;
+}
+.newsletter-section .row > :first-of-type h5 {
+  font-size: 24px !important;
+  color: var(--navbar-link);
+}
+.newsletter-section .row > :first-of-type svg {
+  stroke: var(--navbar-link);
+}
+
+/* @INPUT  */
+.newsletter-section input {
+  border: unset !important;
+  border-radius: 4px;
+  color: var(--navbar-link-drop) !important;
+  font-size: 14px;
+  font-weight: 500 !important;
+}
+.newsletter-section label {
+  opacity: 1;
+  color: var(--navbar-link-drop);
+  font-size: 14px;
+}
+/* ### STATE ### */
+/* HOVER  */
+.newsletter-section input:hover {
+  background: #fff !important;
+  border: unset !important;
+}
+
+/* @SUBSCRIBE BTN  */
+.newsletter-section .subscribe {
+  background-color: var(--search-btn);
+  border-color: var(--search-btn);
+  color: #fff;
+  font-weight: normal;
+}
+/* ### STATE ### */
+/* HOVER & ACTIVE */
+.newsletter-section .subscribe:hover,
+.newsletter-section .subscribe:active {
+  background-color: var(--search-btn-hover);
+  border-color: var(--search-btn-hover);
+}
+
+/* NEWSLETTER END  */
+
+
+
+@media screen and (min-width: 0px) {
+
+  body {
+    background-color: #eaf0f3;
+  }
+
+  /* HERO START  */
+
+  div.mb-0:has(> .hero) .container {
+    padding: 0;
+  }
+
+  /* @NAVTABS  */
+  .main_search .nav.nav-tabs {
+    background-color: var(--theme-bg);
+    border-radius: 0;
+  }
+  .main_search .nav.nav-tabs .nav-item {
+    margin: 0;
+    flex: 1;
+  }
+
+  .main_search .nav.nav-tabs .nav-link {
+    gap: 16px;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    border: unset;
+    padding: 16px 8px;
+    font-size: 18px;
+    z-index: 1;
+  }
+  .main_search .nav.nav-tabs .nav-link::before {
+    display: none;
+    top: unset;
+    right: unset;
+    bottom: 2px;
+    left: 0;
+    background-color: #fff;
+    width: 100%;
+    height: 4px;
+    margin-top: 0;
+    z-index: -1;
+  }
+  .main_search .nav.nav-tabs .nav-link span {
+    text-align: center;
+    line-height: 0.8;
+  }
+
+  /* WHEN ACTIVE  */
+  .main_search .nav.nav-tabs .nav-link.active::before {
+    display: inline-block;
+  }
+
+  /* @NAVTABS CONTENT  */
+  .main_search #tab-group-events {
+    border-radius: 0 !important;
+  }
+
+  /* @FLIGHTS SWAP  */
+  .main_search #swap {
+    top: -22px;
+    transform: translateX(-50%);
+  }
+
+  /* HERO END  */
+
+  /* NEWSLETTER START  */
+
+  .newsletter-section .subscribe {
+    height: 58px !important;
+  }
+  /* (@HINT)Select ALL EXPECT FIRST & LAST  */
+  .newsletter-section .row > *:not(:first-of-type, :last-of-type) {
+    margin-bottom: 24px;
+  }
+
+  /* NEWSLETTER END  */
+
+  /* FOOTER START  */
+
+  /* FOOTER END  */
+}
+
+@media screen and (min-width: 576px) {
+
+  body {
+    background-color: unset;
+  }
+
+  /* HERO START  */
+
+  div.mb-0:has(> .hero) {
+    padding-block: 20px 54px;
+  }
+
+  /* @HERO TEXT  */
+  .hero_text {
+    display: block;
+  }
+  .hero_text h4 {
+    font-size: 24px !important;
+  }
+  .hero_text h4 strong {
+    font-weight: 500 !important;
+  }
+
+  .main_search.rounded-F3 {
+    margin-top: 40px;
+  }
+
+  /* @NAVTABS  */
+  .main_search .nav.nav-tabs {
+    background-color: transparent;
+  }
+  .main_search .nav.nav-tabs .nav-link {
+    gap: 8px;
+    flex-direction: row;
+    font-size: 14px;
+  }
+  .main_search .nav.nav-tabs .nav-link::before {
+    content: unset;
+  }
+
+  /* WHEN ACTIVE  */
+  .main_search .nav.nav-tabs .nav-link {
+    border-top-right-radius: 4px !important;
+    border-top-left-radius: 4px !important;
+  }
+
+  /* @NAVTBAS CONTENT  */
+  .main_search #tab-group-events {
+    border-bottom-right-radius: 4px !important;
+    border-bottom-left-radius: 4px !important;
+  }
+
+  /* HERO END  */
+}
+
+@media screen and (min-width: 768px) {
+  /* HERO START  */
+
+  /* @NAVTABS  */
+  .main_search .nav.nav-tabs .nav-item {
+    flex: unset;
+  }
+
+  .main_search .nav.nav-tabs .nav-link {
+    padding: 12px 20px;
+  }
+
+  /* @NAVTABS CONTENT START */
+  .main_search #tab-group-events {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-top-right-radius: 4px !important;
+  }
+
+  /* SEARCH DROPDOWN ICONS */
+  .dropdown-btn::after {
+    right: 8px;
+  }
+  /* @NAVTABS CONTENT START */
+
+  /* @FLIGHTS SWAP  */
+  .main_search #swap {
+    top: 50%;
+    left: -18px;
+    transform: translateY(-50%);
+  }
+
+  /* HERO END  */
+
+  /* NEWSLETTER START  */
+
+  /* (@HINT)@SLECT ALL COLUMNS EXPECT FIRST ONE  */
+  .newsletter-section .row > *:not(:first-of-type) {
+    width: 33.33%;
+  }
+
+  /* NEWSLETTER END  */
+
+  /* FOOTER START  */
+
+  .footer-area>.container {
+    padding-block: 24px 0;
+  }
+
+  /* @POWER BY  */
+  .footer-area>.container>.mt-4,
+  .footer-area>.container>div:has(.container) {
+      display: block;
+  }
+
+  /* FOOTER END  */
+}
+
+ 

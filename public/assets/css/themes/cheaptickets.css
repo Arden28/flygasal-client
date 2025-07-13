@@ -1,0 +1,548 @@
+/* theme color  */
+:root {
+    --theme-bg: rgb(0, 86, 169);
+    --nav-link: rgb(255, 255, 255);
+    --nav-link-hover: rgb(255, 255, 255, .12);
+    --search-btn: #ffdb74;
+    --subheading-clr: #4D6F93;
+}
+
+/* ==================== media queries ========================= */
+@media screen and (min-width: 320px) {
+
+    .container {
+        max-width: 100%;
+    }
+
+    /* HERO CONTAINER  */
+    .hero + .container {
+        padding: 0;
+    }
+
+    /* FEATURDE HEADING & SUB HEADING  */
+    .hotel-area .section-heading h4,
+    .featured_flights .section-heading h4,
+    .featured_tours h4,
+    h4.sec__title {
+        font-size: 22px;
+    }
+    .featured_flights .section-heading small, .featured_tours small {
+        font-size: 13px;
+    }
+
+
+}
+
+@media screen and (min-width: 425px) {
+    /* HERO NAVTABS  */
+    .main_search .nav li {
+        flex: unset !important;
+    }
+}
+
+@media screen and (min-width: 320px) and (max-width: 767px) {
+    .row:has(.flight_types) {
+        margin-block: unset !important;
+        padding-top: unset !important;
+        margin-bottom: 8px !important;
+    }
+}
+
+
+@media screen and (min-width: 768px) {
+    .container {
+        max-width: 750px !important;
+    }
+
+    /* HERO CONTAINER  */
+    .hero + .container {
+        max-width: 100% !important;
+        padding: 0;
+    }
+
+
+
+
+}
+
+@media screen and (min-width: 992px) {
+    .container {
+        max-width: 970px !important;
+    }
+
+    /* HERO CONTAINER  */
+    .hero + .container {
+        max-width: 970px !important;
+        padding: 0;
+    }
+
+    /* FEATURED HEADING & SUBHEADING  */
+    .hotel-area .section-heading h4,
+    .featured_flights .section-heading h4,
+    .featured_tours h4,
+    h4.sec__title {
+        font-size: 36px;
+    }
+    .featured_flights .section-heading small, .featured_tours small {
+        font-size: 20px;
+    }
+
+     
+
+}
+
+@media screen and (min-width: 1024px) {
+    .hero_text,
+    .main_search .nav.nav-tabs,
+    #tab-group-events {
+        padding-inline: 51px !important;
+    }
+}
+
+@media screen and (min-width: 1200px) {
+    .container {
+        max-width: 1200px !important;
+    }
+
+    /* HERO CONTAINER  */
+    .hero + .container {
+        max-width: 1200px !important;
+        padding: 0;
+    }
+}
+
+/* ==================== media queries ========================= */
+
+/* body {
+    padding: 0px !important;
+} */
+
+/* HEADER START  */
+
+header {
+    position: absolute !important;
+    background: var(--theme-bg) !important;
+    border-bottom: transparent !important;
+}
+
+/* logo  */
+.logo {
+    /* background: #fff; */
+}
+
+/* HEADER NAVLINKS  */
+
+#navbarSupportedContent .nav-link {
+    color: var(--nav-link) !important;
+}
+.nav-link::before {
+    background-color: hsla(0,0%,100%);
+}
+
+/* HEADER RIGHT NAVLINKS  */
+#navbarSupportedContent .nav-link.dropdown-toggle {
+    background: transparent !important;
+    border: none !important;
+}
+#navbarSupportedContent .nav-link strong {
+    color: var(--nav-link) !important;
+}
+#navbarSupportedContent .nav-link svg {
+    stroke: var(--nav-link);
+}
+/* WHEN HOVER  */
+#navbarSupportedContent .nav-link:hover {
+    background-color: var(--nav-link-hover) !important;
+}
+
+/* DROPDOWN ITEMS  */
+#navbarSupportedContent .dropdown-menu .dropdown-item {
+    /* color: rgb(41, 66, 91); */
+    color: var(--theme-bg);
+}
+/* WHEN HOVER  */
+#navbarSupportedContent .dropdown-menu .dropdown-item:hover {
+    background-color: rgba(204, 204, 204, .26);
+    color: var(--subheading-clr);
+}
+
+/* HEADER END  */
+
+/* HERO SECTION STRAT  */
+
+.hero {
+    position: relative;
+    background-image: url("../../img/cheaptickets.jpg");
+    background-repeat: no-repeat;
+    background-position: center !important;
+    background-size: cover !important;
+    height: 280px;
+    min-height: 280px;
+    margin-top: 0 !important;
+}
+.hero::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.5));
+    opacity: .5;
+}
+.hero:before {
+    content: none;
+}
+
+/* HERO CONTAINER  */
+.hero~.container {
+    margin-top: -190px !important;
+}
+
+/* HERO TEXT  */
+.hero_text {
+    position: relative;
+    /* top: -100px; */
+    padding: 65px 0;
+    color: #000000 !important;
+    justify-content: center;
+}
+.hero_text h4 {
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 34px !important;
+    color: #000000 !important;
+}
+.hero_text p {
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 18px !important;
+    margin-top: -50px !important;
+    color: #000000 !important;
+    white-space: nowrap;
+}
+
+/* HERO NAVTABS & CONTENT  */
+
+/* LOADING ANIMATION  */
+.hide_loading.featured {
+    background-color: var(--theme-bg) !important;
+    min-height: 205px !important;
+    opacity: 0.9;
+}
+
+/* FLIGHT SWAP BUTTON  */
+.main_search .swap-places {
+    border-width: 0;
+    background-color: var(--nav-link);
+    box-shadow: 0 0 20px -9px var(--theme-bg);
+}
+.main_search .swap-places svg {
+    /* fill: rgb(126, 166, 212); */
+    fill: var(--theme-bg);
+}
+.swap-places:hover {
+    background-color: var(--theme-bg);
+    border-color: var(--theme-bg);
+}
+.swap-places:hover svg {
+    fill: var(--nav-link);
+}
+
+.main_search,
+.main_search div.bg-white {
+    border-radius: 0 !important;
+}
+
+/* HERO NAVTABS  */
+.main_search .nav.nav-tabs {
+    background-color: var(--theme-bg);
+    backdrop-filter: unset;
+    border-radius: 0;
+    padding: 0;
+}
+
+.nav.nav-tabs[role="tablist"] .nav-item {
+    margin: 0 !important;
+}
+
+.nav.nav-tabs[role="tablist"] .nav-item>.nav-link {
+    border: none !important;
+    border-radius: 0;
+    /* padding: 16px 24px 12px; */
+    padding: 16px;
+    color: rgb(189, 216, 241) !important;
+    transition: color .5s ease-out;
+}
+.nav.nav-tabs[role="tablist"] .nav-item>.nav-link svg {
+    fill: rgb(189, 216, 241) !important;
+    transition: color .5s ease-out;
+}
+.nav.nav-tabs[role="tablist"] .nav-item>.nav-link::before {
+    content: '';
+    display: none;
+    position: absolute;
+    top: unset !important;
+    right: 0 !important;
+    bottom: 1px;
+    left: 0;
+    background-color: #fff;
+    width: 100%;
+    height: 3px;
+    margin-top: 0;
+    transform: translateY(0%);
+}
+
+/* WHEN HOVER  */
+.nav.nav-tabs[role="tablist"] .nav-item>.nav-link:hover {
+    background-color: transparent;
+}
+
+/* WHEN ACCTIVE  */
+.nav.nav-tabs[role="tablist"] .nav-item>.nav-link.active {
+    background-color: transparent !important;
+    color: var(--nav-link);
+}
+.nav.nav-tabs[role="tablist"] .nav-item>.nav-link.active svg {
+    fill: #fff !important;
+}
+.nav.nav-tabs[role="tablist"] .nav-item>.nav-link.active span {
+    color: var(--nav-link);
+}
+.nav.nav-tabs[role="tablist"] .nav-item>.nav-link.active::before {
+    display: inline-block;
+}
+
+/* HERO NAV CONTENT  */
+#tab-group-events {
+    border: 0 !important;
+    background-color: #00249f !important;
+}
+
+/* FLIGHTS RADIO LABEL  */
+#tab-flights .form-check .form-check-label {
+    color: var(--nav-link);
+}
+/* FLIGHTS RADIO BTN  */
+#tab-flights .form-check .form-check-input {
+    background-color: transparent;
+    border-color: var(--nav-link) !important;
+}
+#tab-flights .form-check .form-check-input:checked {
+    background-color: var(--theme-bg);
+}
+/* FLIGHTS SELECT  */
+.form-select:focus {
+    border-color: var(--theme-bg);
+    outline: 0;
+    box-shadow: 0 0 0 .25rem var(--nav-link);
+}
+
+/* SEARCH INPUT LABELS  */
+#tab-flights .form-floating label,
+#tab-hotels .form-floating label,
+#tab-tours .form-floating label,
+#tab-cars .form-floating label {
+    color: var(--sunheading-clr);
+    opacity: 1;
+}
+/* HERO SEARCH INPUT ICONS  */
+#tab-flights .input-items>.show.active svg path:last-child,
+#tab-cars .input-items>.show.active svg path:last-child {
+    fill: rgb(189, 216, 241);
+}
+#tab-flights .form-floating label svg,
+#tab-hotels .form-floating label svg,
+#tab-tours .form-floating label svg,
+#tab-cars .form-floating label svg {
+    stroke: rgb(189, 216, 241);
+}
+#tab-hotels .input-items>.show.active svg,
+#tab-tours .input-items>.show.active svg {
+    stroke: rgb(189, 216, 241);
+}
+#tab-flights .dropdown.dropdown-contain .dropdown-btn svg,
+#tab-hotels .dropdown.dropdown-contain .dropdown-btn svg,
+#tab-tours .dropdown.dropdown-contain .dropdown-btn svg,
+#tab-cars .dropdown.dropdown-contain .dropdown-btn svg {
+    stroke: rgb(189, 216, 241);
+}
+
+/* USER INPUT SELECTED TEXT  */
+.guest_flights, .select2-selection__rendered .mt-1,
+.select2-selection__rendered .mt-2,
+.form-control, .guest_cars, .guest_hotels, .roomTotal,
+.select2-selection__rendered, .guest_tours, .form-select {
+    color: rgb(41, 66, 91) !important;
+}
+
+/* USER INPUT SELECTED DROPDOWN  */
+#tab-flights .dropdown.dropdown-contain .dropdown-btn,
+#tab-hotels .dropdown.dropdown-contain .dropdown-btn,
+#tab-tours .dropdown.dropdown-contain .dropdown-btn,
+#tab-cars .dropdown.dropdown-contain .dropdown-btn {
+    color: rgb(41, 66, 91);
+    font-weight: bold;
+}
+
+/* USER INPUT BORDER  */
+/* SEARCH INPUT BORDER  */
+#tab-flights .select2-selection.select2-selection--single,
+#tab-hotels .select2-selection.select2-selection--single,
+#tab-tours .select2-selection.select2-selection--single,
+#tab-cars .select2-selection.select2-selection--single,
+#tab-flights .form-floating .form-control,
+#tab-hotels .form-floating .form-control,
+#tab-tours .form-floating .form-control,
+#tab-cars .form-floating .form-control,
+#tab-flights .dropdown-toggle,
+#tab-hotels .dropdown-toggle,
+#tab-tours .dropdown-toggle,
+#tab-cars .dropdown-toggle {
+    background: var(--nav-link) !important;
+    border-color: var(--nav-link);
+}
+/* SEARCH INPUT WHEN HOVER  */
+#tab-flights .select2-selection.select2-selection--single:hover,
+#tab-hotels .select2-selection.select2-selection--single:hover,
+#tab-tours .select2-selection.select2-selection--single:hover,
+#tab-cars .select2-selection.select2-selection--single:hover,
+#tab-flights .form-floating .form-control:hover,
+#tab-hotels .form-floating .form-control:hover,
+#tab-tours .form-floating .form-control:hover,
+#tab-cars .form-floating .form-control:hover,
+#tab-flights .dropdown-toggle:hover,
+#tab-hotels .dropdown-toggle:hover,
+#tab-tours .dropdown-toggle:hover,
+#tab-cars .dropdown-toggle:hover {
+    border-color: var(--theme-bg) !important;
+    box-shadow: 0 0 0 .25rem var(--nav-link) !important;
+}
+
+/* HERO SEARCH BUTTON  */
+.search_button {
+    background: linear-gradient(rgb(255, 242, 62), rgb(247, 222, 0));
+    box-shadow: rgba(0, 0, 0, 0.15) 0px 3px 3px 0px, rgb(230, 187, 0) 0px -3px 0px 0px inset;
+    border-color: #F6E41F;
+}
+.search_button svg {
+    fill: rgb(0, 63, 127) !important;
+}
+.search_button:hover {
+    background-color: var(--search-btn);
+    border-color: var(--search-btn) !important;
+}
+
+/* HERO SECTION END  */
+
+
+/* FEATURD SECTION START  */
+
+/* SLIDER CONTROLS  */
+.slick-arrow::before {
+    border-color: var(--subheading-clr);
+}
+.slick-arrow:hover {
+    background-color: var(--theme-bg) !important;
+}
+.slick-arrow:hover:before {
+    border-color: #fff;
+}
+
+
+/* FEATURED SECTION MARGIN TOP  */
+.container:has(.featured_tours.featured),
+.container:has(.hotel-area:last-of-type) {
+    margin-top: 48px;
+}
+
+/* FEATURED SECTION BACKGROUND-COLOR & BORDER RADIUS  */
+.hotel-area .featured,
+.round-trip-flight,
+.featured_tours,
+.hotel-area.featured_flights {
+    border-radius: 0px !important;
+}
+
+/* FEATURES SECTION HEADING & SUB HEADING  */
+.section-heading {
+    text-align: left !important;
+}
+.hotel-area .section-heading > h4,
+.round-trip-flight .section-heading h4,
+.featured_tours > h4 {
+    color: var(--theme-bg);
+    text-align: left;
+    font-weight: 600;
+}
+.round-trip-flight .section-heading small,
+.featured_tours > small {
+    color: var(--subheading-clr);
+}
+
+/* DISCOVER GREAT DEALS  */
+.hotel-area .col-12.col-md-12 > .card-item.p-2 div.pt-5,
+.round-trip-flight .tab-pane.fade .row > .col-md-3 div.pt-5  {
+    background: linear-gradient(to bottom,transparent, var(--theme-bg)) !important;
+}
+
+/* FEATURED SECTION END  */
+
+/* INFOBOX START  */
+
+.info-area.info-bg {
+    background: var(--theme-bg);
+    border-radius: 0 !important;
+}
+
+/* INFOBOX END  */
+
+/* NEWLETTER START  */
+
+.newsletter-section {
+    margin-top: 48px !important;
+}
+.newsletter-section > .rounded-4 {
+    border-radius: 0 !important;
+}
+
+.newsletter-section .col-12.col-md-3 > .d-flex svg {
+    stroke: var(--subheading-clr);
+}
+.newsletter-section .col-12.col-md-3 > .d-flex h5 {
+    color: var(--subheading-clr);
+}
+
+/* INPUT  */
+/* NEWS LETTER START */
+.newsletter-section .form-control:hover {
+    background: white !important;
+}
+.newsletter-section .form-control:focus {
+    border-color: var(--theme-bg);
+}
+/* LABELS  */
+.newsletter-section .form-floating label {
+    color: var(--subheading-clr);
+    font-weight: bold;
+}
+
+/* SUBSCRIBE BTN  */
+.newsletter-section .subscribe {
+    border-color: var(--theme-bg);
+    background-color: var(--theme-bg);
+    padding-block: 17.5px;
+    color: #fff !important;
+}
+/* WHEN ACTIVE  */
+.newsletter-section .subscribe:active {
+    border-color: var(--theme-bg) !important;
+    background-color: var(--theme-bg) !important;
+    color: #fff !important;
+    opacity: 0.8 !important;
+}
+
+/* NEWLETTER END  */
+
+
+/* FOOTR END  */

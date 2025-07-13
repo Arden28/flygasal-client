@@ -1,0 +1,748 @@
+/* theme color  */
+:root {
+  --theme-bg: #008768 !important;
+  --navbar-link: #000000;
+  /* --navbar-link-hover: #212529; */
+
+  /* --navbar-link-drop: #343a40; */
+  /* --icon-clr: #626d78; */
+
+  /* --border-clr: #a4adb5; */
+  /* --search-btn: var(--theme-bg); */
+
+  /* --heading-clr: var(--navbar-link-drop); */
+  /* --subheading-clr: var(--navbar-link-drop); */
+}
+/* #NAVBAR START  */
+
+header {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+}
+
+/* @HEADER LEFT NAVLINKS START  */
+
+/* @HEADER LEFT NAVLINKS START  */
+.navbar-nav .nav-link {
+  color: var(--navbar-link);
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  text-transform: capitalize !important;
+}
+
+.navbar-nav .nav-link::before {
+  display: none;
+  background-color: var(--navbar-link);
+  width: 100%;
+  margin-top: -6.5px;
+}
+
+/* ### STATE ###  */
+/* HOVER  */
+.navbar-nav .nav-link:hover {
+  background: transparent;
+  color: var(--navbar-link);
+}
+
+.navbar-nav .nav-link:hover::before {
+  display: inline;
+}
+
+/* @HEADER LEFT NAVLINKS END  */
+
+/* @HEADER RIGHT NAVLINKS START  */
+.nav-item--right .navbar-nav {
+  align-items: center;
+}
+
+.nav-link.dropdown-toggle {
+  background-color: transparent !important;
+  border-radius: 30px !important;
+  padding: 13px !important;
+  transition: none;
+}
+
+.nav-link.dropdown-toggle::before,
+.nav-link.dropdown-toggle::after {
+  content: unset;
+}
+
+.nav-link.dropdown-toggle strong {
+  font-weight: initial;
+}
+
+/* LAST OF TYPE  */
+.nav-item--right .nav-item:last-of-type .nav-link.dropdown-toggle {
+  border: 1px solid #D9D9D9 !important;
+  padding: 4px 7px !important;
+}
+
+.nav-item--right .nav-item:last-of-type .nav-link.dropdown-toggle svg:first-of-type {
+  background-color: #B3B3B3;
+  border-radius: 100%;
+  width: 36px;
+  height: 36px;
+  stroke: #fff;
+  fill: #fff;
+  padding-right: unset !important;
+}
+.nav-item--right .nav-item:last-of-type .nav-link.dropdown-toggle svg:first-of-type path {
+  transform: translateY(3px);
+}
+.nav-item--right .nav-item:last-of-type .nav-link.dropdown-toggle svg:first-of-type circle {
+  transform: translateY(4px);
+}
+
+.nav-item--right .nav-item:last-of-type .nav-link.dropdown-toggle strong {
+  display: none;
+}
+
+/* ### STATE ###  */
+/* HOVER  */
+.nav-link.dropdown-toggle:hover {
+  background-color: #F5F5F5 !important;
+}
+
+/* FOCUS  */
+.nav-link.dropdown-toggle:focus {
+  background-color: transparent !important;
+}
+
+/* DROPDOWN ITEMS  */
+.nav-item--right .dropdown-item {
+  color: var(--navbar-link);
+}
+
+/* ### STATE ### */
+/* HOVER  */
+.nav-item--right .dropdown-item:hover {
+  background-color: #F5F5F5;
+  color: var(--navbar-link);
+}
+
+/* ACTIVE  */
+.nav-item--right .dropdown-item:active {
+  background-color: #D9D9D9;
+}
+
+/* @HEADER RIGHT NAVLINKS END  */
+
+/* #NAVBAR END  */
+
+.homepage {
+  padding: 25px 0;
+  position: relative;
+  background: #f1f1f1;
+  min-height: 450px;
+  background-attachment: scroll;
+  background-image: url(../../img/themes/viator/7f.jpg);
+  background-size: cover;
+  /* background-position: top -180px center; */
+  background-position: left bottom;
+  background-repeat: no-repeat;
+
+}
+
+
+/* HERO START  */
+
+div.mb-0:has(> .hero) {
+  position: relative;
+  background-image: url(../uploads/global/bg.png);
+  background-size: cover;
+  background-repeat: no-repeat;
+  margin-bottom: 48px !important;
+  z-index: 1;
+}
+div.mb-0:has(> .hero)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-color: var(--theme-bg);
+  width: 100%;
+  height: 100%;
+  opacity: 0.6;
+  z-index: -1;
+}
+
+.hero {
+  display: none;
+}
+
+/* @HERO CONTAINER  */
+div.mb-0:has(> .hero) .container {
+  max-width: 880px !important;
+}
+
+.hero~.search-panel {
+  margin-top: unset !important;
+  margin-bottom: unset !important;
+  height: 100%;
+}
+
+.hero~.container .hero_text h4,
+.hero~.container .hero_text p {
+  position: unset;
+  margin-top: unset;
+  text-align: center;
+  text-shadow: 0 0.25rem 0.625rem rgba(0,0,0,.25);
+}
+.hero~.container .hero_text h4 {
+  line-height: 1.1;
+}
+.hero~.container .hero_text p {
+  line-height: 1.2;
+}
+
+.main_search .bgw.rounded-3 {
+  background-color: unset;
+}
+
+/* @LOADING ANIMATION  */
+.main_search .hide_loading.featured {
+  position: absolute;
+  top: 0;
+  left: 0;
+  min-height: unset !important;
+  height: 100%;
+  width: 100%;
+  background-color: #fff !important;
+  border-radius: 6px !important;
+}
+
+/* @NAVTABS  */
+.main_search .nav.nav-tabs {
+  gap: 10px !important;
+  background-color: unset !important;
+  backdrop-filter: unset;
+}
+.main_search .nav-item .nav-link {
+  position: relative;
+  border: unset !important;
+  background-color: #fff;
+  border-bottom: 0 !important;
+  border-radius: 30px !important;
+  height: 100%;
+  color: var(--theme-bg) !important;
+  overflow: hidden;
+  z-index: 2;
+}
+.main_search .nav-item .nav-link::before {
+  display: none;
+  right: unset;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  margin-top: unset;
+  transform: translateY(0);
+  z-index: -1;
+}
+
+/* WHEN ACTIVE  */
+.main_search .nav-item .nav-link.active {
+  background-color: transparent !important;
+  border-bottom: 0 !important;
+  color: #fff !important;
+}
+.main_search .nav-item .nav-link.active::before {
+  display: inline-block;
+}
+.main_search .nav-item .nav-link.active svg {
+  fill: #fff !important;
+}
+/* ### STATE ### */
+/* HOVER  */
+.main_search .nav-item .nav-link:hover::before {
+  display: inline-block;
+  opacity: 0.1;
+}
+/* ACTIVE WHEN HOVER  */
+.main_search .nav-item .nav-link.active:hover::before {
+  opacity: 1;
+}
+
+/* @NAVTABS CONTENT START */
+
+/* @GENERAL START  */
+.main_search form > .row {
+  background-color: #fff;
+  margin: 0;
+  /* padding: 0 !important; */
+}
+
+/* DATE  */
+.main_search form >.row .form-floating:has(input[type="text"]) {
+  position: relative;
+}
+/* @GENERAL END  */
+
+/* @CONTAINER  */
+.main_search #tab-group-events {
+  background-color: unset !important;
+  border: unset !important;
+  border-radius: unset !important;
+  padding: 0 !important;
+  /* margin-top: 20px !important; */
+  margin-top: 10px !important;
+}
+
+/* @SEARCH INPUT LABEL  */
+#tab-flights .form-floating label,
+#tab-hotels .form-floating label,
+#tab-tours .form-floating label,
+#tab-cars .form-floating label {
+  font-size: 14px;
+  font-weight: 700 !important;
+  opacity: 1;
+}
+
+/* @SEARCH INPUT ICON */
+#tab-flights .input-items>.show.active svg path:last-child,
+#tab-cars .input-items>.show.active svg path:last-child {
+    fill: #000000;
+}
+#tab-hotels .input-items>.show.active svg,
+#tab-tours .input-items>.show.active svg,
+#tab-flights .form-floating label svg,
+#tab-hotels .form-floating label svg,
+#tab-tours .form-floating label svg,
+#tab-cars .form-floating label svg {
+    stroke: #000000;
+}
+
+/* @USER INPUT */
+.main_search .guest_flights,
+.main_search .select2-selection__rendered .mt-1,
+.main_search .select2-selection__rendered .mt-2,
+.main_search .form-control,
+.main_search .guest_cars,
+.main_search .guest_hotels,
+.main_search .roomTotal,
+.main_search .select2-selection__rendered,
+.main_search .guest_tours,
+.main_search .dropdown-btn,
+.main_search .form-select {
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+/* @USER INPUT  */
+.main_search .input-items .select2-selection,
+/* .main_search input:not([type="radio"], .dropdown-item [type="text"]), */
+.main_search input:not([type="radio"]),
+.main_search .dropdown-btn {
+  border: unset !important;
+  border-radius: 64px;
+  background-color: transparent !important;
+  height: 72px !important;
+}
+/* ### STATE ###  */
+/* HOVER  */
+.main_search .input-items .select2-selection:hover,
+.main_search input:not([type="radio"]):hover,
+.main_search .dropdown-btn:hover {
+  background-color: transparent !important;
+  box-shadow: 0 0 10px 0 rgba(0, 0, 0, .25) !important;
+}
+/* FOCUS  */
+.main_search .input-items .select2-selection:focus,
+.main_search input:not([type="radio"]):focus,
+.main_search .dropdown-btn:focus {
+  background-color: transparent !important;
+  box-shadow: 0 0 10px 0 rgba(0, 0, 0, .25) !important;
+}
+
+/* @SELECT2  */
+.main_search .input-items .select2-selection {
+  padding: 28px 20px !important;
+}
+
+/* @SELECT2 DROPDOWN  */
+.select2-dropdown {
+  top: -73px;
+}
+
+/* @DROPDOWN INPUR  */
+.main_search a.dropdown-toggle {
+  display: flex;
+  align-items: center;
+}
+.main_search a p {
+  margin-bottom: 0;
+}
+
+.main_search .dropdown-item input {
+  border-radius: 35px !important;
+  height: 35px !important;
+}
+
+/* @FLIGHTS MODULE  */
+
+/* RADIO BTN AND USER SELECT CONTAINER  */
+.main_search .row:has(.flight_types) {
+  background-color: #fff !important;
+  margin: 0 0 8px !important;
+  /* padding-top: unset !important; */
+}
+
+/* FLIGHTS LABELS  */
+.main_search #tab-flights .form-check label {
+  font-size: 14px;
+}
+
+/* USE SELECT CONTAINER  */
+.main_search div:has(> #flight_type) {
+  padding: 0 !important;
+}
+/* USER SELECT  */
+.main_search .form-select {
+  border-color: #fff !important;
+  border-radius: 16px;
+}
+/* ### STATE ###  */
+/* FOCUS  */
+.main_search #tab-flights .form-select:focus {
+  border-color: var(--theme-bg) !important;
+  box-shadow: 0 0 0 0.25rem rgb(0, 135, 104, 0.25);
+}
+
+/* FLIGHTS SWAP BTN  */
+.main_search .swap-places {
+  background-color: #fff;
+}
+.main_search .swap-places:hover {
+  background-color: #fff;
+  box-shadow: 0 0 10px 0 rgba(0, 0, 0, .25) !important;
+  border-color: #fff;
+}
+.main_search .swap-places:hover svg {
+  fill: var(--theme-bg);
+}
+
+
+/* @HOTELS MODULE  */
+.main_search #tab-hotels .dropdown-menu .dropdown-item:hover {
+  color: rgb(33, 37, 41);
+}
+
+/* @SEARCH BTN  */
+.main_search .search_button {
+  border-radius: 64px !important;
+}
+.main_search .search_button:hover {
+  background-color: #004D3B !important;
+  border-color: #004D3B !important;
+}
+
+/* @NAVTABS CONTENT END */
+
+/* HERO END  */
+
+/* FEATURED SECTION START  */
+
+/* @SLICK SLIDER  */
+.slick-arrow:hover {
+  background-color: #fff !important;
+  border: 1px solid #B3B3B3 !important;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+}
+
+/* @BG COLOR  */
+.featured {
+  background: rgb(234, 251, 247) !important;
+}
+
+/* @HEADING  */
+.section-heading,
+.featured_tours {
+  text-align: center !important;
+}
+
+/* @SUBHEAIDNG  */
+.round-trip-flight .section-heading small,
+.featured_tours>small {
+  font-size: 16px;
+  text-align: center;
+}
+
+/* FEATURED SECTION END  */
+
+/* INFO AREA START  */
+div:has(> .container > .info-area) {
+  margin-bottom: 48px !important;
+}
+
+/* INFO AREA END  */
+
+/* NEWSLETTER START  */
+.newsletter-section.container {
+  background-color: rgb(234, 251, 247) !important;
+  max-width: 100% !important;
+  margin-block: 48px !important;
+}
+
+.newsletter-section>.rounded-4 {
+  background-color: transparent !important;
+  border: unset !important;
+  border-radius: unset !important;
+}
+
+/* @INPUT  */
+.newsletter-section input {
+  border: unset !important;
+}
+
+/* HOVER  */
+.newsletter-section input:hover {
+  background: #fff !important;
+  border: unset !important;
+}
+
+/* @LABEL  */
+.newsletter-section label {
+  font-size: 14px;
+  opacity: 0.65;
+}
+
+/* @SUBSCRIBE BTN  */
+.newsletter-section .subscribe {
+  border-color: var(--theme-bg) !important;
+  color: var(--theme-bg) !important;
+  padding-block: 14px;
+}
+
+/* HOVER  */
+.newsletter-section .subscribe:hover {
+  background-color: var(--theme-bg);
+  color: #fff !important;
+}
+
+/* NEWSLETTER END  */
+
+
+/* FOOTER AREA END  */
+
+/* MEDIA QUERIES START  */
+@media screen and (min-width: 320px) {
+  /* HERO START  */
+
+  div.mb-0:has(> .hero) {
+    padding-block: 40px;
+  }
+
+  .hero_text {
+    display: block;
+  }
+
+  .hero~.container .hero_text h4 {
+    font-size: 36px;
+  }
+
+  /* @NAVTABS  */
+  .main_search .nav.nav-tabs {
+    gap: 3px !important;
+  }
+  .main_search .nav.nav-tabs li {
+    margin: 0;
+  }
+
+  /* @NAVTABS CONTENT  */
+
+  /* @GENERAL START  */
+  .main_search form > .row {
+    padding-block: 8px !important;
+  }
+
+  /* DATE  */
+  .main_search #tab-flights:has(#round-trip:checked) .form-floating:has(> #departure)::before,
+  .main_search #tab-hotels .form-floating:has(> #checkin)::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: -5px;
+    transform: translateY(-50%);
+    background-color: #D9D9D9;
+    width: 1px;
+    height: 60%;
+  }
+  /* @GENERAL END  */
+
+  .main_search .row:has(.flight_types) {
+    border-radius: 6px;
+  }
+
+  .main_search form > .row {
+    border-radius: 6px;
+  }
+
+  /* HERO END  */
+
+  /* FEATURED SECTION START  */
+
+  /* @HEADING  */
+  .hotel-area .section-heading>h4,
+  .round-trip-flight .section-heading h4,
+  .featured_tours>h4 {
+    font-size: 20px;
+  }
+
+  /* FEATURED SECTION END  */
+
+
+  /* FOOTER SECTION END  */
+}
+
+@media screen and (min-width: 768px) {
+  /* HERO START  */
+
+  /* @GENERAL START  */
+  .main_search form > .row {
+    padding: 0 !important;
+  }
+  .main_search form > .row > * {
+    margin-top: 0;
+  }
+  .main_search form >.row > .show.active {
+    padding-inline-start: 0;
+  }
+
+  /* DATE  */
+  .main_search form >.row .form-floating:has(input[type="text"])::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: -5px;
+    transform: translateY(-50%);
+    background-color: #D9D9D9;
+    width: 1px;
+    height: 60%;
+  }
+
+  /* @GENERAL END  */
+
+  .hero~.container .hero_text h4 {
+    font-size: 44px;
+    margin-bottom: 15px;
+  }
+  .hero~.container .hero_text p {
+    margin-bottom: 30px;
+  }
+
+  /* @NAVTABS  */
+  .main_search .nav.nav-tabs {
+    gap: 10px !important;
+    justify-content: center;
+  }
+  .main_search .nav.nav-tabs li {
+    flex: unset !important;
+    margin: unset !important;
+  }
+
+  /* @NAVTABS CONTENT  */
+  .main_search .row:has(.flight_types) {
+    border-radius: 30px;
+    padding: 8px !important;
+  }
+
+  .main_search form > .row {
+    border-radius: 64px;
+  }
+
+  /* USER TOTAL  */
+  .main_search .dropdown-btn::after {
+    top: 22px;
+    right:4px;
+  }
+
+  /* @FLIGHTS MODULE  */
+
+  /* RADION BTN CONTAINER  */
+  .main_search .flight_types .show.active {
+    margin-block: 0 !important;
+  }
+
+  /* @SEARCH BTN  */
+  .main_search div:has(> .search_button) {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .main_search .search_button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 39px !important;
+    height: 39px !important;
+    padding: 0;
+  }
+
+  /* HERO END  */
+
+  /* FEATURED SECTION START  */
+
+  /* @HEADING  */
+  .hotel-area .section-heading>h4,
+  .round-trip-flight .section-heading h4,
+  .featured_tours>h4 {
+    font-size: 28px;
+  }
+
+  /* FEATURED SECTION END  */
+
+  /* FOOTER SECTION START  */
+
+  .footer-area .featured {
+    padding-inline: 1.5rem !important;
+  }
+
+  .footer-area > .container div:has(> .container) {
+    display: block;
+  }
+
+  /* FOOTER SECTION END  */
+}
+
+@media screen and (min-width: 992px) {
+
+  /* HEADER START  */
+
+  header .container {
+    max-width: 100%;
+  }
+
+  .nav-item--right .nav-item.dropdown:nth-last-of-type(2) .dropdown-menu,
+  .nav-item--right .nav-item.dropdown:last-of-type .dropdown-menu {
+    left: unset !important;
+    right: 0;
+  }
+
+  /* HEADER END  */
+
+  /* HERO START  */
+
+  div.mb-0:has(> .hero) {
+    /* height: 450px; */
+    /* padding-block: 0px; */
+    padding-block: 30px;
+  }
+
+  /* .hero~.search-panel {
+    padding-top: 50px;
+    padding-top: 30px;
+  } */
+
+  /* HERO END  */
+
+  /* FOOTER SECTION START  */
+
+  .footer-area .col-lg-4:has(.social-profile) {
+    margin-top: 0;
+  }
+
+  /* FOOTER SECTION END  */
+
+}
+
+/* MEDIA QUERIES END  */

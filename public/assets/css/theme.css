@@ -1,0 +1,68 @@
+:root{--theme-bg:#1882ff}
+::selection{background:#a8d1ff}
+.dropdown-toggle::after{border-top:none}
+input,select.textarea{outline:0;box-shadow:none!important}
+.input-items .select2-selection:hover{background:rgba(235,235,235,.31);border-color:var(--theme-bg)}
+.main_search input,.search_box input,.search_box select {border:1px solid #c3c3c3}
+.dropdown-btn:hover,.search_box input[type="text"]:hover{border:1px solid var(--theme-bg)!important;background-color:#f4f7fa!important;cursor: pointer;}
+.dropdown-btn,.input-items .select2-selection,input{box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)!important}
+*,:after,:before{--tw-shadow:0px 0px 0px rgba(82,131,173,.25)}
+.form-floating:hover select{box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadows)!important;border:1px solid var(--theme-bg)!important;background-color:#fff}
+.dropdown-btn:hover,.input-items:hover .select2-selection:hover,input:hover,select{box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadows)!important;border:1px solid var(--theme-bg);background-color:#fff}
+input:focus,select:focus{background-color:#f4f7fa!important;border:1px solid var(--theme-bg)!important}
+.nav-pills .nav-link.active,.nav-pills .show>.nav-link{background:#eef4fb!important;color:#000!important}
+.main_search .dropdown-btn:hover,.main_search input[type=text]:hover,select:hover{background-color:#fff;border:1px solid transparent}
+.form-control:focus{border-color:transparent}
+.dropdown-btn:focus{border:1px solid var(--theme-bg);background-color:#f4f7fa}
+.select2-container--default .select2-results__option--highlighted[aria-selected]{background-color:var(--theme-bg)}
+.select2-container--default .select2-results__option--highlighted[aria-selected] .btn{color:#fff!important;border-color:#fff}
+.select2-results__option.select2-results__option--highlighted:hover .btn{color:#fff!important;border-color:#fff}
+.main_search .nav-item .nav-link.active{border-bottom-color:var(--theme-bg)!important;background:rgb(0 0 0 / 6%);fill:var(--theme-bg)}
+.main_search .nav-item .nav-link.active svg{fill:var(--theme-bg)}
+/* .main_search .nav-item .nav-link{font-weight:600;border-color:transparent!important;gap:9px;display:flex;align-items:center;font-size:14px;border-radius:0;padding:12px 16px;color: #393939;} */
+/* .main_search .nav-item .nav-link:hover{background:rgb(238 238 238 / 20%)} */
+.main_search .nav-item .nav-link {
+    font-weight: 600;
+    border-color: transparent !important;
+    gap: 10px;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    border-radius: 0;
+    padding: 14px 23px;
+    color: #393939;
+    border: 0px;
+}
+.main_search .nav.nav-tabs {
+    background: #eef4fb;
+}
+.tab-content{
+    border-radius: 0 0 10px 10px;
+}
+.dropdown-item input{ height: 26px !important;}
+/* .nav-tabs svg{fill:#000000!important} */
+.icon-box .info-icon{color:#fff;border-radius:50%;background:var(--theme-bg);}
+.info-icon svg{stroke:#fff!important;height:26px;width:26px}
+.select2-results{display:block;border-top:transparent;border-bottom-right-radius:3px;border-bottom-left-radius:3px}
+.btn-primary{background-color:var(--theme-bg)}
+.booking-detail-form .form-check:hover{border:1px solid var(--theme-bg)!important}
+.form-check-input:checked{background-color:var(--theme-bg)!important}
+a{color:var(--theme-bg)}
+.bg-primary{background-color:var(--theme-bg)}
+.nav-pills .nav-link.active,.nav-pills .show>.nav-link{background-color:var(--theme-bg)}
+/* .irs--round .irs-handle{border-color:var(--theme-bg)} */
+/* .irs--round .irs-bar{background-color:var(--theme-bg)} */
+/* .irs--round .irs-from,.irs--round .irs-single,.irs--round .irs-to{background-color:var(--theme-bg)} */
+/* .irs--round .irs-from:before,.irs--round .irs-single:before,.irs--round .irs-to:before{border-top-color:var(--theme-bg)} */
+.btn-primary{border-color:var(--theme-bg)}
+.bg-primary{background-color:var(--theme-bg)!important}
+.text-primary{color:var(--theme-bg)!important}
+.most--popular-from button,.most--popular-to button{border-color:transparent !important;color:#000 !important}
+.form-check-input{border:1px solid var(--theme-bg)!important}
+.btn-outline-primary{border-color:var(--theme-bg)!important;color:var(--theme-bg)!important}
+.btn-outline-primary:hover{background-color:var(--theme-bg)!important;color:#fff!important}
+.roomBtn input, .qtyBtn input:hover {
+    background-color: transparent !important;
+    border: transparent !important;
+}
+.dropdown-item input:hover{ border: transparent !important;}

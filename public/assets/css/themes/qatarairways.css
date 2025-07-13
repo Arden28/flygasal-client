@@ -1,0 +1,409 @@
+/* theme color  */
+:root {
+    /* --theme-bg: #5c0632 !important; */
+    /* --primary-clr: #ffffff; */
+    --nav-clr: #ffffff;
+    --search-btn: #ffa903;
+    /* --heading--clr: #333333; */
+    --primary-clr-heading: #333333;
+    /* --sub-heading-clr: #555; */
+    --primary-clr-sub-heading: #555;
+}
+
+/* ==================== media queries ========================= */
+@media screen and (min-width: 320px) {
+
+    .hero+.container,
+     .container {
+        padding: 0;
+    }
+
+    /* HERO  */
+    .hero+.container {
+        margin-top: -188px !important;
+    }
+
+    .main_search .nav.nav-tabs {
+        flex-wrap: wrap;
+    }
+    .container>.container .bg-light.p-5,
+    .py-4.mb-0>div.container {
+        padding: 12px !important;
+    }
+}
+
+@media screen and (min-width: 320px) and (max-width: 767px) {
+    .row:has(.flight_types) {
+        margin-block: unset !important;
+        padding-top: unset !important;
+        margin-bottom: 8px !important;
+    }
+}
+
+
+@media screen and (min-width: 769px) {
+    .container {
+        max-width: 750px !important;
+        padding-inline: 20px;
+    }
+
+    /* HERO  */
+    .hero+.container {
+        margin-top: -54px !important;
+    }
+
+    .container>.container .bg-light.p-5,
+    .py-4.mb-0>div.container {
+        padding: 48px !important;
+    }
+}
+
+@media screen and (min-width: 992px) {
+    .container {
+        max-width: 970px !important;
+        padding-inline: 0;
+    }
+
+    /* HERO  */
+    .hero+.container {
+        margin-top: -268px !important;
+    }
+
+    .main_search .bgw {
+        margin-top: 136px;
+    }
+    .main_search .nav.nav-tabs {
+        flex-wrap: nowrap;
+    }
+}
+
+@media screen and (min-width: 1200px) {
+    .container {
+        max-width: 1200px !important;
+    }
+}
+
+/* ==================== media queries ========================= */
+
+/* ==================== general ========================= */
+/* body {
+    padding: 0px !important;
+} */
+
+
+/* general start  */
+
+.main_search .input-items .select2-selection,
+.main_search input[type=text],
+.main_search .dropdown-btn {
+    border-color: #d7d7d7;
+}
+
+.main_search .input-items .select2-selection:hover,
+.main_search .input-items .select2-selection:focus,
+.main_search input[type=text]:hover,
+.main_search input[type=text]:focus,
+.main_search .dropdown-btn:hover,
+.main_search .dropdown-btn:focus {
+    background-color: var(--nav-clr) !important;
+    /* border: 1px solid var(--primary-clr-1); */
+    border: 1px solid var(--theme-bg);
+}
+
+
+section.mb-4:has(.container > .container),
+div.py-4.mb-0,
+.container.mt-5.pb-5 {
+    margin-top: 108px !important;
+}
+
+/* general end  */
+
+
+
+/* HEADER & NAVBAR START  */
+
+header {
+    border-bottom: transparent !important;
+}
+
+/* LEFT NAVLINKS  */
+#navbarSupportedContent .nav-link {
+    background: transparent !important;
+    border-color: #CAD6E3;
+    /* color: var(--nav-clr) !important; */
+    color: var(--primary-clr-sub-heading) !important;
+    /* font-size: 18px; */
+    font-weight: normal;
+    text-transform: capitalize;
+}
+/* #navbarSupportedContent .nav-link:hover {
+    background-color: rgba(92, 6, 50, 0.2) !important;
+    color: var(--theme-bg) !important;
+} */
+
+/* RIGHT NAVLINKS DROPDOWN  */
+#navbarSupportedContent .nav-link.dropdown-toggle {
+    border-color: transparent !important;
+}
+#navbarSupportedContent .nav-link strong {
+    color: var(--primary-clr-sub-heading) !important;
+    font-size: 13px;
+    font-weight: normal;
+    text-transform: capitalize !important;
+}
+#navbarSupportedContent .nav-link svg {
+    stroke: var(--primary-clr-sub-heading);
+}
+
+#navbarSupportedContent .nav-link.dropdown-toggle:hover {
+    border-color: transparent !important;
+}
+
+/* RIGHT NAVLINKS DROPDOWN ITEMS  */
+#navbarSupportedContent .dropdown-menu .dropdown-item {
+    color: var(--primary-clr-sub-heading);
+}
+
+/* when header is fixed  */
+/* header.swap_navbar #navbarSupportedContent .nav-link,
+header.swap_navbar #navbarSupportedContent .nav-link strong {
+    color: var(--primary-clr-sub-heading) !important;
+}
+
+header.swap_navbar #navbarSupportedContent .nav-link svg {
+    stroke: var(--primary-clr-sub-heading);
+} */
+
+/* header end  */
+
+
+/* hero section start  */
+.hero {
+    background-position: top center;
+    height: 480px;
+    position: relative;
+}
+.hero::before {
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.80), rgba(255, 255, 255, 0.10) 50%);
+    height: 100%;
+    opacity: .9;
+    mix-blend-mode: multiply
+}
+.hero::after {
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.80), rgba(255, 255, 255, 0.10) 35%) !important;
+    opacity: 1;
+    mix-blend-mode: multiply
+}
+
+
+.hero+.container {
+    /* margin-top: -188px !important; */
+}
+
+.hero_text h4 {
+    font-size: 40px !important;
+}
+.hero_text h4 strong {
+    font-weight: bold !important;
+}
+.hero_text p {
+    font-size: 18px !important;
+    margin-top: -50px !important;
+}
+
+/* loading animation  */
+.hide_loading.featured {
+    border-radius: 0 !important;
+    border-bottom: 10px !important;
+    min-height: 181px !important;
+}
+
+.main_search {
+    display: flow-root;
+}
+.main_search .bgw.rounded-3 {
+    border-radius: 0 !important;
+}
+
+/* hero nav links  */
+.main_search .nav.nav-tabs {
+    gap: 0 !important;
+    padding: 0 !important;
+}
+.main_search .nav-item {
+    width: calc(100% / 5);
+    white-space: nowrap;
+}
+
+.main_search .nav-item .nav-link {
+    background-color: var(--theme-bg) !important;
+    border-radius: 0;
+    padding-block: 11px;
+}
+/* .main_search .nav-item .nav-link svg {
+    fill: var(--nav-clr) !important;
+} */
+.main_search .nav-item .nav-link span {
+    color: var(--nav-clr);
+    font-weight: normal;
+}
+
+/* when hover  */
+.main_search .nav-item:hover .nav-link {
+    background-color: var(--nav-clr) !important;
+}
+.main_search .nav-item:hover .nav-link svg {
+    fill: var(--theme-bg) !important;
+}
+.main_search .nav-item:hover .nav-link span {
+    color: var(--theme-bg);
+}
+
+/* when active  */
+.main_search .nav-item .nav-link.active {
+    background-color: var(--nav-clr) !important;
+    background: var(--nav-clr) !important;
+    border-bottom: unset !important;
+}
+.main_search .nav-item .nav-link.active svg {
+    fill: var(--theme-bg) !important;
+}
+.main_search .nav-item .nav-link.active span {
+    color: var(--theme-bg);
+}
+
+/* FLIGHT TYPE  */
+#flights-search .form-select:focus {
+    border-color: var(--theme-bg);
+    box-shadow: 0 0 0 0.25rem var(--theme-bg);
+}
+
+/* SVG  */
+#hotels-search svg,
+#tours-search svg,
+#flights-search svg,
+#cars-search svg {
+    /* stroke: var(--theme-bg); */
+    stroke: #1f212b;
+}
+/* flights and cars */
+#flights-search .from_flights svg path:nth-of-type(2),
+#flights-search .to_flights svg path:nth-of-type(2),
+#cars-search .show.active > .show.active svg path:nth-of-type(2),
+#cars-search .input-items > div > svg path:nth-of-type(2) {
+    fill: #1f212b !important;
+}
+
+/* SEARCH LABEL AND TEXT  */
+.main_search .input-items .select2-selection__rendered,
+.main_search input[type=text],
+.main_search .dropdown-btn,
+.main_search .form-floating .mt-2 strong,
+.main_search .mt-1.show,
+.main_search .mt-1.show strong {
+    color: #4a525d !important;
+    font-size: 16px !important;
+    font-weight: normal !important;
+}
+.main_search .input-items label,
+.main_search .form-floating label {
+    color: #4a525d !important;
+    font-size: 14px !important;
+}
+
+/* RADIO LABLE  */
+.main_search .form-check-label{
+    color: #5c0931;
+    font-weight: normal;
+}
+/* HERO RADIO BTN  */
+.main_search .form-check-input {
+    border-color: var(--theme-bg) !important;
+}
+.main_search .form-check-input:checked {
+    background-color: var(--theme-bg);
+    border-color: var(--theme-bg) !important;
+}
+
+/* search button  */
+/* .main_search .search_button {
+    background-color: var(--search-btn);
+    border-color: var(--search-btn);
+} */
+.search_button svg {
+    fill: var(--nav-clr) !important;
+}
+/* .main_search .search_button:hover {
+    background-color: var(--search-btn) !important;
+    border-color: var(--search-btn) !important;
+    opacity: 0.8;
+} */
+
+
+/* HERO SECTICON END  */
+
+
+/* FEATURED SECTION START */
+
+.hotel-area .featured,
+.featured_flights.featured,
+.featured_tours.featured,
+.featured_flights.featured {
+    background: transparent;
+}
+
+/* heading  */
+.hotel-area .section-heading h4 strong,
+.featured_flights .section-heading h4 strong,
+.featured_tours h4 strong,
+.blog-area h4.sec__title strong {
+    color: var(--primary-clr-heading);
+    font-size: 30px;
+    font-weight: 500 !important;
+}
+
+/* sub heading  */
+.featured_flights .section-heading small,
+.featured_tours small {
+    color: var(--primary-clr-sub-heading);
+    font-size: 15px;
+}
+
+.hotel-area .rounded.card-item .card-img .pt-5,
+.popular-round-trip-wrap .rounded.card-item .card-img .pt-5,
+.hotel-area:nth-of-type(2) .card-img .pt-5 {
+    background: linear-gradient(to bottom, transparent, var(--theme-bg)) !important;
+}
+
+/* FEATURED SECTION SLIDER BTN  */
+.slick-arrow:hover {
+    background-color: var(--theme-bg) !important;
+}
+.slick-arrow:hover::before {
+    border-color: #fff;
+}
+/* FEATURED SECTION END  */
+
+/* NEW LETTER START  */
+.newsletter-section .form-control:hover {
+    background: white !important;
+}
+
+.newsletter-section .form-floating label {
+    color: #4a525d;
+    font-size: 14px;
+    font-weight: 700;
+}
+.subscribe.btn {
+    border-color: var(--theme-bg);
+    color: var(--theme-bg);
+    padding-block: 14px;
+}
+.subscribe.btn:hover {
+    background-color: var(--theme-bg);
+    color: var(--nav-clr);
+}
+
+/* NEW LETTER END  */
+

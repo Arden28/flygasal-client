@@ -1,0 +1,148 @@
+:root {
+    --theme-bg: #e31c5f !important;
+}
+
+.hero {
+    background-image: none !important;
+}
+
+.hero::after,.hero:before {
+    background: #fff !important;
+}
+
+header {
+    background: #fff;
+    -webkit-box-shadow: none;
+    box-shadow: none;
+    border-bottom: 1px solid #eee;
+}
+
+header.swap_navbar {
+    -webkit-box-shadow: none;
+    box-shadow: none;
+ }
+
+ .hero {
+    min-height: 380px !important;
+ }
+
+ .hero_text strong {
+    color: var(--theme-bg) !important;
+ }
+ .hero_text p {
+    color: #000 !important;
+ }
+
+ .main_search .nav.nav-tabs {
+    background: #f8f8f8 !important;
+}
+
+.input-items .select2-selection {
+    background: #fff !important;
+}
+
+.select2-container:hover .select2-selection--single {
+    border: 1px solid var(--theme-bg) !important;
+    background-color: #f4f7fa !important;
+    cursor: pointer;
+}
+
+.flight_search:hover .form-control {
+    border: 1px solid var(--theme-bg) !important;
+    background-color: #f4f7fa !important;
+    cursor: pointer;
+}
+
+ .homepage {
+    min-height: 200px !important;
+ }
+
+ .btn {
+    border-radius: 40px !important;
+}
+
+.nav-tabs svg {
+    fill: #000 !important;
+}
+
+.navbar-nav .dropdown-menu {
+    border-radius: 15px !important;
+}
+
+.dropdown-menu {
+    box-shadow: 0 8px 16px 0 rgb(0 0 0 / 5%);
+}
+
+.main_search select, .form-select {
+    /* background: #fff; */
+    border-radius: 15px;
+}
+
+.input-items .select2-selection {
+    border-top-left-radius: 26px;
+    border-top-right-radius: 26px;
+    border-bottom-right-radius: 26px;
+    border-bottom-left-radius: 26px;
+}
+
+.form-control {
+    border-radius: 26px !important;
+}
+
+.dropdown-btn {
+    border-radius: 26px !important;
+}
+
+.main_search {
+    border-color: transparent !important;
+}
+
+.datepicker.dropdown-menu {
+    border-radius: 26px;
+}
+
+.datepicker table tr td.active:hover, .datepicker table tr td.active:hover:hover, .datepicker table tr td.active.disabled:hover, .datepicker table tr td.active.disabled:hover:hover, .datepicker table tr td.active:focus, .datepicker table tr td.active:hover:focus, .datepicker table tr td.active.disabled:focus, .datepicker table tr td.active.disabled:hover:focus, .datepicker table tr td.active:active, .datepicker table tr td.active:hover:active, .datepicker table tr td.active.disabled:active, .datepicker table tr td.active.disabled:hover:active, .datepicker table tr td.active.active, .datepicker table tr td.active:hover.active, .datepicker table tr td.active.disabled.active, .datepicker table tr td.active.disabled:hover.active, .open .dropdown-toggle.datepicker table tr td.active, .open .dropdown-toggle.datepicker table tr td.active:hover, .open .dropdown-toggle.datepicker table tr td.active.disabled, .open .dropdown-toggle.datepicker table tr td.active.disabled:hover {
+    cursor: pointer;
+    background-color: #ffffff;
+    border-color: var(--theme-bg);
+    color: #000;
+    box-shadow: 0 1px 0 0 var(--theme-bg);
+    box-shadow: 0 -1px 0 0 var(--theme-bg);
+    box-shadow: -1px 0 0 0 var(--theme-bg);
+    box-shadow: 1px 0 0 0 var(--theme-bg);
+    box-shadow: 0 0 0 2px var(--theme-bg);
+    border-radius: 3px;
+}
+
+.datepicker table tr td.day:hover, .datepicker table tr td.day.focused {
+    cursor: pointer;
+    background-color: #ffffff;
+    border-color: var(--theme-bg);
+    background: #eee;
+    color: #000;
+    box-shadow: 0 1px 0 0 var(--theme-bg);
+    box-shadow: 0 -1px 0 0 var(--theme-bg);
+    box-shadow: -1px 0 0 0 var(--theme-bg);
+    box-shadow: 1px 0 0 0 var(--theme-bg);
+    box-shadow: 0 0 0 2px var(--theme-bg);
+    border-radius: 3px;
+}
+
+.main_search .nav-item .nav-link.active {
+    background-color: #fff !important;
+}
+
+@media (min-width: 1160px) {
+    .container, .container-lg, .container-md, .container-sm, .container-xl {
+        max-width: 90%;
+    }
+}
+
+/*.header_menu {
+    display: none;
+}*/
+
+.form-select {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+}

@@ -1,0 +1,30 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic&display=swap');
+*{font-family: 'IBM Plex Sans Arabic', sans-serif !important;}
+a{text-decoration:none!important}
+.header_menu a{line-height:80px}
+.dropdown-toggle{padding-inline:16px!important}
+#navbarSupportedContent .dropdown-toggle::after{content:initial}
+.dropdown-menu[data-bs-popper]{left:initial}
+.select2-selection.select2-selection--single{direction:ltr}
+.select2-selection__rendered .mt-2.show.active{text-align:right}
+.select2-selection__rendered{padding-right:20px!important;text-align:right!important}
+.select2-selection__arrow{left:initial!important;z-index:3}
+.input-items.show .show.active,.input-items>div:first-of-type{margin-inline-start:12px}
+a.dropdown-btn{text-decoration:none}
+.dropdown-btn::after{right:initial;left:20px;border:initial}
+.dropdown-item.active,.dropdown-item:active{background-color:transparent}
+.flights_arrival>.show.active,.from_flights>.show.active{margin-inline-start:12px}
+.swap-places{margin-inline-start:-26px}
+.slick-list.draggable{direction:initial}
+.loader-line-mask{direction:initial}
+#flight--list-targets,.list.remove_duplication{padding-right:unset}
+.oneway--checkbox-filter .form-check-label img{margin-inline-start:1.5em!important}
+.mix.all .py-2>span{left:unset;right:10px}
+.flight--timeline::before{left:unset;right:7px}
+.booking-detail-form.mb-2 .list-items>.list-items{padding-right:unset!important}
+#invoice .d-flex.align-items-center span.position-relative{margin-right:unset!important}
+#invoice .d-flex.align-items-center span.me-4{margin-right:unset!important}
+#invoice .mt-1.h6{margin-left:unset!important;margin-right:42px}
+#invoice .invoice--time-line{left:unset;right:7px}
+.homepage { margin-bottom: 32px !important;}
+.form-check-input { margin-left: 0px !important; }

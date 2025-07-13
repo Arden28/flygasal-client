@@ -1,0 +1,86 @@
+/* DEFAULT THEME */
+/* COMPATIBLE v9.0 or above versions only */
+
+.main_search .nav.nav-tabs {
+    background: #eef4fb;
+    margin-bottom: 17px;
+}
+
+.main_search .nav.nav-tabs {
+    border-radius: 40px;
+    padding: 10px !important;
+    margin-top: -50px !important;
+}
+
+.main_search .nav-item .nav-link.active {
+    border-radius: 40px;
+    border: 0px solid transparent;
+    border-bottom-color : transparent !important;
+    min-height: 55px;
+    background : #fff !important;
+}
+
+.main_search .nav-item .nav-link.active span{
+color : #000 !important;
+}
+
+.main_search .nav-item .nav-link.active svg{
+fill : #000 !important;
+}
+
+.main_search .nav.nav-tabs {
+    backdrop-filter: blur(10px) brightness(1.15);
+    -webkit-backdrop-filter: blur(30px)brightness(1.15);
+    background: rgb(255 255 255 / 5%) !important;
+    border: 0.1px solid rgb(255 255 255 / 13%);
+}
+
+.nav-tabs svg {
+    fill: #fff !important;
+}
+
+.main_search .nav-item .nav-link {
+    color : #fff !important;
+    border: 0px solid transparent !important;
+}
+
+.hero::after {
+    background: #000;
+}
+
+.main_search .tab-content {
+    padding: 20px;
+    margin-top: 25px;
+    background: #fff;
+    border-radius: 32px !important;
+    border-radius: 15px !important;
+}
+
+.ShowSearchBox .nav {
+    display: inline-flex !important;
+}
+
+.ShowSearchBox {
+        justify-items: center;
+}
+
+.main_search {
+    width: 100%;
+}
+
+.hero_text {
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+}
+
+.hero_text h4{
+    justify-self: anchor-center;
+}
+
+.hero_text .fs-5{
+    color: #fff !important;
+    margin-top: -25px;
+    justify-self: anchor-center;
+}
