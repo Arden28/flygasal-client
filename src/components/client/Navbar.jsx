@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { FaUserCircle } from "react-icons/fa";
 import { Link } from "react-router-dom";
+import { UserIcon, ChevronDownIcon, MenuIcon, XIcon } from "@heroicons/react/outline";
 import logo from '/assets/uploads/global/logo.png';
 import usFlag from '/assets/img/flags/us.svg';
 import arFlag from '/assets/img/flags/ar.svg';
@@ -9,7 +9,6 @@ import euFlag from '/assets/img/flags/eu.svg';
 import keFlag from '/assets/img/flags/ke.svg';
 
 export default function Navbar() {
-  
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
 
@@ -17,7 +16,7 @@ export default function Navbar() {
   const toggleDropdown = (dropdown) => setOpenDropdown(openDropdown === dropdown ? null : dropdown);
 
   const navLinks = [
-    { href: '/flights', label: 'Flights' },
+    { href: '/flights/availability', label: 'Flights' },
     { href: '/visa', label: 'Visa' },
     { href: '/blogs', label: 'Blog' },
     { href: '/about', label: 'About Us' },
@@ -40,153 +39,136 @@ export default function Navbar() {
     { label: 'Signup', href: '/signup' },
   ];
 
-  // const [language, setLanguage] = useState("EN");
-  // const [currency, setCurrency] = useState("USD");
-
   return (
-    
-                <header className="navbar fixed-top navbar-expand-lg bg-gray-100 shadow-sm">
-                    <div className="container mx-auto px-4">
-                        {/* Logo */}
-                        <a href="/" className="navbar-brand m-0 py-2 px-2 rounded-lg hover:bg-gray-200 transition">
-                            <img 
-                                className="logo p-1 rounded" 
-                                style={{ maxWidth: '140px', maxHeight: '50px' }} 
-                                src="/assets/uploads/global/logo.png" 
-                                alt="FlyGasal Logo" 
-                            />
-                        </a>
+    <header className="fixed top-0 left-0 w-full bg-white/95 backdrop-blur-md shadow-sm z-50 transition-all duration-300">
+      <div className="container mx-auto px-4 py-3">
+        <div className="flex items-center justify-between">
+          {/* Logo */}
+          <Link to="/" className="flex items-center p-2 rounded-lg hover:bg-gray-100 transition-transform duration-300 hover:scale-105">
+            <img
+              className="h-10 w-auto rounded"
+              src={logo}
+              alt="FlyGasal Logo"
+            />
+          </Link>
 
-                        {/* Toggle button for mobile navigation */}
-                        <button 
-                            className="navbar-toggler rounded-md border-0" 
-                            type="button" 
-                            data-bs-toggle="collapse" 
-                            data-bs-target="#navbarSupportedContent" 
-                            aria-controls="navbarSupportedContent" 
-                            aria-expanded="false" 
-                            aria-label="Toggle navigation"
-                        >
-                            <span className="navbar-toggler-icon"></span>
-                        </button>
+          {/* Mobile Menu Toggle */}
+          <button
+            className="md:hidden text-gray-600 hover:text-blue-600 focus:outline-none"
+            onClick={toggleMobileMenu}
+            aria-label="Toggle navigation"
+          >
+            {isMobileMenuOpen ? (
+              <XIcon className="w-6 h-6" />
+            ) : (
+              <MenuIcon className="w-6 h-6" />
+            )}
+          </button>
 
-                        {/* Navigation items */}
-                        <div className={`${isMobileMenuOpen ? 'collapse' : ''} navbar-collapse justify-content-between`} id="navbarSupportedContent">
-                            {/* Left navigation items */}
-                            <ul className="navbar-nav  mb-2 mb-lg-0">
+          {/* Navigation Items */}
+          <nav className={`md:flex md:items-center md:gap-6 ${isMobileMenuOpen ? 'block' : 'hidden'} md:block absolute md:static top-full left-0 w-full md:w-auto bg-white md:bg-transparent transition-all duration-300 ${isMobileMenuOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0 md:max-h-full md:opacity-100'} overflow-hidden`}>
+            <ul className="flex flex-col md:flex-row md:gap-6 p-4 md:p-0">
+              {navLinks.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    to={link.href}
+                    className="relative text-gray-700 hover:text-blue-600 font-medium text-sm py-2 px-3 rounded-md transition-colors duration-300 group"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    {link.label}
+                    <span className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
 
-                                {navLinks.map((link) => (
-                                  <li className="nav-item" key={link.href}>
-                                    <a
-                                      href={link.href}
-                                      className="nav-link fw-medium fs-6"
-                                    >
-                                      {link.label}
-                                    </a>
-                                  </li>
-                                ))}
+            {/* Right Side Controls */}
+            <ul className="flex flex-col md:flex-row md:gap-2 p-4 md:p-0">
+              {/* Language Dropdown */}
+              <li className="relative">
+                <button
+                  className="flex items-center gap-2 text-gray-700 hover:bg-gray-100 py-2 px-3 rounded-md transition-colors duration-300"
+                  onClick={() => toggleDropdown('language')}
+                >
+                  <img src={usFlag} alt="Language Flag" className="w-5 h-5" />
+                  <span className="text-sm font-medium">English</span>
+                  <ChevronDownIcon className={`w-4 h-4 transition-transform duration-300 ${openDropdown === 'language' ? 'rotate-180' : ''}`} />
+                </button>
+                <ul
+                  className={`absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg p-2 transition-all duration-300 ${openDropdown === 'language' ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
+                >
+                  {languageOptions.map((option) => (
+                    <li key={option.label}>
+                      <Link
+                        to={option.href}
+                        className="flex items-center gap-2 text-gray-700 hover:bg-gray-100 py-2 px-3 rounded-md text-sm"
+                        onClick={() => setOpenDropdown(null)}
+                      >
+                        <img src={option.flag} alt={`${option.label} Flag`} className="w-5 h-5" />
+                        <span>{option.label}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </li>
 
-                            </ul>
+              {/* Currency Dropdown */}
+              <li className="relative">
+                <button
+                  className="flex items-center gap-2 text-gray-700 hover:bg-gray-100 py-2 px-3 rounded-md transition-colors duration-300"
+                  onClick={() => toggleDropdown('currency')}
+                >
+                  <span className="text-sm font-medium">USD $</span>
+                  <ChevronDownIcon className={`w-4 h-4 transition-transform duration-300 ${openDropdown === 'currency' ? 'rotate-180' : ''}`} />
+                </button>
+                <ul
+                  className={`absolute left-0 mt-2 w-64 bg-white rounded-lg shadow-lg p-2 transition-all duration-300 ${openDropdown === 'currency' ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
+                >
+                  {currencyOptions.map((option) => (
+                    <li key={option.code}>
+                      <Link
+                        to={option.href}
+                        className="flex items-center gap-2 text-gray-700 hover:bg-gray-100 py-2 px-3 rounded-md text-sm"
+                        onClick={() => setOpenDropdown(null)}
+                      >
+                        <img src={option.flag} alt={`${option.name} Flag`} className="w-5 h-5" />
+                        <span><strong>{option.code}</strong> - {option.name}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </li>
 
-                            {/* Right navigation items */}
-                            <ul className="navbar-nav gap-2 mb-2 mb-lg-0 flex">
-                                {/* Language dropdown */}
-                                <li className="nav-item dropdown">
-                                    <a className="nav-link dropdown-toggle d-flex align-items-center gap-1 border rounded py-2 px-3 text-dark" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <img className="me-2" style={{ width: '18px' }} src="/assets/img/flags/us.svg" alt="US Flag" />
-                                        <strong className="h6 m-0">English</strong>
-                                        <svg className="ms-1" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M6 9l6 6 6-6" />
-                                        </svg>
-                                    </a>
-                                    <ul className="dropdown-menu rounded-3 p-2">
-                                        {languageOptions.map((option) => (
-                                          <li key={option.label}>
-                                            <a
-                                              href={option.href}
-                                              className="dropdown-item d-flex gap-2 align-items-center"
-                                            >
-                                              <img className="w-[18px]" style={{ width: '18px' }} src={option.flag} alt={`${option.label} Flag`} />
-                                              <span>{option.label}</span>
-                                            </a>
-                                          </li>
-                                        ))}
-                                    </ul>
-                                </li>
-
-                                {/* Currency dropdown */}
-                                <li className="nav-item dropdown">
-                                    <a className="nav-link dropdown-toggle d-flex align-items-center gap-1 border rounded py-2 px-3 text-dark" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <strong className="h6 m-0">USD $</strong>
-                                        <svg className="ms-1" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M6 9l6 6 6-6" />
-                                        </svg>
-                                    </a>
-                                    <ul className="dropdown-menu rounded-3 p-2">
-                                        {currencyOptions.map((option) => (
-                                          <li key={option.code}>
-                                            <a
-                                              href={option.href}
-                                              className="dropdown-item d-flex gap-2 align-items-center"
-                                            >
-                                              <img className="w-[18px] me-2" style={{ width: '18px' }} src={option.flag} alt={`${option.name} Flag`} />
-                                              <span><strong>{option.code}</strong></span>
-                                              <span className="mx-1">-</span>
-                                              <small>{option.name}</small>
-                                            </a>
-                                          </li>
-                                        ))}
-                                    </ul>
-                                </li>
-
-                                {/* Account dropdown */}
-                                <li className="nav-item dropdown">
-                                    <a 
-                                        className="nav-link dropdown-toggle flex items-center gap-1 border rounded py-1 px-3 text-gray-800 hover:bg-gray-200 transition" 
-                                        href="#" 
-                                        role="button" 
-                                        data-bs-toggle="dropdown" 
-                                        aria-expanded="false"
-                                    >
-                                        <svg 
-                                            className="me-1" 
-                                            xmlns="http://www.w3.org/2000/svg" 
-                                            width="20" 
-                                            height="20" 
-                                            viewBox="0 0 24 24" 
-                                            fill="none" 
-                                            stroke="#000000" 
-                                            strokeWidth="2" 
-                                            strokeLinecap="round" 
-                                            strokeLinejoin="round"
-                                        >
-                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                            <circle cx="12" cy="7" r="4"></circle>
-                                        </svg>
-                                        <span className="m-0 uppercase font-medium">Account</span>
-                                        <svg 
-                                            className="ms-1" 
-                                            xmlns="http://www.w3.org/2000/svg" 
-                                            width="14" 
-                                            height="14" 
-                                            viewBox="0 0 24 24" 
-                                            fill="none" 
-                                            stroke="#000000" 
-                                            strokeWidth="2" 
-                                            strokeLinecap="round" 
-                                            strokeLinejoin="round"
-                                        >
-                                            <path d="M6 9l6 6 6-6" />
-                                        </svg>
-                                    </a>
-                                    <ul className="dropdown-menu rounded-lg p-2 shadow-md">
-                                        <li><a className="dropdown-item hover:bg-gray-100" href="/login">Login</a></li>
-                                        <li><a className="dropdown-item hover:bg-gray-100" href="/signup">Signup</a></li>
-                                    </ul>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </header>
+              {/* Account Dropdown */}
+              <li className="relative">
+                <button
+                  className="flex items-center gap-2 text-gray-700 hover:bg-gray-100 py-2 px-3 rounded-md transition-colors duration-300"
+                  onClick={() => toggleDropdown('account')}
+                >
+                  <UserIcon className="w-5 h-5" />
+                  <span className="text-sm font-medium">Account</span>
+                  <ChevronDownIcon className={`w-4 h-4 transition-transform duration-300 ${openDropdown === 'account' ? 'rotate-180' : ''}`} />
+                </button>
+                <ul
+                  className={`absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg p-2 transition-all duration-300 ${openDropdown === 'account' ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
+                >
+                  {accountOptions.map((option) => (
+                    <li key={option.label}>
+                      <Link
+                        to={option.href}
+                        className="flex items-center gap-2 text-gray-700 hover:bg-gray-100 py-2 px-3 rounded-md text-sm"
+                        onClick={() => setOpenDropdown(null)}
+                      >
+                        {option.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+    </header>
   );
 }

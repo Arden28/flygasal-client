@@ -1039,7 +1039,7 @@ ul li { display: block; margin: 0; padding: 0; width: auto; float: none; backgro
 .btn-success { box-shadow:rgb(58 166 0 / 24%) 0px 8px 16px 0px}
 .btn-dark { box-shadow: rgb(64 64 64 / 24%) 0px 8px 16px 0px}
 .btn-outline-dark { box-shadow: rgb(64 64 64 / 8%) 0px 8px 16px 0px }
-.btn-light { box-shadow: rgb(171 171 171 / 24%) 0px 8px 16px 0px} */
+.btn-light { box-shadow: rgb(171 171 171 / 24%) 0px 8px 16px 0px}  */
 .blockquote { margin-bottom: 1rem; font-size: 14px; }
 .header_options { font-weight: 700; font-size: 14px; }
 .btn-outline-dark:hover svg {stroke: #fff}
@@ -1861,3 +1861,8 @@ body {
     z-index: 1;
     padding: 1rem;
 }
+
+.nav-link.active{
+  color: black;
+}
+
