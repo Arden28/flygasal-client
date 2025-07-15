@@ -1866,3 +1866,22 @@ body {
   color: black;
 }
 
+.to--be > p {
+  max-height: calc(3.5em + 2px);
+  overflow: hidden;
+}
+.to--be:has(input:checked) > p {
+  max-height: unset !important;
+}
+.to--be > .read--more > #to--be_1 {
+  display: block;
+}
+.to--be > .read--more > #to--be_2 {
+  display: none;
+}
+.to--be:has(input:checked) > .read--more > #to--be_1 {
+  display: none !important;
+}
+.to--be:has(input:checked) > .read--more > #to--be_2 {
+  display: block !important;
+}
