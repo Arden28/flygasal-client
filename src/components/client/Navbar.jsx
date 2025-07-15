@@ -18,7 +18,6 @@ export default function Navbar() {
 
   const navLinks = [
     { href: '/flight/availability', label: 'Flights' },
-    { href: '/visa', label: 'Visa' },
     { href: '/blogs', label: 'Blog' },
     { href: '/about', label: 'About Us' },
   ];

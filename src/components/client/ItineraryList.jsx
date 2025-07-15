@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import FlightSegment from '../../components/client/FlightSegment';
 
 const ItineraryList = ({
@@ -12,7 +13,28 @@ const ItineraryList = ({
   formatTime,
   calculateDuration,
   getAirportName,
+  availableFlights,
+  returnFlights,
 }) => {
+  const navigate = useNavigate();
+
+  const handleSelectItinerary = (itinerary) => {
+    const searchParams = new URLSearchParams({
+      tripType: itinerary.return ? 'return' : 'oneway',
+      'flights[0][origin]': itinerary.outbound.origin,
+      'flights[0][destination]': itinerary.outbound.destination,
+      'flights[0][depart]': formatDate(itinerary.outbound.departureTime),
+      returnDate: itinerary.return ? formatDate(itinerary.return.departureTime) : '',
+      adults: itinerary.adults?.toString() || '1',
+      children: itinerary.children?.toString() || '0',
+      cabin: itinerary.outbound.cabin || 'Economy',
+      flightId: itinerary.outbound.id,
+      returnFlightId: itinerary.return ? itinerary.return.id : '',
+    });
+
+    navigate(`/flight/trip-review?${searchParams.toString()}`);
+  };
+
   return (
     <div className="mixitup--container mt-3" id="flights--list-js">
       <ul id="flight--list-targets" className="list mt-2">
@@ -125,7 +147,11 @@ const ItineraryList = ({
                     >
                       More Details
                     </button>
-                    <button type="submit" className="flex-grow-1 btn btn-primary">
+                    <button
+                      type="button"
+                      className="flex-grow-1 btn btn-primary"
+                      onClick={() => handleSelectItinerary(itinerary)}
+                    >
                       Select Itinerary
                     </button>
                   </div>

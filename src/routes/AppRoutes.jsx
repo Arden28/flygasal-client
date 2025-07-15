@@ -7,6 +7,7 @@ import AdminLayout from "../layouts/AdminLayout";
 import Home from "../pages/client/Home";
 import Dashboard from "../pages/admin/Dashboard";
 import FlightPage from "../pages/client/FlightPage";
+import TripReviewPage from "../pages/client/TripReviewPage";
 
 export default function AppRoutes() {
   return (
@@ -16,6 +17,7 @@ export default function AppRoutes() {
         <Route path="/" element={<ClientLayout />}>
           <Route index element={<Home />} />
           <Route path="/flight/availability" element={<FlightPage />} />
+          <Route path="/flight/trip-review" element={<TripReviewPage />} />
           {/* Add more client pages here */}
         </Route>
 

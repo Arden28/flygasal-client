@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { airports, airlines, flights } from '../../data/fakeData';
 import FilterModal from '../../components/client/FilterModal';
 import FlightHeader from '../../components/client/FlightHeader';
@@ -21,6 +22,7 @@ const FlightPage = () => {
   const [openDetailsId, setOpenDetailsId] = useState(null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const flightsPerPage = 25;
+  const location = useLocation();
 
   // Helper to format date
   const formatDate = (dateString) => {
@@ -61,21 +63,30 @@ const FlightPage = () => {
     return airline ? airline.logo : code;
   };
 
-  // Load search parameters and filter flights
+  // Load search parameters and filter flights from URL
   useEffect(() => {
-    let params;
-    try {
-      params = JSON.parse(sessionStorage.getItem('flightSearch'));
-    } catch (e) {
-      console.error('Invalid sessionStorage data:', e);
+    const queryParams = new URLSearchParams(location.search);
+    const flightsFromUrl = [];
+    let i = 0;
+    while (queryParams.has(`flights[${i}][origin]`)) {
+      flightsFromUrl.push({
+        origin: queryParams.get(`flights[${i}][origin]`),
+        destination: queryParams.get(`flights[${i}][destination]`),
+        depart: queryParams.get(`flights[${i}][depart]`),
+      });
+      i++;
     }
-    if (!params) {
-      params = {
-        tripType: 'oneway',
-        flights: [{ origin: 'JFK', destination: 'LAX', depart: '2025-07-15' }],
-        returnDate: '2025-07-20',
-      };
-    }
+
+    const params = {
+      tripType: queryParams.get('tripType') || 'oneway',
+      flightType: queryParams.get('flightType') || 'economy',
+      flights: flightsFromUrl.length > 0 ? flightsFromUrl : [{ origin: 'JFK', destination: 'LAX', depart: '2025-07-15' }],
+      returnDate: queryParams.get('returnDate') || '2025-07-20',
+      adults: parseInt(queryParams.get('adults')) || 1,
+      children: parseInt(queryParams.get('children')) || 0,
+      infants: parseInt(queryParams.get('infants')) || 0,
+    };
+
     setSearchParams(params);
 
     const outbound = flights.filter((flight) =>
@@ -99,7 +110,7 @@ const FlightPage = () => {
 
     setAvailableFlights(outbound);
     setReturnFlights(returnFlights);
-  }, []);
+  }, [location.search]);
 
   // Combine flights into itineraries for round-trip searches
   const getItineraries = () => {
@@ -216,7 +227,11 @@ const FlightPage = () => {
       <div className="p-3 mb-0">
         <div className="container border rounded-4 p-3">
           <div className="flights_listing modify_search">
-            <FlightSearchForm searchParams={searchParams} />
+            <FlightSearchForm
+              searchParams={searchParams}
+              setAvailableFlights={setAvailableFlights}
+              setReturnFlights={setReturnFlights}
+            />
           </div>
         </div>
       </div>
@@ -270,6 +285,8 @@ const FlightPage = () => {
                 formatTime={formatTime}
                 calculateDuration={calculateDuration}
                 getAirportName={getAirportName}
+                availableFlights={availableFlights}
+                returnFlights={returnFlights}
               />
               <Pagination
                 currentPage={currentPage}

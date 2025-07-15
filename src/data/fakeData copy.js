@@ -24,15 +24,15 @@ export const airports = [
 export const airlines = [
   { code: 'AA', name: 'American Airlines', logo: '/assets/img/airlines/aal.png' },
   { code: 'BA', name: 'British Airways', logo: '/assets/img/airlines/baw.png' },
-  { code: 'EK', name: 'Emirates', logo: '/assets/img/airlines/EK.png' },
-  { code: 'QF', name: 'Qantas', logo: '/assets/img/airlines/QF.png' },
-  { code: 'AF', name: 'Air France', logo: '/assets/img/airlines/AF.png' },
+  { code: 'EK', name: 'Emirates', logo: '/assets/img/airlines/ek.png' },
+  { code: 'QF', name: 'Qantas', logo: '/assets/img/airlines/qf.png' },
+  { code: 'AF', name: 'Air France', logo: '/assets/img/airlines/af.png' },
   // African Airlines
   { code: 'ET', name: 'Ethiopian Airlines', logo: '/assets/img/airlines/eth.png' },
   { code: 'KQ', name: 'Kenya Airways', logo: '/assets/img/airlines/KQ.png' },
   { code: 'SA', name: 'South African Airways', logo: '/assets/img/airlines/SA.png' },
-  { code: 'MS', name: 'EgyptAir', logo: '/assets/img/airlines/MS.png' },
-  { code: 'AT', name: 'Royal Air Maroc', logo: '/assets/img/airlines/AT.png' },
+  { code: 'MS', name: 'EgyptAir', logo: '/assets/img/airlines/ms.png' },
+  { code: 'AT', name: 'Royal Air Maroc', logo: '/assets/img/airlines/at.png' },
 ];
 
 export const flights = [

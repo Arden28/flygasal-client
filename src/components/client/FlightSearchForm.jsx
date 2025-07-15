@@ -3,15 +3,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Select from 'react-select';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { airports } from '../../data/fakeData';
+import { airports, flights } from '../../data/fakeData';
 import { motion, AnimatePresence } from 'framer-motion';
 
-
-const FlightSearchForm = ({ searchParams }) => {
-  // State for form inputs
+const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights }) => {
   const [tripType, setTripType] = useState('oneway');
   const [flightType, setFlightType] = useState('economy');
-  const [flights, setFlights] = useState([
+  const [flightsState, setFlightsState] = useState([
     { origin: null, destination: null, depart: new Date('2025-07-15') },
   ]);
   const [returnDate, setReturnDate] = useState(new Date('2025-07-20'));
@@ -22,25 +20,49 @@ const FlightSearchForm = ({ searchParams }) => {
   const [isTravellersOpen, setIsTravellersOpen] = useState(false);
   const [errors, setErrors] = useState([]);
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Pre-populate form with searchParams
+  // Pre-populate form with URL query parameters or searchParams prop
   useEffect(() => {
-    if (searchParams) {
-      setTripType(searchParams.tripType || 'oneway');
-      setFlightType(searchParams.flightType || 'economy');
-      setFlights(
-        searchParams.flights.map((f) => ({
-          origin: airports.find((a) => a.value === f.origin) || null,
-          destination: airports.find((a) => a.value === f.destination) || null,
-          depart: f.depart ? new Date(f.depart) : null,
-        }))
-      );
-      setReturnDate(searchParams.returnDate ? new Date(searchParams.returnDate) : new Date('2025-07-20'));
-      setAdults(searchParams.adults || 1);
-      setChildren(searchParams.children || 0);
-      setInfants(searchParams.infants || 0);
+    const queryParams = new URLSearchParams(location.search);
+    let params = searchParams;
+
+    if (!params) {
+      const flightsFromUrl = [];
+      let i = 0;
+      while (queryParams.has(`flights[${i}][origin]`)) {
+        flightsFromUrl.push({
+          origin: queryParams.get(`flights[${i}][origin]`),
+          destination: queryParams.get(`flights[${i}][destination]`),
+          depart: queryParams.get(`flights[${i}][depart]`),
+        });
+        i++;
+      }
+      params = {
+        tripType: queryParams.get('tripType') || 'oneway',
+        flightType: queryParams.get('flightType') || 'economy',
+        flights: flightsFromUrl.length > 0 ? flightsFromUrl : [{ origin: 'JFK', destination: 'LAX', depart: '2025-07-15' }],
+        returnDate: queryParams.get('returnDate') || '2025-07-20',
+        adults: parseInt(queryParams.get('adults')) || 1,
+        children: parseInt(queryParams.get('children')) || 0,
+        infants: parseInt(queryParams.get('infants')) || 0,
+      };
     }
-  }, [searchParams]);
+
+    setTripType(params.tripType);
+    setFlightType(params.flightType);
+    setFlightsState(
+      params.flights.map((f) => ({
+        origin: airports.find((a) => a.value === f.origin) || null,
+        destination: airports.find((a) => a.value === f.destination) || null,
+        depart: f.depart ? new Date(f.depart) : null,
+      }))
+    );
+    setReturnDate(params.returnDate ? new Date(params.returnDate) : new Date('2025-07-20'));
+    setAdults(params.adults || 1);
+    setChildren(params.children || 0);
+    setInfants(params.infants || 0);
+  }, [searchParams, location.search]);
 
   // Update guest text
   const guestText = () => {
@@ -53,27 +75,27 @@ const FlightSearchForm = ({ searchParams }) => {
 
   // Handle adding a new flight
   const addFlight = () => {
-    setFlights([...flights, { origin: null, destination: null, depart: null }]);
+    setFlightsState([...flightsState, { origin: null, destination: null, depart: null }]);
   };
 
   // Handle removing a flight
   const removeFlight = (index) => {
-    if (flights.length > 1) {
-      setFlights(flights.filter((_, i) => i !== index));
+    if (flightsState.length > 1) {
+      setFlightsState(flightsState.filter((_, i) => i !== index));
     }
   };
 
   // Handle flight field changes
   const handleFlightChange = (index, field, value) => {
-    const updatedFlights = [...flights];
+    const updatedFlights = [...flightsState];
     updatedFlights[index][field] = value;
-    setFlights(updatedFlights);
+    setFlightsState(updatedFlights);
   };
 
   // Validate form inputs
   const validateForm = () => {
     const newErrors = [];
-    flights.forEach((flight, index) => {
+    flightsState.forEach((flight, index) => {
       if (!flight.origin) {
         newErrors.push(`Flight ${index + 1}: Please select a departure city`);
       }
@@ -90,7 +112,7 @@ const FlightSearchForm = ({ searchParams }) => {
     if (tripType === 'return' && !returnDate) {
       newErrors.push('Please select a return date');
     }
-    if (tripType === 'return' && flights[0].depart && returnDate && returnDate < flights[0].depart) {
+    if (tripType === 'return' && flightsState[0].depart && returnDate && returnDate < flightsState[0].depart) {
       newErrors.push('Return date must be after departure date');
     }
     if (adults + children + infants === 0) {
@@ -114,43 +136,59 @@ const FlightSearchForm = ({ searchParams }) => {
     setErrors([]);
     setIsLoading(true);
 
-    // Store search parameters in sessionStorage
-    const searchParams = {
-      tripType,
-      flightType,
-      flights: flights.map((flight) => ({
-        origin: flight.origin?.value,
-        destination: flight.destination?.value,
-        depart: flight.depart?.toISOString(),
-      })),
-      returnDate: tripType === 'return' ? returnDate?.toISOString() : null,
-      adults,
-      children,
-      infants,
-    };
-    sessionStorage.setItem('flightSearch', JSON.stringify(searchParams));
+    // Create URL query parameters
+    const queryParams = new URLSearchParams();
+    queryParams.set('tripType', tripType);
+    queryParams.set('flightType', flightType);
+    flightsState.forEach((flight, index) => {
+      queryParams.set(`flights[${index}][origin]`, flight.origin?.value || '');
+      queryParams.set(`flights[${index}][destination]`, flight.destination?.value || '');
+      queryParams.set(`flights[${index}][depart]`, flight.depart?.toISOString().split('T')[0] || '');
+    });
+    if (tripType === 'return' && returnDate) {
+      queryParams.set('returnDate', returnDate.toISOString().split('T')[0]);
+    }
+    queryParams.set('adults', adults);
+    queryParams.set('children', children);
+    queryParams.set('infants', infants);
+
+    // Filter flights from fakeData.js
+    const outbound = flights.filter((flight) =>
+      flightsState.some(
+        (f) =>
+          f.origin?.value === flight.origin &&
+          f.destination?.value === flight.destination &&
+          new Date(f.depart).toDateString() === new Date(flight.departureTime).toDateString()
+      )
+    );
+
+    let returnFlights = [];
+    if (tripType === 'return' && flightsState[0]) {
+      returnFlights = flights.filter(
+        (flight) =>
+          flight.origin === flightsState[0].destination?.value &&
+          flight.destination === flightsState[0].origin?.value &&
+          new Date(returnDate).toDateString() === new Date(flight.departureTime).toDateString()
+      );
+    }
+
+    // Update parent state
+    setAvailableFlights(outbound);
+    setReturnFlights(returnFlights);
 
     setTimeout(() => {
       setIsLoading(false);
-
-      if (location.pathname === '/flight/availability') {
-        // ✅ Already on the page → refresh it smoothly
-        navigate(0); // This refreshes the current page (react-router v6+)
-      } else {
-        // ✅ Navigate normally
-        navigate('/flight/availability');
-      }
+      navigate(`/flight/availability?${queryParams.toString()}`);
     }, 1000);
   };
 
-
   // Swap origin and destination
   const swapPlaces = (index) => {
-    const updatedFlights = [...flights];
+    const updatedFlights = [...flightsState];
     const temp = updatedFlights[index].origin;
     updatedFlights[index].origin = updatedFlights[index].destination;
     updatedFlights[index].destination = temp;
-    setFlights(updatedFlights);
+    setFlightsState(updatedFlights);
   };
 
   // Custom Option Component for react-select
@@ -314,7 +352,7 @@ const FlightSearchForm = ({ searchParams }) => {
       </div>
 
       <div className="row mb-0 g-2 flight_search" id="onereturn">
-        {flights.map((flight, index) => (
+        {flightsState.map((flight, index) => (
           <div key={index} className="new-element contact-form-action w-100 multi-flight-field mb-2">
             <div className="row g-2 contact-form-action multi_flight">
               <div className="col-lg-4">
@@ -427,7 +465,7 @@ const FlightSearchForm = ({ searchParams }) => {
                   )}
                 </div>
               </div>
-              {flights.length > 1 && (
+              {flightsState.length > 1 && (
                 <div>
                   <button
                     type="button"
@@ -443,174 +481,173 @@ const FlightSearchForm = ({ searchParams }) => {
         ))}
       </div>
 
-        {/* Travellers and Submit */}
-        <div className="flex flex-wrap gap-4 items-center justify-between">
-          <div className="relative">
-            <button
-              type="button"
-              className="flex items-center gap-2 bg-gray-100 rounded-lg py-2 px-4 text-sm text-gray-700 hover:bg-gray-200 transition-colors"
-              onClick={() => setIsTravellersOpen(!isTravellersOpen)}
+      <div className="flex flex-wrap gap-4 items-center justify-between">
+        <div className="relative">
+          <button
+            type="button"
+            className="flex items-center gap-2 bg-gray-100 rounded-lg py-2 px-4 text-sm text-gray-700 hover:bg-gray-200 transition-colors"
+            onClick={() => setIsTravellersOpen(!isTravellersOpen)}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            {guestText()}
+          </button>
+          <AnimatePresence>
+            {isTravellersOpen && (
+              <motion.div
+                className="absolute z-20 mt-2 w-64 bg-white rounded-lg shadow-lg p-4"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
               >
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-              </svg>
-              {guestText()}
-            </button>
-            <AnimatePresence>
-              {isTravellersOpen && (
-                <motion.div
-                  className="absolute z-20 mt-2 w-64 bg-white rounded-lg shadow-lg p-4"
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <strong className="text-gray-700">Adults</strong>
-                        <div className="text-xs text-gray-500">+12 years</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-100"
-                          onClick={() => setAdults(adults > 0 ? adults - 1 : 0)}
-                        >
-                          -
-                        </button>
-                        <input
-                          type="text"
-                          value={adults}
-                          className="w-12 text-center border-gray-300 rounded"
-                          readOnly
-                        />
-                        <button
-                          type="button"
-                          className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-100"
-                          onClick={() => setAdults(adults + 1)}
-                        >
-                          +
-                        </button>
-                      </div>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <strong className="text-gray-700">Adults</strong>
+                      <div className="text-xs text-gray-500">+12 years</div>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <strong className="text-gray-700">Children</strong>
-                        <div className="text-xs text-gray-500">2 - 11 years</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-100"
-                          onClick={() => setChildren(children > 0 ? children - 1 : 0)}
-                        >
-                          -
-                        </button>
-                        <input
-                          type="text"
-                          value={children}
-                          className="w-12 text-center border-gray-300 rounded"
-                          readOnly
-                        />
-                        <button
-                          type="button"
-                          className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-100"
-                          onClick={() => setChildren(children + 1)}
-                        >
-                          +
-                        </button>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-100"
+                        onClick={() => setAdults(adults > 0 ? adults - 1 : 0)}
+                      >
+                        -
+                      </button>
+                      <input
+                        type="text"
+                        value={adults}
+                        className="w-12 text-center border-gray-300 rounded"
+                        readOnly
+                      />
+                      <button
+                        type="button"
+                        className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-100"
+                        onClick={() => setAdults(adults + 1)}
+                      >
+                        +
+                      </button>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <strong className="text-gray-700">Infants</strong>
-                        <div className="text-xs text-gray-500">-2 years</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-100"
-                          onClick={() => setInfants(infants > 0 ? infants - 1 : 0)}
-                        >
-                          -
-                        </button>
-                        <input
-                          type="text"
-                          value={infants}
-                          className="w-12 text-center border-gray-300 rounded"
-                          readOnly
-                        />
-                        <button
-                          type="button"
-                          className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-100"
-                          onClick={() => setInfants(infants + 1)}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="w-full bg-blue-600 text-white rounded-lg py-2 hover:bg-blue-700 transition-colors"
-                      onClick={() => setIsTravellersOpen(false)}
-                    >
-                      Done
-                    </button>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-          <div className="flex gap-4">
-            <button
-              type="button"
-              className="text-blue-600 hover:text-blue-800 text-sm"
-              onClick={addFlight}
-            >
-              + Add Another Flight
-            </button>
-            <button
-              type="submit"
-              className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z"></path>
-                </svg>
-              ) : (
-                <>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <strong className="text-gray-700">Children</strong>
+                      <div className="text-xs text-gray-500">2 - 11 years</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-100"
+                        onClick={() => setChildren(children > 0 ? children - 1 : 0)}
+                      >
+                        -
+                      </button>
+                      <input
+                        type="text"
+                        value={children}
+                        className="w-12 text-center border-gray-300 rounded"
+                        readOnly
+                      />
+                      <button
+                        type="button"
+                        className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-100"
+                        onClick={() => setChildren(children + 1)}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <strong className="text-gray-700">Infants</strong>
+                      <div className="text-xs text-gray-500">-2 years</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-100"
+                        onClick={() => setInfants(infants > 0 ? infants - 1 : 0)}
+                      >
+                        -
+                      </button>
+                      <input
+                        type="text"
+                        value={infants}
+                        className="w-12 text-center border-gray-300 rounded"
+                        readOnly
+                      />
+                      <button
+                        type="button"
+                        className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-100"
+                        onClick={() => setInfants(infants + 1)}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="w-full bg-blue-600 text-white rounded-lg py-2 hover:bg-blue-700 transition-colors"
+                    onClick={() => setIsTravellersOpen(false)}
                   >
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                  </svg>
-                  Search
-                </>
-              )}
-            </button>
-          </div>
+                    Done
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
+        <div className="flex gap-4">
+          <button
+            type="button"
+            className="text-blue-600 hover:text-blue-800 text-sm"
+            onClick={addFlight}
+          >
+            + Add Another Flight
+          </button>
+          <button
+            type="submit"
+            className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z"></path>
+              </svg>
+            ) : (
+              <>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                Search
+              </>
+            )}
+          </button>
+        </div>
+      </div>
     </form>
   );
 };
