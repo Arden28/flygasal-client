@@ -117,8 +117,8 @@ export const flights = [
     airline: 'QF',
     origin: 'NRT',
     destination: 'SYD',
-    departureTime: '2025-07-14T21:00:00Z',
-    arrivalTime: '2025-07-15T07:30:00Z',
+    departureTime: '2025-07-16T21:00:00Z',
+    arrivalTime: '2025-07-17T07:30:00Z',
     price: 899,
     flightNumber: 'QF4001',
     stops: 0,
@@ -446,4 +446,18 @@ export const flights = [
     baggage: '20kg',
     refundable: true,
   },
+];
+
+export const countries = [
+  { code: 'US', name: 'United States', flag: '/assets/img/flags/us.png' },
+  { code: 'GB', name: 'United Kingdom', flag: '/assets/img/flags/gb.png' },
+  { code: 'AE', name: 'United Arab Emirates', flag: '/assets/img/flags/ae.png' },
+  { code: 'AU', name: 'Australia', flag: '/assets/img/flags/au.png' },
+  { code: 'FR', name: 'France', flag: '/assets/img/flags/fr.png' },
+  // African Countries
+  { code: 'ET', name: 'Ethiopia', flag: '/assets/img/flags/et.png' },
+  { code: 'KE', name: 'Kenya', flag: '/assets/img/flags/ke.png' },
+  { code: 'ZA', name: 'South Africa', flag: '/assets/img/flags/za.png' },
+  { code: 'EG', name: 'Egypt', flag: '/assets/img/flags/eg.png' },
+  { code: 'MA', name: 'Morocco', flag: '/assets/img/flags/ma.png' },
 ];
