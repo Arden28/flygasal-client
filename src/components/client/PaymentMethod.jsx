@@ -2,25 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const PaymentMethod = ({ formData, handleFormChange, isFormValid }) => {
-  const [supportsApplePay, setSupportsApplePay] = useState(false);
-  const [supportsGooglePay, setSupportsGooglePay] = useState(false);
 
-  useEffect(() => {
-    // Detect Apple Pay support
-    if (window.ApplePaySession && window.ApplePaySession.canMakePayments()) {
-      setSupportsApplePay(true);
-    }
-    // Detect Google Pay support
-    if (window.PaymentRequest) {
-      const request = new PaymentRequest(
-        [{ supportedMethods: 'https://google.com/pay' }],
-        { total: { label: 'Total', amount: { currency: 'USD', value: '0.00' } } }
-      );
-      request.canMakePayment().then(result => {
-        setSupportsGooglePay(result);
-      }).catch(() => setSupportsGooglePay(false));
-    }
-  }, []);
 
   return (
     <motion.div
@@ -143,74 +125,6 @@ const PaymentMethod = ({ formData, handleFormChange, isFormValid }) => {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Apple Pay */}
-        {supportsApplePay && (
-          <label className="flex items-center cursor-pointer">
-            <input
-              type="radio"
-              name="payment_method"
-              value="apple_pay"
-              checked={formData.payment_method === 'apple_pay'}
-              onChange={handleFormChange}
-              className="form-check-input mr-2 h-5 w-5 text-blue-400 focus:ring-blue-400 border-gray-500"
-            />
-            <span className="flex items-center gap-2 font-mono uppercase">
-              <img
-                src="https://developer.apple.com/assets/elements/icons/apple-pay/apple-pay-mark.svg"
-                alt="Apple Pay"
-                className="h-5"
-              />
-              Apple Pay
-            </span>
-          </label>
-        )}
-        {supportsApplePay && formData.payment_method === 'apple_pay' && (
-          <motion.div
-            className="ml-7 p-3 bg-gray-700 border-2 border-gray-500 rounded-sm"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <p className="text-gray-200 text-sm font-mono">Apple Pay button (placeholder)</p>
-            {/* Requires Apple Pay Session setup */}
-          </motion.div>
-        )}
-
-        {/* Google Pay */}
-        {supportsGooglePay && (
-          <label className="flex items-center cursor-pointer">
-            <input
-              type="radio"
-              name="payment_method"
-              value="google_pay"
-              checked={formData.payment_method === 'google_pay'}
-              onChange={handleFormChange}
-              className="form-check-input mr-2 h-5 w-5 text-blue-400 focus:ring-blue-400 border-gray-500"
-            />
-            <span className="flex items-center gap-2 font-mono uppercase">
-              <img
-                src="https://developers.google.com/pay/api/images/brand-guidelines/google-pay-mark.svg"
-                alt="Google Pay"
-                className="h-5"
-              />
-              Google Pay
-            </span>
-          </label>
-        )}
-        {supportsGooglePay && formData.payment_method === 'google_pay' && (
-          <motion.div
-            className="ml-7 p-3 bg-gray-700 border-2 border-gray-500 rounded-sm"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <p className="text-gray-200 text-sm font-mono">Google Pay button (placeholder)</p>
-            {/* Requires PaymentRequest API setup */}
-          </motion.div>
-        )}
 
         {/* Bank Transfer */}
         <label className="flex items-center cursor-pointer">
