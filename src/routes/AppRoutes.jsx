@@ -20,7 +20,7 @@ export default function AppRoutes() {
           <Route path="/flight/availability" element={<FlightPage />} />
           <Route path="/flight/trip-review" element={<TripReviewPage />} />
           <Route path="/flight/booking-confirmation" element={<BookingConfirmationPage />} />
-          <Route path="/confirmation-success" element={<div>Booking Confirmed!</div>} />
+          <Route path="/flight/confirmation-success" element={<div>Booking Confirmed!</div>} />
           {/* Add more client pages here */}
         </Route>
 

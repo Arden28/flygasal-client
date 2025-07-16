@@ -210,6 +210,7 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
       ...provided,
       borderRadius: '0.5rem',
       padding: '0.5rem',
+      paddingLeft: '0.8rem',
       border: '1px solid #e5e7eb',
       boxShadow: 'none',
       '&:hover': {

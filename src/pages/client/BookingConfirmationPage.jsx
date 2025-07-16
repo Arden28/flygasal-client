@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { flights, airlines, airports } from '../../data/fakeData';
 import FlightDetails from '../../components/client/FlightDetails';
 import BookingForm from '../../components/client/BookingForm';
+import { PayPalScriptProvider } from '@paypal/react-paypal-js';
 
 const countries = [
   { code: 'US', name: 'United States', flag: '/assets/img/flags/us.png' },
@@ -11,7 +12,6 @@ const countries = [
   { code: 'AE', name: 'United Arab Emirates', flag: '/assets/img/flags/ae.png' },
   { code: 'AU', name: 'Australia', flag: '/assets/img/flags/au.png' },
   { code: 'FR', name: 'France', flag: '/assets/img/flags/fr.png' },
-  // African Countries
   { code: 'ET', name: 'Ethiopia', flag: '/assets/img/flags/et.png' },
   { code: 'KE', name: 'Kenya', flag: '/assets/img/flags/ke.png' },
   { code: 'ZA', name: 'South Africa', flag: '/assets/img/flags/za.png' },
@@ -32,7 +32,6 @@ const months = [
   { value: '11', label: '11 November' },
   { value: '12', label: '12 December' },
 ];
-
 const days = Array.from({ length: 31 }, (_, i) => ({
   value: String(i + 1).padStart(2, '0'),
   label: String(i + 1).padStart(2, '0'),
@@ -51,11 +50,15 @@ const BookingConfirmationPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [tripDetails, setTripDetails] = useState(null);
+  const [adults, setAdults] = useState(0);
+  const [children, setChildren] = useState(0);
+  const [infants, setInfants] = useState(0);
   const [error, setError] = useState(null);
-  const [isAgent, setIsAgent] = useState(false); // Simulate agent status
+  const [isAgent, setIsAgent] = useState(false);
   const [agentFee, setAgentFee] = useState(0);
   const [showCancellation, setShowCancellation] = useState(false);
   const [showReadMore, setShowReadMore] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [isFormValid, setIsFormValid] = useState(false);
   const [formData, setFormData] = useState({
     full_name: '',
@@ -67,17 +70,21 @@ const BookingConfirmationPage = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Initialize travelers based on query parameters
+  // Initialize travelers and counts based on query parameters
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
-    const adults = parseInt(searchParams.get('adults')) || 2;
-    const children = parseInt(searchParams.get('children')) || 0;
-    const infants = parseInt(searchParams.get('infants')) || 0;
+    const adultsCount = parseInt(searchParams.get('adults')) || 2;
+    const childrenCount = parseInt(searchParams.get('children')) || 0;
+    const infantsCount = parseInt(searchParams.get('infants')) || 0;
+
+    setAdults(adultsCount);
+    setChildren(childrenCount);
+    setInfants(infantsCount);
 
     const initialTravelers = [
-      ...Array(adults).fill().map(() => ({
+      ...Array(adultsCount).fill().map(() => ({
         type: 'adult',
-        title: 'Mr',
+        title: import.meta.env.ENV_MODE === 'development' ? 'Mr' : '',
         first_name: import.meta.env.ENV_MODE === 'development' ? `Elan${String.fromCharCode(65 + Math.floor(Math.random() * 26))}` : '',
         last_name: import.meta.env.ENV_MODE === 'development' ? `Mask${String.fromCharCode(65 + Math.floor(Math.random() * 26))}` : '',
         nationality: import.meta.env.ENV_MODE === 'development' ? 'PK' : '',
@@ -92,9 +99,9 @@ const BookingConfirmationPage = () => {
         passport_expiry_day: import.meta.env.ENV_MODE === 'development' ? '01' : '',
         passport_expiry_year: import.meta.env.ENV_MODE === 'development' ? String(new Date().getFullYear() + 2) : '',
       })),
-      ...Array(children).fill().map(() => ({
+      ...Array(childrenCount).fill().map(() => ({
         type: 'child',
-        title: 'Miss',
+        title: import.meta.env.ENV_MODE === 'development' ? 'Miss' : '',
         first_name: import.meta.env.ENV_MODE === 'development' ? `Elan${String.fromCharCode(65 + Math.floor(Math.random() * 26))}` : '',
         last_name: import.meta.env.ENV_MODE === 'development' ? `Mask${String.fromCharCode(65 + Math.floor(Math.random() * 26))}` : '',
         nationality: import.meta.env.ENV_MODE === 'development' ? 'PK' : '',
@@ -109,9 +116,9 @@ const BookingConfirmationPage = () => {
         passport_expiry_day: import.meta.env.ENV_MODE === 'development' ? '01' : '',
         passport_expiry_year: import.meta.env.ENV_MODE === 'development' ? String(new Date().getFullYear() + 2) : '',
       })),
-      ...Array(infants).fill().map(() => ({
+      ...Array(infantsCount).fill().map(() => ({
         type: 'infant',
-        title: 'Miss',
+        title: import.meta.env.ENV_MODE === 'development' ? 'Miss' : '',
         first_name: import.meta.env.ENV_MODE === 'development' ? `Elan${String.fromCharCode(65 + Math.floor(Math.random() * 26))}` : '',
         last_name: import.meta.env.ENV_MODE === 'development' ? `Mask${String.fromCharCode(65 + Math.floor(Math.random() * 26))}` : '',
         nationality: import.meta.env.ENV_MODE === 'development' ? 'PK' : '',
@@ -130,39 +137,45 @@ const BookingConfirmationPage = () => {
     setFormData(prev => ({ ...prev, travelers: initialTravelers }));
   }, [location.search]);
 
-  // Form validation  
+  // Form validation
   useEffect(() => {
-    const isValid = formData.full_name &&
+    const isValid =
+      formData.full_name &&
       formData.email &&
       formData.phone &&
       formData.agree_terms &&
       formData.payment_method &&
-      formData.travelers.every(traveler =>
-        traveler.title &&
-        traveler.first_name &&
-        traveler.last_name &&
-        traveler.nationality &&
-        traveler.dob_month &&
-        traveler.dob_day &&
-        traveler.dob_year &&
-        traveler.passport &&
-        traveler.passport_issuance_month &&
-        traveler.passport_issuance_day &&
-        traveler.passport_issuance_year &&
-        traveler.passport_expiry_month &&
-        traveler.passport_expiry_day &&
-        traveler.passport_expiry_year
-      );
+      formData.travelers.length >= adults + children + infants &&
+      formData.travelers.every(
+        (traveler) =>
+          traveler.title &&
+          traveler.first_name &&
+          traveler.last_name &&
+          traveler.nationality &&
+          traveler.dob_month &&
+          traveler.dob_day &&
+          traveler.dob_year &&
+          traveler.passport &&
+          traveler.passport_issuance_month &&
+          traveler.passport_issuance_day &&
+          traveler.passport_issuance_year &&
+          traveler.passport_expiry_month &&
+          traveler.passport_expiry_day &&
+          traveler.passport_expiry_year
+      ) &&
+      (formData.payment_method !== 'credit_card' ||
+        (formData.card_full_name && formData.card_number && formData.card_expiration && formData.card_cvv));
     setIsFormValid(isValid);
-  }, [formData]);
+    console.log('isFormValid:', isValid, 'formData:', formData, 'counts:', { adults, children, infants }); // Debug
+  }, [formData, adults, children, infants]);
 
   // Parse flight data
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const tripType = searchParams.get('tripType') || 'oneway';
-    const adults = parseInt(searchParams.get('adults')) || 2;
-    const children = parseInt(searchParams.get('children')) || 0;
-    const infants = parseInt(searchParams.get('infants')) || 0;
+    const adultsCount = parseInt(searchParams.get('adults')) || 2;
+    const childrenCount = parseInt(searchParams.get('children')) || 0;
+    const infantsCount = parseInt(searchParams.get('infants')) || 0;
     const origin = searchParams.get('flights[0][origin]');
     const destination = searchParams.get('flights[0][destination]');
     const departDate = searchParams.get('flights[0][depart]');
@@ -170,7 +183,7 @@ const BookingConfirmationPage = () => {
     const flightId = searchParams.get('flightId');
     const returnFlightId = searchParams.get('returnFlightId');
 
-    console.log('Query Parameters:', { tripType, adults, children, infants, origin, destination, departDate, returnDate, flightId, returnFlightId });
+    console.log('Query Parameters:', { tripType, adults: adultsCount, children: childrenCount, infants: infantsCount, origin, destination, departDate, returnDate, flightId, returnFlightId });
     console.log('Available Flights:', flights);
 
     const selectedOutbound = flights.find(f => f.id === flightId);
@@ -195,9 +208,9 @@ const BookingConfirmationPage = () => {
 
     setTripDetails({
       tripType,
-      adults,
-      children,
-      infants,
+      adults: adultsCount,
+      children: childrenCount,
+      infants: infantsCount,
       outbound: selectedOutbound,
       return: selectedReturn,
       origin,
@@ -208,6 +221,54 @@ const BookingConfirmationPage = () => {
       cancellation_policy: 'Non-refundable after 24 hours. Cancellations within 24 hours of booking are refundable with a $50 fee.',
     });
   }, [location.search]);
+
+  // Handle payment submission
+  const handlePayment = async (paymentMethod) => {
+    if (!isFormValid) {
+      console.log('Form invalid, cannot proceed with payment');
+      return;
+    }
+    setIsProcessing(true);
+
+    try {
+      let paymentSuccess = false;
+      if (paymentMethod === 'credit_card') {
+        const response = await fetch('/submit-booking', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            booking_data: btoa(JSON.stringify({ outbound: tripDetails.outbound, returnFlight: tripDetails.return, tripType: tripDetails.tripType, adults, children, infants })),
+            routes: btoa(JSON.stringify({ outbound: tripDetails.outbound, returnFlight: tripDetails.return })),
+            travellers: btoa(JSON.stringify(formData.travelers)),
+            full_name: formData.full_name,
+            email: formData.email,
+            phone: formData.phone,
+            agent_fee: agentFee,
+            total_price: tripDetails.totalPrice + agentFee,
+            payment_method: formData.payment_method,
+            card_full_name: formData.card_full_name,
+            card_number: formData.card_number,
+            card_expiration: formData.card_expiration,
+            card_cvv: formData.card_cvv,
+          }),
+        });
+        if (response.ok) {
+          paymentSuccess = true;
+        } else {
+          throw new Error('Credit card payment failed.');
+        }
+      } else if (paymentMethod === 'paypal') {
+        paymentSuccess = true; // Handled by onApprove
+      }
+
+      if (paymentSuccess) {
+        navigate('/flight/confirmation-success');
+      }
+    } catch (err) {
+      console.error('Payment error:', err);
+      setIsProcessing(false);
+    }
+  };
 
   // Check cancellation policy height
   useEffect(() => {
@@ -239,13 +300,11 @@ const BookingConfirmationPage = () => {
 
   const getPassengerSummary = (adults, children, infants) => {
     const parts = [];
-
     if (adults > 0) parts.push(`${adults} Adult${adults > 1 ? 's' : ''}`);
     if (children > 0) parts.push(`${children} Child${children > 1 ? 'ren' : ''}`);
     if (infants > 0) parts.push(`${infants} Infant${infants > 1 ? 's' : ''}`);
-
     return parts.join(', ');
- };
+  };
 
   // Calculate trip duration
   const calculateDuration = (departure, arrival) => {
@@ -261,23 +320,23 @@ const BookingConfirmationPage = () => {
     if (!dateString) return '';
     return new Date(dateString).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   };
-  
-    const formatDate = (dateString) => {
-        if (!dateString) return '';
-        return new Date(dateString).toLocaleDateString('en-US', {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-        });
-    };
-  
-    const formatDateMonth = (dateString) => {
-        if (!dateString) return '';
-        return new Date(dateString).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-        });
-    };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const formatDateMonth = (dateString) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+  };
 
   const handleFormChange = (e, index) => {
     const { name, value, type, checked } = e.target;
@@ -303,7 +362,7 @@ const BookingConfirmationPage = () => {
         ...prev.travelers,
         {
           type,
-          title: 'Mr',
+          title: '',
           first_name: '',
           last_name: '',
           nationality: '',
@@ -323,7 +382,7 @@ const BookingConfirmationPage = () => {
   };
 
   const removeTraveler = (index) => {
-    const minTravelers = (tripDetails?.adults || 2) + (tripDetails?.children || 0) + (tripDetails?.infants || 0);
+    const minTravelers = adults + children + infants;
     if (formData.travelers.length <= minTravelers) return;
     setFormData(prev => ({
       ...prev,
@@ -337,7 +396,7 @@ const BookingConfirmationPage = () => {
     setIsSubmitting(true);
     setTimeout(() => {
       setIsSubmitting(false);
-      navigate('/confirmation-success');
+      navigate('/flight/confirmation-success');
     }, 2000);
   };
 
@@ -360,20 +419,20 @@ const BookingConfirmationPage = () => {
     return <div className="text-center py-10 text-gray-600">Loading...</div>;
   }
 
-  const { tripType, adults, children, infants, outbound, return: returnFlight, totalPrice, cancellation_policy } = tripDetails;
-  const finalPrice = totalPrice; // Hardcoded to match context
+  const { tripType, outbound, return: returnFlight, totalPrice, cancellation_policy } = tripDetails;
+  const finalPrice = totalPrice;
 
   return (
-    <div className="min-h-screen bg-gray-100 font-sans">
+    <div className="relative bg-gray-100 font-sans">
       {/* Hero Section */}
       <motion.section
-        className="relative h-64 md:h-80 bg-cover bg-center"
+        className="h-64 md:h-80 bg-cover bg-center m-0"
         style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1436491865332-7a61a109cc05?fit=crop&w=1920&h=400&q=80")' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 1 }}
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-transparent"></div>
+        <div className="inset-0 bg-gradient-to-b from-black/50 to-transparent"></div>
         <div className="container mx-auto h-full flex items-center justify-center">
           <div className="text-center text-white">
             <h1 className="text-4xl md:text-5xl font-bold mb-2">Book Your Journey to {getCityName(outbound.destination)}</h1>
@@ -382,16 +441,127 @@ const BookingConfirmationPage = () => {
         </div>
       </motion.section>
 
-      {/* Breadcrumb */}
-      <section className="bg-blue-700 pt-4 pb-4 mb-4">
-        <div className="container mx-auto">
-          <div className="flex items-center">
-            <div className="w-full">
-              <p className="mb-0 text-white text-center font-bold text-lg">Flights Booking</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Main Content */}
+      <div className="container mx-auto px-4 pt-0" style={{ marginTop: '-70px' }}>
+        <PayPalScriptProvider options={{ 'client-id': 'your-paypal-client-id' }}>
+          <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row gap-6">
+            {/* Left Column: Booking Form */}
+            <BookingForm
+              searchParams={new URLSearchParams(location.search)}
+              formData={formData}
+              setFormData={setFormData}
+              handleFormChange={handleFormChange}
+              isSubmitting={isSubmitting}
+              cancellation_policy={cancellation_policy}
+              setCancellationPolicy={() => {}}
+              showReadMore={showReadMore}
+              setShowReadMore={setShowReadMore}
+              adults={adults}
+              children={children}
+              infants={infants}
+              setAdults={setAdults}
+              setChildren={setChildren}
+              setInfants={setInfants}
+              addTraveler={addTraveler}
+              removeTraveler={removeTraveler}
+              countries={countries}
+              months={months}
+              days={days}
+              dobYears={dobYears}
+              issuanceYears={issuanceYears}
+              expiryYears={expiryYears}
+              showCancellation={showCancellation}
+              setShowCancellation={setShowCancellation}
+              getPassengerSummary={getPassengerSummary}
+              tripType={tripType}
+              outbound={outbound}
+              formatDate={formatDate}
+              formatDateMonth={formatDateMonth}
+              formatTime={formatTime}
+              getAirportName={getAirportName}
+              getCityName={getCityName}
+              getAirlineName={getAirlineName}
+              getAirlineLogo={getAirlineLogo}
+              returnFlight={returnFlight}
+              calculateDuration={calculateDuration}
+              isFormValid={isFormValid}
+              isProcessing={isProcessing}
+              setIsProcessing={setIsProcessing}
+            />
+
+            {/* Right Column: Flight Details */}
+            <FlightDetails
+              getPassengerSummary={getPassengerSummary}
+              totalPrice={totalPrice}
+              finalPrice={finalPrice}
+              setAgentFee={setAgentFee}
+              agentFee={agentFee}
+              isAgent={isAgent}
+              infants={infants}
+              children={children}
+              adults={adults}
+              tripType={tripType}
+              outbound={outbound}
+              formatDate={formatDate}
+              formatTime={formatTime}
+              getAirportName={getAirportName}
+              getCityName={getCityName}
+              getAirlineName={getAirlineName}
+              getAirlineLogo={getAirlineLogo}
+              returnFlight={returnFlight}
+              calculateDuration={calculateDuration}
+              isFormValid={isFormValid}
+              formData={formData}
+              handlePayment={handlePayment}
+              isProcessing={isProcessing}
+            />
+
+            {/* Hidden Inputs */}
+            <input type="hidden" name="booking_data" value={btoa(JSON.stringify({ cancellation_policy, adults, children, infants }))} />
+            <input
+              type="hidden"
+              name="routes"
+              value={btoa(
+                JSON.stringify({
+                  segments: [
+                    [
+                      {
+                        ...outbound,
+                        departure_code: outbound.origin,
+                        arrival_code: outbound.destination,
+                        departure_time: formatTime(outbound.departureTime),
+                        arrival_time: formatTime(outbound.arrivalTime),
+                        flight_no: outbound.flightNumber,
+                        class: outbound.cabin || 'Economy',
+                        img: getAirlineLogo(outbound.airline),
+                        currency: 'USD',
+                        price: outbound.price,
+                      },
+                    ],
+                    tripType === 'return' && returnFlight
+                      ? [
+                          {
+                            ...returnFlight,
+                            departure_code: returnFlight.origin,
+                            arrival_code: returnFlight.destination,
+                            departure_time: formatTime(returnFlight.departureTime),
+                            arrival_time: formatTime(returnFlight.arrivalTime),
+                            flight_no: returnFlight.flightNumber,
+                            class: returnFlight.cabin || 'Economy',
+                            img: getAirlineLogo(returnFlight.airline),
+                            currency: 'USD',
+                            price: returnFlight.price,
+                          },
+                        ]
+                      : [],
+                  ],
+                })
+              )}
+            />
+            <input type="hidden" name="travellers" value={btoa(JSON.stringify(formData.travelers))} />
+          </form>
+        </PayPalScriptProvider>
+      </div>
 
       {/* Loading Spinner */}
       <AnimatePresence>
@@ -410,123 +580,6 @@ const BookingConfirmationPage = () => {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Main Content */}
-      <div className="container mx-auto px-4">
-        <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row gap-6">
-          {/* Left Column: Booking Form */}
-            <BookingForm
-                searchParams={new URLSearchParams(location.search)}
-                
-                formData={formData}
-                setFormData={setFormData}
-                handleFormChange={handleFormChange}
-                isSubmitting={isSubmitting}
-                cancellation_policy={cancellation_policy}
-                setCancellationPolicy={() => {}} // No setCancellationPolicy in parent, pass noop or implement if needed
-                showReadMore={showReadMore}
-                setShowReadMore={setShowReadMore}
-
-                adults={adults}
-                children={children}
-                infants={infants}
-                addTraveler={addTraveler}
-                removeTraveler={removeTraveler}
-                countries={countries}
-                months={months}
-                days={days}
-                dobYears={dobYears}
-                issuanceYears={issuanceYears}
-                expiryYears={expiryYears}
-                showCancellation={showCancellation}
-                setShowCancellation={setShowCancellation}
-                getPassengerSummary={getPassengerSummary}
-                tripType={tripType}
-                outbound={outbound}
-                formatDate={formatDate}
-                formatDateMonth={formatDateMonth}
-                formatTime={formatTime}
-                getAirportName={getAirportName}
-                getCityName={getCityName}
-                getAirlineName={getAirlineName}
-                getAirlineLogo={getAirlineLogo}
-                returnFlight={returnFlight}
-                calculateDuration={calculateDuration}
-                isFormValid={isFormValid}
-            />
-
-          {/* Right Column: Flight Details */}
-            <FlightDetails
-                getPassengerSummary={getPassengerSummary}
-                totalPrice={totalPrice}
-                finalPrice={finalPrice}
-                setAgentFee={setAgentFee}
-                agentFee={agentFee}
-                isAgent={isAgent}
-                infants={infants}
-                children={children}
-                adults={adults}
-                tripType={tripType}
-                outbound={outbound}
-                formatDate={formatDate}
-                formatTime={formatTime}
-                getAirportName={getAirportName}
-                getCityName={getCityName}
-                getAirlineName={getAirlineName}
-                getAirlineLogo={getAirlineLogo}
-                returnFlight={returnFlight}
-                calculateDuration={calculateDuration}
-                isFormValid={isFormValid}
-            />
-
-
-          {/* Hidden Inputs */}
-          <input type="hidden" name="booking_data" value={btoa(JSON.stringify({ cancellation_policy }))} />
-          <input
-            type="hidden"
-            name="routes"
-            value={btoa(
-              JSON.stringify({
-                segments: [
-                  [
-                    {
-                      ...outbound,
-                      departure_code: outbound.origin,
-                      arrival_code: outbound.destination,
-                      departure_time: formatTime(outbound.departureTime),
-                      arrival_time: formatTime(outbound.arrivalTime),
-                      flight_no: outbound.flightNumber,
-                      class: outbound.cabin || 'Economy',
-                      img: getAirlineLogo(outbound.airline),
-                      currency: 'USD',
-                      price: outbound.price,
-                    },
-                  ],
-                  tripType === 'return' && returnFlight
-                    ? [
-                        {
-                          ...returnFlight,
-                          departure_code: returnFlight.origin,
-                          arrival_code: returnFlight.destination,
-                          departure_time: formatTime(returnFlight.departureTime),
-                          arrival_time: formatTime(returnFlight.arrivalTime),
-                          flight_no: returnFlight.flightNumber,
-                          class: returnFlight.cabin || 'Economy',
-                          img: getAirlineLogo(returnFlight.airline),
-                          currency: 'USD',
-                          price: returnFlight.price,
-                        },
-                      ]
-                    : [],
-                ],
-              })
-            )}
-          />
-          <input type="hidden" name="travellers" value={btoa(JSON.stringify(formData.travelers))} />
-        </form>
-      </div>
-
-      
     </div>
   );
 };
