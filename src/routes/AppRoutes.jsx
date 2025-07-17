@@ -9,6 +9,8 @@ import Dashboard from "../pages/admin/Dashboard";
 import FlightPage from "../pages/client/FlightPage";
 import TripReviewPage from "../pages/client/TripReviewPage";
 import BookingConfirmationPage from "../pages/client/BookingConfirmationPage";
+import Login from "../pages/client/Login";
+import Register from "../pages/client/Register";
 
 export default function AppRoutes() {
   return (
@@ -21,6 +23,8 @@ export default function AppRoutes() {
           <Route path="/flight/trip-review" element={<TripReviewPage />} />
           <Route path="/flight/booking-confirmation" element={<BookingConfirmationPage />} />
           <Route path="/flight/confirmation-success" element={<div>Booking Confirmed!</div>} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Register />} />
           {/* Add more client pages here */}
         </Route>
 

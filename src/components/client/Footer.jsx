@@ -28,7 +28,7 @@ export default function Footer() {
             <a href="/" className="inline-block">
               <img
                 className="h-12 w-auto rounded-lg"
-                src="/assets/uploads/global/favicon.png"
+                src="/assets/img/logo/flygasal.png"
                 alt="FlyGasal Logo"
               />
             </a>

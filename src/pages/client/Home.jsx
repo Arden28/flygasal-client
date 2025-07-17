@@ -6,7 +6,7 @@ import FeaturedFlights from '../../components/client/FeaturedFlights';
 
 const Home = () => {
   return (
-    <div className=''>
+    <div className='' style={{ marginTop: '40px' }}>
       {/* Hero Section with background and promotional text */}
       <HeroSection />
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FaUserCircle } from "react-icons/fa";
 import { Link } from "react-router-dom";
-import logo from '/assets/uploads/global/logo.png';
+import logo from '/assets/img/logo/flygasal.png';
 import usFlag from '/assets/img/flags/us.svg';
 import arFlag from '/assets/img/flags/ar.svg';
 import frFlag from '/assets/img/flags/fr.svg';
@@ -51,7 +51,7 @@ export default function Navbar() {
                             <img 
                                 className="logo p-1 rounded" 
                                 style={{ maxWidth: '140px', maxHeight: '50px' }} 
-                                src="/assets/uploads/global/logo.png" 
+                                src="/assets/img/logo/flygasal.png" 
                                 alt="FlyGasal Logo" 
                             />
                         </a>

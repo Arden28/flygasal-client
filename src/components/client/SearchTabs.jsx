@@ -35,7 +35,7 @@ const SearchTabs = () => {
         </li>
       </ul>
       {/* Tab content */}
-      <div className="border rounded p-3 main_search bg-white shadow-sm" id="tab-group-events">
+      <div className="border rounded p-3 pt-0 main_search bg-white shadow-sm" id="tab-group-events">
         <div className="tab-content mt-2 p-0" id="tab">
           {/* Flights */}
           <div className={`tab-pane fade ${activeTab === 'flights' ? 'show active' : ''}`} id="tab-flights" role="tabpanel" tabindex="0">
