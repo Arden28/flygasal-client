@@ -6,6 +6,8 @@ import SpinnerOrbit from "../components/client/SpinnerOrbit";
 import AppPromoSection from "../components/client/AppPromoSection";
 
 export default function ClientLayout() {
+  
+
   return (
     <div id="fadein">
       <Navbar />

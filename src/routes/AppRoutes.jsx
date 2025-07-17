@@ -14,6 +14,7 @@ import Register from "../pages/client/Register";
 import SignupSuccessPage from "../pages/client/RegisterSuccessPage";
 import AboutPage from "../pages/client/AboutPage";
 import DashboardPage from "../pages/client/DashboardPage";
+import BookingsPage from "../components/client/BookingsPage";
 
 export default function AppRoutes() {
   return (
@@ -32,6 +33,7 @@ export default function AppRoutes() {
           <Route path="/signup-success" element={<SignupSuccessPage />} />
           {/* Profile */}
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/bookings" element={<BookingsPage />} />
 
           {/* Add more client pages here */}
         </Route>
