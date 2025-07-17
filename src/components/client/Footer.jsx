@@ -61,7 +61,7 @@ export default function Footer() {
             <ul className="space-y-2 text-sm">
               <li>
                 <a
-                  href="/page/about"
+                  href="/about"
                   className="hover:text-blue-600 transition-colors"
                 >
                   About Us
@@ -69,7 +69,7 @@ export default function Footer() {
               </li>
               <li>
                 <a
-                  href="/page/privacy"
+                  href="/privacy"
                   className="hover:text-blue-600 transition-colors"
                 >
                   Privacy Policy

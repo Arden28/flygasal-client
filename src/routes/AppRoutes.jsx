@@ -11,6 +11,9 @@ import TripReviewPage from "../pages/client/TripReviewPage";
 import BookingConfirmationPage from "../pages/client/BookingConfirmationPage";
 import Login from "../pages/client/Login";
 import Register from "../pages/client/Register";
+import SignupSuccessPage from "../pages/client/RegisterSuccessPage";
+import AboutPage from "../pages/client/AboutPage";
+import DashboardPage from "../pages/client/DashboardPage";
 
 export default function AppRoutes() {
   return (
@@ -19,12 +22,17 @@ export default function AppRoutes() {
         {/* Client-side */}
         <Route path="/" element={<ClientLayout />}>
           <Route index element={<Home />} />
+          <Route path="/about" element={<AboutPage />} />
           <Route path="/flight/availability" element={<FlightPage />} />
           <Route path="/flight/trip-review" element={<TripReviewPage />} />
           <Route path="/flight/booking-confirmation" element={<BookingConfirmationPage />} />
           <Route path="/flight/confirmation-success" element={<div>Booking Confirmed!</div>} />
           <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Register />} />
+          <Route path="/signup" element={<Register signupUrl="/api/signup" />} />
+          <Route path="/signup-success" element={<SignupSuccessPage />} />
+          {/* Profile */}
+          <Route path="/dashboard" element={<DashboardPage />} />
+
           {/* Add more client pages here */}
         </Route>
 

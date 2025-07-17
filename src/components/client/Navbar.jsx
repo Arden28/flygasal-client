@@ -45,7 +45,7 @@ export default function Navbar() {
   return (
     
                 <header className="navbar fixed-top navbar-expand-lg bg-white shadow-sm">
-                    <div className="container mx-auto px-4">
+                    <div className="container mx-auto px-0">
                         {/* Logo */}
                         <a href="/" className="navbar-brand m-0 py-2 px-2 rounded-lg hover:bg-gray-200 transition">
                             <img 
@@ -73,17 +73,6 @@ export default function Navbar() {
                         <div className={`${isMobileMenuOpen ? 'collapse' : ''} navbar-collapse justify-content-between`} id="navbarSupportedContent">
                             {/* Left navigation items */}
                             <ul className="navbar-nav  mb-2 mb-lg-0">
-
-                                {navLinks.map((link) => (
-                                  <li className="nav-item" key={link.href}>
-                                    <a
-                                      href={link.href}
-                                      className="nav-link fw-medium fs-6"
-                                    >
-                                      {link.label}
-                                    </a>
-                                  </li>
-                                ))}
 
                             </ul>
 
@@ -179,6 +168,7 @@ export default function Navbar() {
                                         </svg>
                                     </a>
                                     <ul className="dropdown-menu rounded-lg p-2 shadow-md">
+                                        <li><a className="dropdown-item hover:bg-gray-100" href="/dashboard">Dashboard</a></li>
                                         <li><a className="dropdown-item hover:bg-gray-100" href="/login">Login</a></li>
                                         <li><a className="dropdown-item hover:bg-gray-100" href="/signup">Signup</a></li>
                                     </ul>
