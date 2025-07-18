@@ -4,11 +4,11 @@ import Select from 'react-select';
 // Mock translation object to replace PHP T::
 const T = {
     signup: 'Sign Up',
-    first_name: 'First Name',
+    name: 'Full Name',
     last_name: 'Last Name',
     select: 'Select',
     country: 'Country',
-    phone: 'Phone',
+    phone_number: 'Phone',
     email: 'Email',
     address: 'Address',
     password: 'Password',
@@ -31,11 +31,10 @@ const Register = ({
     const [isAgreed, setIsAgreed] = useState(false);
     const [isRecaptchaVerified, setIsRecaptchaVerified] = useState(false);
     const [formState, setFormState] = useState({
-        first_name: '',
-        last_name: '',
+        name: '',
         phone_country_code: null,
-        phone: '',
-        user_email: '',
+        phone_number: '',
+        email: '',
         password: '',
     });
     const [formErrors, setFormErrors] = useState({});
@@ -126,11 +125,8 @@ const Register = ({
     // Validate form fields
     const validateForm = () => {
         const errors = {};
-        if (!formState.first_name.trim()) {
-            errors.first_name = 'First name is required';
-        }
-        if (!formState.last_name.trim()) {
-            errors.last_name = 'Last name is required';
+        if (!formState.name.trim()) {
+            errors.name = 'First name is required';
         }
         if (!formState.phone_country_code) {
             errors.phone_country_code = 'Country is required';
@@ -140,10 +136,10 @@ const Register = ({
         } else if (!/^\d{7,15}$/.test(formState.phone.trim())) {
             errors.phone = 'Phone number must be 7-15 digits';
         }
-        if (!formState.user_email.trim()) {
-            errors.user_email = 'Email is required';
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formState.user_email.trim())) {
-            errors.user_email = 'Invalid email format';
+        if (!formState.email.trim()) {
+            errors.email = 'Email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formState.email.trim())) {
+            errors.email = 'Invalid email format';
         }
         if (!formState.password.trim()) {
             errors.password = 'Password is required';
@@ -178,11 +174,10 @@ const Register = ({
                 console.log('Signup response:', data);
                 // Reset form and reCAPTCHA
                 setFormState({
-                    first_name: '',
-                    last_name: '',
+                    name: '',
                     phone_country_code: null,
-                    phone: '',
-                    user_email: '',
+                    phone_number: '',
+                    email: '',
                     password: '',
                 });
                 setIsAgreed(false);
@@ -209,38 +204,19 @@ const Register = ({
                             <div className="form-floating mb-3">
                                 <input
                                     type="text"
-                                    className={`form-control ${formErrors.first_name ? 'is-invalid' : ''}`}
-                                    id="firstname"
+                                    className={`form-control ${formErrors.name ? 'is-invalid' : ''}`}
+                                    id="name"
                                     placeholder=" "
-                                    name="first_name"
-                                    value={formState.first_name}
+                                    name="name"
+                                    value={formState.name}
                                     onChange={handleInputChange}
                                     required
-                                    aria-describedby="first_name_error"
+                                    aria-describedby="name_error"
                                 />
-                                <label htmlFor="firstname">{T.first_name}</label>
-                                {formErrors.first_name && (
-                                    <div id="first_name_error" className="invalid-feedback">
-                                        {formErrors.first_name}
-                                    </div>
-                                )}
-                            </div>
-                            <div className="form-floating mb-3">
-                                <input
-                                    type="text"
-                                    className={`form-control ${formErrors.last_name ? 'is-invalid' : ''}`}
-                                    id="last_name"
-                                    placeholder=" "
-                                    name="last_name"
-                                    value={formState.last_name}
-                                    onChange={handleInputChange}
-                                    required
-                                    aria-describedby="last_name_error"
-                                />
-                                <label htmlFor="last_name">{T.last_name}</label>
-                                {formErrors.last_name && (
-                                    <div id="last_name_error" className="invalid-feedback">
-                                        {formErrors.last_name}
+                                <label htmlFor="name">{T.name}</label>
+                                {formErrors.name && (
+                                    <div id="name_error" className="invalid-feedback">
+                                        {formErrors.name}
                                     </div>
                                 )}
                             </div>
@@ -271,18 +247,18 @@ const Register = ({
                                     <div className="form-floating mb-3">
                                         <input
                                             type="tel"
-                                            className={`form-control ${formErrors.phone ? 'is-invalid' : ''}`}
-                                            id="phone"
+                                            className={`form-control ${formErrors.phone_number ? 'is-invalid' : ''}`}
+                                            id="phone_number"
                                             placeholder=" "
-                                            name="phone"
-                                            value={formState.phone}
+                                            name="phone_number"
+                                            value={formState.phone_number}
                                             onChange={handleInputChange}
                                             required
-                                            aria-describedby="phone_error"
+                                            aria-describedby="phone_number_error"
                                         />
-                                        <label htmlFor="phone">{T.phone}</label>
+                                        <label htmlFor="phone_number">{T.phone_number}</label>
                                         {formErrors.phone && (
-                                            <div id="phone_error" className="invalid-feedback">{formErrors.phone}</div>
+                                            <div id="phone_error" className="invalid-feedback">{formErrors.phone_number}</div>
                                         )}
                                     </div>
                                 </div>
@@ -290,19 +266,19 @@ const Register = ({
                             <div className="form-floating mb-3">
                                 <input
                                     type="email"
-                                    className={`form-control ${formErrors.user_email ? 'is-invalid' : ''}`}
-                                    id="user_email"
+                                    className={`form-control ${formErrors.email ? 'is-invalid' : ''}`}
+                                    id="email"
                                     placeholder=" "
-                                    name="user_email"
-                                    value={formState.user_email}
+                                    name="email"
+                                    value={formState.email}
                                     onChange={handleInputChange}
                                     required
-                                    aria-describedby="user_email_error"
+                                    aria-describedby="email_error"
                                 />
-                                <label htmlFor="user_email">{`${T.email} ${T.address}`}</label>
-                                {formErrors.user_email && (
-                                    <div id="user_email_error" className="invalid-feedback">
-                                        {formErrors.user_email}
+                                <label htmlFor="email">{`${T.email} ${T.address}`}</label>
+                                {formErrors.email && (
+                                    <div id="email_error" className="invalid-feedback">
+                                        {formErrors.email}
                                     </div>
                                 )}
                             </div>

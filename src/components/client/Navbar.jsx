@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { FaUserCircle } from "react-icons/fa";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { AuthContext } from "../../context/AuthContext";
 import logo from '/assets/img/logo/flygasal.png';
 import usFlag from '/assets/img/flags/us.svg';
 import arFlag from '/assets/img/flags/ar.svg';
@@ -9,9 +10,10 @@ import euFlag from '/assets/img/flags/eu.svg';
 import keFlag from '/assets/img/flags/ke.svg';
 
 export default function Navbar() {
-  
+  const { user, logoutUser } = useContext(AuthContext);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
+  const navigate = useNavigate();
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
   const toggleDropdown = (dropdown) => setOpenDropdown(openDropdown === dropdown ? null : dropdown);
@@ -34,13 +36,20 @@ export default function Navbar() {
     { code: 'KES', name: 'Kenya', flag: keFlag, href: '#' },
   ];
 
-  const accountOptions = [
-    { label: 'Login', href: '/login' },
-    { label: 'Signup', href: '/signup' },
-  ];
+  const accountOptions = user
+    ? [
+        { label: 'Dashboard', href: '/dashboard' },
+        { label: 'Logout', href: '#', onClick: async () => {
+            await logoutUser();
+            navigate('/login');
+          } },
+      ]
+    : [
+        { label: 'Login', href: '/login' },
+        { label: 'Signup', href: '/signup' },
+      ];
 
-  // const [language, setLanguage] = useState("EN");
-  // const [currency, setCurrency] = useState("USD");
+  const userDisplayName = user?.name || user?.email || 'Account';
 
   return (
     
@@ -151,7 +160,7 @@ export default function Navbar() {
                                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                                             <circle cx="12" cy="7" r="4"></circle>
                                         </svg>
-                                        <span className="m-0 uppercase font-medium">Account</span>
+                                        <span className="m-0 uppercase font-medium">{userDisplayName}</span>
                                         <svg 
                                             className="ms-1" 
                                             xmlns="http://www.w3.org/2000/svg" 
@@ -168,9 +177,17 @@ export default function Navbar() {
                                         </svg>
                                     </a>
                                     <ul className="dropdown-menu rounded-lg p-2 shadow-md">
-                                        <li><a className="dropdown-item hover:bg-gray-100" href="/dashboard">Dashboard</a></li>
-                                        <li><a className="dropdown-item hover:bg-gray-100" href="/login">Login</a></li>
-                                        <li><a className="dropdown-item hover:bg-gray-100" href="/signup">Signup</a></li>
+                                      {accountOptions.map((option) => (
+                                        <li key={option.label}>
+                                          <a
+                                            className="dropdown-item hover:bg-gray-100"
+                                            href={option.href}
+                                            onClick={option.onClick}
+                                          >
+                                            {option.label}
+                                          </a>
+                                        </li>
+                                      ))}
                                     </ul>
                                 </li>
                             </ul>

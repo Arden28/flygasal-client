@@ -31,7 +31,7 @@ export default function AppRoutes() {
           <Route path="/flight/booking-confirmation" element={<BookingConfirmationPage />} />
           <Route path="/flight/confirmation-success" element={<div>Booking Confirmed!</div>} />
           <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Register signupUrl="/api/signup" />} />
+          <Route path="/signup" element={<Register signupUrl="http://flygasal.test/api/auth/register" />} />
           <Route path="/signup-success" element={<SignupSuccessPage />} />
           {/* Profile */}
           <Route path="/dashboard" element={<DashboardPage />} />
