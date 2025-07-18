@@ -198,10 +198,9 @@ const Login = ({
                                     {T.cancel}
                                 </button>
                                 <button
-                                    style={{ height: '44px' }}
                                     type="submit"
                                     className="submit_buttons btn btn-primary btn-sm"
-                                    style={{ display: isResetLoading ? 'none' : 'block' }}
+                                    style={{ height: '44px', display: isResetLoading ? 'none' : 'block' }}
                                 >
                                     <span>{`${T.reset} ${T.email}`}</span>
                                 </button>
