@@ -34,16 +34,27 @@ const Login = ({
     setForm({ ...form, [name]: type === 'checkbox' ? checked : value });
   };
 
+
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
+    if (!form.email || !form.password) {
+      setError('Please enter both email and password');
+      return;
+    }
+    setIsLoading(true);
     try {
       const { user, access_token } = await login(form);
+      console.log('Login response:', { user, access_token });
       loginUser(user, access_token);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.message || 'Login failed');
+      console.error('Login error:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+      });
+      setError(err.message);
     } finally {
       setIsLoading(false);
     }

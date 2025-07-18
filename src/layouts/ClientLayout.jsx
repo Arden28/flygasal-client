@@ -5,7 +5,7 @@ import { Outlet } from "react-router-dom";
 import SpinnerOrbit from "../components/client/SpinnerOrbit";
 import AppPromoSection from "../components/client/AppPromoSection";
 
-export default function ClientLayout() {
+export default function ClientLayout({logoutUser}) {
 
   return (
     <div id="fadein">

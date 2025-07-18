@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Headbar from '../../components/client/Headbar';
 import { useLocation } from 'react-router-dom';
+import { AuthContext } from "../../context/AuthContext";
 
 // Mock translation object to replace PHP T::
 const T = {

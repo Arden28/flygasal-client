@@ -1,8 +1,9 @@
 // src/routes/AppRoutes.jsx
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ClientLayout from "../layouts/ClientLayout";
 import AdminLayout from "../layouts/AdminLayout";
 import { ClientContext } from "../context/ClientContext";
+import { AuthContext } from "../context/AuthContext";
 
 // Pages
 import Home from "../pages/client/Home";
@@ -17,13 +18,17 @@ import AboutPage from "../pages/client/AboutPage";
 import DashboardPage from "../pages/client/DashboardPage";
 import BookingsPage from "../pages/client/BookingsPage";
 import ProfilePage from "../pages/client/ProfilePage";
+import { useContext } from "react";
 
 export default function AppRoutes() {
+
+    const { user, logoutUser } = useContext(AuthContext);
+    
   return (
     <BrowserRouter>
       <Routes>
         {/* Client-side */}
-        <Route path="/" element={<ClientLayout />}>
+        <Route path="/" element={<ClientLayout logoutUser={logoutUser} />}>
           <Route index element={<Home />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/flight/availability" element={<FlightPage />} />
@@ -34,7 +39,16 @@ export default function AppRoutes() {
           <Route path="/signup" element={<Register signupUrl="http://flygasal.test/api/auth/register" />} />
           <Route path="/signup-success" element={<SignupSuccessPage />} />
           {/* Profile */}
-          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/dashboard" element={
+                user ? (
+                  <DashboardPage 
+                      user={user}
+                  />
+                ) : (
+                  <Navigate to="/login" />
+                )
+              } 
+            />
           <Route path="/bookings" element={<BookingsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           

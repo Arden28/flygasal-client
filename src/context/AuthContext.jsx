@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { logout } from '../api/auth';
+import { getToken, logout } from '../api/auth';
 // logout
 import API from '../api/auth';
 // import API from '../../api/auth';
@@ -10,11 +10,20 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const token = getToken();
+  
   // Validate user session on mount
   useEffect(() => {
     const validateSession = async () => {
+      
+      if (!token) throw new Error("No authentication token found");
       try {
-        const res = await API.get('/user'); // Assuming a /user endpoint to fetch current user
+        const res = await API.get("/auth/user", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }); 
+        // Assuming a /user endpoint to fetch current user
         setUser(res.data);
         localStorage.setItem('user', JSON.stringify(res.data));
       } catch (error) {

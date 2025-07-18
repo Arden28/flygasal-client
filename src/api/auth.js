@@ -1,29 +1,46 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "http://flygasal.test/api",
-  withCredentials: true,
+  baseURL: "http://127.0.0.1:8000/api",
+  withCredentials: false, // We're using token-based auth
 });
 
 // Interceptor for handling global errors (optional)
 API.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Log errors or handle globally (e.g., redirect to login on 401)
     console.error("API error:", error.response?.data || error.message);
     return Promise.reject(error);
   }
 );
 
+// Store token in localStorage
+const setToken = (token) => {
+  localStorage.setItem("access_token", token);
+};
+
+// Remove token from localStorage
+const removeToken = () => {
+  localStorage.removeItem("access_token");
+};
+
+// Get token from localStorage
+const getToken = () => {
+  return localStorage.getItem("access_token");
+};
+
 export const login = async (credentials) => {
   try {
-    // Call the CSRF cookie from the ROOT domain (NOT through /api)
-    await axios.get("http://flygasal.test/sanctum/csrf-cookie", {
-      withCredentials: true,
-    });
+    // CSRF token for Sanctum (still needed even for token-based routes)
+    await axios.get("http://127.0.0.1:8000/sanctum/csrf-cookie");
 
-    // Now make the login request
     const res = await API.post("/auth/login", credentials);
+
+    const token = res.data?.access_token;
+    if (token) {
+      setToken(token);
+    }
+
     return res.data;
   } catch (error) {
     throw new Error(error.response?.data?.message || "Login failed");
@@ -40,22 +57,44 @@ export const register = async (data) => {
   }
 };
 
-export const logout = async (token) => {
-  if (!token) {
-    throw new Error("No authentication token provided");
-  }
+export const logout = async () => {
+  const token = getToken();
+  if (!token) throw new Error("No authentication token provided");
+
   try {
     const res = await API.post(
       "/auth/logout",
       {},
       {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       }
     );
+
+    removeToken();
     return res.data;
   } catch (error) {
     throw new Error(error.response?.data?.message || "Logout failed");
   }
 };
 
+export const user = async () => {
+  const token = getToken();
+  if (!token) throw new Error("No authentication token found");
+
+  try {
+    const res = await API.get("/auth/user", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    return res.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || "Failed to fetch user");
+  }
+};
+
+export { getToken, setToken, removeToken };
 export default API;

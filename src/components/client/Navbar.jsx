@@ -48,8 +48,8 @@ export default function Navbar() {
         { label: 'Login', href: '/login' },
         { label: 'Signup', href: '/signup' },
       ];
-
-  const userDisplayName = user?.name || user?.email || 'Account';
+  
+  const userDisplayName = user.user.name || 'Account';
 
   return (
     
