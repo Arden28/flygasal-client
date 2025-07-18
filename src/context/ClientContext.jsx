@@ -1,20 +1,22 @@
-import { useState, useEffect } from 'react';
-import { translations } from './data/translation';
-import { conversionRates, currencySymbols } from './data/currencyRates';
-import { ClientContext } from './ClientContextContext';
+// src/contexts/ClientContext.jsx
+import { useState, useEffect, createContext } from 'react';
+import { translations } from '../data/translation';
+import { conversionRates, currencySymbols } from '../data/currencyRates';
+import { useLocation } from 'react-router-dom';
 
-export const AppProvider = ({ children }) => {
-  // Initialize from localStorage or default values
+export const ClientContext = createContext(); // ✅ Don't overwrite this
+
+export const ClientProvider = ({ children }) => {
   const [language, setLanguage] = useState(() => {
     const savedLanguage = localStorage.getItem('language');
     return savedLanguage && ['en', 'fr', 'ar'].includes(savedLanguage) ? savedLanguage : 'en';
   });
+
   const [currency, setCurrency] = useState(() => {
     const savedCurrency = localStorage.getItem('currency');
     return savedCurrency && ['USD', 'EUR', 'KES'].includes(savedCurrency) ? savedCurrency : 'USD';
   });
 
-  // Save to localStorage on change
   useEffect(() => {
     localStorage.setItem('language', language);
   }, [language]);
@@ -36,8 +38,20 @@ export const AppProvider = ({ children }) => {
     return `${currencySymbols[currency]}${converted.toLocaleString()}`;
   };
 
+  const location = useLocation();
+  const currentPath = location.pathname;
+
+  const meta = {
+    dashboard_active: currentPath === '/dashboard',
+    bookings_active: currentPath === '/bookings',
+    markups_active: currentPath === '/markups',
+    deposit_active: currentPath === '/deposit',
+    agency_active: currentPath === '/agency',
+    profile_active: currentPath === '/profile',
+  };
+
   return (
-    <ClientContext.Provider value={{ language, setLanguage, currency, setCurrency, t, formatCurrency }}>
+    <ClientContext.Provider value={{ language, setLanguage, currency, setCurrency, t, formatCurrency, meta }}>
       {children}
     </ClientContext.Provider>
   );

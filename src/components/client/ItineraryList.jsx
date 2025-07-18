@@ -32,7 +32,7 @@ const ItineraryList = ({
       returnFlightId: itinerary.return ? itinerary.return.id : '',
     });
 
-    navigate(`/flight/trip-review?${searchParams.toString()}`);
+    navigate(`/flight/booking-confirmation?${searchParams.toString()}`);
   };
 
   return (

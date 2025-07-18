@@ -45,7 +45,7 @@ export default function Headbar({ T, rootUrl, user }) {
                                     {T.mybookings}
                                 </a>
                             </li>
-                            {user.user_type === 'Agent' && (
+                            {/* {user.user_type === 'Agent' && (
                                 <li className="rounded-3 border">
                                     <a className={`py-2 justify-content-center w-auto d-block bg-transparent hover:bg-gray rounded-3 p-2`}
                                         href={`${rootUrl}reports/${new Date().getFullYear()}`}
@@ -67,7 +67,7 @@ export default function Headbar({ T, rootUrl, user }) {
                                         {T.reports}
                                     </a>
                                 </li>
-                            )}
+                            )} */}
                             <li className="rounded-3 border">
                                 <a className={`py-2 justify-content-center w-auto d-block bg-transparent hover:bg-gray rounded-3 p-2`} href={`${rootUrl}profile`}>
                                     <svg

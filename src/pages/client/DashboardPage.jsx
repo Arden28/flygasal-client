@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Headbar from '../../components/client/Headbar';
+import { useLocation } from 'react-router-dom';
 
 // Mock translation object to replace PHP T::
 const T = {
@@ -40,6 +41,18 @@ const DashboardPage = ({
         total: 0,
         pending: 0,
     });
+
+    const location = useLocation();
+    const currentPath = location.pathname;
+
+    const meta = {
+        dashboard_active: currentPath === '/dashboard',
+        bookings_active: currentPath === '/bookings',
+        markups_active: currentPath === '/markups',
+        deposit_active: currentPath === '/deposit',
+        agency_active: currentPath === '/agency',
+        profile_active: currentPath === '/profile',
+    };
 
     useEffect(() => {
         // Real-time clock update

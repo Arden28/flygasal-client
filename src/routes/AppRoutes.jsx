@@ -2,6 +2,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ClientLayout from "../layouts/ClientLayout";
 import AdminLayout from "../layouts/AdminLayout";
+import { ClientContext } from "../context/ClientContext";
 
 // Pages
 import Home from "../pages/client/Home";
@@ -15,6 +16,7 @@ import SignupSuccessPage from "../pages/client/RegisterSuccessPage";
 import AboutPage from "../pages/client/AboutPage";
 import DashboardPage from "../pages/client/DashboardPage";
 import BookingsPage from "../pages/client/BookingsPage";
+import ProfilePage from "../pages/client/ProfilePage";
 
 export default function AppRoutes() {
   return (
@@ -34,6 +36,7 @@ export default function AppRoutes() {
           {/* Profile */}
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/bookings" element={<BookingsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
           
 
           {/* Add more client pages here */}
