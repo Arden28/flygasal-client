@@ -22,6 +22,7 @@ import { useContext } from "react";
 import Users from "../pages/admin/Users";
 import Analytics from "../pages/admin/Analytics";
 import Settings from "../pages/admin/Settings";
+import UserDetails from "../pages/admin/UserDetails";
 
 export default function AppRoutes() {
 
@@ -63,6 +64,7 @@ export default function AppRoutes() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Dashboard />} />
           <Route path="users" element={<Users />} />
+          <Route path="users/:id" element={<UserDetails />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
         </Route>

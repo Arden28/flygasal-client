@@ -1,15 +1,36 @@
 import { Link, useLocation } from 'react-router-dom';
-import { HomeIcon, UsersIcon, ChartBarIcon, CogIcon } from '@heroicons/react/24/outline';
+import { useState, useContext } from 'react';
+import PropTypes from 'prop-types';
+import { HomeIcon, UsersIcon, ChartBarIcon, CogIcon, PaperAirplaneIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+// import { ClientContext } from './ClientContext';
 
-const navItems = [
+// Default navigation items (used if none provided via props)
+const defaultNavItems = [
   { name: 'Dashboard', path: '/admin', icon: HomeIcon },
   { name: 'Users', path: '/admin/users', icon: UsersIcon },
   { name: 'Analytics', path: '/admin/analytics', icon: ChartBarIcon },
-  { name: 'Settings', path: '/admin/settings', icon: CogIcon },
+  {
+    name: 'Flights',
+    path: '/admin/flights',
+    icon: PaperAirplaneIcon,
+    subItems: [
+      { name: 'Airlines', path: '/admin/flights/airlines' },
+      { name: 'Airports', path: '/admin/flights/airports' },
+      { name: 'Bookings', path: '/admin/flights/bookings' },
+      { name: 'Transactions', path: '/admin/flights/transactions' },
+    ],
+  },
+  { name: 'settings', path: '/admin/settings', icon: CogIcon },
 ];
 
-export default function Sidebar({ isOpen, toggleSidebar, setIsSidebarOpen }) {
+export default function Sidebar({ isOpen, toggleSidebar, setIsSidebarOpen, navItems = defaultNavItems, logoUrl = '/assets/img/logo.png', rootUrl = '/' }) {
   const location = useLocation();
+  const [isFlightsOpen, setIsFlightsOpen] = useState(true);
+  // const { t } = useContext() || { t: (key) => key }; // Fallback to key if context unavailable
+
+  const isFlightActive = navItems
+    .find((item) => item.name === 'flights')
+    ?.subItems?.some((subItem) => location.pathname.startsWith(subItem.path));
 
   return (
     <aside
@@ -17,26 +38,72 @@ export default function Sidebar({ isOpen, toggleSidebar, setIsSidebarOpen }) {
         isOpen ? 'translate-x-0' : '-translate-x-full'
       } md:translate-x-0 md:static md:block transition-transform duration-300 ease-in-out`}
     >
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold">FlyGasal Admin</h2>
-        <button className="md:hidden text-white" onClick={toggleSidebar}>
-          ✕
-        </button>
+      <div className="flex flex-col items-center justify-between mb-6">
+        <img
+          src={`${rootUrl}${logoUrl}`}
+          alt="FlyGasal Logo"
+          className="w-32 mb-4"
+          style={{ maxHeight: '64px', objectFit: 'contain' }}
+        />
+        <div className="flex items-center justify-between w-full">
+          <h2 className="text-xl font-bold">FlyGasal Admin</h2>
+          <button className="md:hidden text-white" onClick={toggleSidebar} aria-label="Close sidebar">
+            ✕
+          </button>
+        </div>
       </div>
       <nav>
         <ul>
           {navItems.map((item) => (
             <li key={item.name} className="mb-2">
-              <Link
-                to={item.path}
-                className={`flex items-center p-2 rounded text-white ${
-                  location.pathname === item.path ? 'bg-gray-700' : 'hover:bg-gray-700'
-                } transition`}
-                onClick={() => setIsSidebarOpen(false)}
-              >
-                <item.icon className="w-5 h-5 mr-2 text-white" />
-                {item.name}
-              </Link>
+              {item.subItems ? (
+                <>
+                  <button
+                    className={`flex items-center p-2 rounded text-white w-full text-left ${
+                      isFlightActive || location.pathname === item.path ? 'bg-gray-700' : 'hover:bg-gray-700'
+                    } transition`}
+                    onClick={() => setIsFlightsOpen(!isFlightsOpen)}
+                    aria-expanded={isFlightsOpen}
+                    aria-label={`Toggle ${item.name} dropdown`}
+                  >
+                    <item.icon className="w-5 h-5 mr-2 text-white" />
+                    {item.name}
+                    <ChevronDownIcon
+                      className={`w-4 h-4 ml-auto transition-transform ${isFlightsOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                  {isFlightsOpen && (
+                    <ul className="pl-8">
+                      {item.subItems.map((subItem) => (
+                        <li key={subItem.name} className="mb-2">
+                          <Link
+                            to={subItem.path}
+                            className={`flex items-center p-2 rounded text-white ${
+                              location.pathname === subItem.path ? 'bg-gray-700' : 'hover:bg-gray-700'
+                            } transition`}
+                            onClick={() => setIsSidebarOpen(false)}
+                            aria-label={subItem.name}
+                          >
+                            <span className="ml-2">{subItem.name}</span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              ) : (
+                <Link
+                  to={item.path}
+                  className={`flex items-center p-2 rounded text-white ${
+                    location.pathname === item.path ? 'bg-gray-700' : 'hover:bg-gray-700'
+                  } transition`}
+                  onClick={() => setIsSidebarOpen(false)}
+                  aria-label={item.name}
+                >
+                  <item.icon className="w-5 h-5 mr-2 text-white" />
+                  {item.name}
+                </Link>
+              )}
             </li>
           ))}
         </ul>
@@ -44,3 +111,24 @@ export default function Sidebar({ isOpen, toggleSidebar, setIsSidebarOpen }) {
     </aside>
   );
 }
+
+Sidebar.propTypes = {
+  isOpen: PropTypes.bool.isRequired,
+  toggleSidebar: PropTypes.func.isRequired,
+  setIsSidebarOpen: PropTypes.func.isRequired,
+  navItems: PropTypes.arrayOf(
+    PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      path: PropTypes.string.isRequired,
+      icon: PropTypes.elementType,
+      subItems: PropTypes.arrayOf(
+        PropTypes.shape({
+          name: PropTypes.string.isRequired,
+          path: PropTypes.string.isRequired,
+        })
+      ),
+    })
+  ),
+  logoUrl: PropTypes.string,
+  rootUrl: PropTypes.string,
+};
