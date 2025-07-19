@@ -19,6 +19,9 @@ import DashboardPage from "../pages/client/DashboardPage";
 import BookingsPage from "../pages/client/BookingsPage";
 import ProfilePage from "../pages/client/ProfilePage";
 import { useContext } from "react";
+import Users from "../pages/admin/Users";
+import Analytics from "../pages/admin/Analytics";
+import Settings from "../pages/admin/Settings";
 
 export default function AppRoutes() {
 
@@ -59,7 +62,9 @@ export default function AppRoutes() {
         {/* Admin-side */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Dashboard />} />
-          {/* Add more admin routes here */}
+          <Route path="users" element={<Users />} />
+          <Route path="analytics" element={<Analytics />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>

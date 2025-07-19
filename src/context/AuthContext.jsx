@@ -1,8 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { getToken, logout } from '../api/auth';
-// logout
-import API from '../api/auth';
-// import API from '../../api/auth';
+import { getToken, logout, fetchUser } from '../api/auth';
 
 export const AuthContext = createContext();
 
@@ -10,29 +7,28 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const token = getToken();
-  
   // Validate user session on mount
   useEffect(() => {
     const validateSession = async () => {
-      
-      if (!token) throw new Error("No authentication token found");
+      const token = getToken();
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        const res = await API.get("/auth/user", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }); 
-        // Assuming a /user endpoint to fetch current user
-        setUser(res.data);
-        localStorage.setItem('user', JSON.stringify(res.data));
+        const currentUser = await fetchUser();
+        setUser(currentUser);
       } catch (error) {
+        console.warn("Session validation failed:", error.message);
         setUser(null);
         localStorage.removeItem('user');
+        localStorage.removeItem('token');
       } finally {
         setIsLoading(false);
       }
     };
+
     validateSession();
   }, []);
 
@@ -44,10 +40,12 @@ export const AuthProvider = ({ children }) => {
   const logoutUser = async () => {
     try {
       await logout();
+    } catch (error) {
+      console.warn("Logout failed on server:", error.message);
+    } finally {
       setUser(null);
       localStorage.removeItem('user');
-    } catch (error) {
-      console.error('Logout failed:', error.message);
+      localStorage.removeItem('token');
     }
   };
 

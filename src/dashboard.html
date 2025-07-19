@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0/css/bootstrap.min.css">
+  <style>
+    .count {
+      font-size: 24px;
+      font-weight: bold;
+    }
+    #chartdiv {
+      width: 100%;
+      height: 400px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page_head">
+  <div class="panel-heading d-flex justify-content-between">
+    <p class="m-0 page_title">Dashboard</p>
+  </div>
+</div>
+
+<div class="container mt-3">
+  <div class="row mb-0 g-2">
+
+    <!-- Users Card -->
+    <div class="col-md-2 mb-2">
+      <div class="card h-100 text-dark border-0">
+        <span class="bg-dark" style="height:4px;"></span>
+        <div class="card-body p-3">
+          <div><small>Users</small></div>
+          <hr>
+          <div class="row align-items-center">
+            <div class="col-md-5">
+              <div class="bg-light border rounded-4 p-3 text-center">
+                👥
+              </div>
+            </div>
+            <div class="col-md-7">
+              <div class="count">123</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pages Card -->
+    <div class="col-md-2 mb-2">
+      <div class="card h-100 text-dark border-0">
+        <span class="bg-primary" style="height:4px;"></span>
+        <div class="card-body p-3">
+          <div><small>Pages</small></div>
+          <hr>
+          <div class="row align-items-center">
+            <div class="col-md-5">
+              <div class="bg-light border rounded-4 p-3 text-center">📄</div>
+            </div>
+            <div class="col-md-7">
+              <div class="count">12</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bookings Card -->
+    <div class="col-md-2 mb-2">
+      <div class="card h-100 text-dark border-0">
+        <span class="bg-success" style="height:4px;"></span>
+        <div class="card-body p-3">
+          <div><small>Bookings</small></div>
+          <hr>
+          <div class="row align-items-center">
+            <div class="col-md-5">
+              <div class="bg-light border rounded-4 p-3 text-center">📆</div>
+            </div>
+            <div class="col-md-7">
+              <div class="count">340</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cancelled Bookings -->
+    <div class="col-md-2 mb-2">
+      <div class="card h-100 text-dark border-0">
+        <span class="bg-danger" style="height:4px;"></span>
+        <div class="card-body p-3">
+          <div><small>Cancelled Bookings</small></div>
+          <hr>
+          <div class="row align-items-center">
+            <div class="col-md-5">
+              <div class="bg-light border rounded-4 p-3 text-center">❌</div>
+            </div>
+            <div class="col-md-7">
+              <div class="count">5</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Unpaid Bookings -->
+    <div class="col-md-2 mb-2">
+      <div class="card h-100 text-dark border-0">
+        <span class="bg-warning" style="height:4px;"></span>
+        <div class="card-body p-3">
+          <div><small>Unpaid Bookings</small></div>
+          <hr>
+          <div class="row align-items-center">
+            <div class="col-md-5">
+              <div class="bg-light border rounded-4 p-3 text-center">💸</div>
+            </div>
+            <div class="col-md-7">
+              <div class="count">9</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending Transactions -->
+    <div class="col-md-2 mb-2">
+      <div class="card h-100 text-dark border-0">
+        <span class="bg-purple" style="height:4px;background-color:rgb(126, 0, 141) !important;"></span>
+        <div class="card-body p-3">
+          <div><small>Pending Transactions</small></div>
+          <hr>
+          <div class="row align-items-center">
+            <div class="col-md-5">
+              <div class="bg-light border rounded-4 p-3 text-center">⏳</div>
+            </div>
+            <div class="col-md-7">
+              <div class="count">7</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Top 10 Countries Chart -->
+  <div class="row mt-2 g-2">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header rounded-0 py-3">
+          <strong>Top 10 Most Visited Countries</strong>
+        </div>
+        <div class="card-body">
+          <div id="chartdiv"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Booking Cancellation Requests -->
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header rounded-0 py-3">
+          <strong>Booking Cancellation Requests</strong>
+        </div>
+        <div class="card-body" style="height: 432px; overflow: auto;">
+          <ul class="list-group list-group-flush">
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <strong>Flight ID <small>FL12345</small></strong>
+              <div>
+                <a href="#" class="btn btn-outline-primary">Invoice</a>
+                <button class="btn btn-primary">Mark Completed</button>
+              </div>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <strong>Hotel ID <small>HT9876</small></strong>
+              <div>
+                <a href="#" class="btn btn-outline-primary">Invoice</a>
+                <button class="btn btn-primary">Mark Completed</button>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart Library -->
+<script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+<script>
+  am5.ready(function() {
+    var root = am5.Root.new("chartdiv");
+    root.setThemes([am5themes_Animated.new(root)]);
+
+    var chart = root.container.children.push(am5xy.XYChart.new(root, {
+      layout: root.verticalLayout
+    }));
+
+    var xAxis = chart.xAxes.push(am5xy.CategoryAxis.new(root, {
+      categoryField: "country",
+      renderer: am5xy.AxisRendererX.new(root, {})
+    }));
+
+    var yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, {
+      renderer: am5xy.AxisRendererY.new(root, {})
+    }));
+
+    var series = chart.series.push(am5xy.ColumnSeries.new(root, {
+      name: "Traffic",
+      xAxis: xAxis,
+      yAxis: yAxis,
+      valueYField: "visits",
+      categoryXField: "country"
+    }));
+
+    series.columns.template.setAll({ tooltipText: "{categoryX}: {valueY}" });
+
+    series.data.setAll([
+      { country: "US", visits: 120 },
+      { country: "FR", visits: 100 },
+      { country: "KE", visits: 95 },
+      { country: "NG", visits: 88 }
+    ]);
+
+    xAxis.data.setAll(series.dataItems.map(item => item.dataContext));
+
+    chart.appear(1000, 100);
+    series.appear();
+  });
+</script>
+
+<!-- Count Animation -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+  $('.count').each(function () {
+    $(this).prop('Counter',0).animate({
+      Counter: $(this).text()
+    }, {
+      duration: 3000,
+      easing: 'swing',
+      step: function (now) {
+        $(this).text(Math.ceil(now));
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

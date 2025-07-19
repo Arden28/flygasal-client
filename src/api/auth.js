@@ -1,100 +1,46 @@
+// src/api/auth.js
 import axios from "axios";
 
 const API = axios.create({
   baseURL: "http://127.0.0.1:8000/api",
-  withCredentials: false, // We're using token-based auth
 });
 
-// Interceptor for handling global errors (optional)
-API.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    console.error("API error:", error.response?.data || error.message);
-    return Promise.reject(error);
-  }
-);
+// Utility to get token from localStorage
+export const getToken = () => localStorage.getItem("token");
 
-// Store token in localStorage
-const setToken = (token) => {
-  localStorage.setItem("access_token", token);
+// Attach token to request headers
+const authHeader = () => ({
+  headers: {
+    Authorization: `Bearer ${getToken()}`,
+  },
+});
+
+// Login: Get token and user
+export const login = async (email, password) => {
+  const response = await API.post("/auth/login", { email, password });
+  const { token, user } = response.data;
+  localStorage.setItem("token", token);
+  localStorage.setItem("user", JSON.stringify(user));
+  return user;
 };
 
-// Remove token from localStorage
-const removeToken = () => {
-  localStorage.removeItem("access_token");
-};
-
-// Get token from localStorage
-const getToken = () => {
-  return localStorage.getItem("access_token");
-};
-
-export const login = async (credentials) => {
-  try {
-    // CSRF token for Sanctum (still needed even for token-based routes)
-    await axios.get("http://127.0.0.1:8000/sanctum/csrf-cookie");
-
-    const res = await API.post("/auth/login", credentials);
-
-    const token = res.data?.access_token;
-    if (token) {
-      setToken(token);
-    }
-
-    return res.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || "Login failed");
-  }
-};
-
-export const register = async (data) => {
-  try {
-    await API.get("/sanctum/csrf-cookie");
-    const res = await API.post("/auth/register", data);
-    return res.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || "Registration failed");
-  }
-};
-
+// Logout: Invalidate token on server
 export const logout = async () => {
-  const token = getToken();
-  if (!token) throw new Error("No authentication token provided");
-
-  try {
-    const res = await API.post(
-      "/auth/logout",
-      {},
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    removeToken();
-    return res.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || "Logout failed");
-  }
+  await API.post("/auth/logout", {}, authHeader());
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
 };
 
-export const user = async () => {
-  const token = getToken();
-  if (!token) throw new Error("No authentication token found");
-
-  try {
-    const res = await API.get("/auth/user", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    return res.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.message || "Failed to fetch user");
-  }
+// Register
+export const register = async (userData) => {
+  const response = await API.post("/auth/register", userData);
+  return response.data;
 };
 
-export { getToken, setToken, removeToken };
+// Get current user
+export const fetchUser = async () => {
+  const response = await API.get("/auth/user", authHeader());
+  return response.data;
+};
+
 export default API;

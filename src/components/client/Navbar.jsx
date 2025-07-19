@@ -11,6 +11,7 @@ import keFlag from '/assets/img/flags/ke.svg';
 
 export default function Navbar() {
   const { user, logoutUser } = useContext(AuthContext);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
   const navigate = useNavigate();
@@ -39,17 +40,13 @@ export default function Navbar() {
   const accountOptions = user
     ? [
         { label: 'Dashboard', href: '/dashboard' },
-        { label: 'Logout', href: '#', onClick: async () => {
-            await logoutUser();
-            navigate('/login');
-          } },
       ]
     : [
         { label: 'Login', href: '/login' },
         { label: 'Signup', href: '/signup' },
       ];
   
-  const userDisplayName = user.user.name || 'Account';
+  const userDisplayName = user?.name || user?.email || 'Account';
 
   return (
     
@@ -160,7 +157,7 @@ export default function Navbar() {
                                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                                             <circle cx="12" cy="7" r="4"></circle>
                                         </svg>
-                                        <span className="m-0 uppercase font-medium">{userDisplayName}</span>
+                                        <span className="m-0 uppercase font-medium">{isLoggingOut ? 'Logging out...' : userDisplayName}</span>
                                         <svg 
                                             className="ms-1" 
                                             xmlns="http://www.w3.org/2000/svg" 
@@ -177,17 +174,39 @@ export default function Navbar() {
                                         </svg>
                                     </a>
                                     <ul className="dropdown-menu rounded-lg p-2 shadow-md">
-                                      {accountOptions.map((option) => (
-                                        <li key={option.label}>
-                                          <a
-                                            className="dropdown-item hover:bg-gray-100"
-                                            href={option.href}
-                                            onClick={option.onClick}
-                                          >
-                                            {option.label}
-                                          </a>
-                                        </li>
+                                      {accountOptions
+                                        .filter((option) => option.label !== 'Logout')
+                                        .map((option) => (
+                                          <li key={option.label}>
+                                            <Link className="dropdown-item hover:bg-gray-100" to={option.href}>
+                                              {option.label}
+                                            </Link>
+                                          </li>
                                       ))}
+
+                                      {user && (
+                                        <li>
+                                          <button
+                                            className="dropdown-item hover:bg-gray-100 w-100 text-start"
+                                            disabled={isLoggingOut}
+                                            onClick={async () => {
+                                              setIsLoggingOut(true);
+                                              try {
+                                                await logoutUser();
+                                                navigate('/login');
+                                              } catch (error) {
+                                                console.error('Logout error:', error.message);
+                                                alert('Failed to log out. Please try again.');
+                                              } finally {
+                                                setIsLoggingOut(false);
+                                              }
+                                            }}
+                                          >
+                                            {isLoggingOut ? 'Logging out...' : 'Logout'}
+                                          </button>
+                                        </li>
+                                      )}
+
                                     </ul>
                                 </li>
                             </ul>

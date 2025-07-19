@@ -1,17 +1,31 @@
 // src/layouts/AdminLayout.jsx
-import { Outlet } from "react-router-dom";
+import { useState } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
+import Sidebar from "../components/admin/Sidebar";
+import Header from "../components/admin/Header";
 
 export default function AdminLayout() {
+  
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
   return (
     <div className="min-h-screen flex">
-      {/* Sidebar will go here later */}
-      <aside className="w-64 bg-gray-900 text-white p-4 hidden md:block">
-        <h2 className="text-xl font-bold mb-4">FlyGasal Admin</h2>
-        {/* Add nav links here */}
-      </aside>
-      <div className="flex-grow p-6 bg-gray-50">
-        <Outlet />
+      {/* Sidebar */}
+      <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} setIsSidebarOpen={setIsSidebarOpen} />
+
+      {/* Main content */}
+      <div className="container-fluid bg-gray-50">
+        <Header toggleSidebar={toggleSidebar} />
+        <main className="flex-1 p-6">
+          <Outlet />
+        </main>
       </div>
+
     </div>
   );
 }
