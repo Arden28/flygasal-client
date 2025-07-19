@@ -23,6 +23,10 @@ import Users from "../pages/admin/Users";
 import Analytics from "../pages/admin/Analytics";
 import Settings from "../pages/admin/Settings";
 import UserDetails from "../pages/admin/UserDetails";
+import Bookings from "../pages/admin/Bookings";
+import BookingDetails from "../pages/admin/BookingDetails";
+import Airlines from "../pages/admin/Airlines";
+import Airports from "../pages/admin/Airports";
 
 export default function AppRoutes() {
 
@@ -65,6 +69,10 @@ export default function AppRoutes() {
           <Route index element={<Dashboard />} />
           <Route path="users" element={<Users />} />
           <Route path="users/:id" element={<UserDetails />} />
+          <Route path="flights/bookings" element={<Bookings />} />
+          <Route path="flights/bookings/:id" element={<BookingDetails />} />
+          <Route path="flights/airlines" element={<Airlines />} />
+          <Route path="flights/airports" element={<Airports />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
         </Route>

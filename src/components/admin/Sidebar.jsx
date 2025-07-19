@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useState, useContext } from 'react';
 import PropTypes from 'prop-types';
 import { HomeIcon, UsersIcon, ChartBarIcon, CogIcon, PaperAirplaneIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { FaPlaneDeparture } from 'react-icons/fa';
 // import { ClientContext } from './ClientContext';
 
 // Default navigation items (used if none provided via props)
@@ -12,7 +13,7 @@ const defaultNavItems = [
   {
     name: 'Flights',
     path: '/admin/flights',
-    icon: PaperAirplaneIcon,
+    icon: FaPlaneDeparture,
     subItems: [
       { name: 'Airlines', path: '/admin/flights/airlines' },
       { name: 'Airports', path: '/admin/flights/airports' },
@@ -34,19 +35,24 @@ export default function Sidebar({ isOpen, toggleSidebar, setIsSidebarOpen, navIt
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 text-white p-4 transform ${
+      className={`col-lg-2 position-fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 text-white p-4 transform ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       } md:translate-x-0 md:static md:block transition-transform duration-300 ease-in-out`}
     >
       <div className="flex flex-col items-center justify-between mb-6">
-        <img
+        {/* <img
           src={`${rootUrl}${logoUrl}`}
           alt="FlyGasal Logo"
           className="w-32 mb-4"
           style={{ maxHeight: '64px', objectFit: 'contain' }}
-        />
+        /> */}
         <div className="flex items-center justify-between w-full">
-          <h2 className="text-xl font-bold">FlyGasal Admin</h2>
+                            <img 
+                                className="logo p-1 rounded" 
+                                style={{ maxWidth: '140px', maxHeight: '50px' }} 
+                                src="/assets/img/logo/flygasal.png" 
+                                alt="FlyGasal Logo" 
+                            />
           <button className="md:hidden text-white" onClick={toggleSidebar} aria-label="Close sidebar">
             ✕
           </button>

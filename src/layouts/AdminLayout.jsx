@@ -16,16 +16,20 @@ export default function AdminLayout() {
   return (
     <div className="min-h-screen flex">
       {/* Sidebar */}
-      <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} setIsSidebarOpen={setIsSidebarOpen} />
+      <Sidebar
+        isOpen={isSidebarOpen}
+        toggleSidebar={toggleSidebar}
+        setIsSidebarOpen={setIsSidebarOpen}
+      />
 
       {/* Main content */}
-      <div className="container-fluid bg-gray-50">
+      <div className="flex-1 bg-gray-50 md:ml-64">
         <Header toggleSidebar={toggleSidebar} />
-        <main className="flex-1 p-6">
+        <main className="p-2">
           <Outlet />
         </main>
       </div>
-
     </div>
+
   );
 }
