@@ -229,7 +229,7 @@ export default function Bookings() {
   };
 
   return (
-    <div className=" mx-auto p-2">
+    <div className="relative max-w-7xl mx-auto p-4 sm:p-2">
       <div className="flex justify-between items-center mb-6 bg-white rounded-lg shadow p-4">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Bookings Management</h1>
         <Link to="/" className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600" aria-label="Back to dashboard">

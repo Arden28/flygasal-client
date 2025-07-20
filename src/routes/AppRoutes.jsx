@@ -27,6 +27,9 @@ import Bookings from "../pages/admin/Bookings";
 import BookingDetails from "../pages/admin/BookingDetails";
 import Airlines from "../pages/admin/Airlines";
 import Airports from "../pages/admin/Airports";
+import Transactions from "../pages/admin/Transactions";
+import UserRoles from "../pages/admin/UserRoles";
+import AdminLogin from "../pages/admin/Login";
 
 export default function AppRoutes() {
 
@@ -74,7 +77,12 @@ export default function AppRoutes() {
           <Route path="flights/airlines" element={<Airlines />} />
           <Route path="flights/airports" element={<Airports />} />
           <Route path="analytics" element={<Analytics />} />
+          <Route path="transactions" element={<Transactions />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="settings/user-roles" element={<UserRoles />} />
+        </Route>
+        <Route path="/admin">
+          <Route path="login" element={<AdminLogin />} />
         </Route>
       </Routes>
     </BrowserRouter>

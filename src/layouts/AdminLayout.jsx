@@ -23,7 +23,7 @@ export default function AdminLayout() {
       />
 
       {/* Main content */}
-      <div className="flex-1 bg-gray-50 md:ml-64">
+      <div className="flex-1 bg-gray-50 md:ml-60">
         <Header toggleSidebar={toggleSidebar} />
         <main className="p-2">
           <Outlet />
