@@ -17,11 +17,27 @@ const authHeader = () => ({
 
 // Login: Get token and user
 export const login = async (email, password) => {
-  const response = await API.post("/login", { email, password });
-  const { token, user } = response.data;
-  localStorage.setItem("authToken", token);
-  localStorage.setItem("user", JSON.stringify(user));
-  return user;
+  try {
+    const response = await API.post("/login", { email, password });
+    const { token, user } = response.data;
+
+    // Persist to localStorage
+    localStorage.setItem("authToken", token);
+    localStorage.setItem("user", JSON.stringify(user));
+
+    return {
+      success: true,
+      user,
+      token,
+      message: "Login successful",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      errors: error?.response?.data?.errors || {},
+      message: error?.response?.data?.message || "Login failed",
+    };
+  }
 };
 
 // Logout: Invalidate token on server

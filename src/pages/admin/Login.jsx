@@ -5,9 +5,11 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthContext } from '../../context/AuthContext';
 import { login } from '../../api/auth';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Login({setCurrentView, setMessage}) {
     // const { login } = useContext(AuthContext);
+    const { loginUser } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [credentials, setCredentials] = useState({ username: '', password: '' });
@@ -19,17 +21,18 @@ export default function Login({setCurrentView, setMessage}) {
         e.preventDefault();
         setLoading(true);
         setErrors({});
-        setMessage({ text: '', type: '' }); // Clear global message
+        setMessage({ text: '', type: '' });
 
         const result = await login(email, password);
+
         if (result.success) {
-            setMessage({ text: result.message, type: 'success' });
-            // setCurrentView('home');
-            navigate('/dashboard');
+            loginUser(result.user); // context update
+            navigate('/admin');
         } else {
             setMessage({ text: result.message, type: 'error' });
             setErrors(result.errors || {});
         }
+
         setLoading(false);
     };
 

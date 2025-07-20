@@ -70,7 +70,17 @@ export default function AppRoutes() {
         </Route>
 
         {/* Admin-side */}
-        <Route path="/admin" element={<AdminLayout />}>
+        {/* <Route path="/admin" element={<AdminLayout />}> */}
+        <Route
+          path="/admin"
+          element={
+            user ? (
+              <AdminLayout />
+            ) : (
+              <Navigate to="/admin/login" />
+            )
+          }
+        >
           <Route index element={<Dashboard />} />
           <Route path="users" element={<Users />} />
           <Route path="users/:id" element={<UserDetails />} />

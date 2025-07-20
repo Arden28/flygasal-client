@@ -22,9 +22,9 @@ export default function Header({ toggleSidebar, setCurrentView }) { // Added set
     }, []);
 
     const handleLogout = async () => {
-        await logout(); // Call the logout function from AuthContext
-        setDropdownOpen(false); // Close dropdown after logout
-        navigate('/admin/login'); // Redirect to home or login page after logout
+      await logoutUser(); // ✅ This updates the context and localStorage
+      setDropdownOpen(false);
+      navigate('/admin/login');
     };
 
     return (
