@@ -16,7 +16,7 @@ import {
 const defaultNavItems = [
   { name: 'Dashboard', path: '/admin', icon: HomeIcon },
   { name: 'Users', path: '/admin/users', icon: UsersIcon },
-  { name: 'Analytics', path: '/admin/analytics', icon: ChartBarIcon },
+  // { name: 'Analytics', path: '/admin/analytics', icon: ChartBarIcon },
   {
     name: 'Flights',
     path: '/admin/flights',
