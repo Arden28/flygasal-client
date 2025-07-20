@@ -1,45 +1,37 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useContext, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { LockClosedIcon, UserIcon } from '@heroicons/react/24/outline';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { AuthContext } from '../../context/AuthContext';
+import { login } from '../../api/auth';
 
-export default function Login() {
-  const [credentials, setCredentials] = useState({ username: '', password: '' });
-  const [loading, setLoading] = useState(false);
+export default function Login({setCurrentView, setMessage}) {
+    // const { login } = useContext(AuthContext);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [credentials, setCredentials] = useState({ username: '', password: '' });
+    const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState({});
+    const navigate = useNavigate();
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (!credentials.username || !credentials.password) {
-      toast.error('Please enter both username and password.');
-      return;
-    }
-    setLoading(true);
-    // Mock login
-    setTimeout(() => {
-      toast.success('Login successful!');
-      setLoading(false);
-      // Navigate to dashboard (mock)
-      window.location.href = '/admin';
-      // Future API call: POST /api/login
-      // fetch('https://your-laravel-api.com/api/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(credentials)
-      // })
-      //   .then(res => res.json())
-      //   .then(data => {
-      //     if (data.success) {
-      //       toast.success('Login successful!');
-      //       window.location.href = '/dashboard';
-      //     } else {
-      //       toast.error(data.message || 'Login failed.');
-      //     }
-      //   })
-      //   .catch(err => toast.error('Login failed. Please try again.'))
-      //   .finally(() => setLoading(false));
-    }, 1000);
-  };
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setErrors({});
+        setMessage({ text: '', type: '' }); // Clear global message
+
+        const result = await login(email, password);
+        if (result.success) {
+            setMessage({ text: result.message, type: 'success' });
+            // setCurrentView('home');
+            navigate('/dashboard');
+        } else {
+            setMessage({ text: result.message, type: 'error' });
+            setErrors(result.errors || {});
+        }
+        setLoading(false);
+    };
 
   return (
     <section className="bg-gray-50 dark:bg-gray-900 min-h-screen">
@@ -57,20 +49,21 @@ export default function Login() {
             <h1 className="text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl dark:text-white">
               Sign in to your account
             </h1>
-            <form className="space-y-4 md:space-y-6" onSubmit={handleLogin}>
+            <form className="space-y-4 md:space-y-6" onSubmit={handleSubmit}>
               <div>
                 <label htmlFor="email" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
                   Your email
                 </label>
                 <input
-                  type="email"
-                  name="email"
-                  id="email"
-                  placeholder="name@company.com"
-                  value={credentials.email}
-                  onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
-                  required
-                  className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                    type="email"
+                    name="email"
+                    id="email"
+                    placeholder="name@company.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    error={errors.email ? errors.email[0] : ''}
+                    required
+                    className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
                 />
               </div>
               <div>
@@ -78,14 +71,15 @@ export default function Login() {
                   Password
                 </label>
                 <input
-                  type="password"
-                  name="password"
-                  id="password"
-                  placeholder="••••••••"
-                  value={credentials.password}
-                  onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-                  required
-                  className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                    type="password"
+                    name="password"
+                    id="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    error={errors.password ? errors.password[0] : ''}
+                    required
+                    className="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -107,15 +101,15 @@ export default function Login() {
                   Forgot password?
                 </a>
               </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className={`w-full text-white fw-bold bg-primary hover:bg-primary-700 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800 ${
-                  loading ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              >
-                {loading ? 'Signing In...' : 'Sign in'}
-              </button>
+                <button 
+                    type="submit" 
+                    disabled={loading} 
+                    className={`w-full text-white fw-bold bg-primary hover:bg-primary-700 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-primary-600 dark:hover:bg-primary-700 dark:focus:ring-primary-800 ${
+                            loading ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                    >
+                    {loading ? 'Logging In...' : 'Login'}
+                </button>
               {/* <p className="text-sm font-light text-gray-500 dark:text-gray-400">
                 Don’t have an account yet?{' '}
                 <a href="/register" className="font-medium text-primary-600 hover:underline dark:text-primary-500">

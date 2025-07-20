@@ -54,7 +54,7 @@ const Login = ({
         response: err.response?.data,
         status: err.response?.status,
       });
-      setError(err.message);
+      setError(err.message || 'Login failed');
     } finally {
       setIsLoading(false);
     }

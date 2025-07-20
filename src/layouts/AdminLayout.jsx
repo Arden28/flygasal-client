@@ -7,6 +7,7 @@ import Header from "../components/admin/Header";
 export default function AdminLayout() {
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [currentView, setCurrentView] = useState('');
   const navigate = useNavigate();
 
   const toggleSidebar = () => {
@@ -24,7 +25,7 @@ export default function AdminLayout() {
 
       {/* Main content */}
       <div className="flex-1 bg-gray-50 md:ml-60">
-        <Header toggleSidebar={toggleSidebar} />
+        <Header toggleSidebar={toggleSidebar} setCurrentView={setCurrentView} />
         <main className="p-2">
           <Outlet />
         </main>

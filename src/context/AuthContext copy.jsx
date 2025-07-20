@@ -4,7 +4,7 @@ import { getToken, logout, fetchUser } from '../api/auth';
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(localStorage.getItem('user') || null);
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Validate user session on mount
@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }) => {
         console.warn("Session validation failed:", error.message);
         setUser(null);
         localStorage.removeItem('user');
-        localStorage.removeItem('authToken');
+        localStorage.removeItem('token');
       } finally {
         setIsLoading(false);
       }
@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setUser(null);
       localStorage.removeItem('user');
-      localStorage.removeItem('authToken');
+      localStorage.removeItem('token');
     }
   };
 

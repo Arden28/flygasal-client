@@ -18,7 +18,7 @@ import AboutPage from "../pages/client/AboutPage";
 import DashboardPage from "../pages/client/DashboardPage";
 import BookingsPage from "../pages/client/BookingsPage";
 import ProfilePage from "../pages/client/ProfilePage";
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import Users from "../pages/admin/Users";
 import Analytics from "../pages/admin/Analytics";
 import Settings from "../pages/admin/Settings";
@@ -34,6 +34,8 @@ import AdminLogin from "../pages/admin/Login";
 export default function AppRoutes() {
 
     const { user, logoutUser } = useContext(AuthContext);
+    const [message, setMessage] = useState({ text: '', type: '' }); // Global message state
+    const [currentView, setCurrentView] = useState('');
     
   return (
     <BrowserRouter>
@@ -82,7 +84,7 @@ export default function AppRoutes() {
           <Route path="settings/user-roles" element={<UserRoles />} />
         </Route>
         <Route path="/admin">
-          <Route path="login" element={<AdminLogin />} />
+          <Route path="login" element={<AdminLogin setMessage={setMessage} setCurrentView={setCurrentView}/>} />
         </Route>
       </Routes>
     </BrowserRouter>
