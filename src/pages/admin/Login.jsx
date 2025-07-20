@@ -44,7 +44,7 @@ export default function Login({setCurrentView, setMessage}) {
             className="mr-2"
             src="/assets/img/logo/flygasal.png"
             alt="Logo"
-            style={{ height: "30px" }}
+            style={{ height: "40px" }}
           />
           {/* FlyGasal */}
         </a>
