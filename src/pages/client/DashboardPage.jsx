@@ -16,14 +16,6 @@ const T = {
     pendinginvoices: 'Pending Invoices',
 };
 
-// Mock user data to replace PHP $_SESSION
-const mockUser = {
-    first_name: 'John',
-    last_name: 'Doe',
-    user_type: 'Agent',
-    user_id: '12345',
-};
-
 // Mock dashboard data to replace PHP API calls
 const mockDashboardDetails = {
     balance: '1000.00',

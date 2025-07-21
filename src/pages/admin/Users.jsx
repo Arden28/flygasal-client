@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import apiService from '../../api/apiService';
 
 export default function Users() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -24,24 +25,33 @@ export default function Users() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Mock data (replace with API call)
-  useEffect(() => {
-    const mockUsers = [
-      { id: 1, name: 'John Doe', email: 'john@example.com', type: 'Client', status: 'Active', walletBalance: 150.25 },
-      { id: 2, name: 'Jane Smith', email: 'jane@example.com', type: 'Agent', status: 'Inactive', walletBalance: 320.50 },
-      { id: 3, name: 'Alice Johnson', email: 'alice@example.com', type: 'Client', status: 'Pending', walletBalance: 75.00 },
-      { id: 4, name: 'Bob Williams', email: 'bob@example.com', type: 'Agent', status: 'Pending', walletBalance: 200.00 },
-      { id: 5, name: 'Emma Brown', email: 'emma@example.com', type: 'Client', status: 'Active', walletBalance: 500.75 },
-    ];
-    setUsers(mockUsers);
-    setLoading(false);
-    // Future API call: GET /api/users
-    // fetch('https://your-laravel-api.com/api/users')
-    //   .then(res => res.json())
-    //   .then(data => setUsers(data))
-    //   .catch(err => setError('Failed to fetch users'))
-    //   .finally(() => setLoading(false));
-  }, []);
+    // Fetch users from API
+    useEffect(() => {
+      const fetchUsers = async () => {
+        try {
+          const response = await apiService.get("/admin/users");
+          const apiUsers = response.data.data.data;
+
+          const formattedUsers = apiUsers.map((user) => ({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            type: user.roles?.[0]?.name ?? 'N/A',         // assuming roles is an array with objects like { name: "Admin" }
+            status: user.is_active ? 'Active' : 'Inactive',
+            walletBalance: user.wallet?.balance ?? 0,     // optional: handle if user has no wallet
+          }));
+
+          setUsers(formattedUsers);
+        } catch (error) {
+          console.error("Failed to fetch users:", error);
+        }
+      };
+
+      fetchUsers();
+      setLoading(false);
+    }, []);
+
+
 
   // Sorting logic
   const sortedUsers = useMemo(() => {
@@ -122,15 +132,23 @@ export default function Users() {
   };
 
   // Handle approval
-  const handleApprove = (userId) => {
-    setUsers(users.map(user =>
-      user.id === userId ? { ...user, status: 'Active' } : user
-    ));
-    setAuditLog([...auditLog, { action: `Approved user ${userId}`, timestamp: new Date().toISOString() }]);
-    toast.success('User approved successfully!');
-    setShowApprovalModal(null);
-    // Future API call: POST /api/users/:id/approve
-    // fetch(`https://your-laravel-api.com/api/users/${userId}/approve`, { method: 'POST' });
+  const handleApprove = async (userId) => {
+    try {
+      // Optimistic UI update
+      setUsers(users.map(user =>
+        user.id === userId ? { ...user, status: 'Active' } : user
+      ));
+      setAuditLog([...auditLog, { action: `Approved user ${userId}`, timestamp: new Date().toISOString() }]);
+      setShowApprovalModal(null);
+
+      // API call
+      await apiService.post(`/admin/users/${userId}/approve`);
+
+      toast.success('User approved successfully!');
+    } catch (error) {
+      console.error('Approval failed:', error);
+      toast.error('Something went wrong. Could not approve user.');
+    }
   };
 
   // Handle decline
@@ -146,14 +164,26 @@ export default function Users() {
   };
 
   // Handle delete
-  const handleDelete = (userId) => {
-    setUsers(users.filter(user => user.id !== userId));
-    setAuditLog([...auditLog, { action: `Deleted user ${userId}`, timestamp: new Date().toISOString() }]);
-    toast.success('User deleted successfully!');
-    setShowDeleteModal(null);
-    // Future API call: DELETE /api/users/:id
-    // fetch(`https://your-laravel-api.com/api/users/${userId}`, { method: 'DELETE' });
+  const handleDelete = async (userId) => {
+    try {
+      // Optimistic UI update
+      setUsers(users.filter(user => user.id !== userId));
+      setAuditLog([...auditLog, {
+        action: `Deleted user ${userId}`,
+        timestamp: new Date().toISOString()
+      }]);
+      setShowDeleteModal(null);
+
+      // API call
+      await apiService.delete(`/admin/users/${userId}`);
+
+      toast.success('User deleted successfully!');
+    } catch (error) {
+      console.error('Delete failed:', error);
+      toast.error('Something went wrong. Could not delete user.');
+    }
   };
+
 
   // Handle edit
   const handleEdit = (user) => {
@@ -161,25 +191,41 @@ export default function Users() {
   };
 
   // Handle save edit
-  const handleSaveEdit = (e) => {
+  const handleSaveEdit = async (e) => {
     e.preventDefault();
-    if (!editUser.name || !editUser.email || !editUser.type || !editUser.status || editUser.walletBalance < 0) {
+
+    if (
+      !editUser.name ||
+      !editUser.email ||
+      !editUser.type ||
+      !editUser.status ||
+      editUser.walletBalance < 0
+    ) {
       toast.error('Please fill all fields correctly.');
       return;
     }
-    setUsers(users.map(user =>
-      user.id === editUser.id ? editUser : user
-    ));
-    setAuditLog([...auditLog, { action: `Edited user ${editUser.id}`, timestamp: new Date().toISOString() }]);
-    toast.success('User updated successfully!');
-    setEditUser(null);
-    // Future API call: PUT /api/users/:id
-    // fetch(`https://your-laravel-api.com/api/users/${editUser.id}`, {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(editUser),
-    // });
+
+    try {
+      // Optimistic UI update
+      setUsers(users.map(user =>
+        user.id === editUser.id ? editUser : user
+      ));
+      setAuditLog([...auditLog, {
+        action: `Edited user ${editUser.id}`,
+        timestamp: new Date().toISOString()
+      }]);
+      setEditUser(null);
+
+      // API call
+      await apiService.put(`/admin/users/${editUser.id}`, editUser);
+
+      toast.success('User updated successfully!');
+    } catch (error) {
+      console.error('Update failed:', error);
+      toast.error('Something went wrong. Could not update user.');
+    }
   };
+
 
   return (
     <div className="relative">

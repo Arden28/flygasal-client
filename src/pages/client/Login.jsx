@@ -1,6 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { login } from '../../api/auth';
-import API from '../../api/auth'; // Import the Axios instance
+// import API from '../../api/auth'; // Import the Axios instance
 import { AuthContext } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -21,10 +20,12 @@ const Login = ({
   signupUrl = '/signup',
   resetPasswordUrl = '/api/forget_password',
 }) => {
-  const { loginUser } = useContext(AuthContext);
+  
+  const { login } = useContext(AuthContext);
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '', remember: false });
   const [isLoading, setIsLoading] = useState(false);
+
   const [isResetLoading, setIsResetLoading] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [error, setError] = useState('');
@@ -35,30 +36,24 @@ const Login = ({
   };
 
 
-  const handleLoginSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    if (!form.email || !form.password) {
-      setError('Please enter both email and password');
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const { user, access_token } = await login(form);
-      console.log('Login response:', { user, access_token });
-      loginUser(user, access_token);
-      navigate('/dashboard');
-    } catch (err) {
-      console.error('Login error:', {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status,
-      });
-      setError(err.message || 'Login failed');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const handleLoginSubmit = async (e) => {
+      e.preventDefault();
+      setError('');
+      if (!form.email || !form.password) {
+        setError('Please enter both email and password');
+        return;
+      }
+      setIsLoading(true);
+        try {
+            await login({ email: form.email, password: form.password });
+            // redirect or show success
+            navigate('/dashboard');
+        } catch (err) {
+            setError(err.message || 'Login failed');
+        } finally {
+        setIsLoading(false);
+      }
+    };
 
   const handleResetSubmit = async (e) => {
     e.preventDefault();
@@ -68,23 +63,23 @@ const Login = ({
     }
     setIsResetLoading(true);
     setError('');
-    try {
-      await API.get('/sanctum/csrf-cookie');
-      const res = await API.post(resetPasswordUrl, { email: resetEmail });
-      if (res.data.status === true) {
-        alert('Your password has been reset, please check your mailbox');
-        document.getElementById('reset').querySelector('.btn-close').click();
-      } else if (res.data.status === false) {
-        setError('Invalid or no account found with this email');
-      } else if (res.data.message === 'not_activated') {
-        setError('Your account is not activated, please contact us for activation');
-      }
-    } catch (error) {
-      setError(error.response?.data?.message || 'An error occurred during password reset');
-    } finally {
-      setIsResetLoading(false);
-      setResetEmail('');
-    }
+    // try {
+    //   await API.get('/sanctum/csrf-cookie');
+    //   const res = await API.post(resetPasswordUrl, { email: resetEmail });
+    //   if (res.data.status === true) {
+    //     alert('Your password has been reset, please check your mailbox');
+    //     document.getElementById('reset').querySelector('.btn-close').click();
+    //   } else if (res.data.status === false) {
+    //     setError('Invalid or no account found with this email');
+    //   } else if (res.data.message === 'not_activated') {
+    //     setError('Your account is not activated, please contact us for activation');
+    //   }
+    // } catch (error) {
+    //   setError(error.response?.data?.message || 'An error occurred during password reset');
+    // } finally {
+    //   setIsResetLoading(false);
+    //   setResetEmail('');
+    // }
   };
 
   const handleTelegramLogin = () => {

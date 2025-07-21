@@ -10,7 +10,7 @@ import euFlag from '/assets/img/flags/eu.svg';
 import keFlag from '/assets/img/flags/ke.svg';
 
 export default function Navbar() {
-  const { user, logoutUser } = useContext(AuthContext);
+  const { user, logout, loading } = useContext(AuthContext);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
@@ -18,6 +18,18 @@ export default function Navbar() {
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
   const toggleDropdown = (dropdown) => setOpenDropdown(openDropdown === dropdown ? null : dropdown);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout(); // wait for logout to complete
+      navigate('/login');
+    } catch (error) {
+      alert('Failed to log out. Please try again.');
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   const navLinks = [
     { href: '/flight/availability', label: 'Flights' },
@@ -37,14 +49,17 @@ export default function Navbar() {
     { code: 'KES', name: 'Kenya', flag: keFlag, href: '#' },
   ];
 
-  const accountOptions = user
-    ? [
-        { label: 'Dashboard', href: '/dashboard' },
-      ]
-    : [
-        { label: 'Login', href: '/login' },
-        { label: 'Signup', href: '/signup' },
-      ];
+const accountOptions = user
+  ? [
+      {
+        label: 'Dashboard',
+        href: user.role === 'admin' ? '/admin' : '/dashboard',
+      },
+    ]
+  : [
+      { label: 'Login', href: '/login' },
+      { label: 'Signup', href: '/signup' },
+  ];
   
   const userDisplayName = user?.name || user?.email || 'Account';
 
@@ -184,23 +199,11 @@ export default function Navbar() {
                                           </li>
                                       ))}
 
-                                      {user && (
+                                      {!loading && user && (
                                         <li>
                                           <button
                                             className="dropdown-item hover:bg-gray-100 w-100 text-start"
-                                            disabled={isLoggingOut}
-                                            onClick={async () => {
-                                              setIsLoggingOut(true);
-                                              try {
-                                                await logoutUser();
-                                                navigate('/login');
-                                              } catch (error) {
-                                                console.error('Logout error:', error.message);
-                                                alert('Failed to log out. Please try again.');
-                                              } finally {
-                                                setIsLoggingOut(false);
-                                              }
-                                            }}
+                                            onClick={handleLogout}
                                           >
                                             {isLoggingOut ? 'Logging out...' : 'Logout'}
                                           </button>

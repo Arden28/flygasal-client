@@ -8,7 +8,7 @@ export default function Headbar({ T, rootUrl, user }) {
                         <div className="rounded-bottom">
                         <ul className="sidebar-menu list-items w-100 gap-3 p-2 user_menu d-flex" style={{ backgroundColor: "#EEF4FB" }}>
                             <li className="rounded-3 border">
-                                <a className={`py-2 justify-content-center w-auto d-block bg-transparent hover:bg-gray rounded-3 p-2`} href={`${rootUrl}dashboard`}>
+                                <a className={`py-2 justify-content-center w-auto d-block bg-transparent hover:bg-gray rounded-3 p-2`} href={`/dashboard`}>
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
                                         width="18"
@@ -27,7 +27,7 @@ export default function Headbar({ T, rootUrl, user }) {
                                 </a>
                             </li>
                             <li className="rounded-3 border">
-                                <a className={`py-2 justify-content-center w-auto d-block bg-transparent hover:bg-gray rounded-3 p-2`} href={`${rootUrl}bookings`}>
+                                <a className={`py-2 justify-content-center w-auto d-block bg-transparent hover:bg-gray rounded-3 p-2`} href={`/bookings`}>
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
                                         width="18"
@@ -48,7 +48,7 @@ export default function Headbar({ T, rootUrl, user }) {
                             {/* {user.user_type === 'Agent' && (
                                 <li className="rounded-3 border">
                                     <a className={`py-2 justify-content-center w-auto d-block bg-transparent hover:bg-gray rounded-3 p-2`}
-                                        href={`${rootUrl}reports/${new Date().getFullYear()}`}
+                                        href={`/reports/${new Date().getFullYear()}`}
                                     >
                                         <svg
                                             xmlns="http://www.w3.org/2000/svg"
@@ -69,7 +69,7 @@ export default function Headbar({ T, rootUrl, user }) {
                                 </li>
                             )} */}
                             <li className="rounded-3 border">
-                                <a className={`py-2 justify-content-center w-auto d-block bg-transparent hover:bg-gray rounded-3 p-2`} href={`${rootUrl}profile`}>
+                                <a className={`py-2 justify-content-center w-auto d-block bg-transparent hover:bg-gray rounded-3 p-2`} href={`/profile`}>
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
                                         className='d-none d-lg-block'

@@ -2,12 +2,11 @@ import React, { useState, useRef, useEffect, useContext } from 'react';
 import { UserCircleIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { AuthContext } from '../../context/AuthContext'; // Import AuthContext
 import { useNavigate } from 'react-router-dom';
-import { logout } from '../../api/auth';
 
 export default function Header({ toggleSidebar, setCurrentView }) { // Added setCurrentView prop
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
-    const { user, logoutUser } = useContext(AuthContext); // Get user and logout from AuthContext
+    const { user, logout, loading } = useContext(AuthContext);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const navigate = useNavigate();
 
@@ -20,11 +19,17 @@ export default function Header({ toggleSidebar, setCurrentView }) { // Added set
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
-
+    
     const handleLogout = async () => {
-      await logoutUser(); // ✅ This updates the context and localStorage
-      setDropdownOpen(false);
-      navigate('/admin/login');
+        setIsLoggingOut(true);
+        try {
+        await logout(); // wait for logout to complete
+        navigate('/admin/login');
+        } catch (error) {
+        alert('Failed to log out. Please try again.');
+        } finally {
+        setIsLoggingOut(false);
+        }
     };
 
     return (
@@ -60,7 +65,7 @@ export default function Header({ toggleSidebar, setCurrentView }) { // Added set
 
                 {dropdownOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-lg overflow-hidden z-50">
-                        {user ? ( // Only show profile/settings if user is logged in
+                        {!loading && user && ( // Only show profile/settings if user is logged in
                             <>
                                 <button
                                     onClick={() => { navigate('/admin/profile'); setDropdownOpen(false); }}
@@ -79,16 +84,9 @@ export default function Header({ toggleSidebar, setCurrentView }) { // Added set
                                     onClick={handleLogout} // Call handleLogout function
                                     className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                                 >
-                                    Logout
+                                    {isLoggingOut ? 'Logging out...' : 'Logout'}
                                 </button>
                             </>
-                        ) : ( // Show login/register if not logged in
-                            <button
-                                onClick={() => { navigate('/admin/login'); setDropdownOpen(false); }}
-                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            >
-                                Login
-                            </button>
                         )}
                     </div>
                 )}

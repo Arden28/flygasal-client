@@ -33,7 +33,7 @@ import AdminLogin from "../pages/admin/Login";
 
 export default function AppRoutes() {
 
-    const { user, logoutUser } = useContext(AuthContext);
+    const { user, logout, loading } = useContext(AuthContext);
     const [message, setMessage] = useState({ text: '', type: '' }); // Global message state
     const [currentView, setCurrentView] = useState('');
     
@@ -41,7 +41,9 @@ export default function AppRoutes() {
     <BrowserRouter>
       <Routes>
         {/* Client-side */}
-        <Route path="/" element={<ClientLayout logoutUser={logoutUser} />}>
+        <Route 
+          path="/" 
+          element={<ClientLayout />}>
           <Route index element={<Home />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/flight/availability" element={<FlightPage />} />
@@ -53,7 +55,7 @@ export default function AppRoutes() {
           <Route path="/signup-success" element={<SignupSuccessPage />} />
           {/* Profile */}
           <Route path="/dashboard" element={
-                user ? (
+                !loading && user ? (
                   <DashboardPage 
                       user={user}
                   />
@@ -74,7 +76,7 @@ export default function AppRoutes() {
         <Route
           path="/admin"
           element={
-            user ? (
+            !loading && user ? (
               <AdminLayout />
             ) : (
               <Navigate to="/admin/login" />
@@ -94,7 +96,7 @@ export default function AppRoutes() {
           <Route path="settings/user-roles" element={<UserRoles />} />
         </Route>
         <Route path="/admin">
-          <Route path="login" element={<AdminLogin setMessage={setMessage} setCurrentView={setCurrentView}/>} />
+          <Route path="login" element={<AdminLogin setMessage={setMessage}/>} />
         </Route>
       </Routes>
     </BrowserRouter>

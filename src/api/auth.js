@@ -1,62 +1,44 @@
 // src/api/auth.js
-import axios from "axios";
 
-const API = axios.create({
-  baseURL: "https://flygasal.koverae.com/api",
-});
+import apiService from './apiService';
 
-// Utility to get token from localStorage
-export const getToken = () => localStorage.getItem("authToken");
+const auth = {
 
-// Attach token to request headers
-const authHeader = () => ({
-  headers: {
-    Authorization: `Bearer ${getToken()}`,
-  },
-});
+    // Helper to get user data from local storage
+    getUser: () => localStorage.getItem('user'),
 
-// Login: Get token and user
-export const login = async (email, password) => {
-  try {
-    const response = await API.post("/login", { email, password });
-    const { token, user } = response.data;
+    // Helper to set user data in local storage
+    setUser: (user) => localStorage.setItem('user', user),
 
-    // Persist to localStorage
-    localStorage.setItem("authToken", token);
-    localStorage.setItem("user", JSON.stringify(user));
+    // Helper to remove user data from local storage
+    removeUser: () => localStorage.removeItem('user'),
 
-    return {
-      success: true,
-      user,
-      token,
-      message: "Login successful",
-    };
-  } catch (error) {
-    return {
-      success: false,
-      errors: error?.response?.data?.errors || {},
-      message: error?.response?.data?.message || "Login failed",
-    };
-  }
+    login: async (credentials) => {
+        const response = await apiService.post('/login', credentials);
+        const { access_token: token } = response.data;
+        apiService.setToken(token);
+
+        return response.data;
+    },
+
+    register: async (userData) => {
+        const response = await apiService.post('/register', userData);
+        return response;
+    },
+    
+    logout: async () => {
+      const response = await apiService.post('/logout');
+      apiService.removeToken();
+      auth.removeUser();
+      return response;
+    },
+    
+    fetchUser: async () => {
+        const response = await apiService.get('/user');
+        const user = response.data;
+        auth.setUser(user);
+        return user;
+    },
 };
 
-// Logout: Invalidate token on server
-export const logout = async () => {
-  await API.post("/logout", {}, authHeader());
-  localStorage.removeItem("authToken");
-  localStorage.removeItem("user");
-};
-
-// Register
-export const register = async (userData) => {
-  const response = await API.post("/register", userData);
-  return response.data;
-};
-
-// Get current user
-export const fetchUser = async () => {
-  const response = await API.get("/user", authHeader());
-  return response.data;
-};
-
-export default API;
+export default auth;

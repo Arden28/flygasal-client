@@ -4,12 +4,9 @@ import { LockClosedIcon, UserIcon } from '@heroicons/react/24/outline';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthContext } from '../../context/AuthContext';
-import { login } from '../../api/auth';
-import { useAuth } from '../../context/AuthContext';
 
-export default function Login({setCurrentView, setMessage}) {
-    // const { login } = useContext(AuthContext);
-    const { loginUser } = useAuth();
+export default function Login({setMessage}) {
+    const { login } = useContext(AuthContext);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [credentials, setCredentials] = useState({ username: '', password: '' });
@@ -23,17 +20,17 @@ export default function Login({setCurrentView, setMessage}) {
         setErrors({});
         setMessage({ text: '', type: '' });
 
-        const result = await login(email, password);
-
-        if (result.success) {
-            loginUser(result.user); // context update
-            navigate('/admin');
-        } else {
-            setMessage({ text: result.message, type: 'error' });
-            setErrors(result.errors || {});
+        setLoading(true);
+          try {
+              await login({ email: email, password: password });
+              // redirect or show success
+              navigate('/admin');
+          } catch (err) {
+              setMessage({ text: err.message || 'Login failed', type: 'error' });
+              setErrors(err || {});
+          } finally {
+          setLoading(false);
         }
-
-        setLoading(false);
     };
 
   return (
