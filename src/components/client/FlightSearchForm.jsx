@@ -344,8 +344,9 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
             onChange={(e) => setFlightType(e.target.value)}
             style={{ height: '54px' }}
           >
+            <option value="">Cabin Class</option>
             <option value="Economy">Economy</option>
-            <option value="Economy_premium">Economy Premium</option>
+            <option value="PREMIUM ECONOMY">Economy Premium</option>
             <option value="business">Business</option>
             <option value="first">First</option>
           </select>

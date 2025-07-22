@@ -1885,3 +1885,29 @@ body {
 .to--be:has(input:checked) > .read--more > #to--be_2 {
   display: block !important;
 }
+
+.custom-radio {
+  width: 1.2em;
+  height: 1.2em;
+  border: 2px solid #007bff;
+  border-radius: 50%;
+  appearance: none;
+  outline: none;
+  cursor: pointer;
+  position: relative;
+}
+
+.custom-radio:checked::before {
+  content: "";
+  position: absolute;
+  top: 0.25em;
+  left: 0.25em;
+  width: 0.5em;
+  height: 0.5em;
+  background-color: #007bff;
+  border-radius: 50%;
+}
+
+.custom-radio:checked {
+  background-color: #e6f0ff;
+}

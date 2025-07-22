@@ -1,91 +1,116 @@
 import React from 'react';
 
+// FlightSegment component displays details of a flight segment
 const FlightSegment = ({ flight, segmentType, formatDate, formatTime, calculateDuration, getAirportName }) => {
+  // Format stopover details for multi-segment flights
   const getStopoverDetails = (flight) => {
-    if (flight.transferCount === 0 || !flight.stopoverAirportCodes || flight.stopoverAirportCodes.length === 0) {
+    if (flight.stops === 0) {
       return (
         <div className="d-flex flex-wrap">
           <small className="d-sm-inline">Direct flight, no stopovers</small>
         </div>
       );
     }
-    return flight.stopoverAirportCodes.map((code, idx) => (
-      <div key={idx} className="d-flex flex-wrap mt-2">
-        <div className="flight--ddt fw-bold d-flex align-items-center gap-2 flex-wrap">
-          <span>Stop {idx + 1}</span>
+    return flight.segments.map((segment, idx) => {
+      if (idx === flight.segments.length - 1) return null;
+      const nextSegment = flight.segments[idx + 1];
+      const layoverDuration = nextSegment ? calculateDuration(segment.arrivalDate, nextSegment.departureDate) : 'N/A';
+      return (
+        <div key={idx} className="d-flex flex-wrap mt-2 gap-2">
+          <div className="flight--ddt fw-bold d-flex align-items-center gap-2 flex-wrap">
+            <span>Stop {idx + 1}</span>
+          </div>
+          <small className="d-sm-inline">
+            Layover at <b>{getAirportName(segment.arrival)}</b>, {layoverDuration}
+          </small>
         </div>
-        <small className="d-sm-inline">
-          Layover at <b>{getAirportName(code)}</b>
-          {flight.stopoverDurations && flight.stopoverDurations[idx]
-            ? `, ${flight.stopoverDurations[idx]}`
-            : ', N/A'}
-        </small>
-      </div>
-    ));
+      );
+    });
   };
 
+  // Use the first segment for departure and last for arrival
+  const firstSegment = flight.segments[0];
+  const lastSegment = flight.segments[flight.segments.length - 1];
+
   return (
-    <div className="mb-3">
-      <h6 className="mb-1"><strong>{segmentType} Flight</strong></h6>
-      <div className="row g-0">
-        <div className="col-1 position-relative d-flex flex-column flight--timeline z-3 overflow-hidden">
-          <span className="d-inline-block bg-light">
-            <svg
-              className="bg-light"
-              style={{ marginTop: '12px' }}
-              xmlns="http://www.w3.org/2000/svg"
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#000"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-            </svg>
-          </span>
-          <span className="d-inline-block mt-auto bottom--timeline">
-            <svg
-              className="bg-light"
-              xmlns="http://www.w3.org/2000/svg"
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#000"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-            </svg>
-          </span>
-        </div>
-        <div className="col">
-          <div className="d-flex flex-wrap mt-2">
-            <div className="flight--ddt fw-bold d-flex align-items-center gap-2 flex-wrap">
-              <span>{formatDate(flight.departureTime)}</span>
-              <span className="me-3 d-flex align-items-center gap-2">{formatTime(flight.departureTime)}</span>
-            </div>
-            <small className="d-sm-inline">Depart from <b>{getAirportName(flight.origin)}</b></small>
+<div className="mb-4 rounded-3 bg-white">
+  <h6 className="mb-3 d-flex align-items-center gap-2 text-primary">
+    <svg width="18" height="18" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
+        <g transform="translate(-624.000000, 0.000000)">
+          <g transform="translate(624.000000, 0.000000)">
+            <path d="M24,0 L24,24 L0,24 L0,0 L24,0 Z M12.5934901,23.257841 L12.5819402,23.2595131 L12.5108777,23.2950439 L12.4918791,23.2987469 L12.4918791,23.2987469 L12.4767152,23.2950439 L12.4056548,23.2595131 C12.3958229,23.2563662 12.3870493,23.2590235 12.3821421,23.2649074 L12.3780323,23.275831 L12.360941,23.7031097 L12.3658947,23.7234994 L12.3769048,23.7357139 L12.4804777,23.8096931 L12.4953491,23.8136134 L12.4953491,23.8136134 L12.5071152,23.8096931 L12.6106902,23.7357139 L12.6232938,23.7196733 L12.6232938,23.7196733 L12.6266527,23.7031097 L12.609561,23.275831 C12.6075724,23.2657013 12.6010112,23.2592993 12.5934901,23.257841 L12.5934901,23.257841 Z M12.8583906,23.1452862 L12.8445485,23.1473072 L12.6598443,23.2396597 L12.6498822,23.2499052 L12.6498822,23.2499052 L12.6471943,23.2611114 L12.6650943,23.6906389 L12.6699349,23.7034178 L12.6699349,23.7034178 L12.678386,23.7104931 L12.8793402,23.8032389 C12.8914285,23.8068999 12.9022333,23.8029875 12.9078286,23.7952264 L12.9118235,23.7811639 L12.8776777,23.1665331 C12.8752882,23.1545897 12.8674102,23.1470016 12.8583906,23.1452862 L12.8583906,23.1452862 Z M12.1430473,23.1473072 C12.1332178,23.1423925 12.1221763,23.1452606 12.1156365,23.1525954 L12.1099173,23.1665331 L12.0757714,23.7811639 C12.0751323,23.7926639 12.0828099,23.8018602 12.0926481,23.8045676 L12.108256,23.8032389 L12.3092106,23.7104931 L12.3186497,23.7024347 L12.3186497,23.7024347 L12.3225043,23.6906389 L12.340401,23.2611114 L12.337245,23.2485176 L12.337245,23.2485176 L12.3277531,23.2396597 L12.1430473,23.1473072 Z" fillRule="nonzero"></path>
+            <path
+              d="M20.9999,20 C21.5522,20 21.9999,20.4477 21.9999,21 C21.9999,21.51285 21.613873,21.9355092 21.1165239,21.9932725 L20.9999,22 L2.99988,22 C2.44759,22 1.99988,21.5523 1.99988,21 C1.99988,20.48715 2.38591566,20.0644908 2.8832579,20.0067275 L2.99988,20 L20.9999,20 Z M7.26152,3.77234 C7.60270875,3.68092 7.96415594,3.73859781 8.25798121,3.92633426 L8.37951,4.0147 L14.564,9.10597 L18.3962,8.41394 C19.7562,8.16834 21.1459,8.64954 22.0628,9.68357 C22.5196,10.1987 22.7144,10.8812 22.4884,11.5492 C22.1394625,12.580825 21.3287477,13.3849891 20.3041894,13.729249 L20.0965,13.7919 L5.02028,17.8315 C4.629257,17.93626 4.216283,17.817298 3.94116938,17.5298722 L3.85479,17.4279 L0.678249,13.1819 C0.275408529,12.6434529 0.504260903,11.8823125 1.10803202,11.640394 L1.22557,11.6013 L3.49688,10.9927 C3.85572444,10.8966111 4.23617877,10.9655 4.53678409,11.1757683 L4.64557,11.2612 L5.44206,11.9612 L7.83692,11.0255 L3.97034,6.11174 C3.54687,5.57357667 3.77335565,4.79203787 4.38986791,4.54876405 L4.50266,4.51158 L7.26152,3.77234 Z M7.40635,5.80409 L6.47052,6.05484 L10.2339,10.8375 C10.6268063,11.3368125 10.463277,12.0589277 9.92111759,12.3504338 L9.80769,12.4028 L5.60866,14.0433 C5.29604667,14.1654333 4.9460763,14.123537 4.67296914,13.9376276 L4.57438,13.8612 L3.6268,13.0285 L3.15564,13.1547 L5.09121,15.7419 L19.5789,11.86 C20.0227,11.7411 20.3838,11.4227 20.5587,11.0018 C20.142625,10.53815 19.5333701,10.3022153 18.9191086,10.3592364 L18.7516,10.3821 L14.4682,11.1556 C14.218,11.2007714 13.9615551,11.149698 13.7491184,11.0154781 L13.6468,10.9415 L7.40635,5.80409 Z"
+              fill="#333333"
+            ></path>
+          </g>
+        </g>
+      </g>
+    </svg>
+    <strong>{segmentType} Flight</strong>
+  </h6>
+
+  {flight.segments.map((segment, idx) => (
+    <div key={segment.segmentId} className="row g-3 mb-4 pb-2 border-bottom">
+      <div className="col-md-12">
+        <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+          {/* Departure Block */}
+          <div className="text-start w-100 w-md-25">
+            <div className="fw-semibold text-dark">{formatDate(segment.departureDate)}</div>
+            <div className="text-muted small">Departure Time: <b>{formatTime(segment.departureDate)}</b></div>
+            <div className="text-muted small">From: <b>{getAirportName(segment.departure)}</b></div>
           </div>
-          {getStopoverDetails(flight)}
-          <div className="mt-2 h6 d-flex gap-3" style={{ fontSize: '14px' }}>
-            <span>Trip Duration</span>
-            <span>{Math.floor(flight.journeyTime / 60)}h {flight.journeyTime % 60}m</span>
-          </div>
-          <div className="d-flex flex-wrap">
-            <div className="flight--ddt fw-bold d-flex align-items-center gap-2 flex-wrap">
-              <span>{formatDate(flight.arrivalTime)}</span>
-              <span className="me-3 d-flex align-items-center gap-2">{formatTime(flight.arrivalTime)}</span>
+
+          {/* Timeline with Plane Icon */}
+          <div className="d-flex align-items-center justify-content-center flex-grow-1 position-relative w-100 w-md-50">
+            <div className="w-100 position-relative" style={{ height: '1px', backgroundColor: '#dee2e6' }} />
+            <div className="position-absolute top-50 start-50 translate-middle bg-white px-2">
+              <svg width="25" height="25" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
+                  <g transform="translate(-624.000000, 0.000000)">
+                    <g transform="translate(624.000000, 0.000000)">
+                      <path d="M24,0 L24,24 L0,24 L0,0 L24,0 Z M12.5934901,23.257841 L12.5819402,23.2595131 L12.5108777,23.2950439 L12.4918791,23.2987469 L12.4918791,23.2987469 L12.4767152,23.2950439 L12.4056548,23.2595131 C12.3958229,23.2563662 12.3870493,23.2590235 12.3821421,23.2649074 L12.3780323,23.275831 L12.360941,23.7031097 L12.3658947,23.7234994 L12.3769048,23.7357139 L12.4804777,23.8096931 L12.4953491,23.8136134 L12.4953491,23.8136134 L12.5071152,23.8096931 L12.6106902,23.7357139 L12.6232938,23.7196733 L12.6232938,23.7196733 L12.6266527,23.7031097 L12.609561,23.275831 C12.6075724,23.2657013 12.6010112,23.2592993 12.5934901,23.257841 L12.5934901,23.257841 Z M12.8583906,23.1452862 L12.8445485,23.1473072 L12.6598443,23.2396597 L12.6498822,23.2499052 L12.6498822,23.2499052 L12.6471943,23.2611114 L12.6650943,23.6906389 L12.6699349,23.7034178 L12.6699349,23.7034178 L12.678386,23.7104931 L12.8793402,23.8032389 C12.8914285,23.8068999 12.9022333,23.8029875 12.9078286,23.7952264 L12.9118235,23.7811639 L12.8776777,23.1665331 C12.8752882,23.1545897 12.8674102,23.1470016 12.8583906,23.1452862 L12.8583906,23.1452862 Z M12.1430473,23.1473072 C12.1332178,23.1423925 12.1221763,23.1452606 12.1156365,23.1525954 L12.1099173,23.1665331 L12.0757714,23.7811639 C12.0751323,23.7926639 12.0828099,23.8018602 12.0926481,23.8045676 L12.108256,23.8032389 L12.3092106,23.7104931 L12.3186497,23.7024347 L12.3186497,23.7024347 L12.3225043,23.6906389 L12.340401,23.2611114 L12.337245,23.2485176 L12.337245,23.2485176 L12.3277531,23.2396597 L12.1430473,23.1473072 Z" fillRule="nonzero"></path>
+                      <path
+                        d="M20.9999,20 C21.5522,20 21.9999,20.4477 21.9999,21 C21.9999,21.51285 21.613873,21.9355092 21.1165239,21.9932725 L20.9999,22 L2.99988,22 C2.44759,22 1.99988,21.5523 1.99988,21 C1.99988,20.48715 2.38591566,20.0644908 2.8832579,20.0067275 L2.99988,20 L20.9999,20 Z M7.26152,3.77234 C7.60270875,3.68092 7.96415594,3.73859781 8.25798121,3.92633426 L8.37951,4.0147 L14.564,9.10597 L18.3962,8.41394 C19.7562,8.16834 21.1459,8.64954 22.0628,9.68357 C22.5196,10.1987 22.7144,10.8812 22.4884,11.5492 C22.1394625,12.580825 21.3287477,13.3849891 20.3041894,13.729249 L20.0965,13.7919 L5.02028,17.8315 C4.629257,17.93626 4.216283,17.817298 3.94116938,17.5298722 L3.85479,17.4279 L0.678249,13.1819 C0.275408529,12.6434529 0.504260903,11.8823125 1.10803202,11.640394 L1.22557,11.6013 L3.49688,10.9927 C3.85572444,10.8966111 4.23617877,10.9655 4.53678409,11.1757683 L4.64557,11.2612 L5.44206,11.9612 L7.83692,11.0255 L3.97034,6.11174 C3.54687,5.57357667 3.77335565,4.79203787 4.38986791,4.54876405 L4.50266,4.51158 L7.26152,3.77234 Z M7.40635,5.80409 L6.47052,6.05484 L10.2339,10.8375 C10.6268063,11.3368125 10.463277,12.0589277 9.92111759,12.3504338 L9.80769,12.4028 L5.60866,14.0433 C5.29604667,14.1654333 4.9460763,14.123537 4.67296914,13.9376276 L4.57438,13.8612 L3.6268,13.0285 L3.15564,13.1547 L5.09121,15.7419 L19.5789,11.86 C20.0227,11.7411 20.3838,11.4227 20.5587,11.0018 C20.142625,10.53815 19.5333701,10.3022153 18.9191086,10.3592364 L18.7516,10.3821 L14.4682,11.1556 C14.218,11.2007714 13.9615551,11.149698 13.7491184,11.0154781 L13.6468,10.9415 L7.40635,5.80409 Z"
+                        fill="#333333"
+                      ></path>
+                    </g>
+                  </g>
+                </g>
+              </svg>
             </div>
-            <small className="d-sm-inline">Arrive at <b>{getAirportName(flight.destination)}</b></small>
+          </div>
+
+          {/* Arrival Block */}
+          <div className="text-end w-100 w-md-25">
+            <div className="fw-semibold text-dark">{formatDate(segment.arrivalDate)}</div>
+            <div className="text-muted small">Arrival Time: <b>{formatTime(segment.arrivalDate)}</b></div>
+            <div className="text-muted small">To: <b>{getAirportName(segment.arrival)}</b></div>
           </div>
         </div>
+
+        <div className="mt-2 text-muted small">
+          Flight No: <b>{segment.airline}{segment.flightNum}</b>
+        </div>
+
+        {idx < flight.segments.length - 1 && (
+          <div className="alert alert-light mt-3 py-2 px-3">
+            {getStopoverDetails(flight)[idx]}
+          </div>
+        )}
       </div>
     </div>
+  ))}
+
+  <div className="d-flex align-items-center gap-2 text-dark">
+    <span className="fw-semibold">Total Trip Duration:</span>
+    {flight.journeyTime && (
+      <span>{Math.floor(flight.journeyTime / 60)}h {flight.journeyTime % 60}m</span>
+    )}
+  </div>
+</div>
+
   );
 };
 

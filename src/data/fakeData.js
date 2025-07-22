@@ -461,3 +461,4 @@ export const countries = [
   { code: 'EG', name: 'Egypt', flag: '/assets/img/flags/eg.png' },
   { code: 'MA', name: 'Morocco', flag: '/assets/img/flags/ma.png' },
 ];
+

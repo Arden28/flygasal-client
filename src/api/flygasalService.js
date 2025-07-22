@@ -99,18 +99,21 @@ const flygasal = {
         const firstFlight = flightMap[flightIds[0]];
 
         return {
-        id: solution.solutionKey,
-        airline: outbound.airline,
-        origin: outbound.departure,
-        destination: finalSegment.arrival,
-        departureTime: new Date(outbound.departureDate),
-        arrivalTime: new Date(finalSegment.arrivalDate),
-        journeyTime: firstFlight?.journeyTime ?? null,
-        transferCount: firstFlight?.transferCount ?? null,
-        lastTktTime: firstFlight?.lastTktTime ?? null,
-        stops: tripSegments.length - 1,
-        segments: tripSegments,
-        price: solution.adtFare + solution.adtTax,
+            id: solution.solutionKey,
+            airline: outbound.airline,
+            cabin: outbound.cabinClass,
+            flightNumber: outbound.flightNum,
+            tickets: outbound.availabilityCount,
+            origin: outbound.departure,
+            destination: finalSegment.arrival,
+            departureTime: new Date(outbound.departureDate),
+            arrivalTime: new Date(finalSegment.arrivalDate),
+            journeyTime: firstFlight?.journeyTime ?? null,
+            transferCount: firstFlight?.transferCount ?? null,
+            lastTktTime: firstFlight?.lastTktTime ?? null,
+            stops: tripSegments.length - 1,
+            segments: tripSegments,
+            price: solution.adtFare + solution.adtTax,
         };
     }).filter(Boolean);
     }

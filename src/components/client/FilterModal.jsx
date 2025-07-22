@@ -31,11 +31,12 @@ const FilterModal = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
+          style={{ zIndex: 2000 }}
         >
           <motion.div
             className="bg-white rounded-lg w-full max-w-md mx-4 p-6 relative max-h-[90vh] overflow-y-auto"
@@ -169,7 +170,7 @@ const FilterModal = ({
                         >
                           <img
                             className="lazyload"
-                            src={getAirlineLogo(airline)}
+                            src={`/assets/img/airlines/${getAirlineName(airline)}.png`}
                             style={{ maxWidth: '20px', maxHeight: '20px' }}
                             alt={getAirlineName(airline)}
                           />

@@ -67,7 +67,7 @@ const ItineraryList = ({
                       ></span>
                       <img
                         style={{ maxWidth: '40px', maxHeight: '40px' }}
-                        src={getAirlineLogo(itinerary.outbound.airline)}
+                        src={`/assets/img/airlines/${getAirlineLogo(itinerary.outbound.airline)}.png`}
                         className="w-100"
                         alt={getAirlineName(itinerary.outbound.airline)}
                       />
@@ -87,7 +87,7 @@ const ItineraryList = ({
                       <div className="py-2">
                         <img
                           style={{ maxWidth: '40px', maxHeight: '40px' }}
-                          src={getAirlineLogo(itinerary.outbound.airline)}
+                          src={`/assets/img/airlines/${getAirlineLogo(itinerary.outbound.airline)}.png`}
                           className="w-100"
                           alt={getAirlineName(itinerary.outbound.airline)}
                         />
@@ -118,14 +118,14 @@ const ItineraryList = ({
                           <h6 className="mb-0"><strong>Stops: {itinerary.totalStops}</strong></h6>
                           <p className="mb-0">
                             {itinerary.outbound.stops > 0
-                              ? itinerary.outbound.stopoverAirportCodes?.join(' ') || `${itinerary.outbound.origin} ${itinerary.outbound.destination}`
-                              : '-'}
+                              ? itinerary.outbound.segments.slice(0, -1).map(s => s.arrival).join(', ')
+                              : 'Direct'}
                           </p>
                           {itinerary.return && (
                             <p className="mb-0">
                               {itinerary.return.stops > 0
-                                ? itinerary.return.stopoverAirportCodes?.join(' ') || `${itinerary.return.origin} ${itinerary.return.destination}`
-                                : '-'}
+                                ? itinerary.return.segments.slice(0, -1).map(s => s.arrival).join(', ')
+                                : 'Direct'}
                             </p>
                           )}
                         </div>
@@ -164,38 +164,44 @@ const ItineraryList = ({
                 >
                   <div className="mx-2">
                     <div className="position-relative bg-light p-3 rounded-4 border">
-                      <div className="row">
-                        <div className="col-md-10">
-                          <FlightSegment
-                            flight={itinerary.outbound}
-                            segmentType="Outbound"
-                            formatDate={formatDate}
-                            formatTime={formatTime}
-                            calculateDuration={calculateDuration}
-                            getAirportName={getAirportName}
-                          />
-                          {itinerary.return && (
-                            <FlightSegment
-                              flight={itinerary.return}
-                              segmentType="Return"
-                              formatDate={formatDate}
-                              formatTime={formatTime}
-                              calculateDuration={calculateDuration}
-                              getAirportName={getAirportName}
-                            />
-                          )}
-                        </div>
-                        <div className="col-md-2 d-flex align-items-center mt-2 mt-md-0">
-                          <div className="form-check d-flex align-items-center gap-2 p-0">
+                      <div className="position-relative border rounded-3 p-3 mb-4 bg-white">
+                        {/* Top-right radio button */}
+                        <div className="position-absolute top-0 end-0 mt-2 me-3">
+                          <div className="form-check">
                             <input
-                              className="form-check-input m-0"
+                              className="form-check-input"
                               type="radio"
                               name="itinerary_select"
                               id={`itinerary_select_${itinerary.id}`}
                               value=""
                               defaultChecked={index === 0}
                             />
-                            <label className="form-check-label" htmlFor={`itinerary_select_${itinerary.id}`}>Selected</label>
+                            <label className="form-check-label small" htmlFor={`itinerary_select_${itinerary.id}`}>
+                              Selected
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="row">
+                          <div className="col-12">
+                            <FlightSegment
+                              flight={itinerary.outbound}
+                              segmentType="Outbound"
+                              formatDate={formatDate}
+                              formatTime={formatTime}
+                              calculateDuration={calculateDuration}
+                              getAirportName={getAirportName}
+                            />
+                            {itinerary.return && (
+                              <FlightSegment
+                                flight={itinerary.return}
+                                segmentType="Return"
+                                formatDate={formatDate}
+                                formatTime={formatTime}
+                                calculateDuration={calculateDuration}
+                                getAirportName={getAirportName}
+                              />
+                            )}
                           </div>
                         </div>
                       </div>

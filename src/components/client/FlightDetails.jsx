@@ -43,7 +43,7 @@ const FlightDetails = ({
               {getCityName(outbound.origin)} to {getCityName(outbound.destination)}
             </h6>
             <small>
-              {tripType === 'oneway' ? 'One-way, ' : tripType === 'return' ? 'Round-trip, ' : ''}
+              {tripType === 'oneway' ? 'Oneway, ' : tripType === 'return' ? 'Round-trip, ' : ''}
               {outbound.cabin || 'Economy'}, {getPassengerSummary(adults, children, infants)}
             </small>
           </div>
