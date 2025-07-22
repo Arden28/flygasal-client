@@ -35,9 +35,9 @@ const ProfilePage = () => {
   const [success, setSuccess] = useState(false);
 
   // Redirect to login if unauthenticated
-  useEffect(() => {
-    if (!loading && !user) navigate('/login');
-  }, [loading, user, navigate]);
+//   useEffect(() => {
+//     if (!loading && !user) navigate('/login');
+//   }, [loading, user, navigate]);
 
   // Populate initial form data
   useEffect(() => {

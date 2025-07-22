@@ -328,8 +328,8 @@
                                                 </div>
                                                 <div class="col-md-4 col-lg-3 col-xl-2 mt-0">
                                                     <select name="flight_type" id="flight_type" class="flight_type gap-2 form-select form-select-sm px-3 rounded-2 border" style="height: 40px !important">
-                                                        <option value="economy" selected>Economy</option>
-                                                        <option value="economy_premium">Economy Premium</option>
+                                                        <option value="Economy" selected>Economy</option>
+                                                        <option value="Economy_premium">Economy Premium</option>
                                                         <option value="business">Business</option>
                                                         <option value="first">First</option>
                                                     </select>
@@ -1288,7 +1288,7 @@
         featuredFlights.forEach(flight => {
             const flightCard = `
                 <div class="col-xl-4 col-12">
-                    <a class="hover-primary rounded-3 d-flex p-3 px-4 fadeout" href="/flights/${flight.origin_code}/${flight.destination_code}/oneway/economy/${getFutureDate()}/1/0/0">
+                    <a class="hover-primary rounded-3 d-flex p-3 px-4 fadeout" href="/flights/${flight.origin_code}/${flight.destination_code}/oneway/Economy/${getFutureDate()}/1/0/0">
                         <div class="col-5 d-flex flex-column">
                             <p class="m-0 text-hover"><strong>${flight.origin}</strong></p>
                             <p class="m-0 text-muted fw-lighter text-truncate"><small>${flight.airline_name}</small></p>

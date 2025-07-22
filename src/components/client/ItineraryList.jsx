@@ -107,7 +107,9 @@ const ItineraryList = ({
                       <div className="row">
                         <div className="col-6 col-md-6">
                           <h6 className="mb-0"><strong>Trip Duration</strong></h6>
-                          <p className="mb-0">{calculateDuration(itinerary.outbound.departureTime, itinerary.outbound.arrivalTime)}</p>
+                          {itinerary.outbound.journeyTime && (
+                          <p className="mb-0">{Math.floor(itinerary.outbound.journeyTime / 60)}h {itinerary.outbound.journeyTime % 60}m</p>
+                          )}
                           {itinerary.return && (
                             <p className="mb-0">{calculateDuration(itinerary.return.departureTime, itinerary.return.arrivalTime)}</p>
                           )}
@@ -204,7 +206,7 @@ const ItineraryList = ({
                       </span>
                       <span className="border rounded-5 px-3 text-capitalize">
                         Total Trip Duration <strong className="text-dark">
-                          {calculateDuration(itinerary.outbound.departureTime, itinerary.outbound.arrivalTime)}
+                          {Math.floor(itinerary.outbound.journeyTime / 60)}h {itinerary.outbound.journeyTime % 60}m
                           {itinerary.return && ` + ${calculateDuration(itinerary.return.departureTime, itinerary.return.arrivalTime)}`}
                         </strong>
                       </span>

@@ -2,7 +2,7 @@ import React from 'react';
 
 const FlightSegment = ({ flight, segmentType, formatDate, formatTime, calculateDuration, getAirportName }) => {
   const getStopoverDetails = (flight) => {
-    if (flight.stops === 0 || !flight.stopoverAirportCodes || flight.stopoverAirportCodes.length === 0) {
+    if (flight.transferCount === 0 || !flight.stopoverAirportCodes || flight.stopoverAirportCodes.length === 0) {
       return (
         <div className="d-flex flex-wrap">
           <small className="d-sm-inline">Direct flight, no stopovers</small>
@@ -72,9 +72,9 @@ const FlightSegment = ({ flight, segmentType, formatDate, formatTime, calculateD
             <small className="d-sm-inline">Depart from <b>{getAirportName(flight.origin)}</b></small>
           </div>
           {getStopoverDetails(flight)}
-          <div className="mt-2 h6" style={{ fontSize: '14px' }}>
+          <div className="mt-2 h6 d-flex gap-3" style={{ fontSize: '14px' }}>
             <span>Trip Duration</span>
-            <span>{calculateDuration(flight.departureTime, flight.arrivalTime)}</span>
+            <span>{Math.floor(flight.journeyTime / 60)}h {flight.journeyTime % 60}m</span>
           </div>
           <div className="d-flex flex-wrap">
             <div className="flight--ddt fw-bold d-flex align-items-center gap-2 flex-wrap">

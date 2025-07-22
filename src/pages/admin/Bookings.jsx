@@ -229,23 +229,23 @@ export default function Bookings() {
   };
 
   return (
-    <div className="relative max-w-7xl mx-auto p-4 sm:p-2">
-      <div className="flex justify-between items-center mb-6 bg-white rounded-lg shadow p-4">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Bookings Management</h1>
-        <Link to="/" className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600" aria-label="Back to dashboard">
+    <div className="relative max-w-full mx-auto p-2 xs:p-3 sm:p-4 md:p-6 overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 bg-white rounded-lg shadow p-3 xs:p-4 sm:p-5">
+        <h1 className="text-base xs:text-lg sm:text-xl md:text-2xl font-bold text-gray-800 mb-2 sm:mb-0">Bookings Management</h1>
+        <Link to="/" className="bg-yellow-500 text-white px-3 py-1.5 xs:px-4 xs:py-2 rounded-lg hover:bg-yellow-600 text-xs sm:text-sm transition-colors duration-200" aria-label="Back to dashboard">
           Back
         </Link>
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
-        <form className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="bg-white rounded-lg shadow p-3 xs:p-4 sm:p-5 md:p-6 mb-4 sm:mb-6">
+        <form className="grid grid-cols-1 gap-3 xs:gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="relative">
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full p-2 xs:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm focus:outline-none"
               placeholder="Booking ID, Traveller, or Email"
               aria-label="Search by booking ID, traveller, or email"
             />
@@ -255,7 +255,7 @@ export default function Bookings() {
             <select
               value={moduleFilter}
               onChange={(e) => setModuleFilter(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full p-2 xs:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm appearance-none focus:outline-none"
               aria-label="Filter by module"
             >
               <option value="">All Modules</option>
@@ -270,7 +270,7 @@ export default function Bookings() {
             <select
               value={bookingStatusFilter}
               onChange={(e) => setBookingStatusFilter(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full p-2 xs:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm appearance-none focus:outline-none"
               aria-label="Filter by booking status"
             >
               <option value="">All Booking Statuses</option>
@@ -284,7 +284,7 @@ export default function Bookings() {
             <select
               value={paymentStatusFilter}
               onChange={(e) => setPaymentStatusFilter(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full p-2 xs:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm appearance-none focus:outline-none"
               aria-label="Filter by payment status"
             >
               <option value="">All Payment Statuses</option>
@@ -299,17 +299,17 @@ export default function Bookings() {
               type="date"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full p-2 xs:p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm focus:outline-none"
               aria-label="Filter by booking date"
             />
             <label className="absolute top-0 left-2 -translate-y-1/2 bg-white px-1 text-xs text-gray-600">Booking Date</label>
           </div>
         </form>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-3 xs:mt-4 flex flex-wrap gap-2 xs:gap-3">
           <button
             type="button"
             onClick={() => setShowFilterModal(true)}
-            className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 text-sm"
+            className="bg-blue-500 text-white px-3 py-1.5 xs:px-4 xs:py-2 rounded-lg hover:bg-blue-600 text-xs xs:text-sm transition-colors duration-200 touch-manipulation"
             aria-label="Open advanced filters"
           >
             Advanced Filters
@@ -317,17 +317,17 @@ export default function Bookings() {
           <button
             type="button"
             onClick={exportToExcel}
-            className="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 text-sm"
+            className="bg-green-500 text-white px-3 py-1.5 xs:px-4 xs:py-2 rounded-lg hover:bg-green-600 text-xs xs:text-sm transition-colors duration-200 touch-manipulation"
             aria-label="Export bookings to Excel"
           >
-            <DocumentArrowDownIcon className="w-4 h-4 inline-block mr-1" />
+            <DocumentArrowDownIcon className="w-4 h-4 xs:w-5 xs:h-5 inline-block mr-1" />
             Export
           </button>
         </div>
       </div>
 
       {/* Payment Filter Cards */}
-      <div className="flex overflow-x-auto mb-6 gap-2 py-2">
+      <div className="flex overflow-x-auto mb-4 sm:mb-6 gap-2 xs:gap-3 py-2 snap-x snap-mandatory scrollbar-hide">
         {[
           { label: 'All', value: '', count: filteredBookings.length },
           { label: 'Succeeded', value: 'Paid', count: filteredBookings.filter(b => b.paymentStatus === 'Paid').length },
@@ -339,30 +339,30 @@ export default function Bookings() {
           <div
             key={label}
             onClick={() => setPaymentStatusFilter(value)}
-            className={`p-3 border rounded-lg cursor-pointer min-w-[120px] flex-shrink-0 ${
+            className={`p-2 xs:p-3 border rounded-lg cursor-pointer min-w-[90px] xs:min-w-[100px] sm:min-w-[110px] flex-shrink-0 snap-center touch-manipulation ${
               paymentStatusFilter === value ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 bg-white'
             }`}
             aria-label={`Filter by ${label} payment status`}
           >
-            <span className="text-xs">{label}</span>
-            <strong className={`text-sm ${paymentStatusFilter === value ? 'text-indigo-600' : 'text-gray-800'}`}>{count}</strong>
+            <span className="text-xs xs:text-sm">{label}</span>
+            <strong className={`text-sm xs:text-base ${paymentStatusFilter === value ? 'text-indigo-600' : 'text-gray-800'}`}>{count}</strong>
           </div>
         ))}
       </div>
 
       {/* Bulk Actions */}
       {selectedBookings.length > 0 && (
-        <div className="mb-4 flex gap-2 flex-wrap">
+        <div className="mb-4 flex flex-wrap gap-2 xs:gap-3">
           <button
             onClick={() => handleBulkAction('confirm')}
-            className="px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm"
+            className="px-3 py-1.5 xs:px-4 xs:py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-xs xs:text-sm transition-colors duration-200 touch-manipulation"
             aria-label="Confirm selected bookings"
           >
             Confirm Selected
           </button>
           <button
             onClick={() => handleBulkAction('cancel')}
-            className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm"
+            className="px-3 py-1.5 xs:px-4 xs:py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-xs xs:text-sm transition-colors duration-200 touch-manipulation"
             aria-label="Cancel selected bookings"
           >
             Cancel Selected
@@ -371,70 +371,78 @@ export default function Bookings() {
       )}
 
       {/* Loading and Error States */}
-      {loading && <div className="flex justify-center p-6"><div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div></div>}
-      {error && <div className="p-4 bg-red-100 text-red-800 rounded-lg mb-4">{error}</div>}
+      {loading && (
+        <div className="flex justify-center p-4 xs:p-6">
+          <div className="animate-spin h-6 w-6 xs:h-8 xs:w-8 sm:h-10 sm:w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+        </div>
+      )}
+      {error && (
+        <div className="p-4 xs:p-6 bg-red-100 text-red-800 rounded-lg mb-4 xs:mb-6 text-xs xs:text-sm">{error}</div>
+      )}
 
       {/* Desktop Table */}
       {!loading && !error && (
         <div className="hidden md:block bg-white shadow rounded-lg overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="min-w-full table-fixed divide-y divide-gray-200">
             <thead className="bg-gray-50 sticky top-0">
               <tr>
-                <th className="w-12 p-3">
+                <th className="w-10 p-2 xs:p-3">
                   <input
                     type="checkbox"
                     checked={selectedBookings.length === filteredBookings.length && filteredBookings.length > 0}
                     onChange={() => setSelectedBookings(
                       selectedBookings.length === filteredBookings.length ? [] : filteredBookings.map(b => b.id)
                     )}
+                    className="h-4 w-4 xs:h-5 xs:w-5"
                     aria-label="Select all bookings"
                   />
                 </th>
-                <th className="w-24 p-3 text-left text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('id')}>
+                <th className="w-20 p-2 xs:p-3 text-left text-xs xs:text-sm font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('id')}>
                   Booking ID {sortConfig.key === 'id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="w-28 p-3 text-left text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('date')}>
+                <th className="w-24 p-2 xs:p-3 text-left text-xs xs:text-sm font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('date')}>
                   Booking Date {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="w-28 p-3 text-left text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('module')}>
+                <th className="w-28 p-2 xs:p-3 text-left text-xs xs:text-sm font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('module')}>
                   Module {sortConfig.key === 'module' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="w-32 p-3 text-left text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('traveller')}>
+                <th className="w-28 p-2 xs:p-3 text-left text-xs xs:text-sm font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('traveller')}>
                   Traveller {sortConfig.key === 'traveller' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="w-40 p-3 text-left text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('email')}>
+                <th className="w-36 p-2 xs:p-3 text-left text-xs xs:text-sm font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('email')}>
                   Email {sortConfig.key === 'email' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="w-28 p-3 text-left text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('bookingStatus')}>
+                <th className="w-24 p-2 xs:p-3 text-left text-xs xs:text-sm font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('bookingStatus')}>
                   Booking Status {sortConfig.key === 'bookingStatus' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="w-28 p-3 text-left text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('paymentStatus')}>
+                <th className="w-24 p-2 xs:p-3 text-left text-xs xs:text-sm font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('paymentStatus')}>
                   Payment Status {sortConfig.key === 'paymentStatus' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="w-24 p-3 text-left text-xs font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('total')}>
+                <th className="w-20 p-2 xs:p-3 text-left text-xs xs:text-sm font-semibold text-gray-600 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('total')}>
                   Total {sortConfig.key === 'total' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th className="w-24 p-3 text-left text-xs font-semibold text-gray-600">PNR</th>
-                <th className="w-64 p-3 text-left text-xs font-semibold text-gray-600">Actions</th>
+                <th className="w-20 p-2 xs:p-3 text-left text-xs xs:text-sm font-semibold text-gray-600">PNR</th>
+                <th className="w-60 p-2 xs:p-3 text-left text-xs xs:text-sm font-semibold text-gray-600">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {paginatedBookings.map((booking) => (
                 <tr key={booking.id} className="hover:bg-gray-50">
-                  <td className="p-3">
+                  <td className="p-2 xs:p-3">
                     <input
                       type="checkbox"
                       checked={selectedBookings.includes(booking.id)}
                       onChange={() => handleSelectBooking(booking.id)}
+                      className="h-4 w-4 xs:h-5 xs:w-5"
                       aria-label={`Select booking ${booking.id}`}
                     />
                   </td>
-                  <td className="p-3 truncate">{booking.id}</td>
-                  <td className="p-3 truncate">{booking.date}</td>
-                  <td className="p-3">
+                  <td className="p-2 xs:p-3 text-xs xs:text-sm truncate">{booking.id}</td>
+                  <td className="p-2 xs:p-3 text-xs xs:text-sm truncate">{booking.date}</td>
+                  <td className="p-2 xs:p-3">
                     <div className="flex items-center">
                       <span
-                        className={`w-6 h-6 rounded flex items-center justify-center text-white text-xs mr-2 ${
+                        className={`w-4 h-4 xs:w-5 xs:h-5 sm:w-6 sm:h-6 rounded flex items-center justify-center text-white text-[10px] xs:text-xs mr-1 xs:mr-2 ${
                           booking.paymentMethod === 'Visa' ? 'bg-blue-700' :
                           booking.paymentMethod === 'PayPal' ? 'bg-black' :
                           'bg-green-500'
@@ -442,27 +450,27 @@ export default function Bookings() {
                       >
                         {booking.paymentMethod[0]}
                       </span>
-                      <span className="truncate">{booking.supplier}</span>
+                      <span className="text-xs xs:text-sm truncate">{booking.supplier}</span>
                     </div>
                   </td>
-                  <td className="p-3 truncate">{booking.traveller}</td>
-                  <td className="p-3 truncate">{booking.email}</td>
-                  <td className="p-3">
+                  <td className="p-2 xs:p-3 text-xs xs:text-sm truncate">{booking.traveller}</td>
+                  <td className="p-2 xs:p-3 text-xs xs:text-sm truncate">{booking.email}</td>
+                  <td className="p-2 xs:p-3">
                     <span
-                      className={`px-2 py-1 text-xs font-semibold rounded-full flex items-center ${
+                      className={`px-2 py-1 text-[10px] xs:text-xs font-semibold rounded-full flex items-center ${
                         booking.bookingStatus === 'Confirmed' ? 'bg-green-100 text-green-800' :
                         booking.bookingStatus === 'Cancelled' ? 'bg-red-100 text-red-800' :
                         'bg-yellow-100 text-yellow-800'
                       }`}
                     >
-                      {booking.bookingStatus === 'Confirmed' && <CheckIcon className="w-4 h-4 mr-1" />}
-                      {booking.bookingStatus === 'Cancelled' && <XMarkIcon className="w-4 h-4 mr-1" />}
+                      {booking.bookingStatus === 'Confirmed' && <CheckIcon className="w-3 h-3 xs:w-4 xs:h-4 mr-1" />}
+                      {booking.bookingStatus === 'Cancelled' && <XMarkIcon className="w-3 h-3 xs:w-4 xs:h-4 mr-1" />}
                       {booking.bookingStatus}
                     </span>
                   </td>
-                  <td className="p-3">
+                  <td className="p-2 xs:p-3">
                     <span
-                      className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      className={`px-2 py-1 text-[10px] xs:text-xs font-semibold rounded-full ${
                         booking.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' :
                         booking.paymentStatus === 'Unpaid' ? 'bg-red-100 text-red-800' :
                         'bg-yellow-100 text-yellow-800'
@@ -471,66 +479,66 @@ export default function Bookings() {
                       {booking.paymentStatus}
                     </span>
                   </td>
-                  <td className="p-3"><strong>{booking.currency} {booking.total.toFixed(2)}</strong></td>
-                  <td className="p-3">
+                  <td className="p-2 xs:p-3 text-xs xs:text-sm"><strong>{booking.currency} {booking.total.toFixed(2)}</strong></td>
+                  <td className="p-2 xs:p-3 text-xs xs:text-sm">
                     {booking.pnr ? booking.pnr : (
                       <button
                         onClick={() => handleIssuePNR(booking.id)}
-                        className="px-2 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-xs"
+                        className="px-2 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-[10px] xs:text-xs touch-manipulation"
                         aria-label={`Issue PNR for booking ${booking.id}`}
                       >
                         Issue PNR
                       </button>
                     )}
                   </td>
-                  <td className="p-3 flex gap-2 flex-wrap">
+                  <td className="p-2 xs:p-3 flex flex-wrap gap-1 xs:gap-2">
                     <Link
                       to={`/admin/flights/bookings/${booking.id}`}
-                      className="flex items-center px-2 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-xs"
+                      className="flex items-center px-2 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-[10px] xs:text-xs touch-manipulation"
                       aria-label={`View details for booking ${booking.id}`}
                     >
-                      <EyeIcon className="w-4 h-4 mr-1" />
+                      <EyeIcon className="w-3 h-3 xs:w-4 xs:h-4 mr-1" />
                       View
                     </Link>
                     <button
                       onClick={() => handleEdit(booking)}
-                      className="flex items-center px-2 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs"
+                      className="flex items-center px-2 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-[10px] xs:text-xs touch-manipulation"
                       aria-label={`Edit booking ${booking.id}`}
                     >
-                      <PencilIcon className="w-4 h-4 mr-1" />
+                      <PencilIcon className="w-3 h-3 xs:w-4 xs:h-4 mr-1" />
                       Edit
                     </button>
                     {booking.bookingStatus === 'Pending' && (
                       <>
                         <button
                           onClick={() => setShowConfirmModal(booking.id)}
-                          className="flex items-center px-2 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 text-xs"
+                          className="flex items-center px-2 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 text-[10px] xs:text-xs touch-manipulation"
                           aria-label={`Confirm booking ${booking.id}`}
                         >
-                          <CheckIcon className="w-4 h-4 mr-1" />
+                          <CheckIcon className="w-3 h-3 xs:w-4 xs:h-4 mr-1" />
                           Confirm
                         </button>
                         <button
                           onClick={() => setShowCancelModal(booking.id)}
-                          className="flex items-center px-2 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-xs"
+                          className="flex items-center px-2 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-[10px] xs:text-xs touch-manipulation"
                           aria-label={`Cancel booking ${booking.id}`}
                         >
-                          <XMarkIcon className="w-4 h-4 mr-1" />
+                          <XMarkIcon className="w-3 h-3 xs:w-4 xs:h-4 mr-1" />
                           Cancel
                         </button>
                       </>
                     )}
                     <button
                       onClick={() => setShowDeleteModal(booking.id)}
-                      className="flex items-center px-2 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-xs"
+                      className="flex items-center px-2 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-[10px] xs:text-xs touch-manipulation"
                       aria-label={`Delete booking ${booking.id}`}
                     >
-                      <TrashIcon className="w-4 h-4 mr-1" />
+                      <TrashIcon className="w-3 h-3 xs:w-4 xs:h-4 mr-1" />
                       Delete
                     </button>
                     <a
                       href="#"
-                      className="flex items-center px-2 py-1 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 text-xs"
+                      className="flex items-center px-2 py-1 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 text-[10px] xs:text-xs touch-manipulation"
                       aria-label={`View invoice for booking ${booking.id}`}
                     >
                       Invoice
@@ -541,31 +549,31 @@ export default function Bookings() {
             </tbody>
           </table>
           {paginatedBookings.length === 0 && (
-            <div className="p-4 text-center text-gray-500">No bookings found.</div>
+            <div className="p-4 xs:p-6 text-center text-gray-500 text-xs xs:text-sm">No bookings found.</div>
           )}
         </div>
       )}
 
       {/* Mobile Card Layout */}
       {!loading && !error && (
-        <div className="md:hidden space-y-4">
+        <div className="md:hidden space-y-3 xs:space-y-4">
           {paginatedBookings.map((booking) => (
-            <div key={booking.id} className="bg-white p-4 rounded-lg shadow">
-              <div className="flex items-center mb-2">
+            <div key={booking.id} className="bg-white p-3 xs:p-4 rounded-lg shadow">
+              <div className="flex items-center mb-2 xs:mb-3">
                 <input
                   type="checkbox"
                   checked={selectedBookings.includes(booking.id)}
                   onChange={() => handleSelectBooking(booking.id)}
-                  className="mr-2"
+                  className="h-4 w-4 xs:h-5 xs:w-5 mr-2"
                   aria-label={`Select booking ${booking.id}`}
                 />
-                <TicketIcon className="w-5 h-5 text-gray-400 mr-2" />
-                <span className="font-medium text-sm">{booking.id}</span>
+                <TicketIcon className="w-4 h-4 xs:w-5 xs:h-5 text-gray-400 mr-2" />
+                <span className="font-medium text-xs xs:text-sm">{booking.id}</span>
               </div>
-              <p className="text-xs text-gray-600">Date: {booking.date}</p>
-              <p className="text-xs text-gray-600">
+              <p className="text-xs xs:text-sm text-gray-600">Date: {booking.date}</p>
+              <p className="text-xs xs:text-sm text-gray-600">
                 Module: <span
-                  className={`w-5 h-5 rounded flex items-center justify-center text-white text-xs mr-1 inline-block ${
+                  className={`w-4 h-4 xs:w-5 xs:h-5 rounded flex items-center justify-center text-white text-[10px] xs:text-xs mr-1 inline-block ${
                     booking.paymentMethod === 'Visa' ? 'bg-blue-700' :
                     booking.paymentMethod === 'PayPal' ? 'bg-black' :
                     'bg-green-500'
@@ -575,24 +583,24 @@ export default function Bookings() {
                 </span>
                 {booking.supplier}
               </p>
-              <p className="text-xs text-gray-600">Traveller: {booking.traveller}</p>
-              <p className="text-xs text-gray-600">Email: {booking.email}</p>
-              <p className="text-xs text-gray-600">
+              <p className="text-xs xs:text-sm text-gray-600">Traveller: {booking.traveller}</p>
+              <p className="text-xs xs:text-sm text-gray-600">Email: {booking.email}</p>
+              <p className="text-xs xs:text-sm text-gray-600">
                 Booking Status: <span
-                  className={`px-2 py-1 text-xs font-semibold rounded-full flex items-center ${
+                  className={`px-2 py-1 text-[10px] xs:text-xs font-semibold rounded-full flex items-center ${
                     booking.bookingStatus === 'Confirmed' ? 'bg-green-100 text-green-800' :
                     booking.bookingStatus === 'Cancelled' ? 'bg-red-100 text-red-800' :
                     'bg-yellow-100 text-yellow-800'
                   }`}
                 >
-                  {booking.bookingStatus === 'Confirmed' && <CheckIcon className="w-3 h-3 mr-1" />}
-                  {booking.bookingStatus === 'Cancelled' && <XMarkIcon className="w-3 h-3 mr-1" />}
+                  {booking.bookingStatus === 'Confirmed' && <CheckIcon className="w-3 h-3 xs:w-4 xs:h-4 mr-1" />}
+                  {booking.bookingStatus === 'Cancelled' && <XMarkIcon className="w-3 h-3 xs:w-4 xs:h-4 mr-1" />}
                   {booking.bookingStatus}
                 </span>
               </p>
-              <p className="text-xs text-gray-600">
+              <p className="text-xs xs:text-sm text-gray-600">
                 Payment Status: <span
-                  className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                  className={`px-2 py-1 text-[10px] xs:text-xs font-semibold rounded-full ${
                     booking.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' :
                     booking.paymentStatus === 'Unpaid' ? 'bg-red-100 text-red-800' :
                     'bg-yellow-100 text-yellow-800'
@@ -601,81 +609,110 @@ export default function Bookings() {
                   {booking.paymentStatus}
                 </span>
               </p>
-              <p className="text-xs text-gray-600">Total: {booking.currency} {booking.total.toFixed(2)}</p>
-              <p className="text-xs text-gray-600">PNR: {booking.pnr || (
-                <button
-                  onClick={() => handleIssuePNR(booking.id)}
-                  className="px-2 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-xs"
-                  aria-label={`Issue PNR for booking ${booking.id}`}
-                >
-                  Issue PNR
-                </button>
-              )}</p>
-              <div className="mt-2 flex gap-2 flex-wrap">
+              <p className="text-xs xs:text-sm text-gray-600">Total: {booking.currency} {booking.total.toFixed(2)}</p>
+              <p className="text-xs xs:text-sm text-gray-600">
+                PNR: {booking.pnr || (
+                  <button
+                    onClick={() => handleIssuePNR(booking.id)}
+                    className="px-2 py-1 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-[10px] xs:text-xs touch-manipulation"
+                    aria-label={`Issue PNR for booking ${booking.id}`}
+                  >
+                    Issue PNR
+                  </button>
+                )}
+              </p>
+              <div className="mt-2 xs:mt-3 flex flex-wrap gap-1 xs:gap-2">
                 <Link
                   to={`/admin/flights/bookings/${booking.id}`}
-                  className="flex items-center px-2 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-xs"
+                  className="flex items-center px-2 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-[10px] xs:text-xs touch-manipulation"
                   aria-label={`View details for booking ${booking.id}`}
                 >
-                  <EyeIcon className="w-3 h-3 mr-1" />
+                  <EyeIcon className="w-3 h-3 xs:w-4 xs:h-4 mr-1" />
                   View
                 </Link>
                 <button
                   onClick={() => handleEdit(booking)}
-                  className="flex items-center px-2 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs"
+                  className="flex items-center px-2 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-[10px] xs:text-xs touch-manipulation"
                   aria-label={`Edit booking ${booking.id}`}
                 >
-                  <PencilIcon className="w-3 h-3 mr-1" />
+                  <PencilIcon className="w-3 h-3 xs:w-4 xs:h-4 mr-1" />
                   Edit
                 </button>
+                {booking.bookingStatus === 'Pending' && (
+                  <>
+                    <button
+                      onClick={() => setShowConfirmModal(booking.id)}
+                      className="flex items-center px-2 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 text-[10px] xs:text-xs touch-manipulation"
+                      aria-label={`Confirm booking ${booking.id}`}
+                    >
+                      <CheckIcon className="w-3 h-3 xs:w-4 xs:h-4 mr-1" />
+                      Confirm
+                    </button>
+                    <button
+                      onClick={() => setShowCancelModal(booking.id)}
+                      className="flex items-center px-2 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-[10px] xs:text-xs touch-manipulation"
+                      aria-label={`Cancel booking ${booking.id}`}
+                    >
+                      <XMarkIcon className="w-3 h-3 xs:w-4 xs:h-4 mr-1" />
+                      Cancel
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={() => setShowDeleteModal(booking.id)}
-                  className="flex items-center px-2 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-xs"
+                  className="flex items-center px-2 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-[10px] xs:text-xs touch-manipulation"
                   aria-label={`Delete booking ${booking.id}`}
                 >
-                  <TrashIcon className="w-3 h-3 mr-1" />
+                  <TrashIcon className="w-3 h-3 xs:w-4 xs:h-4 mr-1" />
                   Delete
                 </button>
+                <a
+                  href="#"
+                  className="flex items-center px-2 py-1 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 text-[10px] xs:text-xs touch-manipulation"
+                  aria-label={`View invoice for booking ${booking.id}`}
+                >
+                  Invoice
+                </a>
               </div>
             </div>
           ))}
           {paginatedBookings.length === 0 && (
-            <div className="p-4 text-center text-gray-500 text-sm">No bookings found.</div>
+            <div className="p-4 xs:p-6 text-center text-gray-500 text-xs xs:text-sm">No bookings found.</div>
           )}
         </div>
       )}
 
       {/* Pagination */}
       {!loading && !error && filteredBookings.length > 0 && (
-        <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-600">Show</span>
+        <div className="flex flex-col xs:flex-row justify-between items-center mt-4 xs:mt-6 gap-3 xs:gap-4">
+          <div className="flex items-center gap-2 xs:gap-3">
+            <span className="text-xs xs:text-sm text-gray-600">Show</span>
             <select
               value={bookingsPerPage}
               onChange={(e) => setBookingsPerPage(parseInt(e.target.value))}
-              className="p-2 border rounded-lg text-xs"
+              className="p-2 xs:p-3 border rounded-lg text-xs xs:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Select number of bookings per page"
             >
               <option value={10}>10</option>
               <option value={25}>25</option>
               <option value={50}>50</option>
             </select>
-            <span className="text-xs text-gray-600">per page</span>
+            <span className="text-xs xs:text-sm text-gray-600">per page</span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col xs:flex-row gap-2 xs:gap-3 items-center">
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1 bg-blue-500 text-white rounded-lg disabled:bg-gray-300 text-xs"
+              className="px-3 py-1.5 xs:px-4 xs:py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-300 text-xs xs:text-sm min-w-[80px] touch-manipulation"
               aria-label="Previous page"
             >
               Previous
             </button>
-            <span className="text-xs text-gray-600">Page {currentPage} of {totalPages}</span>
+            <span className="text-xs xs:text-sm text-gray-600">Page {currentPage} of {totalPages}</span>
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1 bg-blue-500 text-white rounded-lg disabled:bg-gray-300 text-xs"
+              className="px-3 py-1.5 xs:px-4 xs:py-2 bg-blue-500 text-white rounded-lg disabled:bg-gray-300 text-xs xs:text-sm min-w-[80px] touch-manipulation"
               aria-label="Next page"
             >
               Next
@@ -686,11 +723,11 @@ export default function Bookings() {
 
       {/* Audit Log */}
       {!loading && !error && auditLog.length > 0 && (
-        <div className="mt-6 bg-white p-4 rounded-lg shadow">
-          <h2 className="text-sm font-semibold mb-4">Audit Log</h2>
+        <div className="mt-4 xs:mt-6 bg-white p-3 xs:p-4 rounded-lg shadow">
+          <h2 className="text-xs xs:text-sm font-semibold mb-3 xs:mb-4">Audit Log</h2>
           <ul className="space-y-2">
             {auditLog.map((log, index) => (
-              <li key={index} className="text-xs text-gray-600">
+              <li key={index} className="text-xs xs:text-sm text-gray-600">
                 {log.timestamp}: {log.action}
               </li>
             ))}
@@ -701,34 +738,34 @@ export default function Bookings() {
       {/* Advanced Filter Modal */}
       {showFilterModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
-            <h3 className="text-sm font-semibold mb-4">Advanced Filters</h3>
-            <form className="space-y-4">
+          <div className="bg-white p-4 xs:p-5 sm:p-6 rounded-lg shadow-lg w-full max-w-[90vw] xs:max-w-[400px] sm:max-w-md mx-2">
+            <h3 className="text-sm xs:text-base sm:text-lg font-semibold mb-3 xs:mb-4">Advanced Filters</h3>
+            <form className="space-y-3 xs:space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-700">Min Amount</label>
+                <label className="block text-xs xs:text-sm font-medium text-gray-700">Min Amount</label>
                 <input
                   type="number"
                   value={amountFilter.min}
                   onChange={(e) => setAmountFilter({ ...amountFilter, min: parseFloat(e.target.value) || '' })}
-                  className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="mt-1 w-full p-2 xs:p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm"
                   aria-label="Minimum amount"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700">Max Amount</label>
+                <label className="block text-xs xs:text-sm font-medium text-gray-700">Max Amount</label>
                 <input
                   type="number"
                   value={amountFilter.max}
                   onChange={(e) => setAmountFilter({ ...amountFilter, max: parseFloat(e.target.value) || '' })}
-                  className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="mt-1 w-full p-2 xs:p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm"
                   aria-label="Maximum amount"
                 />
               </div>
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 xs:gap-3">
                 <button
                   type="button"
                   onClick={() => setShowFilterModal(false)}
-                  className="px-3 py-1 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 text-xs"
+                  className="px-3 py-1.5 xs:px-4 xs:py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 text-xs xs:text-sm touch-manipulation"
                   aria-label="Cancel advanced filters"
                 >
                   Cancel
@@ -736,7 +773,7 @@ export default function Bookings() {
                 <button
                   type="button"
                   onClick={() => setShowFilterModal(false)}
-                  className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs"
+                  className="px-3 py-1.5 xs:px-4 xs:py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs xs:text-sm touch-manipulation"
                   aria-label="Apply advanced filters"
                 >
                   Apply
@@ -750,20 +787,20 @@ export default function Bookings() {
       {/* Confirm Modal */}
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
-            <h3 className="text-sm font-semibold mb-4">Confirm Booking</h3>
-            <p className="text-xs text-gray-600 mb-4">Are you sure you want to confirm this booking?</p>
-            <div className="flex justify-end gap-2">
+          <div className="bg-white p-4 xs:p-5 sm:p-6 rounded-lg shadow-lg w-full max-w-[90vw] xs:max-w-[360px] sm:max-w-sm mx-2">
+            <h3 className="text-sm xs:text-base sm:text-lg font-semibold mb-3 xs:mb-4">Confirm Booking</h3>
+            <p className="text-xs xs:text-sm text-gray-600 mb-3 xs:mb-4">Are you sure you want to confirm this booking?</p>
+            <div className="flex justify-end gap-2 xs:gap-3">
               <button
                 onClick={() => setShowConfirmModal(null)}
-                className="px-3 py-1 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 text-xs"
+                className="px-3 py-1.5 xs:px-4 xs:py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 text-xs xs:text-sm touch-manipulation"
                 aria-label="Cancel confirmation"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleConfirm(showConfirmModal)}
-                className="px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 text-xs"
+                className="px-3 py-1.5 xs:px-4 xs:py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-xs xs:text-sm touch-manipulation"
                 aria-label="Confirm booking"
               >
                 Confirm
@@ -776,20 +813,20 @@ export default function Bookings() {
       {/* Cancel Modal */}
       {showCancelModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
-            <h3 className="text-sm font-semibold mb-4">Cancel Booking</h3>
-            <p className="text-xs text-gray-600 mb-4">Are you sure you want to cancel this booking?</p>
-            <div className="flex justify-end gap-2">
+          <div className="bg-white p-4 xs:p-5 sm:p-6 rounded-lg shadow-lg w-full max-w-[90vw] xs:max-w-[360px] sm:max-w-sm mx-2">
+            <h3 className="text-sm xs:text-base sm:text-lg font-semibold mb-3 xs:mb-4">Cancel Booking</h3>
+            <p className="text-xs xs:text-sm text-gray-600 mb-3 xs:mb-4">Are you sure you want to cancel this booking?</p>
+            <div className="flex justify-end gap-2 xs:gap-3">
               <button
                 onClick={() => setShowCancelModal(null)}
-                className="px-3 py-1 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 text-xs"
+                className="px-3 py-1.5 xs:px-4 xs:py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 text-xs xs:text-sm touch-manipulation"
                 aria-label="Cancel cancellation"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleCancel(showCancelModal)}
-                className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-xs"
+                className="px-3 py-1.5 xs:px-4 xs:py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-xs xs:text-sm touch-manipulation"
                 aria-label="Confirm cancellation"
               >
                 Cancel Booking
@@ -802,20 +839,20 @@ export default function Bookings() {
       {/* Delete Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
-            <h3 className="text-sm font-semibold mb-4">Delete Booking</h3>
-            <p className="text-xs text-gray-600 mb-4">Are you sure you want to delete this booking?</p>
-            <div className="flex justify-end gap-2">
+          <div className="bg-white p-4 xs:p-5 sm:p-6 rounded-lg shadow-lg w-full max-w-[90vw] xs:max-w-[360px] sm:max-w-sm mx-2">
+            <h3 className="text-sm xs:text-base sm:text-lg font-semibold mb-3 xs:mb-4">Delete Booking</h3>
+            <p className="text-xs xs:text-sm text-gray-600 mb-3 xs:mb-4">Are you sure you want to delete this booking?</p>
+            <div className="flex justify-end gap-2 xs:gap-3">
               <button
                 onClick={() => setShowDeleteModal(null)}
-                className="px-3 py-1 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 text-xs"
+                className="px-3 py-1.5 xs:px-4 xs:py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 text-xs xs:text-sm touch-manipulation"
                 aria-label="Cancel deletion"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDelete(showDeleteModal)}
-                className="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 text-xs"
+                className="px-3 py-1.5 xs:px-4 xs:py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-xs xs:text-sm touch-manipulation"
                 aria-label="Confirm deletion"
               >
                 Delete
@@ -828,37 +865,37 @@ export default function Bookings() {
       {/* Edit Modal */}
       {editBooking && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
-            <h3 className="text-sm font-semibold mb-4">Edit Booking</h3>
-            <form onSubmit={handleSaveEdit} className="space-y-4">
+          <div className="bg-white p-4 xs:p-5 sm:p-6 rounded-lg shadow-lg w-full max-w-[90vw] xs:max-w-[400px] sm:max-w-md mx-2">
+            <h3 className="text-sm xs:text-base sm:text-lg font-semibold mb-3 xs:mb-4">Edit Booking</h3>
+            <form onSubmit={handleSaveEdit} className="space-y-3 xs:space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-700">Traveller</label>
+                <label className="block text-xs xs:text-sm font-medium text-gray-700">Traveller</label>
                 <input
                   type="text"
                   value={editBooking.traveller}
                   onChange={(e) => setEditBooking({ ...editBooking, traveller: e.target.value })}
-                  className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="mt-1 w-full p-2 xs:p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm"
                   required
                   aria-label="Traveller name"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700">Email</label>
+                <label className="block text-xs xs:text-sm font-medium text-gray-700">Email</label>
                 <input
                   type="email"
                   value={editBooking.email}
                   onChange={(e) => setEditBooking({ ...editBooking, email: e.target.value })}
-                  className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="mt-1 w-full p-2 xs:p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm"
                   required
                   aria-label="Traveller email"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700">Module</label>
+                <label className="block text-xs xs:text-sm font-medium text-gray-700">Module</label>
                 <select
                   value={editBooking.module}
                   onChange={(e) => setEditBooking({ ...editBooking, module: e.target.value })}
-                  className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="mt-1 w-full p-2 xs:p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm appearance-none"
                   required
                   aria-label="Booking module"
                 >
@@ -869,11 +906,11 @@ export default function Bookings() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700">Booking Status</label>
+                <label className="block text-xs xs:text-sm font-medium text-gray-700">Booking Status</label>
                 <select
                   value={editBooking.bookingStatus}
                   onChange={(e) => setEditBooking({ ...editBooking, bookingStatus: e.target.value })}
-                  className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="mt-1 w-full p-2 xs:p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm appearance-none"
                   required
                   aria-label="Booking status"
                 >
@@ -883,11 +920,11 @@ export default function Bookings() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700">Payment Status</label>
+                <label className="block text-xs xs:text-sm font-medium text-gray-700">Payment Status</label>
                 <select
                   value={editBooking.paymentStatus}
                   onChange={(e) => setEditBooking({ ...editBooking, paymentStatus: e.target.value })}
-                  className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="mt-1 w-full p-2 xs:p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm appearance-none"
                   required
                   aria-label="Payment status"
                 >
@@ -897,24 +934,24 @@ export default function Bookings() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700">Total</label>
+                <label className="block text-xs xs:text-sm font-medium text-gray-700">Total</label>
                 <input
                   type="number"
                   step="0.01"
                   value={editBooking.total}
                   onChange={(e) => setEditBooking({ ...editBooking, total: parseFloat(e.target.value) || 0 })}
-                  className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="mt-1 w-full p-2 xs:p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm"
                   required
                   min="0"
                   aria-label="Booking total"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700">Currency</label>
+                <label className="block text-xs xs:text-sm font-medium text-gray-700">Currency</label>
                 <select
                   value={editBooking.currency}
                   onChange={(e) => setEditBooking({ ...editBooking, currency: e.target.value })}
-                  className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  className="mt-1 w-full p-2 xs:p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs xs:text-sm appearance-none"
                   required
                   aria-label="Currency"
                 >
@@ -923,18 +960,18 @@ export default function Bookings() {
                   <option value="GBP">GBP</option>
                 </select>
               </div>
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 xs:gap-3">
                 <button
                   type="button"
                   onClick={() => setEditBooking(null)}
-                  className="px-3 py-1 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 text-xs"
+                  className="px-3 py-1.5 xs:px-4 xs:py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 text-xs xs:text-sm touch-manipulation"
                   aria-label="Cancel edit"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs"
+                  className="px-3 py-1.5 xs:px-4 xs:py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-xs xs:text-sm touch-manipulation"
                   aria-label="Save booking changes"
                 >
                   Save

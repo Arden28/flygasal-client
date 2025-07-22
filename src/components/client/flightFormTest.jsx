@@ -76,8 +76,8 @@
               value={flightType}
               onChange={(e) => setFlightType(e.target.value)}
             >
-              <option value="economy">Economy</option>
-              <option value="economy_premium">Economy Premium</option>
+              <option value="Economy">Economy</option>
+              <option value="Economy_premium">Economy Premium</option>
               <option value="business">Business</option>
               <option value="first">First</option>
             </select>
@@ -801,8 +801,8 @@
             onChange={(e) => setFlightType(e.target.value)}
             style={{ height: '54px' }}
           >
-            <option value="economy">Economy</option>
-            <option value="economy_premium">Economy Premium</option>
+            <option value="Economy">Economy</option>
+            <option value="Economy_premium">Economy Premium</option>
             <option value="business">Business</option>
             <option value="first">First</option>
           </select>

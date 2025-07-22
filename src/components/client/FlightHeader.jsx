@@ -9,12 +9,12 @@ const FlightHeader = ({ filteredItineraries, searchParams, formatDate }) => {
           <span className="j_listABTit"><small>{filteredItineraries.length} {searchParams?.tripType === 'return' ? 'Round-Trip Itineraries' : 'Flights'} Found</small></span>
         </h4>
         <span className="title__fetched-time gap-2 d-flex" style={{ color: 'rgb(255, 255, 255)' }}>
-          <span>{searchParams?.flights[0]?.origin || 'JFK'}</span>
+          <span>{searchParams?.origin || 'JFK'}</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
             <path d="M5 12h13M12 5l7 7-7 7"/>
           </svg>
-          <span>{searchParams?.flights[0]?.destination || 'LAX'}</span>
-          <span>{formatDate(searchParams?.flights[0]?.depart)} {searchParams?.tripType === 'return' ? `- ${formatDate(searchParams?.returnDate)}` : ''}</span>
+          <span>{searchParams?.destination || 'LAX'}</span>
+          <span>{formatDate(searchParams?.departureDate)} {searchParams?.tripType === 'return' ? ` - ${formatDate(searchParams?.returnDate)}` : ''}</span>
         </span>
       </div>
     </div>

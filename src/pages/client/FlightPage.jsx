@@ -7,6 +7,7 @@ import SortNavigation from '../../components/client/SortNavigation';
 import ItineraryList from '../../components/client/ItineraryList';
 import Pagination from '../../components/client/Pagination';
 import FlightSearchForm from '../../components/client/FlightSearchForm';
+import flygasal from '../../api/flygasalService';
 
 const FlightPage = () => {
   const [searchParams, setSearchParams] = useState(null);
@@ -63,11 +64,49 @@ const FlightPage = () => {
     return airline ? airline.logo : code;
   };
 
+  // const transformPKFareData = (pkData) => {
+  //   const segmentMap = Object.fromEntries(
+  //     (pkData.segments || []).map((seg) => [seg.segmentId, seg])
+  //   );
+
+  //   const solutions = pkData.solutions || [];
+
+  //   return solutions.map((solution) => {
+  //     const journeyKeys = Object.keys(solution.journeys || {});
+  //     const journeys = journeyKeys.map((key) => solution.journeys[key]).flat();
+  //     const tripSegments = journeys.map((id) => segmentMap[id]).filter(Boolean);
+
+  //     const outbound = tripSegments[0];
+  //     const finalSegment = tripSegments[tripSegments.length - 1];
+  //     console.info(finalSegment);
+
+  //     return {
+  //       id: solution.solutionKey,
+  //       airline: outbound.airline,
+  //       airlineName: getAirlineName(outbound.airline),
+  //       origin: outbound.departure,
+  //       destination: finalSegment.arrival,
+  //       departureTime: new Date(outbound.departureDate),
+  //       arrivalTime: new Date(finalSegment.arrivalDate),
+  //       stops: tripSegments.length - 1,
+  //       segments: tripSegments,
+  //       price: solution.adtFare + solution.adtTax,
+  //     };
+  //   });
+  // };
+
+
   // Load search parameters and filter flights from URL
+
   useEffect(() => {
+  // Define an async function to fetch flights based on URL parameters
+  const fetchFlights = async () => {
+    // Parse the query parameters from the URL
     const queryParams = new URLSearchParams(location.search);
     const flightsFromUrl = [];
     let i = 0;
+
+    // Extract all flight legs (origin, destination, depart) from URL (multiple if multi-city)
     while (queryParams.has(`flights[${i}][origin]`)) {
       flightsFromUrl.push({
         origin: queryParams.get(`flights[${i}][origin]`),
@@ -77,41 +116,79 @@ const FlightPage = () => {
       i++;
     }
 
+    // Build the search parameters object from the URL or fallback values
+
+    // Extract from URL or fallback
+    const flight = flightsFromUrl.length > 0 ? flightsFromUrl[0] : { origin: 'JFK', destination: 'LAX', depart: '2025-07-15' };
     const params = {
-      tripType: queryParams.get('tripType') || 'oneway',
-      flightType: queryParams.get('flightType') || 'economy',
       flights: flightsFromUrl.length > 0 ? flightsFromUrl : [{ origin: 'JFK', destination: 'LAX', depart: '2025-07-15' }],
-      returnDate: queryParams.get('returnDate') || '2025-07-20',
+      tripType: queryParams.get('tripType') || 'Oneway',
+      cabinType: queryParams.get('flightType') || 'economy',
+      origin: flight.origin,
+      destination: flight.destination,
+      departureDate: flight.depart,
+      returnDate: queryParams.get('returnDate') || null,
       adults: parseInt(queryParams.get('adults')) || 1,
       children: parseInt(queryParams.get('children')) || 0,
       infants: parseInt(queryParams.get('infants')) || 0,
     };
 
+    // Save the parsed parameters in local state/context
     setSearchParams(params);
 
-    const outbound = flights.filter((flight) =>
-      params.flights.some(
-        (f) =>
-          f.origin === flight.origin &&
-          f.destination === flight.destination &&
-          new Date(f.depart).toDateString() === new Date(flight.departureTime).toDateString()
-      )
-    );
+    try {
+      // Call the API or service to get outbound flight results
+      const response = await flygasal.searchFlights(params);
+      const pkData = response.data;
 
-    let returnFlights = [];
-    if (params.tripType === 'return' && params.flights[0]) {
-      returnFlights = flights.filter(
-        (flight) =>
-          flight.origin === params.flights[0].destination &&
-          flight.destination === params.flights[0].origin &&
-          new Date(params.returnDate).toDateString() === new Date(flight.departureTime).toDateString()
-      );
+      const outbound = flygasal.transformPKFareData(pkData);
+
+      let returnFlights = [];
+
+      // If it's a return trip, filter return flights matching reverse route and return date
+      if (params.tripType === 'return' && params.flights[0]) {
+        returnFlights = outbound.filter(
+          (flight) =>
+            flight.origin === params.flights[0].destination &&
+            flight.destination === params.flights[0].origin &&
+            new Date(params.returnDate).toDateString() ===
+              new Date(flight.departureTime).toDateString()
+        );
+      }
+
+      // Store the outbound and return flight results in component state
+      setAvailableFlights(outbound);
+      setReturnFlights(returnFlights);
+    } catch (error) {
+      // Log any error during the API call
+      console.error('Failed to fetch flights:', error);
     }
+  };
 
-    setAvailableFlights(outbound);
-    setReturnFlights(returnFlights);
-  }, [location.search]);
+  // Invoke the async fetch function when location.search changes
+  fetchFlights();
+}, [location.search]);
 
+
+  
+  // const handleSearch = async () => {
+  //   try {
+  //     const criteria = {
+  //       origin: 'CDG',
+  //       destination: 'JFK',
+  //       departureDate: '2025-09-10',
+  //       returnDate: '2025-09-20',
+  //       adults: 1,
+  //       tripType: 'RoundTrip',
+  //       cabinClass: 'Economy',
+  //     };
+  //     const flights = await flygasal.searchFlights(criteria);
+  //     setResults(flights);
+  //   } catch (error) {
+  //     alert('Search failed: ' + error.message);
+  //   }
+  // };
+  
   // Combine flights into itineraries for round-trip searches
   const getItineraries = () => {
     if (searchParams?.tripType === 'return') {

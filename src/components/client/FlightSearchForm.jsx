@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights }) => {
   const [tripType, setTripType] = useState('oneway');
-  const [flightType, setFlightType] = useState('economy');
+  const [flightType, setFlightType] = useState('Economy');
   const [flightsState, setFlightsState] = useState([
     { origin: null, destination: null, depart: new Date('2025-07-15') },
   ]);
@@ -40,7 +40,7 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
       }
       params = {
         tripType: queryParams.get('tripType') || 'oneway',
-        flightType: queryParams.get('flightType') || 'economy',
+        flightType: queryParams.get('flightType') || 'Economy',
         flights: flightsFromUrl.length > 0 ? flightsFromUrl : [{ origin: 'JFK', destination: 'LAX', depart: '2025-07-15' }],
         returnDate: queryParams.get('returnDate') || '2025-07-20',
         adults: parseInt(queryParams.get('adults')) || 1,
@@ -344,8 +344,8 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
             onChange={(e) => setFlightType(e.target.value)}
             style={{ height: '54px' }}
           >
-            <option value="economy">Economy</option>
-            <option value="economy_premium">Economy Premium</option>
+            <option value="Economy">Economy</option>
+            <option value="Economy_premium">Economy Premium</option>
             <option value="business">Business</option>
             <option value="first">First</option>
           </select>

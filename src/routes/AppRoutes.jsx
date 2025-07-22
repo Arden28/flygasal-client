@@ -42,33 +42,25 @@ export default function AppRoutes() {
       <Routes>
         {/* Client-side */}
         <Route 
-          path="/" 
-          element={<ClientLayout />}>
+          path="/"  element={<ClientLayout />} >
           <Route index element={<Home />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/flight/availability" element={<FlightPage />} />
           <Route path="/flight/trip-review" element={<TripReviewPage />} />
           <Route path="/flight/booking-confirmation" element={<BookingConfirmationPage />} />
           <Route path="/flight/confirmation-success" element={<div>Booking Confirmed!</div>} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Register signupUrl="http://flygasal.test/api/auth/register" />} />
           <Route path="/signup-success" element={<SignupSuccessPage />} />
           {/* Profile */}
-          <Route path="/dashboard" element={
-                !loading && user ? (
-                  <DashboardPage 
-                      user={user}
-                  />
-                ) : (
-                  <Navigate to="/login" />
-                )
-              } 
-            />
+          <Route path="/dashboard" element={<DashboardPage user={user} /> } />
           <Route path="/bookings" element={<BookingsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           
 
           {/* Add more client pages here */}
+        </Route>
+        <Route path="/" element={<ClientLayout />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Register signupUrl="http://flygasal.test/api/auth/register" />} />
         </Route>
 
         {/* Admin-side */}
