@@ -26,6 +26,7 @@ const FlightPage = () => {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const flightsPerPage = 25;
   const location = useLocation();
+  const [loading, setLoading] = useState(false);
 
   // Helper to format date (e.g., "Wed, 15 Dec")
   const formatDate = (dateString) => {
@@ -71,6 +72,9 @@ const FlightPage = () => {
 
   // Fetch flights based on URL parameters
   useEffect(() => {
+  
+    setLoading(true); // <-- Start loading
+    
     const fetchFlights = async () => {
       // Parse query parameters from URL
       const queryParams = new URLSearchParams(location.search);
@@ -133,6 +137,8 @@ const FlightPage = () => {
         }
       } catch (error) {
         console.error('Failed to fetch flights:', error);
+      } finally {
+        setLoading(false); // <-- Done loading
       }
     };
 
@@ -325,6 +331,8 @@ const FlightPage = () => {
                 getAirportName={getAirportName}
                 availableFlights={availableFlights}
                 returnFlights={returnFlights}
+                loading={loading}
+                
               />
               <Pagination
                 currentPage={currentPage}

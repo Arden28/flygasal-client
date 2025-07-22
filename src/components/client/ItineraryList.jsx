@@ -15,6 +15,7 @@ const ItineraryList = ({
   getAirportName,
   availableFlights,
   returnFlights,
+  loading
 }) => {
   const navigate = useNavigate();
 
@@ -234,16 +235,25 @@ const ItineraryList = ({
         </AnimatePresence>
       </ul>
 
-      <div
-        className={`fail-message ${paginatedItineraries.length === 0 ? 'd-flex' : 'd-none'} flex-column justify-content-center align-items-center text-center py-2`}
-      >
-        <img
-          src="/assets/img/flights_search.gif"
-          alt="No flights found"
-          style={{ width: '250px', marginBottom: '1rem' }}
-        />
-        <strong className="text-lg text-gray-600">No Results Found</strong>
-      </div>
+      {loading ? (
+        <div className="d-flex flex-column justify-content-center align-items-center text-center py-4">
+          <img
+            src="/assets/img/search3.gif"
+            alt="Loading..."
+            style={{ width: '250px', marginBottom: '1rem' }}
+          />
+          <strong className="text-gray-500">Searching flights...</strong>
+        </div>
+      ) : paginatedItineraries.length === 0 && (
+        <div className="d-flex flex-column justify-content-center align-items-center text-center py-4">
+          <img
+            src="/assets/img/flights_search.gif"
+            alt="No flights found"
+            style={{ width: '250px', marginBottom: '1rem' }}
+          />
+          <strong className="text-lg text-gray-600">No Results Found</strong>
+        </div>
+      )}
     </div>
   );
 };
