@@ -10,6 +10,7 @@ const ItineraryList = ({
   getAirlineLogo,
   getAirlineName,
   formatDate,
+  formatToYMD,
   formatTime,
   calculateDuration,
   getAirportName,
@@ -20,12 +21,13 @@ const ItineraryList = ({
   const navigate = useNavigate();
 
   const handleSelectItinerary = (itinerary) => {
+    // console.info(formatToYMD(itinerary.outbound.departureTime));
     const searchParams = new URLSearchParams({
       tripType: itinerary.return ? 'return' : 'oneway',
       'flights[0][origin]': itinerary.outbound.origin,
       'flights[0][destination]': itinerary.outbound.destination,
-      'flights[0][depart]': formatDate(itinerary.outbound.departureTime),
-      returnDate: itinerary.return ? formatDate(itinerary.return.departureTime) : '',
+      'flights[0][depart]': formatToYMD(itinerary.outbound.departureTime),
+      returnDate: itinerary.return ? formatToYMD(itinerary.return.departureTime) : '',
       adults: itinerary.adults?.toString() || '1',
       children: itinerary.children?.toString() || '0',
       cabin: itinerary.outbound.cabin || 'Economy',

@@ -13,6 +13,7 @@ import flygasal from '../../api/flygasalService';
 const FlightPage = () => {
   // State for search parameters, flights, filters, and UI controls
   const [searchParams, setSearchParams] = useState(null);
+  const [searchKey, setSearchKey] = useState(null);
   const [availableFlights, setAvailableFlights] = useState([]);
   const [returnFlights, setReturnFlights] = useState([]);
   const [minPrice, setMinPrice] = useState(0);
@@ -33,6 +34,14 @@ const FlightPage = () => {
     if (!dateString) return '';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
+  };
+
+  const formatToYMD = (dateInput) => {
+    const date = new Date(dateInput);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-based
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   // Helper to format time (e.g., "8:00 PM")
@@ -112,6 +121,7 @@ const FlightPage = () => {
         // Fetch flights from PKfare via flygasal service
         const response = await flygasal.searchFlights(params);
         const pkData = response.data;
+        const searchKey = pkData.searchKey;
         const outbound = flygasal.transformPKFareData(pkData);
 
         let returnFlights = [];
@@ -125,7 +135,13 @@ const FlightPage = () => {
           const returnResponse = await flygasal.searchFlights(returnParams);
           returnFlights = flygasal.transformPKFareData(returnResponse.data);
         }
-
+        
+        // Set search key
+        setSearchKey(searchKey);
+        queryParams.set("searchKey", searchKey);
+        const newUrl = `${window.location.pathname}?${queryParams.toString()}`;
+        window.history.pushState(null, "", newUrl);
+        
         setAvailableFlights(outbound);
         setReturnFlights(returnFlights);
 
@@ -314,6 +330,7 @@ const FlightPage = () => {
                 filteredItineraries={filteredItineraries}
                 searchParams={searchParams}
                 formatDate={formatDate}
+                loading={loading}
               />
               <SortNavigation sortOrder={sortOrder} handleSortChange={handleSortChange} />
               <ItineraryList
@@ -325,6 +342,7 @@ const FlightPage = () => {
                 setOpenDetailsId={setOpenDetailsId}
                 getAirlineLogo={getAirlineLogo}
                 getAirlineName={getAirlineName}
+                formatToYMD={formatToYMD}
                 formatDate={formatDate}
                 formatTime={formatTime}
                 calculateDuration={calculateDuration}

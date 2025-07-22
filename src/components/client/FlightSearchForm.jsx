@@ -138,6 +138,7 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
 
     // Create URL query parameters
     const queryParams = new URLSearchParams();
+    queryParams.set('searchKey', '');
     queryParams.set('tripType', tripType);
     queryParams.set('flightType', flightType);
     flightsState.forEach((flight, index) => {

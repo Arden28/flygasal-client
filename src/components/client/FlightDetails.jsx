@@ -53,7 +53,7 @@ const FlightDetails = ({
                 <span className="text-start text-sm">Flying with {getAirlineName(outbound.airline)}</span>
                 <span className="text-end">
                   <img
-                    src={getAirlineLogo(outbound.airline)}
+                    src={`/assets/img/airlines/${getAirlineLogo(outbound.airline)}.png`}
                     alt={getAirlineName(outbound.airline)}
                     className=""
                     style={{ height: '20px' }}
@@ -118,7 +118,7 @@ const FlightDetails = ({
                       <div className="text-xs text-muted mt-1 justify-content-between d-flex">
                         <span className="text-start d-flex gap-1">
                           <img
-                            src={getAirlineLogo(outbound.airline)}
+                            src={`/assets/img/airlines/${getAirlineLogo(outbound.airline)}.png`}
                             alt={getAirlineName(outbound.airline)}
                             className=""
                             style={{ height: '15px' }}

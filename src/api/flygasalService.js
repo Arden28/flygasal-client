@@ -86,7 +86,6 @@ const flygasal = {
         const allSegmentIds = flightIds
         .map((flightId) => flightMap[flightId]?.segmengtIds || [])
         .flat();
-
         const tripSegments = allSegmentIds
         .map((segmentId) => segmentMap[segmentId])
         .filter(Boolean);
@@ -99,7 +98,8 @@ const flygasal = {
         const firstFlight = flightMap[flightIds[0]];
 
         return {
-            id: solution.solutionKey,
+            id: outbound.segmentId,
+            solutionKey: solution.solutionKey,
             airline: outbound.airline,
             cabin: outbound.cabinClass,
             flightNumber: outbound.flightNum,
@@ -110,7 +110,9 @@ const flygasal = {
             arrivalTime: new Date(finalSegment.arrivalDate),
             journeyTime: firstFlight?.journeyTime ?? null,
             transferCount: firstFlight?.transferCount ?? null,
-            lastTktTime: firstFlight?.lastTktTime ?? null,
+            // lastTktTime: firstFlight?.lastTktTime ?? null,
+            lastTktTime: solution.lastTktTime ? new Date(solution.lastTktTime) : null,
+            expired: solution.lastTktTime ? new Date(solution.lastTktTime) < new Date() : false,
             stops: tripSegments.length - 1,
             segments: tripSegments,
             price: solution.adtFare + solution.adtTax,

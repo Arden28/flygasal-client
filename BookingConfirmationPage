@@ -5,7 +5,6 @@ import { flights, airlines, airports } from '../../data/fakeData';
 import FlightDetails from '../../components/client/FlightDetails';
 import BookingForm from '../../components/client/BookingForm';
 import { PayPalScriptProvider } from '@paypal/react-paypal-js';
-import flygasal from '../../api/flygasalService';
 
 const countries = [
   { code: 'US', name: 'United States', flag: '/assets/img/flags/us.png' },
@@ -61,8 +60,6 @@ const BookingConfirmationPage = () => {
   const [showReadMore, setShowReadMore] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isFormValid, setIsFormValid] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [availableFlights, setAvailableFlights] = useState([]);
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -173,108 +170,56 @@ const BookingConfirmationPage = () => {
   }, [formData, adults, children, infants]);
 
   // Parse flight data
-
-
   useEffect(() => {
-    const fetchFlightData = async () => {
-      setLoading(true);
+    const searchParams = new URLSearchParams(location.search);
+    const tripType = searchParams.get('tripType') || 'oneway';
+    const adultsCount = parseInt(searchParams.get('adults')) || 2;
+    const childrenCount = parseInt(searchParams.get('children')) || 0;
+    const infantsCount = parseInt(searchParams.get('infants')) || 0;
+    const origin = searchParams.get('flights[0][origin]');
+    const destination = searchParams.get('flights[0][destination]');
+    const departDate = searchParams.get('flights[0][depart]');
+    const returnDate = searchParams.get('returnDate');
+    const flightId = searchParams.get('flightId');
+    const returnFlightId = searchParams.get('returnFlightId');
 
-      try {
-        const searchParams = new URLSearchParams(location.search);
+    console.log('Query Parameters:', { tripType, adults: adultsCount, children: childrenCount, infants: infantsCount, origin, destination, departDate, returnDate, flightId, returnFlightId });
+    console.log('Available Flights:', flights);
 
-        // Step 1: Extract flights info from URL
-        const flightsFromUrl = [];
-        let i = 0;
-        while (searchParams.has(`flights[${i}][origin]`)) {
-          flightsFromUrl.push({
-            origin: searchParams.get(`flights[${i}][origin]`),
-            destination: searchParams.get(`flights[${i}][destination]`),
-            depart: searchParams.get(`flights[${i}][depart]`),
-          });
-          i++;
-        }
+    const selectedOutbound = flights.find(f => f.id === flightId);
+    const selectedReturn = tripType === 'return' && returnFlightId ? flights.find(f => f.id === returnFlightId) : null;
 
-        const tripType = searchParams.get('tripType') || 'oneway';
-        const cabinType = searchParams.get('flightType') || 'Economy';
-        const adults = parseInt(searchParams.get('adults')) || 1;
-        const children = parseInt(searchParams.get('children')) || 0;
-        const infants = parseInt(searchParams.get('infants')) || 0;
-        const returnDate = searchParams.get('returnDate') || null;
+    console.log('Selected Outbound:', selectedOutbound);
+    console.log('Selected Return:', selectedReturn);
 
-        const flightId = searchParams.get('flightId');
-        const returnFlightId = searchParams.get('returnFlightId');
+    if (!selectedOutbound) {
+      const errorMsg = `Outbound flight not found for flightId: ${flightId}`;
+      console.error(errorMsg);
+      setError(errorMsg);
+      return;
+    }
 
-        const mainFlight = flightsFromUrl[0] || { origin: 'HKG', destination: 'BKK', depart: '2024-12-15' };
+    if (tripType === 'return' && returnFlightId && !selectedReturn) {
+      const errorMsg = `Return flight not found for returnFlightId: ${returnFlightId}`;
+      console.error(errorMsg);
+      setError(errorMsg);
+      return;
+    }
 
-        const params = {
-          flights: flightsFromUrl.length > 0 ? flightsFromUrl : [mainFlight],
-          origin: mainFlight.origin,
-          destination: mainFlight.destination,
-          departureDate: mainFlight.depart,
-          returnDate,
-          tripType,
-          cabinType,
-          adults,
-          children,
-          infants,
-        };
-
-        // Step 2: Call flygasal API to fetch matching flights
-        const response = await flygasal.searchFlights(params);
-        const outboundFlights = flygasal.transformPKFareData(response.data);
-        let returnFlights = [];
-
-        // If round trip, fetch return flights too
-        if (tripType === 'return' && returnDate) {
-          const returnParams = {
-            ...params,
-            flights: [{ origin: params.destination, destination: params.origin, depart: returnDate }],
-          };
-          const returnResponse = await flygasal.searchFlights(returnParams);
-          returnFlights = flygasal.transformPKFareData(returnResponse.data);
-        }
-
-        const allFlights = [...outboundFlights, ...returnFlights];
-        setAvailableFlights(allFlights);
-        
-        // Step 3: Match selected flights using flightId(s)
-        const selectedOutbound = allFlights.find(f => f.id === flightId);
-        const selectedReturn = tripType === 'return' && returnFlightId ? allFlights.find(f => f.id === returnFlightId) : null;
-
-        if (!selectedOutbound) {
-          setError(`Outbound flight not found for ID: ${flightId}`);
-          return;
-        }
-
-        if (tripType === 'return' && returnFlightId && !selectedReturn) {
-          setError(`Return flight not found for ID: ${returnFlightId}`);
-          return;
-        }
-
-        // Step 4: Set final trip data
-        setTripDetails({
-          tripType,
-          origin: params.origin,
-          destination: params.destination,
-          departDate: params.departureDate,
-          returnDate: params.returnDate,
-          adults,
-          children,
-          infants,
-          outbound: selectedOutbound,
-          return: selectedReturn,
-          totalPrice: selectedOutbound.price + (selectedReturn ? selectedReturn.price : 0),
-          cancellation_policy: 'Non-refundable after 24 hours. Cancellations within 24 hours of booking are refundable with a $50 fee.',
-        });
-      } catch (err) {
-        console.error('Error loading confirmation:', err);
-        setError('Failed to load booking details.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFlightData();
+    setTripDetails({
+      tripType,
+      adults: adultsCount,
+      children: childrenCount,
+      infants: infantsCount,
+      outbound: selectedOutbound,
+      return: selectedReturn,
+      origin,
+      destination,
+      departDate,
+      returnDate,
+      totalPrice: selectedOutbound.price + (selectedReturn ? selectedReturn.price : 0),
+      cancellation_policy: 'Non-refundable after 24 hours. Cancellations within 24 hours of booking are refundable with a $50 fee.',
+    });
   }, [location.search]);
 
   // Handle payment submission
