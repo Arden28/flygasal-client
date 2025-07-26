@@ -6,6 +6,7 @@ import FlightSegment from '../../components/client/FlightSegment';
 const ItineraryList = ({
   paginatedItineraries,
   openDetailsId,
+  searchParams,
   setOpenDetailsId,
   getAirlineLogo,
   getAirlineName,
@@ -21,21 +22,24 @@ const ItineraryList = ({
   const navigate = useNavigate();
 
   const handleSelectItinerary = (itinerary) => {
+    console.info(`Adults: ${searchParams?.adults}`);
     // console.info(formatToYMD(itinerary.outbound.departureTime));
-    const searchParams = new URLSearchParams({
+    const searchParams2 = new URLSearchParams({
+      solutionId: itinerary.outbound.solutionKey || '',
       tripType: itinerary.return ? 'return' : 'oneway',
       'flights[0][origin]': itinerary.outbound.origin,
       'flights[0][destination]': itinerary.outbound.destination,
       'flights[0][depart]': formatToYMD(itinerary.outbound.departureTime),
       returnDate: itinerary.return ? formatToYMD(itinerary.return.departureTime) : '',
-      adults: itinerary.adults?.toString() || '1',
-      children: itinerary.children?.toString() || '0',
+      adults: searchParams?.adults || '1',
+      children: searchParams?.children || '0',
+      infants: searchParams?.infants || '0',
       cabin: itinerary.outbound.cabin || 'Economy',
       flightId: itinerary.outbound.id,
       returnFlightId: itinerary.return ? itinerary.return.id : '',
     });
 
-    navigate(`/flight/booking-confirmation?${searchParams.toString()}`);
+    navigate(`/flight/booking-confirmation?${searchParams2.toString()}`);
   };
 
   return (
@@ -141,6 +145,7 @@ const ItineraryList = ({
                     <strong><small style={{ fontSize: '14px', color: '#aeaeae', fontWeight: '100' }}>From</small> USD {itinerary.totalPrice.toFixed(2)}</strong>
                   </h6>
                   <div className="order-1 order-sm-2 d-flex justify-content-between justify-content-sm-start gap-2">
+                    
                     <button
                       className="flex-grow-1 btn btn-outline-primary"
                       type="button"

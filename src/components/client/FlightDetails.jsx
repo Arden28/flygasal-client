@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
@@ -28,6 +28,17 @@ const FlightDetails = ({
   isProcessing,
 }) => {
   const navigate = useNavigate();
+  const [openSections, setOpenSections] = useState({
+    outbound: false,
+    return: false,
+  });
+
+  const toggleAccordion = (key) => {
+    setOpenSections((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
 
   return (
     <div className="w-full lg:w-1/3 mb-4">
@@ -53,7 +64,7 @@ const FlightDetails = ({
                 <span className="text-start text-sm">Flying with {getAirlineName(outbound.airline)}</span>
                 <span className="text-end">
                   <img
-                    src={`/assets/img/airlines/${getAirlineLogo(outbound.airline)}.png`}
+                    src={getAirlineLogo(outbound.airline)}
                     alt={getAirlineName(outbound.airline)}
                     className=""
                     style={{ height: '20px' }}
@@ -68,10 +79,9 @@ const FlightDetails = ({
                 <h2 id="accordion-collapse-heading-3">
                   <button
                     type="button"
+                    onClick={() => toggleAccordion('outbound')} // or 'return'
                     className="flex items-center justify-between w-full p-3 pb-1 bg-white transition-all text-black font-normal"
-                    data-accordion-target={`#accordion-collapse-body-${outbound.id}`}
-                    aria-expanded="true"
-                    aria-controls={`accordion-collapse-body-${outbound.id}`}
+                    aria-expanded={openSections.outbound}
                   >
                     <div className="flex flex-col text-left">
                       <h6 className="fs-6">
@@ -82,12 +92,18 @@ const FlightDetails = ({
                         {outbound.stops > 0
                           ? outbound.stopoverAirportCodes?.join(' ') || `${outbound.origin} ${outbound.destination}`
                           : 'Nonstop'}{' '}
-                        • {calculateDuration(outbound.departureTime, outbound.arrivalTime)}
+                        • 
+                          {outbound.journeyTime && (
+                          <span className="text-small">{Math.floor(outbound.journeyTime / 60)}h {outbound.journeyTime % 60}m</span>
+                          )}
                       </div>
                     </div>
                     <svg
                       data-accordion-icon
-                      className="w-3 h-3 rotate-180 shrink-0 font-normal"
+                      className={`w-3 h-3 shrink-0 font-normal transform transition-transform duration-300 ${
+                        openSections.outbound ? 'rotate-180' : ''
+                      }`}
+                      // className="w-3 h-3 rotate-180 "
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
                       viewBox="0 0 10 6"
@@ -104,7 +120,7 @@ const FlightDetails = ({
                 </h2>
                 <div
                   id={`accordion-collapse-body-${outbound.id}`}
-                  className="hidden"
+                  className={`${openSections.outbound ? 'block' : 'hidden'}`}
                   aria-labelledby="accordion-collapse-heading-3"
                 >
                   <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
@@ -118,7 +134,7 @@ const FlightDetails = ({
                       <div className="text-xs text-muted mt-1 justify-content-between d-flex">
                         <span className="text-start d-flex gap-1">
                           <img
-                            src={`/assets/img/airlines/${getAirlineLogo(outbound.airline)}.png`}
+                            src={getAirlineLogo(outbound.airline)}
                             alt={getAirlineName(outbound.airline)}
                             className=""
                             style={{ height: '15px' }}
@@ -131,7 +147,7 @@ const FlightDetails = ({
                         <span className="text-start">
                           <i className="bi bi-airplane"></i> Plane type
                         </span>
-                        <span className="text-end">{outbound.planeType || 'N/A'}</span>
+                        <span className="text-end">{outbound.plane || 'N/A'}</span>
                       </div>
                       <div className="text-xs text-muted mt-1 justify-content-between d-flex">
                         <span className="text-start">Class</span>
@@ -194,7 +210,7 @@ const FlightDetails = ({
                     </h2>
                     <div
                       id={`accordion-collapse-body-${returnFlight.id}`}
-                      className="hidden"
+                      className={`${openSections.return ? 'block' : 'hidden'}`}
                       aria-labelledby="accordion-collapse-heading-3"
                     >
                       <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">

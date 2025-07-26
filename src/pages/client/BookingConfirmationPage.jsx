@@ -457,7 +457,7 @@ const BookingConfirmationPage = () => {
 
   if (error) {
     return (
-      <div className="container mx-auto py-8 text-center">
+      <div className="container mx-auto py-8 mt-5 text-center">
         <h2 className="text-red-600 text-3xl font-bold">Error</h2>
         <p className="text-gray-600 mt-2">{error}</p>
         <button
@@ -498,7 +498,8 @@ const BookingConfirmationPage = () => {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 pt-0" style={{ marginTop: '-70px' }}>
-        <PayPalScriptProvider options={{ 'client-id': 'your-paypal-client-id' }}>
+        {/* <PayPalScriptProvider options={{ 'client-id': 'your-paypal-client-id' }}>
+        </PayPalScriptProvider> */}
           <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row gap-6">
             {/* Left Column: Booking Form */}
             <BookingForm
@@ -615,7 +616,6 @@ const BookingConfirmationPage = () => {
             />
             <input type="hidden" name="travellers" value={btoa(JSON.stringify(formData.travelers))} />
           </form>
-        </PayPalScriptProvider>
       </div>
 
       {/* Loading Spinner */}

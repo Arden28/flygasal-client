@@ -338,6 +338,7 @@ const FlightPage = () => {
                   (currentPage - 1) * flightsPerPage,
                   currentPage * flightsPerPage
                 )}
+                searchParams={searchParams}
                 openDetailsId={openDetailsId}
                 setOpenDetailsId={setOpenDetailsId}
                 getAirlineLogo={getAirlineLogo}

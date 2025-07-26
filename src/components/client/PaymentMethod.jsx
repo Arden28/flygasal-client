@@ -32,7 +32,7 @@ const PaymentMethod = ({ formData, handleFormChange, isFormValid, handlePayment,
       )}
       <div className="space-y-2">
         {/* Credit Card (Stripe) */}
-        <label className="flex items-center cursor-pointer">
+        {/* <label className="flex items-center cursor-pointer">
           <input
             type="radio"
             name="payment_method"
@@ -184,30 +184,31 @@ const PaymentMethod = ({ formData, handleFormChange, isFormValid, handlePayment,
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
+        </AnimatePresence> */}
 
-        {/* PayPal */}
+        {/* Wallet Balance */}
         <label className="flex items-center cursor-pointer">
           <input
             type="radio"
             name="payment_method"
-            value="paypal"
-            checked={formData.payment_method === 'paypal'}
+            value="wallet"
+            checked={formData.payment_method === 'wallet'}
             onChange={handleFormChange}
             className="form-check-input mr-2 h-5 w-5 text-blue-400 focus:ring-blue-400 border-gray-500"
           />
           <span className="flex items-center gap-2 font-mono uppercase">
             <img
-              src="/assets/img/gateways/paypal.png"
-              alt="PayPal"
+              src="/assets/img/gateways/wallet_balance.png"
+              alt="Wallet"
               className="h-4"
               style={{ height: '30px' }}
             />
-            PayPal
+            Wallet Balance
           </span>
         </label>
+
         <AnimatePresence>
-          {formData.payment_method === 'paypal' && (
+          {formData.payment_method === 'wallet' && (
             <motion.div
               className="p-4 bg-white rounded-xl shadow-sm border"
               initial={{ height: 0, opacity: 0 }}
@@ -216,41 +217,13 @@ const PaymentMethod = ({ formData, handleFormChange, isFormValid, handlePayment,
               transition={{ duration: 0.3 }}
             >
               <p className="text-sm text-gray-600 mb-2">
-                Enter your email address. We’ll send your booking confirmation and payment instructions.
+                Your wallet will be debited: <strong>$755</strong>
+                {/* Your wallet will be debited: <strong>${totalPrice.toFixed(2)}</strong> */}
               </p>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleFormChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                placeholder="you@example.com"
-                required
-              />
-              <PayPalButtons
-                style={{ layout: 'vertical' }}
-                disabled={isProcessing || !isFormValid || !formData.email}
-                createOrder={(data, actions) => {
-                  return actions.order.create({
-                    purchase_units: [
-                      {
-                        amount: {
-                          value: totalPrice.toFixed(2),
-                          currency_code: 'USD',
-                        },
-                      },
-                    ],
-                  });
-                }}
-                onApprove={handlePayPalPayment}
-                onError={() => {
-                  setPaymentError('PayPal payment failed. Please try again.');
-                  setIsProcessing(false);
-                }}
-              />
             </motion.div>
           )}
         </AnimatePresence>
+
       </div>
     </motion.div>
   );

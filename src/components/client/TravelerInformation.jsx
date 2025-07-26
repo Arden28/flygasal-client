@@ -160,7 +160,7 @@ const TravelerInformation = ({
             value={formData.full_name}
             onChange={handleFormChange}
             className="form-control w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-700"
-            placeholder="Arden BOUET"
+            placeholder="Your Full Name"
             required
           />
         </div>
@@ -172,7 +172,7 @@ const TravelerInformation = ({
             value={formData.email}
             onChange={handleFormChange}
             className="form-control w-full border border-gray-300 rounded-lg p-3 pt-6 focus:ring-2 focus:ring-blue-700"
-            placeholder="arden.bouet@example.com"
+            placeholder="Your Email Address"
             required
           />
         </div>
@@ -184,7 +184,7 @@ const TravelerInformation = ({
             value={formData.phone}
             onChange={handleFormChange}
             className="form-control w-full border border-gray-300 rounded-lg p-3 pt-6 focus:ring-2 focus:ring-blue-700"
-            placeholder="+1234567890"
+            placeholder="Your Phone Number"
             required
           />
         </div>
