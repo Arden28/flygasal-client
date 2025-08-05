@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ShieldCheckIcon, PencilIcon, TrashIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import apiService from '../../api/apiService';
 
 export default function UserRoles() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,38 +21,58 @@ export default function UserRoles() {
   const [error, setError] = useState(null);
 
   // Mock data
+  // useEffect(() => {
+  //   const mockRoles = [
+  //     {
+  //       id: 'ROLE001',
+  //       name: 'Admin',
+  //       description: 'Full system access',
+  //       status: 'Active',
+  //       permissions: ['manage_users', 'manage_roles', 'view_reports', 'edit_transactions'],
+  //     },
+  //     {
+  //       id: 'ROLE002',
+  //       name: 'Agent',
+  //       description: 'Handles bookings and customer inquiries',
+  //       status: 'Active',
+  //       permissions: ['view_bookings', 'edit_bookings', 'view_transactions'],
+  //     },
+  //     {
+  //       id: 'ROLE003',
+  //       name: 'Viewer',
+  //       description: 'Read-only access to reports',
+  //       status: 'Inactive',
+  //       permissions: ['view_reports'],
+  //     },
+  //   ];
+  //   setRoles(mockRoles);
+  //   setLoading(false);
+  //   // Future API call: GET /api/roles
+  //   // fetch('https://your-laravel-api.com/api/roles')
+  //   //   .then(res => res.json())
+  //   //   .then(data => setRoles(data.data))
+  //   //   .catch(err => setError('Failed to fetch roles'))
+  //   //   .finally(() => setLoading(false));
+  // }, []);
+
+  // Fetch user roles from backend API
   useEffect(() => {
-    const mockRoles = [
-      {
-        id: 'ROLE001',
-        name: 'Admin',
-        description: 'Full system access',
-        status: 'Active',
-        permissions: ['manage_users', 'manage_roles', 'view_reports', 'edit_transactions'],
-      },
-      {
-        id: 'ROLE002',
-        name: 'Agent',
-        description: 'Handles bookings and customer inquiries',
-        status: 'Active',
-        permissions: ['view_bookings', 'edit_bookings', 'view_transactions'],
-      },
-      {
-        id: 'ROLE003',
-        name: 'Viewer',
-        description: 'Read-only access to reports',
-        status: 'Inactive',
-        permissions: ['view_reports'],
-      },
-    ];
-    setRoles(mockRoles);
-    setLoading(false);
-    // Future API call: GET /api/roles
-    // fetch('https://your-laravel-api.com/api/roles')
-    //   .then(res => res.json())
-    //   .then(data => setRoles(data.data))
-    //   .catch(err => setError('Failed to fetch roles'))
-    //   .finally(() => setLoading(false));
+    const fetchUserRoles = async () => {
+      setLoading(true);
+      try {
+        const response = await apiService.get('/admin/roles');
+        // if (!response.ok) throw new Error('Failed to load email settings');
+        const roles = response.data.data;
+        // console.info(roles);
+        setRoles(roles);
+        setLoading(false);
+      } catch (error) {
+        setError('Failed to load user roles');
+        setLoading(false);
+      }
+    };
+
+    fetchUserRoles();
   }, []);
 
   // Sorting logic
@@ -108,11 +129,19 @@ export default function UserRoles() {
   };
 
   // Handle delete
-  const handleDelete = (id) => {
-    setRoles(roles.filter(r => r.id !== id));
-    setAuditLog([...auditLog, { action: `Deleted role ${id}`, timestamp: new Date().toISOString() }]);
-    toast.success('Role deleted successfully!');
-    setShowDeleteModal(null);
+  const handleDelete = async (id) => {
+    try {
+      setRoles(roles.filter(r => r.id !== id));
+      setAuditLog([...auditLog, { action: `Deleted role ${id}`, timestamp: new Date().toISOString() }]);
+      setShowDeleteModal(null);
+
+      await apiService.delete(`/admin/roles/${id}`);
+
+      toast.success('Role deleted successfully!');
+    } catch (error) {
+      console.error('Delete failed:', error);
+      toast.error('Something went wrong. Could not delete role.');
+    }
     // Future API call: DELETE /api/roles/:id
   };
 
@@ -339,7 +368,7 @@ export default function UserRoles() {
                 <ShieldCheckIcon className="w-5 h-5 text-gray-400 mr-2" />
                 <span className="font-medium text-sm">{role.name}</span>
               </div>
-              <p className="text-xs text-gray-600">ID: {role.id}</p>
+              {/* <p className="text-xs text-gray-600">ID: {role.id}</p> */}
               <p className="text-xs text-gray-600">Description: {role.description}</p>
               <p className="text-xs text-gray-600">
                 Status: <span

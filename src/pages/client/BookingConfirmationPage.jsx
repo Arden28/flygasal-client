@@ -47,7 +47,7 @@ const expiryYears = Array.from({ length: 21 }, (_, i) => ({
   label: String(new Date().getFullYear() + i),
 }));
 
-const BookingConfirmationPage = () => {
+const BookingConfirmationPage = ({ user }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [tripDetails, setTripDetails] = useState(null);
@@ -71,6 +71,16 @@ const BookingConfirmationPage = () => {
     payment_method: '',
     agree_terms: false,
   });
+
+  // Set Agent
+  useEffect(() => {
+    if (user?.role === 'agent') {
+      setIsAgent(true);
+    } else {
+      setIsAgent(false);
+    }
+  }, [user]);
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Initialize travelers and counts based on query parameters
@@ -206,6 +216,7 @@ const BookingConfirmationPage = () => {
 
         const mainFlight = flightsFromUrl[0] || { origin: 'HKG', destination: 'BKK', depart: '2024-12-15' };
 
+        // console.info('')
         const params = {
           flights: flightsFromUrl.length > 0 ? flightsFromUrl : [mainFlight],
           origin: mainFlight.origin,
@@ -277,6 +288,70 @@ const BookingConfirmationPage = () => {
     fetchFlightData();
   }, [location.search]);
 
+  // Precise Pricing
+  useEffect(() => {
+    const fetchFlightData = async () => {
+      // setLoading(true);
+
+    try {
+      const searchParams = new URLSearchParams(location.search);
+
+      const journeysFromUrl = [];
+      let i = 0;
+
+      while (searchParams.has(`flights[${i}][origin]`)) {
+        journeysFromUrl.push({
+          airline: searchParams.get(`flights[${i}][airline]`),
+          flightNum: searchParams.get(`flights[${i}][flightNum]`),
+          arrival: searchParams.get(`flights[${i}][arrival]`),
+          arrivalDate: searchParams.get(`flights[${i}][arrivalDate]`),
+          arrivalTime: searchParams.get(`flights[${i}][arrivalTime]`),
+          departure: searchParams.get(`flights[${i}][departure]`),
+          departureDate: searchParams.get(`flights[${i}][departureDate]`),
+          departureTime: searchParams.get(`flights[${i}][departureTime]`),
+          bookingCode: searchParams.get(`flights[${i}][bookingCode]`)
+        });
+        i++;
+      }
+
+      const tripType = searchParams.get('tripType') || 'oneway';
+      const cabinType = searchParams.get('flightType') || 'Economy';
+      const adults = parseInt(searchParams.get('adults')) || 1;
+      const children = parseInt(searchParams.get('children')) || 0;
+      const infants = parseInt(searchParams.get('infants')) || 0;
+      const returnDate = searchParams.get('returnDate') || null;
+
+      const solutionId = searchParams.get('solutionId') || null;
+      const solutionKey = searchParams.get('solutionKey') || null;
+
+      const params = {
+        journeys: journeysFromUrl,
+        tripType,
+        cabinType,
+        adults,
+        children,
+        infants,
+        returnDate,
+        solutionId,
+        solutionKey
+      };
+
+      console.info('Params:', params);
+      const response = await flygasal.precisePricing(params);
+      console.info('Pricing Response:', response.data);
+
+    } catch (err) {
+      console.error('Error loading confirmation:', err);
+      setError('Failed to load booking details.');
+    } finally {
+      setLoading(false);
+    }
+
+    };
+
+    fetchFlightData();
+  }, [location.search]);
+
   // Handle payment submission
   const handlePayment = async (paymentMethod) => {
     if (!isFormValid) {
@@ -287,33 +362,39 @@ const BookingConfirmationPage = () => {
 
     try {
       let paymentSuccess = false;
-      if (paymentMethod === 'credit_card') {
-        const response = await fetch('/submit-booking', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            booking_data: btoa(JSON.stringify({ outbound: tripDetails.outbound, returnFlight: tripDetails.return, tripType: tripDetails.tripType, adults, children, infants })),
-            routes: btoa(JSON.stringify({ outbound: tripDetails.outbound, returnFlight: tripDetails.return })),
-            travellers: btoa(JSON.stringify(formData.travelers)),
-            full_name: formData.full_name,
-            email: formData.email,
-            phone: formData.phone,
-            agent_fee: agentFee,
-            total_price: tripDetails.totalPrice + agentFee,
-            payment_method: formData.payment_method,
-            card_full_name: formData.card_full_name,
-            card_number: formData.card_number,
-            card_expiration: formData.card_expiration,
-            card_cvv: formData.card_cvv,
-          }),
-        });
+
+      const bookingDetails = {
+        selectedFlight: {
+          ...tripDetails.selectedFlight, // Should include fareSourceCode and all other flight info from PKfare
+        },
+        passengers: formData.travelers.map((traveler) => ({
+          firstName: traveler.first_name,
+          lastName: traveler.last_name,
+          type: traveler.type, // Should be one of: 'ADT', 'CHD', 'INF'
+          dob: traveler.dob, // Format: 'YYYY-MM-DD'
+          gender: traveler.gender, // 'Male' or 'Female'
+          passportNumber: traveler.passport_number || null,
+          passportExpiry: traveler.passport_expiry || null, // Format: 'YYYY-MM-DD'
+        })),
+        contactEmail: formData.email,
+        contactPhone: formData.phone,
+        totalPrice: tripDetails.totalPrice + agentFee,
+        currency: tripDetails.currency || 'USD', // Set a default if not already available
+        agent_fee: agentFee,
+        payment_method: 'wallet',
+      };
+
+      if (paymentMethod === 'wallet') {
+        const response = await fetch('/submit-booking');
+
         if (response.ok) {
           paymentSuccess = true;
         } else {
-          throw new Error('Credit card payment failed.');
+          throw new Error('Wallet payment failed.');
         }
+
       } else if (paymentMethod === 'paypal') {
-        paymentSuccess = true; // Handled by onApprove
+        paymentSuccess = true; // PayPal handled elsewhere
       }
 
       if (paymentSuccess) {
@@ -324,6 +405,7 @@ const BookingConfirmationPage = () => {
       setIsProcessing(false);
     }
   };
+
 
   // Check cancellation policy height
   useEffect(() => {
@@ -543,6 +625,7 @@ const BookingConfirmationPage = () => {
               isFormValid={isFormValid}
               isProcessing={isProcessing}
               setIsProcessing={setIsProcessing}
+              totalPrice={tripDetails.totalPrice + agentFee}
             />
 
             {/* Right Column: Flight Details */}

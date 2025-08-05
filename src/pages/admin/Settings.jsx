@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { CogIcon, EnvelopeIcon, PaperAirplaneIcon, CreditCardIcon, BellIcon } from '@heroicons/react/24/outline';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import apiService from '../../api/apiService';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('system');
@@ -9,7 +10,7 @@ export default function Settings() {
   const [error, setError] = useState(null);
   const [systemSettings, setSystemSettings] = useState({
     siteName: 'FlyGasal',
-    defaultCurrency: 'USD',
+    defaultCurrency: 'usd',
     maintenanceMode: false,
     timezone: 'UTC',
     language: 'en',
@@ -23,8 +24,10 @@ export default function Settings() {
     senderEmail: '',
   });
   const [pkfareSettings, setPkfareSettings] = useState({
-    apiKey: '',
-    environment: 'sandbox',
+    baseUrl: 'https://api.pkfare.com',
+    partnerId: '',
+    partnerKey: '',
+    environment: 'production',
     timeout: 30,
   });
   const [paymentSettings, setPaymentSettings] = useState({
@@ -45,96 +48,165 @@ export default function Settings() {
     { id: 'system', name: 'System Settings', icon: CogIcon },
     { id: 'email', name: 'Email API', icon: EnvelopeIcon },
     { id: 'pkfare', name: 'PKfare API', icon: PaperAirplaneIcon },
-    { id: 'payment', name: 'Payment APIs', icon: CreditCardIcon },
+    // { id: 'payment', name: 'Payment APIs', icon: CreditCardIcon },
     { id: 'notification', name: 'Notification Settings', icon: BellIcon },
   ];
 
-  // Mock API fetch (replace with real API)
+  // Fetch System settings from backend API
   useEffect(() => {
-    setLoading(true);
-    // Mock data load
-    setTimeout(() => {
-      setLoading(false);
-    }, 500);
-    // Future API call: GET /api/settings
-    // fetch('https://your-laravel-api.com/api/settings')
-    //   .then(res => res.json())
-    //   .then(data => {
-    //     setSystemSettings(data.system);
-    //     setEmailSettings(data.email);
-    //     setPkfareSettings(data.pkfare);
-    //     setPaymentSettings(data.payment);
-    //     setNotificationSettings(data.notification);
-    //   })
-    //   .catch(err => setError('Failed to load settings'))
-    //   .finally(() => setLoading(false));
+    const fetchSystemSettings = async () => {
+      setLoading(true);
+      try {
+        const response = await apiService.get('/admin/settings');
+        const data = response.data;
+        setSystemSettings({
+          siteName: data.site_name || 'FlyGasal',
+          defaultCurrency: data.default_currency || 'usd',
+          maintenanceMode: !!data.maintenance_mode,
+          timezone: data.timezone || 'UTC',
+          language: data.language || 'en',
+          maxLoginAttempts: data.max_login_attempts || 5,
+        });
+        setLoading(false);
+      } catch (error) {
+        setError('Failed to load system settings');
+        setLoading(false);
+      }
+    };
+
+    fetchSystemSettings();
+  }, []);
+
+  // Fetch email settings from backend API
+  useEffect(() => {
+    const fetchEmailSettings = async () => {
+      setLoading(true);
+      try {
+        const response = await apiService.get('/admin/email-settings');
+        // if (!response.ok) throw new Error('Failed to load email settings');
+        const data = response.data;
+        setEmailSettings({
+          smtpHost: data.MAIL_HOST || '',
+          smtpPort: data.MAIL_PORT || '',
+          smtpKey: data.MAIL_PASSWORD || '',
+          encryption: data.MAIL_ENCRYPTION || 'tls',
+          senderEmail: data.MAIL_FROM_ADDRESS || '',
+        });
+        setLoading(false);
+      } catch (error) {
+        setError('Failed to load email settings');
+        setLoading(false);
+      }
+    };
+
+    fetchEmailSettings();
   }, []);
 
   // Handle form submissions
-  const handleSystemSubmit = (e) => {
+  const handleSystemSubmit = async (e) => {
     e.preventDefault();
     if (!systemSettings.siteName || systemSettings.maxLoginAttempts < 1) {
       toast.error('Please fill all required fields correctly.');
       return;
     }
     setLoading(true);
-    setTimeout(() => {
+    setError(null);
+    try {
+      await apiService.post('/admin/settings', {
+        site_name: systemSettings.siteName,
+        default_currency: systemSettings.defaultCurrency,
+        timezone: systemSettings.timezone,
+        language: systemSettings.language,
+        login_attemps: systemSettings.maxLoginAttempts,
+        maintenance_mode: systemSettings.maintenanceMode,
+      });
       toast.success('System settings saved successfully!');
+    } catch (err) {
+      toast.error('Failed to save system settings');
+      setError('Failed to save system settings');
+    } finally {
       setLoading(false);
-    }, 500);
-    // Future API call: PUT /api/settings/system
-    // fetch('https://your-laravel-api.com/api/settings/system', {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(systemSettings),
-    // })
-    //   .then(() => toast.success('System settings saved successfully!'))
-    //   .catch(() => toast.error('Failed to save system settings'))
-    //   .finally(() => setLoading(false));
+    }
   };
 
-  const handleEmailSubmit = (e) => {
+  const handleEmailSubmit = async (e) => {
     e.preventDefault();
-    if (!emailSettings.smtpHost || !emailSettings.smtpPort || !emailSettings.senderEmail.includes('@')) {
+    if (
+      !emailSettings.smtpHost ||
+      !emailSettings.smtpPort ||
+      !emailSettings.senderEmail.includes('@')
+    ) {
       toast.error('Please fill all required fields correctly.');
       return;
     }
     setLoading(true);
-    setTimeout(() => {
+    setError(null);
+    try {
+      await apiService.post('/admin/email-settings', {
+        MAIL_MAILER: 'smtp',
+        MAIL_HOST: emailSettings.smtpHost,
+        MAIL_PORT: emailSettings.smtpPort,
+        MAIL_USERNAME: emailSettings.senderEmail,
+        MAIL_PASSWORD: emailSettings.smtpKey,
+        MAIL_ENCRYPTION: emailSettings.encryption,
+        MAIL_FROM_ADDRESS: emailSettings.senderEmail,
+        MAIL_FROM_NAME: 'FlyGasal',
+      });
       toast.success('Email settings saved successfully!');
+    } catch (err) {
+      toast.error('Failed to save email settings');
+      setError('Failed to save email settings');
+    } finally {
       setLoading(false);
-    }, 500);
-    // Future API call: PUT /api/settings/email
-    // fetch('https://your-laravel-api.com/api/settings/email', {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(emailSettings),
-    // })
-    //   .then(() => toast.success('Email settings saved successfully!'))
-    //   .catch(() => toast.error('Failed to save email settings'))
-    //   .finally(() => setLoading(false));
+    }
   };
 
-  const handlePkfareSubmit = (e) => {
+    // Fetch PKfare settings from backend API
+  useEffect(() => {
+    const fetchPkfareSettings = async () => {
+      setLoading(true);
+      try {
+        const response = await apiService.get('/admin/pkfare-settings');
+        const data = response.data;
+        // console.info(data);
+        setPkfareSettings({
+          baseUrl: data.PKFARE_API_BASE_URL || 'https://api.pkfare.com',
+          partnerId: data.PKFARE_PARTNER_ID || '',
+          partnerKey: data.PKFARE_PARTNER_KEY || '',
+          environment: data.PKFARE_ENVIRONMENT || 'production',
+          timeout: data.PKFARE_TIMEOUT || 30,
+        });
+        setLoading(false);
+      } catch (error) {
+        setError('Failed to load PKfare settings');
+        setLoading(false);
+      }
+    };
+
+    fetchPkfareSettings();
+  }, []);
+
+  const handlePkfareSubmit = async (e) => {
     e.preventDefault();
-    if (!pkfareSettings.apiKey || pkfareSettings.timeout < 1) {
+    if (!pkfareSettings.baseUrl || !pkfareSettings.partnerId || !pkfareSettings.partnerKey || pkfareSettings.timeout < 1) {
       toast.error('Please fill all required fields correctly.');
       return;
     }
     setLoading(true);
-    setTimeout(() => {
-      toast.success('PKfare settings saved successfully!');
+    setError(null);
+    try {
+      await apiService.post('/admin/email-settings', {
+        PKFARE_API_BASE_URL: pkfareSettings.baseUrl,
+        PKFARE_PARTNER_ID: pkfareSettings.partnerId,
+        PKFARE_PARTNER_KEY: pkfareSettings.partnerKey,
+      });
+      toast.success('PKFare settings saved successfully!');
+    } catch (err) {
+      toast.error('Failed to save PKFare settings');
+      setError('Failed to save PKFare settings');
+    } finally {
       setLoading(false);
-    }, 500);
-    // Future API call: PUT /api/settings/pkfare
-    // fetch('https://your-laravel-api.com/api/settings/pkfare', {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(pkfareSettings),
-    // })
-    //   .then(() => toast.success('PKfare settings saved successfully!'))
-    //   .catch(() => toast.error('Failed to save PKfare settings'))
-    //   .finally(() => setLoading(false));
+    }
   };
 
   const handlePaymentSubmit = (e) => {
@@ -159,22 +231,47 @@ export default function Settings() {
     //   .finally(() => setLoading(false));
   };
 
-  const handleNotificationSubmit = (e) => {
+    // Fetch Notification settings from backend API
+    useEffect(() => {
+      const fetchNotificationSettings = async () => {
+        setLoading(true);
+        try {
+          const response = await apiService.get('/admin/settings');
+          const data = response.data;
+          setNotificationSettings({
+            emailNotifications: !!data.email_notification,
+            smsNotifications: !!data.sms_notification,
+            emailBookingConfirmation: !!data.booking_confirmation_email,
+            smsBookingConfirmation: !!data.booking_confirmation_sms,
+          });
+          setLoading(false);
+        } catch (error) {
+          setError('Failed to load notification settings');
+          setLoading(false);
+        }
+      };
+
+      fetchNotificationSettings();
+    }, []);
+
+  const handleNotificationSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
+    setError(null);
+    try {
+      await apiService.post('/admin/settings/notification', {
+        email_notification: notificationSettings.emailNotifications,
+        sms_notification: notificationSettings.smsNotifications,
+        booking_confirmation_email: notificationSettings.emailBookingConfirmation,
+        booking_confirmation_sms: notificationSettings.smsBookingConfirmation,
+      });
       toast.success('Notification settings saved successfully!');
+    } catch (err) {
+      toast.error('Failed to save notification settings');
+      setError('Failed to save notification settings');
+    } finally {
       setLoading(false);
-    }, 500);
-    // Future API call: PUT /api/settings/notification
-    // fetch('https://your-laravel-api.com/api/settings/notification', {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(notificationSettings),
-    // })
-    //   .then(() => toast.success('Notification settings saved successfully!'))
-    //   .catch(() => toast.error('Failed to save notification settings'))
-    //   .finally(() => setLoading(false));
+    }
   };
 
   return (
@@ -244,9 +341,9 @@ export default function Settings() {
                     className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     aria-label="Default currency"
                   >
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
+                    <option value="usd">USD</option>
+                    <option value="eur">EUR</option>
+                    <option value="gbp">GBP</option>
                   </select>
                 </div>
                 <div>
@@ -397,15 +494,39 @@ export default function Settings() {
               </h2>
               <form onSubmit={handlePkfareSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">PKfare API Key</label>
+                  <label className="block text-sm font-medium text-gray-700">PKfare API Base Url</label>
                   <input
                     type="text"
-                    value={pkfareSettings.apiKey}
-                    onChange={(e) => setPkfareSettings({ ...pkfareSettings, apiKey: e.target.value })}
+                    value={pkfareSettings.baseUrl}
+                    onChange={(e) => setPkfareSettings({ ...pkfareSettings, baseUrl: e.target.value })}
+                    placeholder="PKfare API Base Url"
+                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                    aria-label="PKfare API Base Url"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">PKfare Partner ID</label>
+                  <input
+                    type="text"
+                    value={pkfareSettings.partnerId}
+                    onChange={(e) => setPkfareSettings({ ...pkfareSettings, partnerId: e.target.value })}
+                    placeholder="PKfare Partner ID"
+                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                    aria-label="PKfare Partner ID"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">PKfare Partner Key</label>
+                  <input
+                    type="text"
+                    value={pkfareSettings.partnerKey}
+                    onChange={(e) => setPkfareSettings({ ...pkfareSettings, partnerKey: e.target.value })}
                     placeholder="your-pkfare-key"
                     className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
-                    aria-label="PKfare API key"
+                    aria-label="PKfare Partner key"
                   />
                 </div>
                 <div>

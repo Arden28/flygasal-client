@@ -50,6 +50,13 @@ const FlightPage = () => {
     return new Date(dateString).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
 
+  // Helper to format time (e.g., "8:00")
+  const formatTimeOnly = (dateString) => {
+    if (!dateString) return '';
+    return new Date(dateString)
+      .toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false });
+  };
+
   // Calculate trip duration (e.g., "2h 45m")
   const calculateDuration = (departure, arrival) => {
     const depart = new Date(departure);
@@ -346,6 +353,7 @@ const FlightPage = () => {
                 formatToYMD={formatToYMD}
                 formatDate={formatDate}
                 formatTime={formatTime}
+                formatTimeOnly={formatTimeOnly}
                 calculateDuration={calculateDuration}
                 getAirportName={getAirportName}
                 availableFlights={availableFlights}

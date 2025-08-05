@@ -39,7 +39,8 @@ const BookingForm = ({
     getPassengerSummary,
     tripType,
     calculateDuration,
-    isFormValid
+    isFormValid,
+    totalPrice
     
 
 }) => {
@@ -208,6 +209,7 @@ const BookingForm = ({
                 formData={formData} 
                 handleFormChange={handleFormChange} 
                 isFormValid={isFormValid} 
+                totalPrice={totalPrice}
               />
               
               {/* Cancellation Policy */}

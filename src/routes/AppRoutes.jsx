@@ -47,7 +47,7 @@ export default function AppRoutes() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/flight/availability" element={<FlightPage />} />
           <Route path="/flight/trip-review" element={<TripReviewPage />} />
-          <Route path="/flight/booking-confirmation" element={<BookingConfirmationPage />} />
+          <Route path="/flight/booking-confirmation" element={<BookingConfirmationPage user={user} />} />
           <Route path="/flight/confirmation-success" element={<div>Booking Confirmed!</div>} />
           <Route path="/signup-success" element={<SignupSuccessPage />} />
           {/* Profile */}

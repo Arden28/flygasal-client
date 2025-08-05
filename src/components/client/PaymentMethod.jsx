@@ -217,7 +217,7 @@ const PaymentMethod = ({ formData, handleFormChange, isFormValid, handlePayment,
               transition={{ duration: 0.3 }}
             >
               <p className="text-sm text-gray-600 mb-2">
-                Your wallet will be debited: <strong>$755</strong>
+                Your wallet will be debited of: <strong>${totalPrice.toFixed(2)}</strong>
                 {/* Your wallet will be debited: <strong>${totalPrice.toFixed(2)}</strong> */}
               </p>
             </motion.div>

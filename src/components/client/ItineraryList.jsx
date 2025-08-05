@@ -13,6 +13,7 @@ const ItineraryList = ({
   formatDate,
   formatToYMD,
   formatTime,
+  formatTimeOnly,
   calculateDuration,
   getAirportName,
   availableFlights,
@@ -25,11 +26,20 @@ const ItineraryList = ({
     console.info(`Adults: ${searchParams?.adults}`);
     // console.info(formatToYMD(itinerary.outbound.departureTime));
     const searchParams2 = new URLSearchParams({
-      solutionId: itinerary.outbound.solutionKey || '',
+      solutionId: itinerary.outbound.solutionId || '',
       tripType: itinerary.return ? 'return' : 'oneway',
       'flights[0][origin]': itinerary.outbound.origin,
       'flights[0][destination]': itinerary.outbound.destination,
       'flights[0][depart]': formatToYMD(itinerary.outbound.departureTime),
+      'flights[0][airline]': itinerary.outbound.airline,
+      'flights[0][flightNum]': itinerary.outbound.flightNumber,
+      'flights[0][arrival]': itinerary.outbound.arrival,
+      'flights[0][arrivalDate]': formatToYMD(itinerary.outbound.arrivalTime),
+      'flights[0][arrivalTime]': formatTimeOnly(itinerary.outbound.arrivalTime),
+      'flights[0][departure]': itinerary.outbound.origin,
+      'flights[0][departureDate]': formatToYMD(itinerary.outbound.departureTime),
+      'flights[0][departureTime]': formatTimeOnly(itinerary.outbound.departureTime),
+      'flights[0][bookingCode]': itinerary.outbound.bookingCode || '',
       returnDate: itinerary.return ? formatToYMD(itinerary.return.departureTime) : '',
       adults: searchParams?.adults || '1',
       children: searchParams?.children || '0',
@@ -38,6 +48,7 @@ const ItineraryList = ({
       flightId: itinerary.outbound.id,
       returnFlightId: itinerary.return ? itinerary.return.id : '',
     });
+    
 
     navigate(`/flight/booking-confirmation?${searchParams2.toString()}`);
   };
@@ -146,6 +157,8 @@ const ItineraryList = ({
                   </h6>
                   <div className="order-1 order-sm-2 d-flex justify-content-between justify-content-sm-start gap-2">
                     
+                    {/* {itinerary.outbound.solutionId} */}
+
                     <button
                       className="flex-grow-1 btn btn-outline-primary"
                       type="button"

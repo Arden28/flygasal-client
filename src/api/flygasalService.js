@@ -27,7 +27,7 @@ const flygasal = {
     */
     createBooking: async (bookingDetails) => {
         try {
-        const response = await apiService.post('/flights/book', bookingDetails);
+        const response = await apiService.post('/flights/bookings', bookingDetails);
         return response.data;
         } catch (error) {
         console.error('Booking failed:', error);
@@ -100,6 +100,7 @@ const flygasal = {
             return {
                 id: outbound.segmentId,
                 solutionKey: solution.solutionKey,
+                solutionId: solution.solutionId,
                 shoppingKey: pkData.shoppingKey,
                 airline: outbound.airline,
                 plane: outbound.equipment,
@@ -118,12 +119,14 @@ const flygasal = {
                 stops: tripSegments.length - 1,
                 segments: tripSegments,
                 price: solution.adtFare + solution.adtTax,
+                flightIds: flightIds,
+                bookingCode: outbound.bookingCode,
             };
         }).filter(Boolean);
     },
 
     /**
-    * recise price will be shown with specific flight details, including booking code and seat availability. 
+    * Precise price will be shown with specific flight details, including booking code and seat availability. 
     * If specific cabin class is requested (cabin class should be specified in all segments), the lowest fare corresponding to the specified class will be shown
     * @param {Object} criteria - Precise pricing criteria (solutionId, destination, dates, etc.)
     * @returns {Promise<Object>} - Precise pricing results
@@ -136,6 +139,10 @@ const flygasal = {
             console.error('Precise pricing failed:', error);
             throw error;
         }
+    },
+
+    transformPricingData: async (pkData) => {
+
     },
   
 };
