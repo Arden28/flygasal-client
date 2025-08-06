@@ -102,6 +102,16 @@ const flygasal = {
                 solutionKey: solution.solutionKey,
                 solutionId: solution.solutionId,
                 shoppingKey: pkData.shoppingKey,
+                // Fares
+                fareType: solution.fareType,
+                adtFare: solution.adtFare,
+                adtTax: solution.adtTax,
+                chdFare: solution.chdFare,
+                chdTax: solution.chdTax,
+                qCharge: solution.qCharge,
+                tktFee: solution.tktFee,
+                platformServiceFee: solution.platformServiceFee,
+
                 airline: outbound.airline,
                 plane: outbound.equipment,
                 cabin: outbound.cabinClass,
@@ -141,9 +151,106 @@ const flygasal = {
         }
     },
 
-    transformPricingData: async (pkData) => {
+    transformPreciseData: (pkData) => {
+        const segmentMap = Object.fromEntries(
+            (pkData.segments || []).map((seg) => [seg.segmentId, seg])
+        );
 
+        const flightMap = Object.fromEntries(
+            (pkData.flights || []).map((flight) => [flight.flightId, flight])
+        );
+
+        // Wrap single object in array
+        const solutions = pkData.solution ? [pkData.solution] : [];
+
+        return solutions.map((solution) => {
+            const journeyKeys = Object.keys(solution.journeys || {});
+            const flightIds = journeyKeys
+                .map((key) => solution.journeys[key])
+                .flat();
+
+            const allSegmentIds = flightIds
+                .map((flightId) => flightMap[flightId]?.segmentIds || [])
+                .flat();
+
+            const tripSegments = allSegmentIds
+                .map((segmentId) => segmentMap[segmentId])
+                .filter(Boolean);
+
+            const outbound = tripSegments[0];
+            const finalSegment = tripSegments[tripSegments.length - 1];
+            if (!outbound || !finalSegment) return null;
+
+            const firstFlight = flightMap[flightIds[0]];
+
+            // Get baggage info from baggageMap (if available)
+            const baggageMap = solution.baggageMap || {};
+            const baggageInfo = flightIds.map((fid) => baggageMap[fid] || null).filter(Boolean);
+
+            // Get ancillary info from ancillaryAvailability (if available)
+            const ancillaryAvailability = solution.ancillaryAvailability || {};
+            const ancillaryInfo = flightIds.map((fid) => ancillaryAvailability[fid] || null).filter(Boolean);
+
+            return {
+                id: outbound.segmentId,
+                solutionKey: solution.solutionKey,
+                solutionId: solution.solutionId,
+
+                // Fares
+                fareType: solution.fareType,
+                adtFare: solution.adtFare,
+                adtTax: solution.adtTax,
+                chdFare: solution.chdFare,
+                chdTax: solution.chdTax,
+                qCharge: solution.qCharge,
+                tktFee: solution.tktFee,
+                platformServiceFee: solution.platformServiceFee,
+
+                airline: outbound.airline,
+                plane: outbound.equipment,
+                cabin: outbound.cabinClass,
+                flightNumber: outbound.flightNum,
+                tickets: outbound.availabilityCount,
+                origin: outbound.departure,
+                destination: finalSegment.arrival,
+                departureTime: new Date(outbound.departureDate),
+                arrivalTime: new Date(finalSegment.arrivalDate),
+                journeyTime: firstFlight?.journeyTime ?? null,
+                transferCount: firstFlight?.transferCount ?? null,
+                lastTktTime: solution.lastTktTime ? new Date(solution.lastTktTime) : null,
+                expired: solution.lastTktTime ? new Date(solution.lastTktTime) < new Date() : false,
+                stops: tripSegments.length - 1,
+                segments: tripSegments,
+                price: solution.adtFare + solution.adtTax,
+                flightIds: flightIds,
+                bookingCode: outbound.bookingCode,
+
+                // Extra info
+                baggage: baggageInfo,         // Array of baggage rules per flight
+                ancillary: ancillaryInfo,     // Array of ancillary options per flight
+            };
+        }).filter(Boolean);
     },
+
+    /**
+    * Ancillary price will be shown with specific flight details, including booking code and seat availability. 
+    * If specific cabin class is requested (cabin class should be specified in all segments), the lowest fare corresponding to the specified class will be shown
+    * @param {Object} criteria - ancillary pricing criteria (solutionId, destination, dates, etc.)
+    * @returns {Promise<Object>} - ancillary pricing results
+    */
+    ancillaryPricing: async (criteria) => {
+        try {
+        const response = await apiService.post('/flights/ancillary-pricing', criteria);
+            return response.data;
+        } catch (error) {
+            console.error('Ancillary pricing failed:', error);
+            throw error;
+        }
+    },
+
+    // transformPricingData: async (pkData) => {
+
+    // },
   
 };
 

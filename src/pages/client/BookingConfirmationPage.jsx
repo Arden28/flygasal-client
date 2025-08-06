@@ -185,114 +185,117 @@ const BookingConfirmationPage = ({ user }) => {
   // Parse flight data
 
 
-  useEffect(() => {
-    const fetchFlightData = async () => {
-      setLoading(true);
+  // useEffect(() => {
+  //   const fetchFlightData = async () => {
+  //     setLoading(true);
 
-      try {
-        const searchParams = new URLSearchParams(location.search);
+  //     try {
+  //       const searchParams = new URLSearchParams(location.search);
 
-        // Step 1: Extract flights info from URL
-        const flightsFromUrl = [];
-        let i = 0;
-        while (searchParams.has(`flights[${i}][origin]`)) {
-          flightsFromUrl.push({
-            origin: searchParams.get(`flights[${i}][origin]`),
-            destination: searchParams.get(`flights[${i}][destination]`),
-            depart: searchParams.get(`flights[${i}][depart]`),
-          });
-          i++;
-        }
+  //       // Step 1: Extract flights info from URL
+  //       const flightsFromUrl = [];
+  //       let i = 0;
+  //       while (searchParams.has(`flights[${i}][origin]`)) {
+  //         flightsFromUrl.push({
+  //           origin: searchParams.get(`flights[${i}][origin]`),
+  //           destination: searchParams.get(`flights[${i}][destination]`),
+  //           depart: searchParams.get(`flights[${i}][depart]`),
+  //         });
+  //         i++;
+  //       }
 
-        const tripType = searchParams.get('tripType') || 'oneway';
-        const cabinType = searchParams.get('flightType') || 'Economy';
-        const adults = parseInt(searchParams.get('adults')) || 1;
-        const children = parseInt(searchParams.get('children')) || 0;
-        const infants = parseInt(searchParams.get('infants')) || 0;
-        const returnDate = searchParams.get('returnDate') || null;
+  //       const tripType = searchParams.get('tripType') || 'oneway';
+  //       const cabinType = searchParams.get('flightType') || 'Economy';
+  //       const adults = parseInt(searchParams.get('adults')) || 1;
+  //       const children = parseInt(searchParams.get('children')) || 0;
+  //       const infants = parseInt(searchParams.get('infants')) || 0;
+  //       const returnDate = searchParams.get('returnDate') || null;
 
-        const flightId = searchParams.get('flightId');
-        const returnFlightId = searchParams.get('returnFlightId');
+  //       const solutionId = searchParams.get('solutionId');
+  //       const flightId = searchParams.get('flightId');
+  //       const returnFlightId = searchParams.get('returnFlightId');
 
-        const mainFlight = flightsFromUrl[0] || { origin: 'HKG', destination: 'BKK', depart: '2024-12-15' };
+  //       const mainFlight = flightsFromUrl[0] || { origin: 'HKG', destination: 'BKK', depart: '2024-12-15' };
 
-        // console.info('')
-        const params = {
-          flights: flightsFromUrl.length > 0 ? flightsFromUrl : [mainFlight],
-          origin: mainFlight.origin,
-          destination: mainFlight.destination,
-          departureDate: mainFlight.depart,
-          returnDate,
-          tripType,
-          cabinType,
-          adults,
-          children,
-          infants,
-        };
+  //       // console.info('')
+  //       const params = {
+  //         flights: flightsFromUrl.length > 0 ? flightsFromUrl : [mainFlight],
+  //         origin: mainFlight.origin,
+  //         destination: mainFlight.destination,
+  //         departureDate: mainFlight.depart,
+  //         returnDate,
+  //         flightId,
+  //         solutionId,
+  //         tripType,
+  //         cabinType,
+  //         adults,
+  //         children,
+  //         infants,
+  //       };
 
-        // Step 2: Call flygasal API to fetch matching flights
-        const response = await flygasal.searchFlights(params);
-        const outboundFlights = flygasal.transformPKFareData(response.data);
-        let returnFlights = [];
+  //       // Step 2: Call flygasal API to fetch matching flights
+  //       const response = await flygasal.searchFlights(params);
+  //       const outboundFlights = flygasal.transformPKFareData(response.data);
+  //       let returnFlights = [];
 
-        // If round trip, fetch return flights too
-        if (tripType === 'return' && returnDate) {
-          const returnParams = {
-            ...params,
-            flights: [{ origin: params.destination, destination: params.origin, depart: returnDate }],
-          };
-          const returnResponse = await flygasal.searchFlights(returnParams);
-          returnFlights = flygasal.transformPKFareData(returnResponse.data);
-        }
+  //       // If round trip, fetch return flights too
+  //       if (tripType === 'return' && returnDate) {
+  //         const returnParams = {
+  //           ...params,
+  //           flights: [{ origin: params.destination, destination: params.origin, depart: returnDate }],
+  //         };
+  //         const returnResponse = await flygasal.searchFlights(returnParams);
+  //         returnFlights = flygasal.transformPKFareData(returnResponse.data);
+  //       }
 
-        const allFlights = [...outboundFlights, ...returnFlights];
-        setAvailableFlights(allFlights);
+  //       const allFlights = [...outboundFlights, ...returnFlights];
+  //       setAvailableFlights(allFlights);
         
-        // Step 3: Match selected flights using flightId(s)
-        const selectedOutbound = allFlights.find(f => f.id === flightId);
-        const selectedReturn = tripType === 'return' && returnFlightId ? allFlights.find(f => f.id === returnFlightId) : null;
+  //       // Step 3: Match selected flights using flightId(s)
+  //       const selectedOutbound = allFlights.find(f => f.id === flightId);
+  //       const selectedReturn = tripType === 'return' && returnFlightId ? allFlights.find(f => f.id === returnFlightId) : null;
 
-        if (!selectedOutbound) {
-          setError(`Outbound flight not found for ID: ${flightId}`);
-          return;
-        }
+  //       // if (!selectedOutbound) {
+  //       //   setError(`Outbound flight not found for ID: ${flightId}`);
+  //       //   return;
+  //       // }
 
-        if (tripType === 'return' && returnFlightId && !selectedReturn) {
-          setError(`Return flight not found for ID: ${returnFlightId}`);
-          return;
-        }
+  //       if (tripType === 'return' && returnFlightId && !selectedReturn) {
+  //         setError(`Return flight not found for ID: ${returnFlightId}`);
+  //         return;
+  //       }
 
-        // Step 4: Set final trip data
-        setTripDetails({
-          tripType,
-          origin: params.origin,
-          destination: params.destination,
-          departDate: params.departureDate,
-          returnDate: params.returnDate,
-          adults,
-          children,
-          infants,
-          outbound: selectedOutbound,
-          return: selectedReturn,
-          totalPrice: selectedOutbound.price + (selectedReturn ? selectedReturn.price : 0),
-          cancellation_policy: 'Non-refundable after 24 hours. Cancellations within 24 hours of booking are refundable with a $50 fee.',
-        });
-      } catch (err) {
-        console.error('Error loading confirmation:', err);
-        setError('Failed to load booking details.');
-      } finally {
-        setLoading(false);
-      }
-    };
+  //       // Step 4: Set final trip data
+  //       setTripDetails({
+  //         tripType,
+  //         origin: params.origin,
+  //         destination: params.destination,
+  //         departDate: params.departureDate,
+  //         returnDate: params.returnDate,
+  //         fareSourceCode: params.flightId,
+  //         solutionId: params.solutionId,
+  //         adults,
+  //         children,
+  //         infants,
+  //         outbound: selectedOutbound,
+  //         return: selectedReturn,
+  //         totalPrice: selectedOutbound.price + (selectedReturn ? selectedReturn.price : 0),
+  //         cancellation_policy: 'Non-refundable after 24 hours. Cancellations within 24 hours of booking are refundable with a $50 fee.',
+  //       });
+  //     } catch (err) {
+  //       console.error('Error loading confirmation:', err);
+  //       setError('Failed to load booking details.');
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
 
-    fetchFlightData();
-  }, [location.search]);
+  //   fetchFlightData();
+  // }, [location.search]);
 
   // Precise Pricing
   useEffect(() => {
-    const fetchFlightData = async () => {
-      // setLoading(true);
-
+  const fetchFlightData = async () => {
     try {
       const searchParams = new URLSearchParams(location.search);
 
@@ -319,10 +322,13 @@ const BookingConfirmationPage = ({ user }) => {
       const adults = parseInt(searchParams.get('adults')) || 1;
       const children = parseInt(searchParams.get('children')) || 0;
       const infants = parseInt(searchParams.get('infants')) || 0;
+      const departureDate = searchParams.get('depart') || null;
       const returnDate = searchParams.get('returnDate') || null;
 
       const solutionId = searchParams.get('solutionId') || null;
       const solutionKey = searchParams.get('solutionKey') || null;
+      const flightId = searchParams.get('flightId');
+      const returnFlightId = searchParams.get('returnFlightId');
 
       const params = {
         journeys: journeysFromUrl,
@@ -331,14 +337,82 @@ const BookingConfirmationPage = ({ user }) => {
         adults,
         children,
         infants,
+        departureDate,
         returnDate,
         solutionId,
         solutionKey
       };
 
-      console.info('Params:', params);
+      // console.info('Trip Details:', params);
+
+
+      // Step 2: Call flygasal API to fetch matching flights
       const response = await flygasal.precisePricing(params);
-      console.info('Pricing Response:', response.data);
+      const outboundFlights = flygasal.transformPreciseData(response.data);
+      // console.info('Pricing Response:', response.data);
+
+        let returnFlights = [];
+
+        // If round trip, fetch return flights too
+        if (tripType === 'return' && returnDate) {
+          const returnParams = {
+            ...params,
+            flights: [{ origin: params.destination, destination: params.origin, depart: returnDate }],
+          };
+          const returnResponse = await flygasal.precisePricing(returnParams);
+          returnFlights = flygasal.transformPreciseData(returnResponse.data);
+        }
+
+        const allFlights = [...outboundFlights, ...returnFlights];
+        // console.info('All Flights: ', allFlights);
+        setAvailableFlights(allFlights);
+
+      // Step 3: Match selected flights using flightId(s)
+      const selectedOutbound = allFlights.find(f => f.id === flightId);
+      const selectedReturn = tripType === 'return' && returnFlightId ? allFlights.find(f => f.id === returnFlightId) : null;
+
+      if (!selectedOutbound) {
+        setError(`Outbound flight not found for ID: ${flightId}`);
+        return;
+      }
+
+      if (tripType === 'return' && returnFlightId && !selectedReturn) {
+        setError(`Return flight not found for ID: ${returnFlightId}`);
+        return;
+      }
+
+      // Step 4: Set final trip data
+      setTripDetails({
+        tripType,
+        origin: params.origin,
+        destination: params.destination,
+        departDate: params.departureDate,
+        returnDate: params.returnDate,
+        fareSourceCode: params.flightId,
+        solutionId: params.solutionId,
+        adults,
+        children,
+        infants,
+        outbound: selectedOutbound,
+        return: selectedReturn,
+        totalPrice: selectedOutbound.price + (selectedReturn ? selectedReturn.price : 0),
+        cancellation_policy: 'Non-refundable after 24 hours. Cancellations within 24 hours of booking are refundable with a $50 fee.',
+      });
+
+      const errorCode = response?.data?.errorCode;
+      const errorMsg = response?.data?.errorMsg;
+
+      if (errorCode) {
+        if (errorCode === 'B021') {
+          setError('The selected fare is no longer available. Please choose another flight.');
+        } else {
+          setError(errorMsg || 'Failed to load booking details.');
+        }
+      } else {
+        setError(null); // Clear any previous error
+        // Optionally, you can set the pricing data here
+        // setPricingData(response.data);
+      }
 
     } catch (err) {
       console.error('Error loading confirmation:', err);
@@ -346,11 +420,19 @@ const BookingConfirmationPage = ({ user }) => {
     } finally {
       setLoading(false);
     }
+  };
 
-    };
-
-    fetchFlightData();
+  fetchFlightData();
   }, [location.search]);
+
+
+  // Map passenger types from form values ('adult', 'child', 'infant')
+  // to the format expected by the backend: 'ADT' (Adult), 'CHD' (Child), 'INF' (Infant)
+  const typeMap = {
+    adult: 'ADT',
+    child: 'CHD',
+    infant: 'INF',
+  };
 
   // Handle payment submission
   const handlePayment = async (paymentMethod) => {
@@ -361,21 +443,27 @@ const BookingConfirmationPage = ({ user }) => {
     setIsProcessing(true);
 
     try {
+      const searchParams = new URLSearchParams(location.search);
       let paymentSuccess = false;
+      const solutionId = searchParams.get('solutionId') || null;
+      // console.info(`SolutionId ${solutionId}`);
 
       const bookingDetails = {
-        selectedFlight: {
-          ...tripDetails.selectedFlight, // Should include fareSourceCode and all other flight info from PKfare
-        },
+        selectedFlight: tripDetails,
+        solutionId: solutionId,
+        // fareSourceCode: ,
         passengers: formData.travelers.map((traveler) => ({
           firstName: traveler.first_name,
           lastName: traveler.last_name,
-          type: traveler.type, // Should be one of: 'ADT', 'CHD', 'INF'
-          dob: traveler.dob, // Format: 'YYYY-MM-DD'
-          gender: traveler.gender, // 'Male' or 'Female'
+          type: typeMap[traveler.type.toLowerCase()] || 'ADT', // default to 'ADT' if unknown
+          dob: traveler.dob_year && traveler.dob_month && traveler.dob_day
+          ? `${traveler.dob_year}-${String(traveler.dob_month).padStart(2, '0')}-${String(traveler.dob_day).padStart(2, '0')}`
+          : null, // Format: 'YYYY-MM-DD'
+          gender: traveler.gender || 'Male', // 'Male' or 'Female'
           passportNumber: traveler.passport_number || null,
           passportExpiry: traveler.passport_expiry || null, // Format: 'YYYY-MM-DD'
         })),
+        contactName: formData.full_name,
         contactEmail: formData.email,
         contactPhone: formData.phone,
         totalPrice: tripDetails.totalPrice + agentFee,
@@ -385,7 +473,7 @@ const BookingConfirmationPage = ({ user }) => {
       };
 
       if (paymentMethod === 'wallet') {
-        const response = await fetch('/submit-booking');
+        const response = await flygasal.createBooking(bookingDetails);
 
         if (response.ok) {
           paymentSuccess = true;
@@ -401,7 +489,7 @@ const BookingConfirmationPage = ({ user }) => {
         navigate('/flight/confirmation-success');
       }
     } catch (err) {
-      console.error('Payment error:', err);
+      console.error('Flight booking error:', err);
       setIsProcessing(false);
     }
   };
@@ -539,7 +627,7 @@ const BookingConfirmationPage = ({ user }) => {
 
   if (error) {
     return (
-      <div className="container mx-auto py-8 mt-5 text-center">
+      <div className="container mx-auto py-14 mt-5 text-center">
         <h2 className="text-red-600 text-3xl font-bold">Error</h2>
         <p className="text-gray-600 mt-2">{error}</p>
         <button

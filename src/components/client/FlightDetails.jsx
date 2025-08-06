@@ -324,7 +324,7 @@ const FlightDetails = ({
                       Processing...
                     </span>
                   ) : (
-                    'Pay & Book Now'
+                    'Book Now'
                   )}
                 </button>
               </div>

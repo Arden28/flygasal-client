@@ -33,7 +33,7 @@ const ItineraryList = ({
       'flights[0][depart]': formatToYMD(itinerary.outbound.departureTime),
       'flights[0][airline]': itinerary.outbound.airline,
       'flights[0][flightNum]': itinerary.outbound.flightNumber,
-      'flights[0][arrival]': itinerary.outbound.arrival,
+      'flights[0][arrival]': itinerary.outbound.destination,
       'flights[0][arrivalDate]': formatToYMD(itinerary.outbound.arrivalTime),
       'flights[0][arrivalTime]': formatTimeOnly(itinerary.outbound.arrivalTime),
       'flights[0][departure]': itinerary.outbound.origin,

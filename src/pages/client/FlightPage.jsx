@@ -127,6 +127,8 @@ const FlightPage = () => {
       try {
         // Fetch flights from PKfare via flygasal service
         const response = await flygasal.searchFlights(params);
+        // console.info('Search Info', response);
+
         const pkData = response.data;
         const searchKey = pkData.searchKey;
         const outbound = flygasal.transformPKFareData(pkData);
