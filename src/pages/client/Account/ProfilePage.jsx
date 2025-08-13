@@ -1,9 +1,9 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { AuthContext } from '../../context/AuthContext';
+import { AuthContext } from '../../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import apiService from '../../api/apiService';
-import Headbar from '../../components/client/Headbar';
-import { getAllCountries } from '../../api/countriesService';
+import apiService from '../../../api/apiService';
+import Headbar from '../../../components/client/Headbar';
+import { getAllCountries } from '../../../api/countriesService';
 
 const T = {
   profileinformation: 'Profile Information',

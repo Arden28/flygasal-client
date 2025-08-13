@@ -1,7 +1,23 @@
-import React, { useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
+import { AuthContext } from '../../context/AuthContext';
+import { T } from "../../utils/translation";
 
-export default function Headbar({ T, rootUrl, user }) {
+export default function Headbar({rootUrl}) {
+    const { user, loading } = useContext(AuthContext);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [headbarData, setHeadbarData] = useState({
+        type: 'agent'
+    });
+
+    // Populate initial form data
+    useEffect(() => {
+        if (user) {
+            setHeadbarData({
+            type: user.role || 'agent',
+            });
+        }
+    }, [user]);
+
 
     const toggleMenu = () => {
         setIsMenuOpen(!isMenuOpen);
@@ -42,7 +58,7 @@ export default function Headbar({ T, rootUrl, user }) {
                     <li className="rounded-3 border">
                         <a
                             className="py-2 justify-content-center w-auto d-block bg-transparent hover:bg-gray rounded-3 p-2"
-                            href={`${rootUrl}/dashboard`}
+                            href={`/dashboard`}
                         >
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -64,7 +80,7 @@ export default function Headbar({ T, rootUrl, user }) {
                     <li className="rounded-3 border">
                         <a
                             className="py-2 justify-content-center w-auto d-block bg-transparent hover:bg-gray rounded-3 p-2"
-                            href={`${rootUrl}/bookings`}
+                            href={`/bookings`}
                         >
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -83,11 +99,11 @@ export default function Headbar({ T, rootUrl, user }) {
                             {T.mybookings}
                         </a>
                     </li>
-                    {user.user_type === 'Agent' && (
+                    {headbarData.type === 'Agent' && (
                         <li className="rounded-3 border">
                             <a
                                 className="py-2 justify-content-center w-auto d-block bg-transparent hover:bg-gray rounded-3 p-2"
-                                href={`${rootUrl}/reports/${new Date().getFullYear()}`}
+                                href={`/reports/${new Date().getFullYear()}`}
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -110,7 +126,7 @@ export default function Headbar({ T, rootUrl, user }) {
                     <li className="rounded-3 border">
                         <a
                             className="py-2 justify-content-center w-auto d-block bg-transparent hover:bg-gray rounded-3 p-2"
-                            href={`${rootUrl}/markups`}
+                            href={`/markups`}
                         >
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -138,7 +154,7 @@ export default function Headbar({ T, rootUrl, user }) {
                     <li className="rounded-3 border">
                         <a
                             className="py-2 justify-content-center w-auto d-block bg-transparent hover:bg-gray rounded-3 p-2"
-                            href={`${rootUrl}/deposits`}
+                            href={`/deposits`}
                         >
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -162,7 +178,7 @@ export default function Headbar({ T, rootUrl, user }) {
                     <li className="rounded-3 border">
                         <a
                             className="py-2 justify-content-center w-auto d-block bg-transparent hover:bg-gray rounded-3 p-2"
-                            href={`${rootUrl}/agency`}
+                            href={`/agency`}
                         >
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -184,7 +200,7 @@ export default function Headbar({ T, rootUrl, user }) {
                     <li className="rounded-3 border">
                         <a
                             className="py-2 justify-content-center w-auto d-block bg-transparent hover:bg-gray rounded-3 p-2"
-                            href={`${rootUrl}/profile`}
+                            href={`/profile`}
                         >
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"

@@ -15,9 +15,9 @@ import Login from "../pages/client/Auth/Login";
 import Register from "../pages/client/Auth/Register";
 import RegisterSuccessPage from "../pages/client/Auth/RegisterSuccessPage";
 import AboutPage from "../pages/client/AboutPage";
-import DashboardPage from "../pages/client/DashboardPage";
-import BookingsPage from "../pages/client/BookingsPage";
-import ProfilePage from "../pages/client/ProfilePage";
+import DashboardPage from "../pages/client/Account/DashboardPage";
+import BookingsPage from "../pages/client/Account/BookingsPage";
+import ProfilePage from "../pages/client/Account/ProfilePage";
 import { useContext, useState } from "react";
 import Users from "../pages/admin/Users";
 import Analytics from "../pages/admin/Analytics";
@@ -31,6 +31,8 @@ import Transactions from "../pages/admin/Transactions";
 import UserRoles from "../pages/admin/UserRoles";
 import AdminLogin from "../pages/admin/Login";
 import ConfirmationSuccessPage from "../pages/client/ConfirmationSuccessPage";
+import AgencyPage from "../pages/client/Account/AgencyPage";
+import Deposits from "../pages/client/Account/DepositPage";
 
 export default function AppRoutes() {
 
@@ -59,6 +61,8 @@ export default function AppRoutes() {
           {/* Profile */}
           <Route path="/dashboard" element={<DashboardPage user={user} /> } />
           <Route path="/bookings" element={<BookingsPage user={user} />} />
+          <Route path="/agency" element={<AgencyPage user={user} />} />
+          <Route path="/deposits" element={<Deposits user={user} />} />
           <Route path="/profile" element={<ProfilePage user={user} />} />
           
 

@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useContext } from 'react';
-import Headbar from '../../components/client/Headbar';
+import Headbar from '../../../components/client/Headbar';
 import { useLocation } from 'react-router-dom';
-import { AuthContext } from "../../context/AuthContext";
+import { AuthContext } from "../../../context/AuthContext";
 
 // Mock translation object to replace PHP T::
 const T = {
     welcomeback: 'Welcome Back',
     dashboard: 'Dashboard',
     mybookings: 'My Bookings',
+    markups: 'Markups',
+    deposits: 'Deposits',
+    agency: 'Agency',
     reports: 'Reports',
     myprofile: 'My Profile',
     logout: 'Logout',

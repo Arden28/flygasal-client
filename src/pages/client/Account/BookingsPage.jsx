@@ -1,37 +1,17 @@
-import React, { useContext } from "react";
-import Headbar from "../../components/client/Headbar";
-import { AuthContext } from "../../context/AuthContext";
+import React, { useContext, useState } from "react";
+import Headbar from "../../../components/client/Headbar";
+import { AuthContext } from "../../../context/AuthContext";
+import { T } from "../../../utils/translation";
 
-
-// Mock translation object to replace PHP T::
-const T = {
-    welcomeback: 'Welcome Back',
-    dashboard: 'Dashboard',
-    mybookings: 'My Bookings',
-    reports: 'Reports',
-    myprofile: 'My Profile',
-    logout: 'Logout',
-    walletbalance: 'Wallet Balance',
-    totalbookings: 'Total Bookings',
-    pendinginvoices: 'Pending Invoices',
-};
-
-// Mock user data to replace PHP $_SESSION
-const mockUser = {
-    first_name: 'John',
-    last_name: 'Doe',
-    user_type: 'Agent',
-    user_id: '12345',
-};
 
 const BookingsPage = ({
-    rootUrl = '/',
-    apiKey = 'mock_api_key',
-    apiUrl = '/api',
-    user
+    rootUrl = '/'
 }) => {
 
-//   const { user, loading } = useContext(AuthContext);
+    const { user, loading } = useContext(AuthContext);
+    const [dashboardDetails, setDashboardDetails] = useState({
+        balance: '0.00',
+    });
 
     return (
         <div>
