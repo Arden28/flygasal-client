@@ -2,6 +2,9 @@ import React, { useState, useEffect, useContext } from 'react';
 import Headbar from '../../../components/client/Headbar';
 import { useLocation } from 'react-router-dom';
 import { AuthContext } from "../../../context/AuthContext";
+import apiService from '../../../api/apiService';
+import toastr from 'toastr';
+import DepositModal from '../../../components/client/Account/DepositModal';
 
 // Mock translation object to replace PHP T::
 const T = {
@@ -30,6 +33,8 @@ const DashboardPage = ({
 }) => {
     const { user, loading } = useContext(AuthContext);
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleString());
+    const [isLoading, setIsLoading] = useState(false);
+    const [bankTransfer, setBankTransfer] = useState(null);
     const [dashboardDetails, setDashboardDetails] = useState({
         balance: '0.00',
         currency: 'USD',
@@ -70,41 +75,25 @@ const DashboardPage = ({
             setCurrentTime(new Date().toLocaleString());
         }, 1000);
 
-        // Simulate API call for bookings
-        const fetchBookings = async () => {
+        const fetchPaymentGateways = async () => {
             try {
-                // Mock API response
-                const response = {
-                    data: {
-                        flights: [{ payment_status: 'unpaid' }, { payment_status: 'paid' }],
-                        hotels: [{ payment_status: 'paid' }],
-                        tours: [],
-                        cars: [],
-                        visa: [{ payment_status: 'unpaid' }],
-                    },
-                };
+                const response = await apiService.post('/payment_gateways', { api_key: 'none'});
 
-                const flights = response.data.flights || [];
-                const hotels = response.data.hotels || [];
-                const tours = response.data.tours || [];
-                const cars = response.data.cars || [];
-                const visa = response.data.visa || [];
 
-                const totalBookings = flights.length + hotels.length + tours.length + cars.length + visa.length;
-                const pendingBookings =
-                    flights.filter((f) => f.payment_status === 'unpaid').length +
-                    hotels.filter((h) => h.payment_status === 'unpaid').length +
-                    tours.filter((t) => t.payment_status === 'unpaid').length +
-                    cars.filter((c) => c.payment_status === 'unpaid').length +
-                    visa.filter((v) => v.payment_status === 'unpaid').length;
-
-                setBookings({ total: totalBookings, pending: pendingBookings });
+                if (response.data.status === 'true') {
+                    const bankGateway = response.data.data[0];
+                    // console.log('Payment Gateways Response:', bankGateway);
+                    setBankTransfer(bankGateway);
+                } else {
+                    toastr.error(response.message || 'Failed to fetch payment gateways');
+                }
             } catch (error) {
-                console.error('Error fetching bookings:', error);
+                toastr.error('Error fetching payment gateways');
+                console.error('Fetch payment gateways error:', error);
             }
         };
 
-        fetchBookings();
+        fetchPaymentGateways();
 
         return () => clearInterval(interval);
     }, []);
@@ -113,6 +102,11 @@ const DashboardPage = ({
     const getMenuClass = (menu) => {
         const path = window.location.pathname.split('/')[2] || '';
         return path === menu ? 'active btn btn-primary w-100 d-block fadeout' : 'border justify-content-center w-auto d-block fadeout';
+    };
+
+    // Handle successful deposit submission
+    const handleDepositSuccess = () => {
+        window.location.reload();
     };
 
     return (
@@ -145,7 +139,13 @@ const DashboardPage = ({
                                         </svg>
                                         <span>{T.walletbalance}</span>
                                     </p>
-                                    <i className="bi bi-plus-circle fs-4 text-end cursor-pointer" title='Add fund'></i>
+                                    <button
+                                        className="btn btn-transparent text-end"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#depositModal"
+                                    >
+                                        <i className="bi bi-plus-circle me-2"></i>
+                                    </button>
                                 </div>
                                 <h1 className="">
                                     <small>{dashboardDetails.balance || 'N/A'}</small> <strong>{dashboardDetails.currency || 'N/A'}</strong>
@@ -203,6 +203,13 @@ const DashboardPage = ({
                         </div>
                     </div>
                 </div>
+                    <DepositModal
+                        apiUrl={apiUrl}
+                        rootUrl={rootUrl}
+                        user={user}
+                        bankTransfer={bankTransfer}
+                        onSuccess={handleDepositSuccess}
+                    />
             </div>
         </>
     );

@@ -27,20 +27,20 @@ const DepositModal = ({ apiUrl, rootUrl, user, bankTransfer, onSuccess }) => {
         e.preventDefault();
         setIsSubmitting(true);
 
-        const formData = new FormData();
-        formData.append('type', 'wallet_topup');
-        formData.append('user_id', user.id);
-        formData.append('amount', formState.amount);
-        formData.append('currency', formState.currency);
-        formData.append('payment_gateway_reference', formState.payment_gateway_reference);
-        formData.append('payment_gateway', formState.payment_gateway);
-        if (formState.attachment) formData.append('attachment', formState.attachment);
+        const formData = {
+            'type': 'wallet_topup',
+            'payment_gateway': formState.payment_gateway,
+            'payment_gateway_reference': formState.payment_gateway_reference,
+            'amount': formState.amount,
+            'currency': formState.currency,
+            'user_id': user.id
+            // 'attachement': formState.attachement,
+        };
 
         try {
-            const response = await apiService.post(`/transactions/add`, formData);
-            const data = await response.json();
-
-            if (data.status === 'true') {
+            const response = await apiService.post('/transactions/add', formData);
+            console.log('Deposit Response:', response.data);
+            if (response.data.status === 'true') {
                 Swal.fire({
                     title: 'Success!',
                     text: 'Your deposit request has been submitted and is waiting for approval.',
@@ -54,7 +54,7 @@ const DepositModal = ({ apiUrl, rootUrl, user, bankTransfer, onSuccess }) => {
                     onSuccess();
                 });
             } else {
-                toastr.error(data.message || 'Failed to submit deposit request');
+                toastr.error(response.data.message || 'Failed to submit deposit request');
             }
         } catch (error) {
             toastr.error('Error submitting deposit request');

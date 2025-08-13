@@ -18,18 +18,23 @@ const DepositPage = ({ rootUrl = '/', apiUrl = '/api/' }) => {
 
     // Fetch deposits and payment gateways
     useEffect(() => {
+        
         const fetchDeposits = async () => {
             setIsLoading(true);
             try {
+                const response = await apiService.post('/transactions', { user_id: user.id });
 
-                const response = await apiService.post('/transactions', {user_id: user.id});
-                
-                if (response.status === 'true') {
-                    setDeposits(response.data || []);
+                if (response.data.status === 'true') {
+                    const deposits = response.data.data || [];
+                    console.log('Deposits Response:', deposits);
+                    setDeposits(deposits);
+                    // No error shown even if deposits is empty
                 } else {
-                    toastr.error(response.message || 'Failed to fetch deposits');
+                    // Show error only if status is false
+                    toastr.error(response.data.message || 'Failed to fetch deposits');
                 }
             } catch (error) {
+                // Show error only if request actually fails
                 toastr.error('Error fetching deposits');
                 console.error('Fetch deposits error:', error);
             } finally {
@@ -41,9 +46,10 @@ const DepositPage = ({ rootUrl = '/', apiUrl = '/api/' }) => {
             try {
                 const response = await apiService.post('/payment_gateways', { api_key: 'none'});
 
-                const data = await response.json();
-                if (response.status === 'true') {
-                    const bankGateway = response.data.find((gateway) => gateway.name === 'Bank Transfer') || data.data[0];
+
+                if (response.data.status === 'true') {
+                    const bankGateway = response.data.data[0];
+                    // console.log('Payment Gateways Response:', bankGateway);
                     setBankTransfer(bankGateway);
                 } else {
                     toastr.error(response.message || 'Failed to fetch payment gateways');
