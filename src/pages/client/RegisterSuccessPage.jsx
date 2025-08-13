@@ -1,13 +1,17 @@
-
 import React from 'react';
 
 // Mock translation object to replace PHP T::
 const T = {
     your_account_has_been_created: 'Your account has been created',
     please_check_your_mailbox_for_activation: 'Please check your mailbox for activation',
+    go_to_dashboard: 'Go to Dashboard',
 };
 
 const SignupSuccessPage = () => {
+    const handleDashboardRedirect = () => {
+        window.location.assign('/dashboard'); // Full page refresh
+    };
+
     return (
         <div className="container mt-[130px] mb-5">
             <div className="col-md-4 mx-auto">
@@ -32,6 +36,13 @@ const SignupSuccessPage = () => {
                         <br />
                         {T.please_check_your_mailbox_for_activation}
                     </p>
+                    <button
+                        className="btn btn-primary mt-4 px-5 py-2"
+                        onClick={handleDashboardRedirect}
+                        aria-label="Go to Dashboard"
+                    >
+                        {T.go_to_dashboard}
+                    </button>
                 </div>
             </div>
         </div>
