@@ -264,8 +264,8 @@ const Register = ({
       setIsRecaptchaVerified(false);
       setFormErrors({}); // Clear errors
 
-      // Redirect to success page
-        navigate('/signup-success');
+      // Redirect with full page refresh
+      window.location.assign('/signup-success');
     } catch (error) {
       // Handle API errors with user-friendly message
       const errorMessage = error.response?.data?.message || 'Registration failed. Please try again.';
