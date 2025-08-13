@@ -1,6 +1,6 @@
 import React, { useContext, useState } from 'react';
 // import API from '../../api/auth'; // Import the Axios instance
-import { AuthContext } from '../../context/AuthContext';
+import { AuthContext } from '../../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 // Mock translation object to replace PHP T::

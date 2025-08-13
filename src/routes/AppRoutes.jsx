@@ -11,7 +11,7 @@ import Dashboard from "../pages/admin/Dashboard";
 import FlightPage from "../pages/client/FlightPage";
 import TripReviewPage from "../pages/client/TripReviewPage";
 import BookingConfirmationPage from "../pages/client/BookingConfirmationPage";
-import Login from "../pages/client/Login";
+import Login from "../pages/client/Auth/Login";
 import Register from "../pages/client/Register";
 import RegisterSuccessPage from "../pages/client/RegisterSuccessPage";
 import AboutPage from "../pages/client/AboutPage";
@@ -43,7 +43,7 @@ export default function AppRoutes() {
     <BrowserRouter>
       <Routes>
         {/* Client-side */}
-        <Route 
+        <Route
           path="/"  element={<ClientLayout user={user} />} >
           <Route index element={<Home />} />
           <Route path="/about" element={<AboutPage />} />
