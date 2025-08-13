@@ -45,27 +45,49 @@ export const AuthProvider = ({ children }) => {
 
     // Handles user login.
     const login = async (credentials) => {
-        // 'auth.login(credentials)' is assumed to send credentials to the backend,
-        // receive a new token, and store it in persistent storage (e.g., localStorage).
-        await auth.login(credentials);
-        // After successful login, fetch the authenticated user's data.
-        const userResponse = await auth.fetchUser();
-        setUser(userResponse);
+        setLoading(true);
+        try {
+            await auth.login(credentials); // Perform login and store token
+            const userResponse = await auth.fetchUser(); // Fetch user data
+            setUser(userResponse); // Store user in state
+            return userResponse; // Return user data for role-based redirection
+        } catch (error) {
+            throw new Error(error.response?.data?.message || 'Login failed');
+        } finally {
+            setLoading(false);
+        }
     };
 
     // Handles user registration.
     const register = async (userData) => {
         // 'auth.register(userData)' sends registration data to the backend.
         // It typically does not log the user in directly, but creates the account.
-        await auth.register(userData);
+        try {
+            await auth.register(userData);
+            
+            const userResponse = await auth.fetchUser(); // Fetch user data
+            setUser(userResponse); // Store user in state
+            // return userResponse; // Return user data for potential use
+        } catch (error) {
+            console.error('Registration error:', error);
+            throw new Error(error.response?.data?.message || 'Registration failed');
+        } finally {
+            setLoading(false);
+        }
         // User will likely need to log in after registration or be redirected to a success page.
     };
 
     // Handles user logout.
-    const logout = () => {
-        // 'auth.logout()' is assumed to clear the token from persistent storage.
-        auth.logout();
-        setUser(null); // Clear the user state in the context
+    const logout = async () => {
+        setLoading(true);
+        try {
+        await auth.logout();
+        setUser(null);
+        } catch (error) {
+        console.error('Logout failed:', error);
+        } finally {
+        setLoading(false);
+        }
     };
 
     return (

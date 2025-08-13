@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import Select from 'react-select';
 import HCaptcha from '@hcaptcha/react-hcaptcha';
-import { toast } from 'react-toastify';
-import apiService from '../../api/apiService';
+import { AuthContext } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 // Mock translation object to replace PHP T::
 const T = {
@@ -33,26 +33,27 @@ const countries = [
 ];
 
 const Register = ({
-  signupUrl = '/signup',
   formToken = 'static_form_token',
   recaptchaSiteKey = 'f32aa812-3254-479a-839c-4e8a70388cac', // Replace with your actual reCAPTCHA site key
 }) => {
+  const { register } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [isAgreed, setIsAgreed] = useState(false);
   const [isRecaptchaVerified, setIsRecaptchaVerified] = useState(false);
-  const [formState, setFormState] = useState({
+  const initialFormState = {
     name: '',
-    phone_country_code: null, // Stores the selected option object from react-select
+    phone_country_code: null,
     phone: '',
     email: '',
     password: '',
-    walletBalance: 0,
     agency_name: '',
     agency_license: '',
-    agency_address: '',
     agency_city: '',
-    agency_logo: null,
-  });
+    agency_address: '',
+    agency_logo: '',
+  };
+  const [formState, setFormState] = useState(initialFormState);
   const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
@@ -197,74 +198,76 @@ const Register = ({
     return errors;
   };
 
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate form and display errors if any
     const errors = validateForm();
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
-      // Optional: scroll to the first error
+      // Scroll to and focus the first error field for accessibility
       const firstErrorField = Object.keys(errors)[0];
       const element = document.getElementById(firstErrorField);
       if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         element.focus();
       }
       return;
     }
 
+    // Check if user agreed to terms
     if (!isAgreed) {
-      alert('You must agree to the Terms and Policy.');
+      setFormErrors({ terms: 'You must agree to the Terms and Policy' });
       return;
     }
-    // if (!isRecaptchaVerified) {
-    //   alert('Please complete the reCAPTCHA verification.');
-    //   return;
-    // }
+
+    // Check reCAPTCHA verification (uncomment when implemented)
+    /*
+    if (!isRecaptchaVerified) {
+      setFormErrors({ recaptcha: 'Please complete the reCAPTCHA verification' });
+      return;
+    }
+    */
 
     setIsLoading(true);
 
-    // Simulate API call
-    
     try {
-        const newUser = {
-          name: formState.name,
-          phone_country_code: formState.phone_country_code?.id || '',
-          phone: formState.phone,
-          email: formState.email,
-          password: formState.password,
-          walletBalance: formState.walletBalance,
-          // Add agency details
-          agency_name: formState.agency_name,
-          agency_license: formState.agency_license,
-          agency_city: formState.agency_city,
-          agency_address: formState.agency_address,
-          agency_logo: formState.agency_logo,
-        };
-        const response = await apiService.post('/admin/users', newUser);
-        setIsLoading(false);
-        console.log('User added successfully:', response.data);
-        if (response.data.success) {
-          
-          // Reset form and reCAPTCHA
-          setFormState({
-            name: '',
-            phone_country_code: null,
-            phone: '',
-            email: '',
-            password: '',
-            agency_name: '',
-            agency_license: '',
-            agency_city: '',
-            agency_address: '',
-          });
-          setIsAgreed(false);
-          setIsRecaptchaVerified(false);
-        }
-        
+      // Prepare user data for registration, mapping phone to phone_number
+      const userData = {
+        name: formState.name,
+        email: formState.email,
+        password: formState.password,
+        phone_number: formState.phone, // Map to backend field
+        phone_country_code: formState.phone_country_code?.id || null, // Handle object or null
+        agency_name: formState.agency_name,
+        agency_license: formState.agency_license,
+        agency_city: formState.agency_city,
+        agency_address: formState.agency_address,
+        agency_logo: formState.agency_logo, // Handle file upload separately if needed
+        wallet_balance: formState.walletBalance, // Use snake_case for backend
+        role: 'agent', // Set role to agent
+      };
+
+      // Call register function and await user response for role-based redirect
+      await register(userData);
+
+      // Reset form state, agreement, and reCAPTCHA
+      setFormState(initialFormState);
+      setIsAgreed(false);
+      setIsRecaptchaVerified(false);
+      setFormErrors({}); // Clear errors
+
+      // Redirect to success page
+        navigate('/signup-success');
     } catch (error) {
-        console.error('Add failed:', error);
-        alert('An error occurred during signup.');
+      // Handle API errors with user-friendly message
+      const errorMessage = error.response?.data?.message || 'Registration failed. Please try again.';
+      setFormErrors({ general: errorMessage });
+      console.error('Registration failed:', error);
+    } finally {
+      setIsLoading(false);
     }
-    // setIsLoading(false);
   };
 
   return (
@@ -432,14 +435,12 @@ const Register = ({
       <div className="bg-light" id="signup">
         <div className="row p-2">
           <div className="col-md-6 mx-auto">
-            <div className="card"> {/* Removed duplicate id="signup" from here */}
-              <div>
                 <form id="signupForm" onSubmit={handleSubmit} className="mb-5"> {/* Changed id to avoid conflict */}
                   <div className="container-fluid">
                     <div className="card mt-5 col-md-12 mx-auto rounded-4">
                       <div className="p-3 p-md-4">
                         <h3 className="font-bold text-2xl">{T.signup} {T.agent}</h3>
-                        <p className="mb-4"></p>
+                        <p className="mb-4">{formErrors && <div className="alert alert-danger col-md-5 mx-auto">{formErrors}</div>}</p>
                         <div className="row">
                             <div className="form-floating mb-3 col-md-6">
                             <input
@@ -685,8 +686,6 @@ const Register = ({
                     <input type="hidden" name="form_token" value={formToken} />
                   </div>
                 </form>
-              </div>
-            </div>
           </div>
         </div>
       </div>

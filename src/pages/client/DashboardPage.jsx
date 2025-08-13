@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import Headbar from '../../components/client/Headbar';
 import { useLocation } from 'react-router-dom';
 import { AuthContext } from "../../context/AuthContext";
@@ -17,23 +17,37 @@ const T = {
 };
 
 // Mock dashboard data to replace PHP API calls
-const mockDashboardDetails = {
-    balance: '1000.00',
-    currency: 'USD',
-};
+
 
 const DashboardPage = ({
     rootUrl = '/',
     apiKey = 'mock_api_key',
     apiUrl = '/api',
-    user = user,
-    dashboardDetails = mockDashboardDetails,
+    // user = user,
 }) => {
+    const { user, loading } = useContext(AuthContext);
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleString());
+    const [dashboardDetails, setDashboardDetails] = useState({
+        balance: '0.00',
+        currency: 'USD',
+        bookings: 0,
+        pending: 0,
+    });
     const [bookings, setBookings] = useState({
         total: 0,
         pending: 0,
     });
+      // Populate initial form data
+      useEffect(() => {
+        if (user) {
+          setDashboardDetails({
+            currency: user.currency || 'USD',
+            balance: user.wallet_balance || '0.00',
+            bookings: user.booking_count || 0,
+            pending: 0,
+          });
+        }
+      }, [user]);
 
     const location = useLocation();
     const currentPath = location.pathname;
@@ -131,7 +145,7 @@ const DashboardPage = ({
                                     <i className="bi bi-plus-circle fs-4 text-end cursor-pointer" title='Add fund'></i>
                                 </div>
                                 <h1 className="">
-                                    <small>{user.wallet_balance}</small> <strong>{user.agency_currency}</strong>
+                                    <small>{dashboardDetails.balance || 'N/A'}</small> <strong>{dashboardDetails.currency || 'N/A'}</strong>
                                 </h1>
                             </div>
                         </div>
@@ -155,7 +169,7 @@ const DashboardPage = ({
                                     <span>{T.totalbookings}</span>
                                 </p>
                                 <h1 className="">
-                                    <strong>{bookings.total}</strong>
+                                    <strong>{dashboardDetails.bookings}</strong>
                                 </h1>
                             </div>
                         </div>
@@ -180,7 +194,7 @@ const DashboardPage = ({
                                     <span>{T.pendinginvoices}</span>
                                 </p>
                                 <h1 className="">
-                                    <strong>{bookings.pending}</strong>
+                                    <strong>{dashboardDetails.pending}</strong>
                                 </h1>
                             </div>
                         </div>

@@ -45,14 +45,19 @@ const Login = ({
       }
       setIsLoading(true);
         try {
-            await login({ email: form.email, password: form.password });
-            // redirect or show success
+          const userResponse = await login({ email: form.email, password: form.password });
+          // Redirect based on role
+          if (userResponse.role === 'admin') {
+            navigate('/admin');
+          } else {
             navigate('/dashboard');
+          }
         } catch (err) {
             setError(err.message || 'Login failed');
         } finally {
         setIsLoading(false);
       }
+      
     };
 
   const handleResetSubmit = async (e) => {

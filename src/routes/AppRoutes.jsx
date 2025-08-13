@@ -44,7 +44,7 @@ export default function AppRoutes() {
       <Routes>
         {/* Client-side */}
         <Route 
-          path="/"  element={<ClientLayout />} >
+          path="/"  element={<ClientLayout user={user} />} >
           <Route index element={<Home />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/flight/availability" element={<FlightPage />} />
@@ -58,8 +58,8 @@ export default function AppRoutes() {
           <Route path="/signup-success" element={<RegisterSuccessPage />} />
           {/* Profile */}
           <Route path="/dashboard" element={<DashboardPage user={user} /> } />
-          <Route path="/bookings" element={<BookingsPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/bookings" element={<BookingsPage user={user} />} />
+          <Route path="/profile" element={<ProfilePage user={user} />} />
           
 
           {/* Add more client pages here */}

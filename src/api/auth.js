@@ -16,6 +16,7 @@ const auth = {
     login: async (credentials) => {
         const response = await apiService.post('/login', credentials);
         const { access_token: token } = response.data;
+        // console.log('Login successful, token:', response.data);
         apiService.setToken(token);
 
         return response.data;
@@ -23,7 +24,10 @@ const auth = {
 
     register: async (userData) => {
         const response = await apiService.post('/register', userData);
-        return response;
+        const { access_token: token } = response.data;
+        // console.log('Login successful, token:', response.data);
+        apiService.setToken(token);
+        return response.data;
     },
     
     logout: async () => {

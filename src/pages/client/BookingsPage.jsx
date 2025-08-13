@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useContext } from "react";
 import Headbar from "../../components/client/Headbar";
+import { AuthContext } from "../../context/AuthContext";
 
 
 // Mock translation object to replace PHP T::
@@ -27,8 +28,10 @@ const BookingsPage = ({
     rootUrl = '/',
     apiKey = 'mock_api_key',
     apiUrl = '/api',
-    user = mockUser,
+    user
 }) => {
+
+//   const { user, loading } = useContext(AuthContext);
 
     return (
         <div>
