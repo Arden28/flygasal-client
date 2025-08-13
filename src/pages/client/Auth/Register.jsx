@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import Select from 'react-select';
 import HCaptcha from '@hcaptcha/react-hcaptcha';
-import { AuthContext } from '../../context/AuthContext';
+import { AuthContext } from '../../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 // Mock translation object to replace PHP T::
