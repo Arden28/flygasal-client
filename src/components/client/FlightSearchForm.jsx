@@ -1,23 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Select from 'react-select';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+import { DateRange } from 'react-date-range';
+import 'react-date-range/dist/styles.css';
+import 'react-date-range/dist/theme/default.css';
 import { airports, flights } from '../../data/fakeData';
 import { motion, AnimatePresence } from 'framer-motion';
+import { format, addDays } from 'date-fns';
 
 const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights }) => {
   const [tripType, setTripType] = useState('oneway');
   const [flightType, setFlightType] = useState('Economy');
   const [flightsState, setFlightsState] = useState([
-    { origin: null, destination: null, depart: new Date('2025-07-15') },
+    {
+      origin: null,
+      destination: null,
+      dateRange: { startDate: new Date('2025-07-15'), endDate: new Date('2025-07-20'), key: 'selection' },
+    },
   ]);
-  const [returnDate, setReturnDate] = useState(new Date('2025-07-20'));
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
   const [infants, setInfants] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isTravellersOpen, setIsTravellersOpen] = useState(false);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [errors, setErrors] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
@@ -55,10 +61,13 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
       params.flights.map((f) => ({
         origin: airports.find((a) => a.value === f.origin) || null,
         destination: airports.find((a) => a.value === f.destination) || null,
-        depart: f.depart ? new Date(f.depart) : null,
+        dateRange: {
+          startDate: f.depart ? new Date(f.depart) : new Date('2025-07-15'),
+          endDate: params.tripType === 'return' && params.returnDate ? new Date(params.returnDate) : new Date('2025-07-20'),
+          key: 'selection',
+        },
       }))
     );
-    setReturnDate(params.returnDate ? new Date(params.returnDate) : new Date('2025-07-20'));
     setAdults(params.adults || 1);
     setChildren(params.children || 0);
     setInfants(params.infants || 0);
@@ -75,7 +84,10 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
 
   // Handle adding a new flight
   const addFlight = () => {
-    setFlightsState([...flightsState, { origin: null, destination: null, depart: null }]);
+    setFlightsState([
+      ...flightsState,
+      { origin: null, destination: null, dateRange: { startDate: new Date(), endDate: addDays(new Date(), 7), key: 'selection' } },
+    ]);
   };
 
   // Handle removing a flight
@@ -92,6 +104,20 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
     setFlightsState(updatedFlights);
   };
 
+  // Handle date range selection
+  const handleDateRangeChange = (index, ranges) => {
+    const updatedFlights = [...flightsState];
+    const newRange = {
+      ...ranges.selection,
+      endDate: tripType === 'oneway' ? ranges.selection.startDate : ranges.selection.endDate,
+    };
+    updatedFlights[index].dateRange = newRange;
+    setFlightsState(updatedFlights);
+    if (tripType === 'oneway') {
+      setIsDatePickerOpen(false);
+    }
+  };
+
   // Validate form inputs
   const validateForm = () => {
     const newErrors = [];
@@ -105,16 +131,21 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
       if (flight.origin && flight.destination && flight.origin.value === flight.destination.value) {
         newErrors.push(`Flight ${index + 1}: Departure and destination cities cannot be the same`);
       }
-      if (!flight.depart) {
+      if (!flight.dateRange.startDate) {
         newErrors.push(`Flight ${index + 1}: Please select a departure date`);
       }
+      if (tripType === 'return' && !flight.dateRange.endDate) {
+        newErrors.push(`Flight ${index + 1}: Please select a return date`);
+      }
+      if (
+        tripType === 'return' &&
+        flight.dateRange.startDate &&
+        flight.dateRange.endDate &&
+        flight.dateRange.endDate < flight.dateRange.startDate
+      ) {
+        newErrors.push(`Flight ${index + 1}: Return date must be after departure date`);
+      }
     });
-    if (tripType === 'return' && !returnDate) {
-      newErrors.push('Please select a return date');
-    }
-    if (tripType === 'return' && flightsState[0].depart && returnDate && returnDate < flightsState[0].depart) {
-      newErrors.push('Return date must be after departure date');
-    }
     if (adults + children + infants === 0) {
       newErrors.push('At least one traveller is required');
     }
@@ -144,10 +175,10 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
     flightsState.forEach((flight, index) => {
       queryParams.set(`flights[${index}][origin]`, flight.origin?.value || '');
       queryParams.set(`flights[${index}][destination]`, flight.destination?.value || '');
-      queryParams.set(`flights[${index}][depart]`, flight.depart?.toISOString().split('T')[0] || '');
+      queryParams.set(`flights[${index}][depart]`, flight.dateRange.startDate?.toISOString().split('T')[0] || '');
     });
-    if (tripType === 'return' && returnDate) {
-      queryParams.set('returnDate', returnDate.toISOString().split('T')[0]);
+    if (tripType === 'return' && flightsState[0]?.dateRange.endDate) {
+      queryParams.set('returnDate', flightsState[0].dateRange.endDate.toISOString().split('T')[0]);
     }
     queryParams.set('adults', adults);
     queryParams.set('children', children);
@@ -159,7 +190,7 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
         (f) =>
           f.origin?.value === flight.origin &&
           f.destination?.value === flight.destination &&
-          new Date(f.depart).toDateString() === new Date(flight.departureTime).toDateString()
+          new Date(f.dateRange.startDate).toDateString() === new Date(flight.departureTime).toDateString()
       )
     );
 
@@ -169,7 +200,7 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
         (flight) =>
           flight.origin === flightsState[0].destination?.value &&
           flight.destination === flightsState[0].origin?.value &&
-          new Date(returnDate).toDateString() === new Date(flight.departureTime).toDateString()
+          new Date(flightsState[0].dateRange.endDate).toDateString() === new Date(flight.departureTime).toDateString()
       );
     }
 
@@ -193,14 +224,24 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
   };
 
   // Custom Option Component for react-select
+  const filterOption = (option, searchText) => {
+    const search = searchText.toLowerCase();
+    return (
+      option.data.label.toLowerCase().includes(search) ||
+      option.data.city.toLowerCase().includes(search) ||
+      option.data.country.toLowerCase().includes(search) ||
+      option.data.value.toLowerCase().includes(search)
+    );
+  };
+
   const CustomOption = ({ innerProps, label, data }) => (
     <div
       {...innerProps}
       className="flex items-center p-3 hover:bg-gray-100 cursor-pointer transition-colors duration-200"
     >
       <div className="flex-1">
-        <div className="font-semibold">{data.city}</div>
-        <div className="text-sm text-gray-500">{data.country} ({data.value})</div>
+        <div className="font-semibold">{data.city} - {data.country}</div>
+        <div className="text-sm text-gray-500">{data.label}</div>
       </div>
     </div>
   );
@@ -233,40 +274,68 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
     }),
   };
 
-  // Custom styles for react-datepicker
+  // Custom styles for date picker
   const datePickerStyles = `
-    .react-datepicker {
-      border: 1px solid #e5e7eb;
+    .rdrCalendarWrapper {
+      background-color: white;
       border-radius: 0.5rem;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      font-family: Arial, sans-serif;
-    }
-    .react-datepicker__header {
-      background-color: #3b82f6;
-      color: white;
-      border-radius: 0.5rem 0.5rem 0 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      border: 1px solid #e5e7eb;
       padding: 0.5rem;
     }
-    .react-datepicker__day-name,
-    .react-datepicker__day,
-    .react-datepicker__time-name {
-      color: #333;
+    .rdrMonthAndYearWrapper {
+      background-color: white;
+      padding: 0.75rem;
+      border-bottom: 1px solid #e5e7eb;
     }
-    .react-datepicker__day--selected,
-    .react-datepicker__day--keyboard-selected {
+    .rdrMonthName {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1f2937;
+    }
+    .rdrDay {
+      color: #1f2937;
+      font-size: 0.9rem;
+    }
+    .rdrDayToday .rdrDayNumber span:after {
       background-color: #3b82f6;
-      color: white;
       border-radius: 0.25rem;
     }
-    .react-datepicker__day:hover {
+    .rdrDay:hover:not(.rdrDayPassive) .rdrDayNumber span {
       background-color: #f3f4f6;
       border-radius: 0.25rem;
     }
-    .react-datepicker__month-container {
-      background-color: white;
+    .rdrSelected, .rdrInRange, .rdrStartEdge, .rdrEndEdge {
+      background-color: #3b82f6 !important;
+      color: white !important;
+      border-radius: 0.25rem;
     }
-    .react-datepicker__navigation-icon::before {
-      border-color: white;
+    .rdrInRange {
+      background-color: #bfdbfe !important;
+    }
+    .rdrMonthAndYearPickers select {
+      color: #1f2937;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .rdrNextPrevButton {
+      background-color: #f3f4f6;
+      border-radius: 0.25rem;
+    }
+    .rdrNextPrevButton:hover {
+      background-color: #e5e7eb;
+    }
+    .rdrDateDisplayWrapper {
+      background-color: white;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 0.5rem;
+    }
+    .rdrDateInput {
+      border-radius: 0.25rem;
+      border: 1px solid #e5e7eb;
+    }
+    .rdrDateInput:hover {
+      border-color: #3b82f6;
     }
   `;
 
@@ -380,6 +449,7 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
                       options={airports}
                       value={flight.origin}
                       onChange={(selected) => handleFlightChange(index, 'origin', selected)}
+                      filterOption={filterOption}
                       components={{ Option: CustomOption }}
                       styles={selectStyles}
                       placeholder="Flying From"
@@ -426,6 +496,7 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
                       options={airports}
                       value={flight.destination}
                       onChange={(selected) => handleFlightChange(index, 'destination', selected)}
+                      filterOption={filterOption}
                       components={{ Option: CustomOption }}
                       styles={selectStyles}
                       placeholder="Destination To"
@@ -438,34 +509,62 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
 
               <div className="col-lg-4">
                 <div className="row g-2">
-                  <div className={index === 0 && tripType === 'return' ? 'col-6' : 'col-12'}>
+                  <div className="col-12 relative">
                     <div className="form-floating">
-                      <DatePicker
-                        selected={flight.depart}
-                        onChange={(date) => handleFlightChange(index, 'depart', date)}
-                        dateFormat="EEE d MMM"
-                        className="depart form-control h-[58px] rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                        placeholderText="Depart Date"
-                        minDate={new Date()}
-                        showPopperArrow={false}
-                      />
+                      <button
+                        type="button"
+                        className="w-full h-[58px] bg-white border border-gray-300 rounded-lg text-left px-10 py-3 text-sm text-gray-700 hover:border-blue-500 focus:border-blue-500 focus:ring focus:ring-blue-200 transition-colors flex items-center justify-between"
+                        onClick={() => setIsDatePickerOpen(isDatePickerOpen === index ? false : index)}
+                      >
+                        <span>
+                          {tripType === 'return'
+                            ? `${format(flight.dateRange.startDate, 'EEE d MMM')} - ${format(flight.dateRange.endDate, 'EEE d MMM')}`
+                            : format(flight.dateRange.startDate, 'EEE d MMM')}
+                        </span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
+                          <path d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 z-10">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
+                          <path d="M8 2v4m8-4v4M5 10h14M3 6h18v14H3V6z" />
+                        </svg>
+                      </div>
+                      <AnimatePresence>
+                        {isDatePickerOpen === index && (
+                          <motion.div
+                            className="absolute z-20 mt-2 w-full md:w-[400px] bg-white rounded-lg shadow-lg"
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <DateRange
+                              ranges={[flight.dateRange]}
+                              onChange={(ranges) => handleDateRangeChange(index, ranges)}
+                              minDate={new Date()}
+                              months={1}
+                              direction="vertical"
+                              showDateDisplay={true}
+                              rangeColors={['#3b82f6']}
+                              className="w-full"
+                            />
+                            {tripType === 'return' && (
+                              <div className="p-4 border-t border-gray-200">
+                                <button
+                                  type="button"
+                                  className="w-full bg-blue-600 text-white rounded-lg py-2 hover:bg-blue-700 transition-colors text-sm"
+                                  onClick={() => setIsDatePickerOpen(false)}
+                                >
+                                  Done
+                                </button>
+                              </div>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </div>
-                  {index === 0 && tripType === 'return' && (
-                    <div className="col-6" id="show">
-                      <div className="form-floating">
-                        <DatePicker
-                          selected={returnDate}
-                          onChange={(date) => setReturnDate(date)}
-                          dateFormat="EEE d MMM"
-                          className="returning form-control dateright h-[58px] rounded-lg border-gray-300 focus:ring-blue-500 focus:border-blue-500 w-full"
-                          placeholderText="Return Date"
-                          minDate={flight.depart || new Date()}
-                          showPopperArrow={false}
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
               {flightsState.length > 1 && (

@@ -28,7 +28,10 @@ const flygasal = {
     createBooking: async (bookingDetails) => {
         try {
         const response = await apiService.post('/flights/bookings', bookingDetails);
-        return response.data;
+        
+        // console.info('Booking Details', response.data);
+
+        return response;
         } catch (error) {
         console.error('Booking failed:', error);
         throw error;
@@ -36,19 +39,37 @@ const flygasal = {
     },
 
     /**
-    * Retrieve booking details by reference code
-    * @param {String} bookingReference
-    * @returns {Promise<Object>}
+    * Create a booking
+    * @param {Object} bookingDetails - Includes selected flight, passengers, and contact info
+    * @returns {Promise<Object>} - Booking confirmation
     */
     getBookingDetails: async (bookingReference) => {
         try {
-        const response = await apiService.get(`/flights/booking/${bookingReference}`);
-        return response.data;
+        const response = await apiService.get(`/bookings/${bookingReference}`);
+        
+        console.info('Booking Details', response);
+
+        return response;
         } catch (error) {
-        console.error('Get booking details failed:', error);
+        console.error('Booking failed:', error);
         throw error;
         }
     },
+
+    // /**
+    // * Retrieve booking details by reference code
+    // * @param {String} bookingReference
+    // * @returns {Promise<Object>}
+    // */
+    // getBookingDetails: async (bookingReference) => {
+    //     try {
+    //     const response = await apiService.get(`/flights/booking/${bookingReference}`);
+    //     return response.data;
+    //     } catch (error) {
+    //     console.error('Get booking details failed:', error);
+    //     throw error;
+    //     }
+    // },
 
     /**
     * Cancel a booking
@@ -118,6 +139,7 @@ const flygasal = {
                 flightNumber: outbound.flightNum,
                 tickets: outbound.availabilityCount,
                 origin: outbound.departure,
+                availabilityCount: outbound.availabilityCount,
                 destination: finalSegment.arrival,
                 departureTime: new Date(outbound.departureDate),
                 arrivalTime: new Date(outbound.arrivalDate),

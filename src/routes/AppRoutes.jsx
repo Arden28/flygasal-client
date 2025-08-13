@@ -30,6 +30,7 @@ import Airports from "../pages/admin/Airports";
 import Transactions from "../pages/admin/Transactions";
 import UserRoles from "../pages/admin/UserRoles";
 import AdminLogin from "../pages/admin/Login";
+import ConfirmationSuccessPage from "../pages/client/ConfirmationSuccessPage";
 
 export default function AppRoutes() {
 
@@ -48,7 +49,11 @@ export default function AppRoutes() {
           <Route path="/flight/availability" element={<FlightPage />} />
           <Route path="/flight/trip-review" element={<TripReviewPage />} />
           <Route path="/flight/booking-confirmation" element={<BookingConfirmationPage user={user} />} />
-          <Route path="/flight/confirmation-success" element={<div>Booking Confirmed!</div>} />
+          <Route path="/flight/confirmation-success" element={<ConfirmationSuccessPage user={user} />} />
+          <Route
+            path="/flights/invoice/:orderNumber"
+            element={<ConfirmationSuccessPage user={user} />}
+          />
           <Route path="/signup-success" element={<SignupSuccessPage />} />
           {/* Profile */}
           <Route path="/dashboard" element={<DashboardPage user={user} /> } />

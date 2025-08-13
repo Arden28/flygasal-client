@@ -349,7 +349,7 @@ const BookingConfirmationPage = ({ user }) => {
       // Step 2: Call flygasal API to fetch matching flights
       const response = await flygasal.precisePricing(params);
       const outboundFlights = flygasal.transformPreciseData(response.data);
-      // console.info('Pricing Response:', response.data);
+      console.info('Pricing Response:', response.data);
 
         let returnFlights = [];
 
@@ -364,13 +364,14 @@ const BookingConfirmationPage = ({ user }) => {
         }
 
         const allFlights = [...outboundFlights, ...returnFlights];
-        // console.info('All Flights: ', allFlights);
+        console.info('All Flights: ', allFlights);
         setAvailableFlights(allFlights);
 
       // Step 3: Match selected flights using flightId(s)
       const selectedOutbound = allFlights.find(f => f.id === flightId);
       const selectedReturn = tripType === 'return' && returnFlightId ? allFlights.find(f => f.id === returnFlightId) : null;
-
+      
+      console.info('Selected Outbond: ', selectedOutbound);
       if (!selectedOutbound) {
         setError(`Outbound flight not found for ID: ${flightId}`);
         return;
@@ -405,6 +406,8 @@ const BookingConfirmationPage = ({ user }) => {
       if (errorCode) {
         if (errorCode === 'B021') {
           setError('The selected fare is no longer available. Please choose another flight.');
+        } else if (errorCode === 'B020') {
+          setError('Can not find any price for this flight.');
         } else {
           setError(errorMsg || 'Failed to load booking details.');
         }
@@ -446,10 +449,10 @@ const BookingConfirmationPage = ({ user }) => {
       const searchParams = new URLSearchParams(location.search);
       let paymentSuccess = false;
       const solutionId = searchParams.get('solutionId') || null;
-      // console.info(`SolutionId ${solutionId}`);
+      // console.info(`Selected Flight: ${outbound.origin}`);
 
       const bookingDetails = {
-        selectedFlight: tripDetails,
+        selectedFlight: outbound,
         solutionId: solutionId,
         // fareSourceCode: ,
         passengers: formData.travelers.map((traveler) => ({
@@ -460,8 +463,10 @@ const BookingConfirmationPage = ({ user }) => {
           ? `${traveler.dob_year}-${String(traveler.dob_month).padStart(2, '0')}-${String(traveler.dob_day).padStart(2, '0')}`
           : null, // Format: 'YYYY-MM-DD'
           gender: traveler.gender || 'Male', // 'Male' or 'Female'
-          passportNumber: traveler.passport_number || null,
-          passportExpiry: traveler.passport_expiry || null, // Format: 'YYYY-MM-DD'
+          passportNumber: traveler.passport || null,
+          passportExpiry: traveler.passport_expiry_year && traveler.passport_expiry_month && traveler.passport_expiry_day
+          ? `${traveler.passport_expiry_year}-${String(traveler.passport_expiry_month).padStart(2, '0')}-${String(traveler.passport_expiry_day).padStart(2, '0')}`
+          : null, // Format: 'YYYY-MM-DD'
         })),
         contactName: formData.full_name,
         contactEmail: formData.email,
@@ -472,22 +477,26 @@ const BookingConfirmationPage = ({ user }) => {
         payment_method: 'wallet',
       };
 
-      if (paymentMethod === 'wallet') {
-        const response = await flygasal.createBooking(bookingDetails);
+      console.log(JSON.stringify(bookingDetails, null, 2));
 
-        if (response.ok) {
-          paymentSuccess = true;
-        } else {
-          throw new Error('Wallet payment failed.');
-        }
+      const response = await flygasal.createBooking(bookingDetails);
 
-      } else if (paymentMethod === 'paypal') {
-        paymentSuccess = true; // PayPal handled elsewhere
+      let booking = null;
+
+      if (response?.data?.booking?.order_num) {
+        paymentSuccess = true;
+        booking = response.data.booking;
+      } else {
+        const readableMessage =
+          response?.data?.errorMsg || 'Booking failed. Please try again later.';
+        throw new Error(readableMessage);
       }
 
-      if (paymentSuccess) {
-        navigate('/flight/confirmation-success');
+      if (paymentSuccess && booking) {
+        navigate(`/flights/invoice/${booking.order_num}`);
+        // navigate('/flight/confirmation-success');
       }
+
     } catch (err) {
       console.error('Flight booking error:', err);
       setIsProcessing(false);

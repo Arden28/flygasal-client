@@ -224,6 +224,27 @@ const PaymentMethod = ({ formData, handleFormChange, isFormValid, handlePayment,
           )}
         </AnimatePresence>
 
+        {/* Pay Later */}
+        <label className="flex items-center cursor-pointer">
+          <input
+            type="radio"
+            name="payment_method"
+            value="pay_later"
+            checked={formData.payment_method === 'pay_later'}
+            onChange={handleFormChange}
+            className="form-check-input mr-2 h-5 w-5 text-blue-400 focus:ring-blue-400 border-gray-500"
+          />
+          <span className="flex items-center gap-2 font-mono uppercase">
+            <img
+              src="/assets/img/gateways/pay_later.png"
+              alt="pay_later"
+              className="h-4"
+              style={{ height: '30px' }}
+            />
+            Pay Later
+          </span>
+        </label>
+
       </div>
     </motion.div>
   );

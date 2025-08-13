@@ -8,6 +8,7 @@ import ItineraryList from '../../components/client/ItineraryList';
 import Pagination from '../../components/client/Pagination';
 import FlightSearchForm from '../../components/client/FlightSearchForm';
 import flygasal from '../../api/flygasalService';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // FlightPage component displays flight search results based on URL parameters
 const FlightPage = () => {
@@ -25,9 +26,19 @@ const FlightPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [openDetailsId, setOpenDetailsId] = useState(null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isSearchFormVisible, setIsSearchFormVisible] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(900); // 15 minutes in seconds
+  const [isExpired, setIsExpired] = useState(false);
   const flightsPerPage = 25;
   const location = useLocation();
   const [loading, setLoading] = useState(false);
+
+  // Format timer display (e.g., "14:32")
+  const formatTimer = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+  };
 
   // Helper to format date (e.g., "Wed, 15 Dec")
   const formatDate = (dateString) => {
@@ -70,7 +81,7 @@ const FlightPage = () => {
   // Get airport name from code
   const getAirportName = (code) => {
     const airport = airports.find((a) => a.value === code);
-    return airport ? `${airport.city} (${airport.value})` : code;
+    return airport ? `${airport.label}` : code;
   };
 
   // Get airline name from code
@@ -86,11 +97,17 @@ const FlightPage = () => {
     // return airline ? airline.logo : code;
   };
 
-  // Fetch flights based on URL parameters
+  // Toggle search form visibility
+  const toggleSearchForm = () => {
+    setIsSearchFormVisible(!isSearchFormVisible);
+  };
+
+  // Fetch flights and start timer
   useEffect(() => {
-  
-    setLoading(true); // <-- Start loading
-    
+    setLoading(true);
+    setIsExpired(false);
+    setTimeRemaining(900); // Reset timer to 15 minutes
+
     const fetchFlights = async () => {
       // Parse query parameters from URL
       const queryParams = new URLSearchParams(location.search);
@@ -127,8 +144,6 @@ const FlightPage = () => {
       try {
         // Fetch flights from PKfare via flygasal service
         const response = await flygasal.searchFlights(params);
-        // console.info('Search Info', response);
-
         const pkData = response.data;
         const searchKey = pkData.searchKey;
         const outbound = flygasal.transformPKFareData(pkData);
@@ -144,13 +159,13 @@ const FlightPage = () => {
           const returnResponse = await flygasal.searchFlights(returnParams);
           returnFlights = flygasal.transformPKFareData(returnResponse.data);
         }
-        
+
         // Set search key
         setSearchKey(searchKey);
         queryParams.set("searchKey", searchKey);
         const newUrl = `${window.location.pathname}?${queryParams.toString()}`;
         window.history.pushState(null, "", newUrl);
-        
+
         setAvailableFlights(outbound);
         setReturnFlights(returnFlights);
 
@@ -163,11 +178,28 @@ const FlightPage = () => {
       } catch (error) {
         console.error('Failed to fetch flights:', error);
       } finally {
-        setLoading(false); // <-- Done loading
+        setLoading(false);
       }
     };
 
     fetchFlights();
+
+    // Start timer
+    const timer = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsExpired(true);
+          setAvailableFlights([]);
+          setReturnFlights([]);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Cleanup timer on unmount or new search
+    return () => clearInterval(timer);
   }, [location.search]);
 
   // Combine flights into itineraries for display
@@ -257,16 +289,11 @@ const FlightPage = () => {
     setCheckedOnewayValue((prev) =>
       e.target.checked ? [...prev, value] : prev.filter((v) => v !== value)
     );
-
     setCurrentPage(1);
-
-    const targetElement = document.getElementById('flight--list-targets');
-    if (targetElement) {
-      window.scrollTo({
-        top: targetElement.getBoundingClientRect().top + window.pageYOffset - 250,
-        behavior: 'smooth',
-      });
-    }
+    window.scrollTo({
+      top: document.getElementById('flight--list-targets').getBoundingClientRect().top + window.pageYOffset - 250,
+      behavior: 'smooth',
+    });
   };
 
   // Handle return airline filter
@@ -290,84 +317,98 @@ const FlightPage = () => {
 
   // Get unique airlines for filter
   const uniqueAirlines = [...new Set([...availableFlights, ...returnFlights].map((flight) => flight.airline))];
-  
+
   return (
     <div className="" style={{ paddingTop: '120px' }}>
-      <div className="p-3 mb-0">
-        <div className="container border rounded-4 p-3">
-          <div className="flights_listing modify_search">
-            <FlightSearchForm
-              searchParams={searchParams}
-              setAvailableFlights={setAvailableFlights}
-              setReturnFlights={setReturnFlights}
-            />
-          </div>
-        </div>
-      </div>
+      <AnimatePresence>
+        {isSearchFormVisible && (
+          <motion.div
+            className="p-3 mb-0"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+          >
+            <div className="container border rounded-4 p-3">
+              <div className="flights_listing modify_search">
+                <FlightSearchForm
+                  searchParams={searchParams}
+                  setAvailableFlights={setAvailableFlights}
+                  setReturnFlights={setReturnFlights}
+                />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="position-relative container-fluid pt-4 pb-4">
         <div className="container">
           <div className="row g-3">
             <div className="col-lg-12">
-              <div className="flex justify-between items-center mb-4 md:mb-0">
-                <button
-                  className="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-200 flex items-center gap-2"
-                  onClick={() => setIsFilterModalOpen(true)}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+
+              {isExpired ? (
+                <div className="bg-red-100 border border-red-300 rounded-lg p-4 text-center text-red-700">
+                  Search results have expired. Please search again using the form above.
+                </div>
+              ) : (
+                <>
+                  <FlightHeader
+                    onOpen={() => setIsFilterModalOpen(true)}
+                    filteredItineraries={filteredItineraries}
+                    searchParams={searchParams}
+                    formatDate={formatDate}
+                    loading={loading}
+                  />
+
+                  {/* Timer */}
+                  <motion.div
+                    className="flex justify-content-between gap-2 bg-white border border-gray-300 rounded-lg py-2 px-4 mb-4 text-sm text-gray-700"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
                   >
-                    <line x1="4" y1="6" x2="20" y2="6"></line>
-                    <line x1="4" y1="12" x2="20" y2="12"></line>
-                    <line x1="4" y1="18" x2="20" y2="18"></line>
-                    <circle cx="8" cy="6" r="1"></circle>
-                    <circle cx="8" cy="12" r="1"></circle>
-                    <circle cx="8" cy="18" r="1"></circle>
-                  </svg>
-                  Filters
-                </button>
-              </div>
-              <FlightHeader
-                filteredItineraries={filteredItineraries}
-                searchParams={searchParams}
-                formatDate={formatDate}
-                loading={loading}
-              />
-              <SortNavigation sortOrder={sortOrder} handleSortChange={handleSortChange} />
-              <ItineraryList
-                paginatedItineraries={filteredItineraries.slice(
-                  (currentPage - 1) * flightsPerPage,
-                  currentPage * flightsPerPage
-                )}
-                searchParams={searchParams}
-                openDetailsId={openDetailsId}
-                setOpenDetailsId={setOpenDetailsId}
-                getAirlineLogo={getAirlineLogo}
-                getAirlineName={getAirlineName}
-                formatToYMD={formatToYMD}
-                formatDate={formatDate}
-                formatTime={formatTime}
-                formatTimeOnly={formatTimeOnly}
-                calculateDuration={calculateDuration}
-                getAirportName={getAirportName}
-                availableFlights={availableFlights}
-                returnFlights={returnFlights}
-                loading={loading}
-                
-              />
-              <Pagination
-                currentPage={currentPage}
-                totalPages={Math.ceil(filteredItineraries.length / flightsPerPage)}
-                handlePageChange={handlePageChange}
-              />
+                    
+                    <span className='text-start'><i className="bi bi-clock"></i> Time Remaining</span>
+                    <span className="text-end fw-bold">
+                      {formatTimer(timeRemaining)}
+                    </span>
+                  </motion.div>
+
+                  {/* Sort Navigation */}
+                  <SortNavigation
+                    sortOrder={sortOrder}
+                    handleSortChange={handleSortChange}
+                    isSearchFormVisible={isSearchFormVisible}
+                    toggleSearchForm={toggleSearchForm}
+                  />
+                  <ItineraryList
+                    paginatedItineraries={filteredItineraries.slice(
+                      (currentPage - 1) * flightsPerPage,
+                      currentPage * flightsPerPage
+                    )}
+                    searchParams={searchParams}
+                    openDetailsId={openDetailsId}
+                    setOpenDetailsId={setOpenDetailsId}
+                    getAirlineLogo={getAirlineLogo}
+                    getAirlineName={getAirlineName}
+                    formatToYMD={formatToYMD}
+                    formatDate={formatDate}
+                    formatTime={formatTime}
+                    formatTimeOnly={formatTimeOnly}
+                    calculateDuration={calculateDuration}
+                    getAirportName={getAirportName}
+                    availableFlights={availableFlights}
+                    returnFlights={returnFlights}
+                    loading={loading}
+                  />
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={Math.ceil(filteredItineraries.length / flightsPerPage)}
+                    handlePageChange={handlePageChange}
+                  />
+                </>
+              )}
             </div>
           </div>
         </div>
