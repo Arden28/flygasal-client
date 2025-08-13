@@ -13,7 +13,7 @@ import TripReviewPage from "../pages/client/TripReviewPage";
 import BookingConfirmationPage from "../pages/client/BookingConfirmationPage";
 import Login from "../pages/client/Login";
 import Register from "../pages/client/Register";
-import SignupSuccessPage from "../pages/client/RegisterSuccessPage";
+import RegisterSuccessPage from "../pages/client/RegisterSuccessPage";
 import AboutPage from "../pages/client/AboutPage";
 import DashboardPage from "../pages/client/DashboardPage";
 import BookingsPage from "../pages/client/BookingsPage";
@@ -35,6 +35,7 @@ import ConfirmationSuccessPage from "../pages/client/ConfirmationSuccessPage";
 export default function AppRoutes() {
 
     const { user, logout, loading } = useContext(AuthContext);
+      console.log('ClientLayout user:', user);
     const [message, setMessage] = useState({ text: '', type: '' }); // Global message state
     const [currentView, setCurrentView] = useState('');
     
@@ -54,7 +55,7 @@ export default function AppRoutes() {
             path="/flights/invoice/:orderNumber"
             element={<ConfirmationSuccessPage user={user} />}
           />
-          <Route path="/signup-success" element={<SignupSuccessPage />} />
+          <Route path="/signup-success" element={<RegisterSuccessPage />} />
           {/* Profile */}
           <Route path="/dashboard" element={<DashboardPage user={user} /> } />
           <Route path="/bookings" element={<BookingsPage />} />

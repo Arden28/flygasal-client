@@ -11,7 +11,7 @@ const T = {
   last_name: 'Last Name',
   select: 'Select',
   country: 'Country',
-  phone_number: 'Phone Number',
+  phone: 'Phone Number',
   email: 'Email',
   address: 'Address',
   password: 'Password',
@@ -43,13 +43,15 @@ const Register = ({
   const [formState, setFormState] = useState({
     name: '',
     phone_country_code: null, // Stores the selected option object from react-select
-    phone_number: '',
+    phone: '',
     email: '',
     password: '',
+    walletBalance: 0,
     agency_name: '',
     agency_license: '',
     agency_address: '',
-    agency_city: ''
+    agency_city: '',
+    agency_logo: null,
   });
   const [formErrors, setFormErrors] = useState({});
 
@@ -177,10 +179,10 @@ const Register = ({
     if (!formState.phone_country_code) {
       errors.phone_country_code = 'Country is required.';
     }
-    if (!formState.phone_number.trim()) {
-      errors.phone_number = 'Phone Number is required.';
-    } else if (!/^\d{7,15}$/.test(formState.phone_number.trim())) {
-      errors.phone_number = 'Phone number must be 7-15 digits.';
+    if (!formState.phone.trim()) {
+      errors.phone = 'Phone Number is required.';
+    } else if (!/^\d{7,15}$/.test(formState.phone.trim())) {
+      errors.phone = 'Phone number must be 7-15 digits.';
     }
     if (!formState.email.trim()) {
       errors.email = 'Email is required.';
@@ -223,42 +225,30 @@ const Register = ({
     // Simulate API call
     
     try {
-        const newUser = { ...addUser, id: `user_${Date.now()}` };
-        await apiService.post('/admin/users', newUser);
-        toast.success('User added successfully!');
-    } catch (error) {
-        console.error('Add failed:', error);
-          toast.error('Something went wrong. Could not add user.');
-    }
-    fetch(signupUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        name: formState.name,
-        phone_country_code: formState.phone_country_code?.id || '',
-        phone_number: formState.phone_number,
-        email: formState.email,
-        password: formState.password,
-        agency_name: formState.agency_name,
-        agency_license: formState.agency_license,
-        agency_city: formState.agency_city,
-        agency_address: formState.agency_address,
-        form_token: formToken,
-        // 'g-recaptcha-response': window.grecaptcha ? window.grecaptcha.getResponse() : '', // Get reCAPTCHA response token
-      }).toString(),
-    })
-      .then((response) => response.json())
-      .then((data) => {
+        const newUser = {
+          name: formState.name,
+          phone_country_code: formState.phone_country_code?.id || '',
+          phone: formState.phone,
+          email: formState.email,
+          password: formState.password,
+          walletBalance: formState.walletBalance,
+          // Add agency details
+          agency_name: formState.agency_name,
+          agency_license: formState.agency_license,
+          agency_city: formState.agency_city,
+          agency_address: formState.agency_address,
+          agency_logo: formState.agency_logo,
+        };
+        const response = await apiService.post('/admin/users', newUser);
         setIsLoading(false);
-        console.log('Signup response:', data);
-        // Handle success/failure based on 'data'
-        if (data.success) {
-          alert('Registration successful!');
+        console.log('User added successfully:', response.data);
+        if (response.data.success) {
+          
           // Reset form and reCAPTCHA
           setFormState({
             name: '',
             phone_country_code: null,
-            phone_number: '',
+            phone: '',
             email: '',
             password: '',
             agency_name: '',
@@ -268,26 +258,13 @@ const Register = ({
           });
           setIsAgreed(false);
           setIsRecaptchaVerified(false);
-          if (window.grecaptcha) {
-            window.grecaptcha.reset();
-          }
-        } else {
-          alert(`Registration failed: ${data.message || 'Unknown error'}`);
-          if (window.grecaptcha) {
-            window.grecaptcha.reset(); // Reset reCAPTCHA on failure
-            setIsRecaptchaVerified(false);
-          }
         }
-      })
-      .catch((error) => {
-        setIsLoading(false);
-        console.error('Error during signup:', error);
+        
+    } catch (error) {
+        console.error('Add failed:', error);
         alert('An error occurred during signup.');
-        if (window.grecaptcha) {
-          window.grecaptcha.reset(); // Reset reCAPTCHA on network error
-          setIsRecaptchaVerified(false);
-        }
-      });
+    }
+    // setIsLoading(false);
   };
 
   return (
@@ -506,18 +483,18 @@ const Register = ({
                             <div className="form-floating mb-3 col-md-6">
                               <input
                                 type="tel"
-                                className={`form-control ${formErrors.phone_number ? 'is-invalid' : ''}`}
-                                id="phone_number"
+                                className={`form-control ${formErrors.phone ? 'is-invalid' : ''}`}
+                                id="phone"
                                 placeholder=" "
-                                name="phone_number"
-                                value={formState.phone_number}
+                                name="phone"
+                                value={formState.phone}
                                 onChange={handleInputChange}
                                 required
-                                aria-describedby="phone_number_error"
+                                aria-describedby="phone_error"
                               />
-                              <label htmlFor="phone_number">{T.phone_number}</label>
-                              {formErrors.phone_number && (
-                                <div id="phone_number_error" className="invalid-feedback">{formErrors.phone_number}</div>
+                              <label htmlFor="phone">{T.phone}</label>
+                              {formErrors.phone && (
+                                <div id="phone_error" className="invalid-feedback">{formErrors.phone}</div>
                               )}
                             </div>
                             

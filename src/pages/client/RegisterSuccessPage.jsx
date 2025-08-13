@@ -9,7 +9,7 @@ const T = {
 
 const SignupSuccessPage = () => {
     return (
-        <div className="container mt-5 mb-5">
+        <div className="container mt-[130px] mb-5">
             <div className="col-md-4 mx-auto">
                 <div className="rounded border p-3 text-center pt-5 pb-5 bg-light">
                     <svg

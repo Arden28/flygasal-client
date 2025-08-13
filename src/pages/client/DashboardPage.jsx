@@ -131,7 +131,7 @@ const DashboardPage = ({
                                     <i className="bi bi-plus-circle fs-4 text-end cursor-pointer" title='Add fund'></i>
                                 </div>
                                 <h1 className="">
-                                    <small>{dashboardDetails.balance}</small> <strong>{dashboardDetails.currency}</strong>
+                                    <small>{user.wallet_balance}</small> <strong>{user.agency_currency}</strong>
                                 </h1>
                             </div>
                         </div>

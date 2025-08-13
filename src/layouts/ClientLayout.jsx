@@ -15,13 +15,29 @@ export default function ClientLayout() {
 
   useEffect(() => {
     // Define paths where unauthenticated users should be allowed
-    const allowedPathsForUnauthenticated = ['/signup', '/forgot-password', '/reset-password']; // Add any other relevant paths
+    const allowedPathsForUnauthenticated = [
+      '/signup',
+      '/forgot-password',
+      '/reset-password',
+      '/signup-success' // Added '/signup-success' to allowed paths
+    ];
 
-    // If not loading, no user, and the current path is NOT one of the allowed paths, redirect to login
+    // Case 1: If not loading, no user, and the current path is NOT one of the allowed unauthenticated paths, redirect to login.
+    // This ensures users are redirected to login if they try to access protected routes without authentication.
     if (!loading && !user && !allowedPathsForUnauthenticated.includes(location.pathname)) {
       navigate('/login');
     }
-  }, [loading, user, navigate, location.pathname]); // Add location.pathname to dependencies
+
+    // Case 2: If user is loaded, exists, and their status is 0 (inactivated),
+    // redirect them to the '/signup-success' page, unless they are already on it.
+    // This is crucial for guiding newly registered but unactivated users.
+    if (!loading && user && user.is_active === 0 && location.pathname !== '/signup-success') {
+      navigate('/signup-success');
+    }
+    // Note: If user.status is not 0, and they are not unauthenticated, they will
+    // proceed to the requested page, assuming they are authenticated and active.
+
+  }, [loading, user, navigate, location.pathname]); // Dependencies for the effect
 
 
   return (
