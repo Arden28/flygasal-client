@@ -35,7 +35,7 @@ import ConfirmationSuccessPage from "../pages/client/ConfirmationSuccessPage";
 export default function AppRoutes() {
 
     const { user, logout, loading } = useContext(AuthContext);
-      console.log('ClientLayout user:', user);
+    // console.log('ClientLayout user:', user);
     const [message, setMessage] = useState({ text: '', type: '' }); // Global message state
     const [currentView, setCurrentView] = useState('');
     
