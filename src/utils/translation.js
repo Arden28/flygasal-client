@@ -31,4 +31,6 @@ export const T = {
     updateagency: 'Update Agency',
     agencyupdatedsuccessfully: 'Agency updated successfully',
     agencyinformation: 'Agency Information',
+    markupsinformation: 'Markups Information',
+    agency_markups: 'Flight Markups',
 };

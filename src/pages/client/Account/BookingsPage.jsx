@@ -1,209 +1,243 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import Headbar from "../../../components/client/Headbar";
 import { AuthContext } from "../../../context/AuthContext";
 import { T } from "../../../utils/translation";
 
+/**
+ * BookingsPage (Refined)
+ * - Modern layout with responsive table (desktop) and cards (mobile)
+ * - Client-side search + basic filters scaffolding
+ * - Status chips, action menu, pagination skeleton
+ * - Accessible labels, consistent spacing, dark-mode friendly classes
+ * - Plug your data source into `bookings` (array) or fetch via effect
+ */
+const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
+  const { user } = useContext(AuthContext);
 
-const BookingsPage = ({
-    rootUrl = '/'
-}) => {
+  // Ingest bookings from props or state. Replace with a fetch if needed.
+  const [bookings, setBookings] = useState(initialBookings);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all"); // all | confirmed | pending | cancelled
+  const [typeFilter, setTypeFilter] = useState("all"); // all | flight | hotel | car | other
 
-    const { user, loading } = useContext(AuthContext);
-    const [dashboardDetails, setDashboardDetails] = useState({
-        balance: '0.00',
+  // Simple filters
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return bookings.filter((b) => {
+      const matchesQ = !q
+        || String(b.client_name || "").toLowerCase().includes(q)
+        || String(b.booking_id || "").toLowerCase().includes(q)
+        || String(b.pnr || "").toLowerCase().includes(q);
+      const sOk = statusFilter === "all" || String(b.status || "").toLowerCase() === statusFilter;
+      const tOk = typeFilter === "all" || String(b.type || "").toLowerCase() === typeFilter;
+      return matchesQ && sOk && tOk;
     });
+  }, [bookings, query, statusFilter, typeFilter]);
 
+  const StatusChip = ({ value }) => {
+    const v = String(value || "").toLowerCase();
+    const map = {
+      confirmed: "bg-green-100 text-green-700 border-green-200",
+      pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      cancelled: "bg-red-100 text-red-700 border-red-200",
+      failed: "bg-red-100 text-red-700 border-red-200",
+      refunded: "bg-purple-100 text-purple-700 border-purple-200",
+    };
+    const cls = map[v] || "bg-gray-100 text-gray-600 border-gray-200";
     return (
-        <div>
-            <Headbar T={T} rootUrl={rootUrl} user={user} />
-            {/* booking management components here */}
-            <section class="p-0">
-                <div className="p-4 mb-2">
-                    <h4>Bookings</h4>
-                    <p className="mb-0">This is where you can manage your bookings.</p>
-                </div>
-                <div class="">
-                    {/* Table */}
-                    <div class="bg-white dark:bg-gray-800 relative shadow-md sm:rounded-lg overflow-hidden">
-                        <div class="flex flex-col md:flex-row items-center justify-between space-y-3 md:space-y-0 md:space-x-4 p-4">
-                            <div class="w-full md:w-1/2">
-                                <form class="flex items-center">
-                                    <label for="simple-search" class="sr-only">Search</label>
-                                    <div class="relative w-full">
-                                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                            <svg aria-hidden="true" class="w-5 h-5 text-gray-500 dark:text-gray-400" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                                <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
-                                            </svg>
-                                        </div>
-                                        <input type="text" id="simple-search" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 p-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="Search" required="" />
-                                    </div>
-                                </form>
-                            </div>
-                            <div class="w-full md:w-auto flex flex-col md:flex-row space-y-2 md:space-y-0 items-stretch md:items-center justify-end md:space-x-3 flex-shrink-0">
-                                <button type="button" class="flex items-center justify-center text-white bg-primary-700 hover:bg-primary-800 focus:ring-4 focus:ring-primary-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-primary-600 dark:hover:bg-primary-700 focus:outline-none dark:focus:ring-primary-800">
-                                    <svg class="h-3.5 w-3.5 mr-2" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                        <path clip-rule="evenodd" fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" />
-                                    </svg>
-                                    Add product
-                                </button>
-                                <div class="flex items-center space-x-3 w-full md:w-auto">
-                                    <button id="actionsDropdownButton" data-dropdown-toggle="actionsDropdown" class="w-full md:w-auto flex items-center justify-center py-2 px-4 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-primary-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700" type="button">
-                                        <svg class="-ml-1 mr-1.5 w-5 h-5" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                            <path clip-rule="evenodd" fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                                        </svg>
-                                        Actions
-                                    </button>
-                                    <div id="actionsDropdown" class="hidden z-10 w-44 bg-white rounded divide-y divide-gray-100 shadow dark:bg-gray-700 dark:divide-gray-600">
-                                        <ul class="py-1 text-sm text-gray-700 dark:text-gray-200" aria-labelledby="actionsDropdownButton">
-                                            <li>
-                                                <a href="#" class="block py-2 px-4 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Mass Edit</a>
-                                            </li>
-                                        </ul>
-                                        <div class="py-1">
-                                            <a href="#" class="block py-2 px-4 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white">Delete all</a>
-                                        </div>
-                                    </div>
-                                    <button id="filterDropdownButton" data-dropdown-toggle="filterDropdown" class="w-full md:w-auto flex items-center justify-center py-2 px-4 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 hover:text-primary-700 focus:z-10 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700" type="button">
-                                        <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="h-4 w-4 mr-2 text-gray-400" viewbox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
-                                        </svg>
-                                        Filter
-                                        <svg class="-mr-1 ml-1.5 w-5 h-5" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                            <path clip-rule="evenodd" fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                                        </svg>
-                                    </button>
-                                    <div id="filterDropdown" class="z-10 hidden w-48 p-3 bg-white rounded-lg shadow dark:bg-gray-700">
-                                        <h6 class="mb-3 text-sm font-medium text-gray-900 dark:text-white">Choose brand</h6>
-                                        <ul class="space-y-2 text-sm" aria-labelledby="filterDropdownButton">
-                                            <li class="flex items-center">
-                                                <input id="apple" type="checkbox" value="" class="w-4 h-4 bg-gray-100 border-gray-300 rounded text-primary-600 focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-700 focus:ring-2 dark:bg-gray-600 dark:border-gray-500" />
-                                                <label for="apple" class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-100">Apple (56)</label>
-                                            </li>
-                                            <li class="flex items-center">
-                                                <input id="fitbit" type="checkbox" value="" class="w-4 h-4 bg-gray-100 border-gray-300 rounded text-primary-600 focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-700 focus:ring-2 dark:bg-gray-600 dark:border-gray-500" />
-                                                <label for="fitbit" class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-100">Microsoft (16)</label>
-                                            </li>
-                                            <li class="flex items-center">
-                                                <input id="razor" type="checkbox" value="" class="w-4 h-4 bg-gray-100 border-gray-300 rounded text-primary-600 focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-700 focus:ring-2 dark:bg-gray-600 dark:border-gray-500" />
-                                                <label for="razor" class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-100">Razor (49)</label>
-                                            </li>
-                                            <li class="flex items-center">
-                                                <input id="nikon" type="checkbox" value="" class="w-4 h-4 bg-gray-100 border-gray-300 rounded text-primary-600 focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-700 focus:ring-2 dark:bg-gray-600 dark:border-gray-500" />
-                                                <label for="nikon" class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-100">Nikon (12)</label>
-                                            </li>
-                                            <li class="flex items-center">
-                                                <input id="benq" type="checkbox" value="" class="w-4 h-4 bg-gray-100 border-gray-300 rounded text-primary-600 focus:ring-primary-500 dark:focus:ring-primary-600 dark:ring-offset-gray-700 focus:ring-2 dark:bg-gray-600 dark:border-gray-500" />
-                                                <label for="benq" class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-100">BenQ (74)</label>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                                <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                                    <tr>
-                                        <th scope="col" class="p-4">
-                                            <div class="flex items-center">
-                                                <input id="checkbox-all-search" type="checkbox" class="w-4 h-4 rounded-2 text-blue-600 bg-gray-100 border-gray-300 rounded-sm focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" />
-                                                <label for="checkbox-all-search" class="sr-only">checkbox</label>
-                                            </div>
-                                        </th>
-                                        <th scope="col" class="px-4 py-3">Cient Name</th>
-                                        <th scope="col" class="px-4 py-3">Booking ID</th>
-                                        <th scope="col" class="px-4 py-3">PNR</th>
-                                        <th scope="col" class="px-4 py-3">Type</th>
-                                        <th scope="col" class="px-4 py-3">Price</th>
-                                        <th scope="col" class="px-4 py-3">
-                                            <span class="sr-only">Actions</span>
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr class="border-b dark:border-gray-700">
-                                        <td class="w-4 p-4">
-                                            <div class="flex items-center">
-                                                <input id="checkbox-table-search-1" type="checkbox" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded-sm focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 dark:focus:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" />
-                                                <label for="checkbox-table-search-1" class="sr-only">checkbox</label>
-                                            </div>
-                                        </td>
-                                        <th scope="row" class="px-4 py-3 font-medium text-gray-900 whitespace-nowrap dark:text-white">Apple iMac 27&#34;</th>
-                                        <td class="px-4 py-3">PC</td>
-                                        <td class="px-4 py-3">Apple</td>
-                                        <td class="px-4 py-3">300</td>
-                                        <td class="px-4 py-3">$2999</td>
-                                        <td class="px-4 py-3 flex items-center justify-end">
-                                            <button id="apple-imac-27-dropdown-button" data-dropdown-toggle="apple-imac-27-dropdown" class="inline-flex items-center p-0.5 text-sm font-medium text-center text-gray-500 hover:text-gray-800 rounded-lg focus:outline-none dark:text-gray-400 dark:hover:text-gray-100" type="button">
-                                                <svg class="w-5 h-5" aria-hidden="true" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                                    <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
-                                                </svg>
-                                            </button>
-                                            <div id="apple-imac-27-dropdown" class="hidden z-10 w-44 bg-white rounded divide-y divide-gray-100 shadow dark:bg-gray-700 dark:divide-gray-600">
-                                                <ul class="py-1 text-sm text-gray-700 dark:text-gray-200" aria-labelledby="apple-imac-27-dropdown-button">
-                                                    <li>
-                                                        <a href="#" class="block py-2 px-4 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Show</a>
-                                                    </li>
-                                                    <li>
-                                                        <a href="#" class="block py-2 px-4 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Edit</a>
-                                                    </li>
-                                                </ul>
-                                                <div class="py-1">
-                                                    <a href="#" class="block py-2 px-4 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white">Delete</a>
-                                                </div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <nav class="flex flex-col md:flex-row justify-between items-start md:items-center space-y-3 md:space-y-0 p-4" aria-label="Table navigation">
-                            <span class="text-sm font-normal text-gray-500 dark:text-gray-400">
-                                Showing
-                                <span class="font-semibold text-gray-900 dark:text-white">1-10</span>
-                                of
-                                <span class="font-semibold text-gray-900 dark:text-white">1000</span>
-                            </span>
-                            <ul class="inline-flex items-stretch -space-x-px">
-                                <li>
-                                    <a href="#" class="flex items-center justify-center h-full py-1.5 px-3 ml-0 text-gray-500 bg-white rounded-l-lg border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">
-                                        <span class="sr-only">Previous</span>
-                                        <svg class="w-5 h-5" aria-hidden="true" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                            <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                        </svg>
-                                    </a>
-                                </li>
-                                <li>
-                                    <a href="#" class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">1</a>
-                                </li>
-                                <li>
-                                    <a href="#" class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">2</a>
-                                </li>
-                                <li>
-                                    <a href="#" aria-current="page" class="flex items-center justify-center text-sm z-10 py-2 px-3 leading-tight text-primary-600 bg-primary-50 border border-primary-300 hover:bg-primary-100 hover:text-primary-700 dark:border-gray-700 dark:bg-gray-700 dark:text-white">3</a>
-                                </li>
-                                <li>
-                                    <a href="#" class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">...</a>
-                                </li>
-                                <li>
-                                    <a href="#" class="flex items-center justify-center text-sm py-2 px-3 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">100</a>
-                                </li>
-                                <li>
-                                    <a href="#" class="flex items-center justify-center h-full py-1.5 px-3 leading-tight text-gray-500 bg-white rounded-r-lg border border-gray-300 hover:bg-gray-100 hover:text-gray-700 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white">
-                                        <span class="sr-only">Next</span>
-                                        <svg class="w-5 h-5" aria-hidden="true" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                                        </svg>
-                                    </a>
-                                </li>
-                            </ul>
-                        </nav>
-                    </div>
-                </div>
-            </section>
-
-        </div>
+      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${cls}`}>
+        {value || "—"}
+      </span>
     );
+  };
+
+  const currency = (num, curr = "USD") => {
+    const n = Number(num);
+    if (Number.isNaN(n)) return num ?? "";
+    try {
+      return new Intl.NumberFormat(undefined, { style: "currency", currency: curr }).format(n);
+    } catch {
+      return `${n.toLocaleString()} ${curr}`;
+    }
+  };
+
+  return (
+    <div>
+      <Headbar T={T} rootUrl={rootUrl} user={user} />
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 mb-10">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">{T.bookings || "Bookings"}</h1>
+            <p className="text-sm text-gray-600">{T.bookings_subtitle || "Manage and track your bookings across products."}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2"
+              onClick={() => {/* TODO: open create booking or import flow */}}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2z"/></svg>
+              {T.add_booking || "Add Booking"}
+            </button>
+          </div>
+        </div>
+
+        {/* Controls */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label htmlFor="q" className="sr-only">{T.search || "Search"}</label>
+              <div className="relative">
+                <input
+                  id="q"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={T.search_placeholder || "Search by client, booking ID, PNR"}
+                  className="block w-full rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 pl-10 px-3 py-2.5"
+                />
+                <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-500">
+                  <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd"/></svg>
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">{T.status || "Status"}</label>
+              <select
+                id="status"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="block w-full rounded-xl border border-gray-300 px-3 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+              >
+                <option value="all">{T.all || "All"}</option>
+                <option value="confirmed">{T.confirmed || "Confirmed"}</option>
+                <option value="pending">{T.pending || "Pending"}</option>
+                <option value="cancelled">{T.cancelled || "Cancelled"}</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">{T.type || "Type"}</label>
+              <select
+                id="type"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="block w-full rounded-xl border border-gray-300 px-3 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+              >
+                <option value="all">{T.all || "All"}</option>
+                <option value="flight">{T.flight || "Flight"}</option>
+                <option value="hotel">{T.hotel || "Hotel"}</option>
+                <option value="car">{T.car || "Car"}</option>
+                <option value="other">{T.other || "Other"}</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          {filtered.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="mx-auto mb-3 h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="text-gray-400"><path d="M12 1a9 9 0 019 9c0 7-9 13-9 13S3 17 3 10a9 9 0 019-9zm0 4a5 5 0 100 10 5 5 0 000-10z"/></svg>
+              </div>
+              <h3 className="text-base font-medium">{T.no_results || "No bookings found"}</h3>
+              <p className="text-sm text-gray-600 mt-1">{T.adjust_filters || "Try adjusting your filters or search term."}</p>
+            </div>
+          ) : (
+            <div className="-mx-4 sm:mx-0">
+              {/* Table (desktop) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-600 border-b">
+                      <th className="py-3 px-3 w-10">
+                        <input type="checkbox" aria-label="Select all" className="h-4 w-4 rounded border-gray-300" />
+                      </th>
+                      <th className="py-3 pr-3">{T.client_name || "Client Name"}</th>
+                      <th className="py-3 pr-3">{T.booking_id || "Booking ID"}</th>
+                      <th className="py-3 pr-3">PNR</th>
+                      <th className="py-3 pr-3">{T.type || "Type"}</th>
+                      <th className="py-3 pr-3">{T.price || "Price"}</th>
+                      <th className="py-3 pr-3">{T.status || "Status"}</th>
+                      <th className="py-3 pl-3">{T.actions || "Actions"}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((b) => (
+                      <tr key={b.booking_id || b.id} className="border-b last:border-b-0">
+                        <td className="py-3 px-3"><input type="checkbox" className="h-4 w-4 rounded border-gray-300" aria-label={`Select booking ${b.booking_id || b.id}`} /></td>
+                        <td className="py-3 pr-3 font-medium text-gray-900">{b.client_name || "—"}</td>
+                        <td className="py-3 pr-3">{b.booking_id || b.id || "—"}</td>
+                        <td className="py-3 pr-3">{b.pnr || "—"}</td>
+                        <td className="py-3 pr-3 capitalize">{b.type || "—"}</td>
+                        <td className="py-3 pr-3">{currency(b.price, b.currency || "USD")}</td>
+                        <td className="py-3 pr-3"><StatusChip value={b.status} /></td>
+                        <td className="py-3 pl-3">
+                          <div className="flex items-center gap-2">
+                            <button className="rounded-lg border px-2.5 py-1.5 text-xs hover:bg-gray-50" onClick={() => {/* TODO: show */}}>{T.show || "Show"}</button>
+                            <button className="rounded-lg border px-2.5 py-1.5 text-xs hover:bg-gray-50" onClick={() => {/* TODO: edit */}}>{T.edit || "Edit"}</button>
+                            <button className="rounded-lg border px-2.5 py-1.5 text-xs hover:bg-gray-50 text-red-600" onClick={() => {/* TODO: delete */}}>{T.delete || "Delete"}</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Cards (mobile) */}
+              <div className="md:hidden space-y-3 p-4">
+                {filtered.map((b) => (
+                  <div key={b.booking_id || b.id} className="rounded-xl border border-gray-100 p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium">{b.client_name || "—"}</div>
+                      <StatusChip value={b.status} />
+                    </div>
+                    <div className="mt-2 text-sm text-gray-700">{b.booking_id || b.id || "—"} · PNR: {b.pnr || "—"}</div>
+                    <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <div className="text-gray-500">{T.type || "Type"}</div>
+                        <div className="font-medium capitalize">{b.type || "—"}</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-500">{T.price || "Price"}</div>
+                        <div className="font-medium">{currency(b.price, b.currency || "USD")}</div>
+                      </div>
+                      <div className="col-span-2">
+                        <div className="text-gray-500">{T.actions || "Actions"}</div>
+                        <div className="mt-1 flex items-center gap-2">
+                          <button className="rounded-lg border px-2.5 py-1.5 text-xs hover:bg-gray-50" onClick={() => {/* TODO */}}>{T.show || "Show"}</button>
+                          <button className="rounded-lg border px-2.5 py-1.5 text-xs hover:bg-gray-50" onClick={() => {/* TODO */}}>{T.edit || "Edit"}</button>
+                          <button className="rounded-lg border px-2.5 py-1.5 text-xs hover:bg-gray-50 text-red-600" onClick={() => {/* TODO */}}>{T.delete || "Delete"}</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Pagination (skeleton) */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 p-4 text-sm text-gray-600">
+          <div>
+            {T.pagination_showing || "Showing"} <span className="font-medium">{Math.min(filtered.length, 1)}–{Math.min(filtered.length, 10)}</span> {T.of || "of"} <span className="font-medium">{filtered.length}</span>
+          </div>
+          <div className="inline-flex items-center gap-1">
+            <button className="rounded-lg border px-3 py-1.5 hover:bg-gray-50" aria-label="Previous">‹</button>
+            <button className="rounded-lg border px-3 py-1.5 bg-gray-100">1</button>
+            <button className="rounded-lg border px-3 py-1.5 hover:bg-gray-50">2</button>
+            <button className="rounded-lg border px-3 py-1.5 hover:bg-gray-50">…</button>
+            <button className="rounded-lg border px-3 py-1.5 hover:bg-gray-50" aria-label="Next">›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default BookingsPage;
