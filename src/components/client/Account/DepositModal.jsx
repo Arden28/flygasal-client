@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import Swal from 'sweetalert2';
 import 'toastr/build/toastr.min.css';
 import toastr from 'toastr';
 import apiService from '../../../api/apiService';
+import { AuthContext } from '../../../context/AuthContext';
 
-const DepositModal = ({ apiUrl, rootUrl, user, bankTransfer, onSuccess }) => {
+const DepositModal = ({ bankTransfer, onSuccess }) => {
+    const { user, loading } = useContext(AuthContext);
     const [formState, setFormState] = useState({
         amount: '',
         currency: 'USD',

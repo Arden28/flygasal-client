@@ -24,7 +24,8 @@ const DepositPage = ({ rootUrl = '/', apiUrl = '/api/' }) => {
             try {
                 const response = await apiService.post('/transactions', { user_id: user.id });
 
-                if (response.data.status === 'true') {
+                // console.log('Deposits Response:', response);
+                if (response.success === 'true') {
                     const deposits = response.data.data || [];
                     console.log('Deposits Response:', deposits);
                     setDeposits(deposits);
@@ -34,6 +35,7 @@ const DepositPage = ({ rootUrl = '/', apiUrl = '/api/' }) => {
                     toastr.error(response.data.message || 'Failed to fetch deposits');
                 }
             } catch (error) {
+                console.error('Fetch deposits error (full):', error);
                 // Show error only if request actually fails
                 toastr.error('Error fetching deposits');
                 console.error('Fetch deposits error:', error);
