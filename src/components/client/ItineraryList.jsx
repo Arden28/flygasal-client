@@ -23,8 +23,7 @@ const ItineraryList = ({
   const navigate = useNavigate();
 
   const handleSelectItinerary = (itinerary) => {
-    console.info(`Adults: ${searchParams?.adults}`);
-    // console.info(formatToYMD(itinerary.outbound.departureTime));
+    
     const searchParams2 = new URLSearchParams({
       solutionId: itinerary.outbound.solutionId || '',
       tripType: itinerary.return ? 'return' : 'oneway',

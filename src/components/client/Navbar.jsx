@@ -101,7 +101,7 @@ export default function Navbar() {
   const isActive = (to) => location.pathname === to || location.pathname.startsWith(`${to}/`);
 
   return (
-    <header ref={rootRef} className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-gray-100">
+    <header ref={rootRef} className="sticky top-0 z-250 bg-white/80 backdrop-blur border-b border-gray-100">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-14 items-center justify-between">
           {/* Brand */}

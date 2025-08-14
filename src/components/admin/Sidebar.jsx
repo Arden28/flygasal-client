@@ -12,21 +12,23 @@ import {
   FaMoneyCheck,
   FaPlaneDeparture,
 } from 'react-icons/fa';
+import { Ticket } from 'lucide-react';
 
 const defaultNavItems = [
   { name: 'Dashboard', path: '/admin', icon: HomeIcon },
   { name: 'Users', path: '/admin/users', icon: UsersIcon },
+  { name: 'Bookings', path: '/admin/flights/bookings', icon: Ticket },
   // { name: 'Analytics', path: '/admin/analytics', icon: ChartBarIcon },
-  {
-    name: 'Flights',
-    path: '/admin/flights',
-    icon: FaPlaneDeparture,
-    subItems: [
-      { name: 'Airlines', path: '/admin/flights/airlines' },
-      { name: 'Airports', path: '/admin/flights/airports' },
-      { name: 'Bookings', path: '/admin/flights/bookings' },
-    ],
-  },
+  // {
+  //   name: 'Flights',
+  //   path: '/admin/flights',
+  //   icon: FaPlaneDeparture,
+  //   subItems: [
+  //     { name: 'Airlines', path: '/admin/flights/airlines' },
+  //     { name: 'Airports', path: '/admin/flights/airports' },
+  //     { name: 'Bookings', path: '/admin/flights/bookings' },
+  //   ],
+  // },
   { name: 'Transactions', path: '/admin/transactions', icon: FaMoneyCheck },
   {
     name: 'Settings',

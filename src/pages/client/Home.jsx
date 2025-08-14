@@ -7,7 +7,7 @@ import AppPromoSection from '../../components/client/AppPromoSection';
 
 const Home = () => {
   return (
-    <div className='' style={{ marginTop: '40px' }}>
+    <div className=''>
       {/* Hero Section with background and promotional text */}
       <HeroSection />
 
