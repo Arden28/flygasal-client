@@ -82,6 +82,10 @@ const FilterModal = ({
 }) => {
   const [absMin, absMax] = priceBounds || [100, 4000];
   const [currMin, currMax] = priceRange || [absMin, absMax];
+  const clamped = [
+    Math.max(absMin, Math.min(absMax, currMin)),
+    Math.max(absMin, Math.min(absMax, currMax)),
+  ];
 
   const [airlineSearchOW, setAirlineSearchOW] = useState("");
   const [airlineSearchRT, setAirlineSearchRT] = useState("");
@@ -200,7 +204,7 @@ const FilterModal = ({
                     range
                     min={absMin}
                     max={absMax}
-                    value={[currMin, currMax]}
+                    value={clamped}
                     onChange={handlePriceChange}
                     trackStyle={[{ backgroundColor: "#2563eb", height: 6 }]}
                     handleStyle={[

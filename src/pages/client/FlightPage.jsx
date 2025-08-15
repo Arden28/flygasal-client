@@ -10,13 +10,9 @@ import FlightSearchForm from "../../components/client/FlightSearchForm";
 import flygasal from "../../api/flygasalService";
 import { motion, AnimatePresence } from "framer-motion";
 
-/**
- * FlightPage (Refined + Advanced Filters)
- * - Adds dep/return time windows, max duration, baggage-only, dynamic price bounds
- * - Keeps your stable searchKey, timer, skeletons, and error handling
- */
-
 const flightsPerPage = 25;
+const MAX_RETURNS_PER_OUTBOUND = 6;
+const MAX_RESULTS = 500; // 100 results max
 
 const FlightPage = () => {
   const location = useLocation();
@@ -30,14 +26,14 @@ const FlightPage = () => {
   // Filters / sorting / pagination
   const [minPrice, setMinPrice] = useState(0);
   const [maxPrice, setMaxPrice] = useState(10000);
-  const [priceBounds, setPriceBounds] = useState([100, 4000]); // NEW absolute min/max
+  const [priceBounds, setPriceBounds] = useState([100, 4000]);
   const [currentStop, setCurrentStop] = useState("mix");
   const [checkedOnewayValue, setCheckedOnewayValue] = useState([]);
   const [checkedReturnValue, setCheckedReturnValue] = useState([]);
-  const [depTimeRange, setDepTimeRange] = useState([0, 24]);   // NEW outbound depart window
-  const [retTimeRange, setRetTimeRange] = useState([0, 24]);   // NEW return depart window
-  const [maxDurationHours, setMaxDurationHours] = useState(48);// NEW total duration cap
-  const [baggageOnly, setBaggageOnly] = useState(false);       // NEW baggage filter
+  const [depTimeRange, setDepTimeRange] = useState([0, 24]);
+  const [retTimeRange, setRetTimeRange] = useState([0, 24]);
+  const [maxDurationHours, setMaxDurationHours] = useState(48);
+  const [baggageOnly, setBaggageOnly] = useState(false);
   const [sortOrder, setSortOrder] = useState("asc");
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -49,9 +45,16 @@ const FlightPage = () => {
   const [error, setError] = useState("");
 
   // Expiration timer
-  const [timeRemaining, setTimeRemaining] = useState(900); // 15m
+  const [timeRemaining, setTimeRemaining] = useState(900);
   const [isExpired, setIsExpired] = useState(false);
   const timerRef = useRef(null);
+
+  // Markup
+  const agentMarkupPercent =
+    typeof window !== "undefined" && window.__AGENT__?.agent_markup != null
+      ? Number(window.__AGENT__.agent_markup)
+      : 0;
+  const currency = "USD";
 
   // ---------- Helpers ----------
   const formatTimer = (s) => {
@@ -60,9 +63,12 @@ const FlightPage = () => {
     return `${m}:${sec < 10 ? "0" : ""}${sec}`;
   };
 
-  const formatDate = (d) => (d ? new Date(d).toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" }) : "");
-  const formatTime = (d) => (d ? new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "");
-  const formatTimeOnly = (d) => (d ? new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: false }) : "");
+  const formatDate = (d) =>
+    d ? new Date(d).toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" }) : "";
+  const formatTime = (d) =>
+    d ? new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+  const formatTimeOnly = (d) =>
+    d ? new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: false }) : "";
   const formatToYMD = (d) => {
     const dt = new Date(d);
     const y = dt.getFullYear();
@@ -79,18 +85,11 @@ const FlightPage = () => {
   };
 
   const getAirportName = (code) => airports.find((a) => a.value === code)?.label || code;
-  const getAirlineName = (code) => {
-    const a = airlines.find((x) => x.code === code);
-    return a?.name || code;
-  };
-  const getAirlineLogo = (code) => {
-    const a = airlines.find((x) => x.code === code);
-    // Prefer dataset logo; fall back to your assets folder pattern
-    return a?.logo || `/assets/img/airlines/${code}.png`;
-  };
+  const getAirlineName = (code) => airlines.find((x) => x.code === code)?.name || code;
+  const getAirlineLogo = (code) => airlines.find((x) => x.code === code)?.logo || `/assets/img/airlines/${code}.png`;
   const toggleSearchForm = () => setIsSearchFormVisible((v) => !v);
 
-  // NEW helpers for advanced filters
+  // Advanced filters helpers
   const getHour = (dt) => (dt ? new Date(dt).getHours() : 0);
   const hasBaggage = (obj) => {
     const b = obj?.baggage || obj?.segments?.[0]?.baggage || "";
@@ -114,7 +113,6 @@ const FlightPage = () => {
       timerRef.current = null;
     }
   };
-
   const startTimer = () => {
     stopTimer();
     setTimeRemaining(900);
@@ -133,15 +131,13 @@ const FlightPage = () => {
     }, 1000);
   };
 
-  // ---------- Fetch flights whenever URL params change ----------
+  // ---------- Fetch flights ----------
   useEffect(() => {
     let abort = new AbortController();
-
     const fetchFlights = async () => {
       setLoading(true);
       setError("");
       setIsExpired(false);
-
       try {
         const qp = new URLSearchParams(location.search);
 
@@ -157,7 +153,6 @@ const FlightPage = () => {
           i++;
         }
 
-        // Normalize params (align with FlightSearchForm)
         const first = legs[0] || { origin: "HKG", destination: "BKK", depart: "2024-12-15" };
         const rawTrip = (qp.get("tripType") || "oneway").toLowerCase();
         const tripType = rawTrip === "return" ? "return" : "oneway";
@@ -178,13 +173,13 @@ const FlightPage = () => {
 
         setSearchParams(params);
 
-        // --- Outbound ---
+        // Outbound
         const res = await flygasal.searchFlights(params, { signal: abort.signal });
         const data = res.data;
         const newKey = data?.searchKey || null;
         const outbound = flygasal.transformPKFareData(data) || [];
 
-        // --- Return (if needed) ---
+        // Return
         let rtn = [];
         if (tripType === "return" && params.returnDate) {
           const returnParams = {
@@ -195,16 +190,15 @@ const FlightPage = () => {
           rtn = flygasal.transformPKFareData(r.data) || [];
         }
 
-        // Lists
         setAvailableFlights(outbound);
         setReturnFlights(rtn);
 
-        // Dynamic price bounds + initialize current range
+        // Dynamic price bounds
         const allPrices = [...outbound, ...rtn].map((f) => f.price).filter((p) => typeof p === "number");
         if (allPrices.length) {
           const absMin = Math.floor(Math.min(...allPrices));
           const absMax = Math.ceil(Math.max(...allPrices));
-          setPriceBounds([absMin, absMax]); // NEW bounds
+          setPriceBounds([absMin, absMax]);
           setMinPrice(absMin);
           setMaxPrice(absMax);
         } else {
@@ -213,7 +207,7 @@ const FlightPage = () => {
           setMaxPrice(10000);
         }
 
-        // searchKey only after success
+        // searchKey
         if (newKey) {
           setSearchKey(newKey);
           qp.set("searchKey", newKey);
@@ -221,7 +215,6 @@ const FlightPage = () => {
           window.history.replaceState(null, "", newUrl);
         }
 
-        // Timer
         startTimer();
       } catch (err) {
         if (err?.name === "AbortError") return;
@@ -244,10 +237,17 @@ const FlightPage = () => {
   // ---------- Derived lists ----------
   const itineraries = useMemo(() => {
     if (!searchParams) return [];
+
     if (searchParams.tripType === "return") {
       const items = [];
-      availableFlights.forEach((out) => {
-        returnFlights.forEach((ret) => {
+      // sort returns once (cheapest first) and reuse for all outbounds
+      const sortedReturns = [...returnFlights].sort(
+        (a, b) => (a.price || 0) - (b.price || 0)
+      );
+
+      for (const out of availableFlights) {
+        const topReturns = sortedReturns.slice(0, MAX_RETURNS_PER_OUTBOUND);
+        for (const ret of topReturns) {
           items.push({
             id: `${out.id}-${ret.id}`,
             outbound: out,
@@ -259,10 +259,14 @@ const FlightPage = () => {
             baggage: out.segments?.[0]?.baggage || "1PC 7KG carry-on",
             refundable: false,
           });
-        });
-      });
+          // if (items.length >= MAX_RESULTS) break;
+        }
+        // if (items.length >= MAX_RESULTS) break;
+      }
       return items;
     }
+
+    // oneway
     return (availableFlights || []).map((f) => ({
       id: f.id,
       outbound: f,
@@ -276,18 +280,28 @@ const FlightPage = () => {
     }));
   }, [searchParams, availableFlights, returnFlights]);
 
+  // Filter + sort
   const filteredItineraries = useMemo(() => {
     return itineraries
       .filter((it) => {
-        // price
         const priceOk = it.totalPrice >= minPrice && it.totalPrice <= maxPrice;
 
-        // stops
-        const stopsOk = currentStop === "mix" || `oneway_${it.totalStops}` === currentStop;
+        // normalize stops: 0 / 1 / 2+
+        const stopsCount = Math.max(0, Number.isFinite(it.totalStops) ? it.totalStops : 0);
+        const stopClass = stopsCount >= 2 ? "oneway_2" : `oneway_${stopsCount}`;
+        const stopsOk = currentStop === "mix" || currentStop === stopClass;
 
-        // airlines
-        const owOk = checkedOnewayValue.length === 0 || it.airlines.some((a) => checkedOnewayValue.includes(`oneway_${a}`));
-        const rtOk = checkedReturnValue.length === 0 || it.airlines.some((a) => checkedReturnValue.includes(`return_${a}`));
+        // outbound vs return airline filters
+        const obCode = it.outbound?.airline || "";
+        const rtCode = it.return?.airline || "";
+
+        const owOk =
+          checkedOnewayValue.length === 0 || (obCode && checkedOnewayValue.includes(`oneway_${obCode}`));
+
+        const rtOk =
+          !it.return ||
+          checkedReturnValue.length === 0 ||
+          (rtCode && checkedReturnValue.includes(`return_${rtCode}`));
 
         // time windows
         const owDep = getHour(it.outbound?.segments?.[0]?.departureTime || it.outbound?.departureTime);
@@ -299,11 +313,9 @@ const FlightPage = () => {
           rtTimeOk = rtDep >= retTimeRange[0] && rtDep <= retTimeRange[1];
         }
 
-        // total duration cap
+        // duration + baggage
         const durHrs = totalDurationMins(it.outbound, it.return) / 60;
         const durationOk = durHrs <= maxDurationHours;
-
-        // baggage
         const bagOk = !baggageOnly || hasBaggage(it.outbound) || (it.return && hasBaggage(it.return));
 
         return priceOk && stopsOk && owOk && rtOk && owTimeOk && rtTimeOk && durationOk && bagOk;
@@ -323,50 +335,92 @@ const FlightPage = () => {
     sortOrder,
   ]);
 
+  // ---------- Pagination guards (fix blank on return) ----------
+  const totalPages = useMemo(
+    () => Math.ceil(filteredItineraries.length / flightsPerPage),
+    [filteredItineraries]
+  );
+
+  // clamp the page the UI will actually use
+  const safePage = useMemo(
+    () => Math.min(Math.max(currentPage, 1), totalPages || 1),
+    [currentPage, totalPages]
+  );
+
+  // keep state in sync if it drifted out of range (esp. after filters/sort)
+  useEffect(() => {
+    if (currentPage !== safePage) {
+      setCurrentPage(safePage);
+      setOpenDetailsId(null); // also collapse any open drawer on correction
+    }
+  }, [safePage]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // slice once based on the clamped page
+  const pageItems = useMemo(
+    () =>
+      filteredItineraries.slice(
+        (safePage - 1) * flightsPerPage,
+        safePage * flightsPerPage
+      ),
+    [filteredItineraries, safePage]
+  );
+
+  // (optional) keep your listKey but use the clamped page
+  const listKey = useMemo(
+    () =>
+      JSON.stringify({
+        minPrice, maxPrice, currentStop,
+        checkedOnewayValue, checkedReturnValue,
+        depTimeRange, retTimeRange,
+        maxDurationHours, baggageOnly, sortOrder,
+        page: safePage,            // <-- was currentPage
+      }),
+    [minPrice,maxPrice,currentStop,checkedOnewayValue,checkedReturnValue,depTimeRange,retTimeRange,maxDurationHours,baggageOnly,sortOrder,safePage]
+  );
+
+  // ---------- Smooth scrolling + details reset ----------
+  const scrollToList = () => {
+    const el = document.getElementById("flight--list-targets");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const resetToTop = () => {
+    setCurrentPage(1);
+    setOpenDetailsId(null);
+    scrollToList();
+  };
+
   // ---------- Handlers ----------
   const handlePageChange = (page) => {
     const total = Math.ceil(filteredItineraries.length / flightsPerPage);
     if (page < 1 || page > total) return;
     setCurrentPage(page);
-    const target = document.getElementById("flight--list-targets");
-    if (target) {
-      window.scrollTo({ top: target.getBoundingClientRect().top + window.pageYOffset - 250, behavior: "smooth" });
-    }
+    setOpenDetailsId(null);
+    scrollToList();
   };
 
   const handlePriceChange = (value) => {
     setMinPrice(value[0]);
     setMaxPrice(value[1]);
-    setCurrentPage(1);
-    const target = document.getElementById("flight--list-targets");
-    if (target) {
-      window.scrollTo({ top: target.getBoundingClientRect().top + window.pageYOffset - 250, behavior: "smooth" });
-    }
+    resetToTop();
   };
-
   const handleStopChange = (value) => {
     setCurrentStop(value);
-    setCurrentPage(1);
-    const target = document.getElementById("flight--list-targets");
-    if (target) {
-      window.scrollTo({ top: target.getBoundingClientRect().top + window.pageYOffset - 250, behavior: "smooth" });
-    }
+    resetToTop();
   };
-
   const handleOnewayChange = (e, airline) => {
     const v = `oneway_${airline}`;
     setCheckedOnewayValue((prev) => (e.target.checked ? [...prev, v] : prev.filter((x) => x !== v)));
-    setCurrentPage(1);
+    resetToTop();
   };
-
   const handleReturnChange = (e, airline) => {
     const v = `return_${airline}`;
     setCheckedReturnValue((prev) => (e.target.checked ? [...prev, v] : prev.filter((x) => x !== v)));
-    setCurrentPage(1);
+    resetToTop();
   };
 
   const uniqueAirlines = useMemo(
-    () => [...new Set([...availableFlights, ...returnFlights].map((f) => f.airline))],
+    () =>
+      [...new Set([...availableFlights, ...returnFlights].map((f) => f?.airline).filter(Boolean))],
     [availableFlights, returnFlights]
   );
 
@@ -377,7 +431,6 @@ const FlightPage = () => {
       <div className="h-4 w-80 bg-gray-200 rounded"></div>
     </div>
   );
-
   const ListSkeleton = () => (
     <div className="space-y-3">
       {Array.from({ length: 6 }).map((_, i) => (
@@ -392,7 +445,7 @@ const FlightPage = () => {
   // ---------- Render ----------
   return (
     <div className="">
-      {/* Modify search collapsible */}
+      {/* Sticky modify search */}
       <motion.div className="sticky top-0 z-20 bg-[rgba(255,255,255,.75)] backdrop-blur border-b border-gray-200">
         <div className="container py-2">
           <div className="flex items-center justify-between">
@@ -453,7 +506,7 @@ const FlightPage = () => {
         <div className="container">
           <div className="row g-3">
             <div className="col-lg-12">
-              {/* Error / Expired banners */}
+              {/* Error / Expired */}
               {error && (
                 <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">
                   <div className="flex items-center justify-between">
@@ -487,7 +540,7 @@ const FlightPage = () => {
                     />
                   )}
 
-                  {/* Timer with progress */}
+                  {/* Timer */}
                   <motion.div
                     className="flex items-center justify-between gap-3 bg-white border border-gray-300 rounded-lg py-2 px-4 mb-4 text-sm text-gray-700"
                     initial={{ opacity: 0, y: -10 }}
@@ -506,24 +559,27 @@ const FlightPage = () => {
                     <span className="text-end fw-bold">{formatTimer(timeRemaining)}</span>
                   </motion.div>
 
-                  {/* Sort Navigation */}
+                  {/* Sort */}
                   <SortNavigation
                     sortOrder={sortOrder}
-                    handleSortChange={setSortOrder}
+                    handleSortChange={(order) => {
+                      setSortOrder(order);
+                      resetToTop();
+                    }}
                     isSearchFormVisible={isSearchFormVisible}
                     toggleSearchForm={toggleSearchForm}
                   />
 
+                  {/* Anchor for smooth scroll */}
+                  <div id="flight--list-targets" className="scroll-mt-28" />
+
                   {/* List */}
-                  <div id="flight--list-targets" />
                   {loading ? (
                     <ListSkeleton />
                   ) : filteredItineraries.length ? (
                     <ItineraryList
-                      paginatedItineraries={filteredItineraries.slice(
-                        (currentPage - 1) * flightsPerPage,
-                        currentPage * flightsPerPage
-                      )}
+                      key={listKey}
+                      paginatedItineraries={pageItems}             
                       searchParams={searchParams}
                       openDetailsId={openDetailsId}
                       setOpenDetailsId={setOpenDetailsId}
@@ -535,9 +591,11 @@ const FlightPage = () => {
                       formatTimeOnly={formatTimeOnly}
                       calculateDuration={calculateDuration}
                       getAirportName={getAirportName}
-                      availableFlights={availableFlights}
-                      returnFlights={returnFlights}
-                      loading={loading}
+                      agentMarkupPercent={agentMarkupPercent}
+                      currency={currency}
+                      totalCount={filteredItineraries.length}
+                      currentPage={safePage}                        
+                      pageSize={flightsPerPage}
                     />
                   ) : (
                     <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-gray-600">
@@ -547,8 +605,8 @@ const FlightPage = () => {
 
                   {/* Pagination */}
                   <Pagination
-                    currentPage={currentPage}
-                    totalPages={Math.ceil(filteredItineraries.length / flightsPerPage)}
+                    currentPage={safePage}                           
+                    totalPages={totalPages}
                     handlePageChange={handlePageChange}
                   />
                 </>
@@ -558,21 +616,15 @@ const FlightPage = () => {
         </div>
       </div>
 
-      {/* Filters Modal (NEW props wired) */}
+      {/* Filters Modal */}
       <FilterModal
         isOpen={isFilterModalOpen}
         onClose={() => setIsFilterModalOpen(false)}
-
-        // Stops
         currentStop={currentStop}
         handleStopChange={handleStopChange}
-
-        // Price
         priceRange={[minPrice, maxPrice]}
         priceBounds={priceBounds}
         handlePriceChange={handlePriceChange}
-
-        // Airlines
         uniqueAirlines={uniqueAirlines}
         checkedOnewayValue={checkedOnewayValue}
         handleOnewayChange={handleOnewayChange}
@@ -580,23 +632,15 @@ const FlightPage = () => {
         handleReturnChange={handleReturnChange}
         getAirlineName={getAirlineName}
         getAirlineLogo={getAirlineLogo}
-
-        // Time windows
         depTimeRange={depTimeRange}
         onDepTimeChange={setDepTimeRange}
         retTimeRange={retTimeRange}
         onRetTimeChange={setRetTimeRange}
-
-        // Duration + baggage
         maxDurationHours={maxDurationHours}
         onMaxDurationChange={setMaxDurationHours}
         baggageOnly={baggageOnly}
         onBaggageOnlyChange={setBaggageOnly}
-
-        // Context
         returnFlights={returnFlights}
-
-        // Global clear
         onClearAll={() => {
           setCurrentStop("mix");
           setMinPrice(priceBounds[0]);
@@ -607,7 +651,7 @@ const FlightPage = () => {
           setBaggageOnly(false);
           setCheckedOnewayValue([]);
           setCheckedReturnValue([]);
-          setCurrentPage(1);
+          resetToTop();
         }}
       />
     </div>
