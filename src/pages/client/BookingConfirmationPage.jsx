@@ -1,41 +1,43 @@
-import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { flights, airlines, airports } from '../../data/fakeData';
-import FlightDetails from '../../components/client/FlightDetails';
-import BookingForm from '../../components/client/BookingForm';
-import { PayPalScriptProvider } from '@paypal/react-paypal-js';
-import flygasal from '../../api/flygasalService';
+import React, { useContext, useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import FlightDetails from "../../components/client/FlightDetails";
+import BookingForm from "../../components/client/BookingForm";
+import { PayPalScriptProvider } from "@paypal/react-paypal-js";
+import { flights, airlines, airports } from "../../data/fakeData";
+import flygasal from "../../api/flygasalService";
+import { AuthContext } from "../../context/AuthContext";
 
+/* ----------------------- constants ----------------------- */
 const countries = [
-  { code: 'US', name: 'United States', flag: '/assets/img/flags/us.png' },
-  { code: 'GB', name: 'United Kingdom', flag: '/assets/img/flags/gb.png' },
-  { code: 'AE', name: 'United Arab Emirates', flag: '/assets/img/flags/ae.png' },
-  { code: 'AU', name: 'Australia', flag: '/assets/img/flags/au.png' },
-  { code: 'FR', name: 'France', flag: '/assets/img/flags/fr.png' },
-  { code: 'ET', name: 'Ethiopia', flag: '/assets/img/flags/et.png' },
-  { code: 'KE', name: 'Kenya', flag: '/assets/img/flags/ke.png' },
-  { code: 'ZA', name: 'South Africa', flag: '/assets/img/flags/za.png' },
-  { code: 'EG', name: 'Egypt', flag: '/assets/img/flags/eg.png' },
-  { code: 'MA', name: 'Morocco', flag: '/assets/img/flags/ma.png' },
+  { code: "US", name: "United States", flag: "/assets/img/flags/us.png" },
+  { code: "GB", name: "United Kingdom", flag: "/assets/img/flags/gb.png" },
+  { code: "AE", name: "United Arab Emirates", flag: "/assets/img/flags/ae.png" },
+  { code: "AU", name: "Australia", flag: "/assets/img/flags/au.png" },
+  { code: "FR", name: "France", flag: "/assets/img/flags/fr.png" },
+  { code: "ET", name: "Ethiopia", flag: "/assets/img/flags/et.png" },
+  { code: "KE", name: "Kenya", flag: "/assets/img/flags/ke.png" },
+  { code: "ZA", name: "South Africa", flag: "/assets/img/flags/za.png" },
+  { code: "EG", name: "Egypt", flag: "/assets/img/flags/eg.png" },
+  { code: "MA", name: "Morocco", flag: "/assets/img/flags/ma.png" },
 ];
 const months = [
-  { value: '01', label: '01 January' },
-  { value: '02', label: '02 February' },
-  { value: '03', label: '03 March' },
-  { value: '04', label: '04 April' },
-  { value: '05', label: '05 May' },
-  { value: '06', label: '06 June' },
-  { value: '07', label: '07 July' },
-  { value: '08', label: '08 August' },
-  { value: '09', label: '09 September' },
-  { value: '10', label: '10 October' },
-  { value: '11', label: '11 November' },
-  { value: '12', label: '12 December' },
+  { value: "01", label: "01 January" },
+  { value: "02", label: "02 February" },
+  { value: "03", label: "03 March" },
+  { value: "04", label: "04 April" },
+  { value: "05", label: "05 May" },
+  { value: "06", label: "06 June" },
+  { value: "07", label: "07 July" },
+  { value: "08", label: "08 August" },
+  { value: "09", label: "09 September" },
+  { value: "10", label: "10 October" },
+  { value: "11", label: "11 November" },
+  { value: "12", label: "12 December" },
 ];
 const days = Array.from({ length: 31 }, (_, i) => ({
-  value: String(i + 1).padStart(2, '0'),
-  label: String(i + 1).padStart(2, '0'),
+  value: String(i + 1).padStart(2, "0"),
+  label: String(i + 1).padStart(2, "0"),
 }));
 const dobYears = Array.from({ length: new Date().getFullYear() - 1920 + 1 }, (_, i) => ({
   value: String(new Date().getFullYear() - i),
@@ -47,458 +49,461 @@ const expiryYears = Array.from({ length: 21 }, (_, i) => ({
   label: String(new Date().getFullYear() + i),
 }));
 
-const BookingConfirmationPage = ({ user }) => {
+/* ----------------------- utils ----------------------- */
+const toTimeOnly = (dt) => {
+  if (!dt) return "";
+  const d = new Date(dt);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
+const toYMD = (dt) => {
+  if (!dt) return "";
+  const d = new Date(dt);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+const money = (n = 0, currency = "USD") =>
+  (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
+
+/** Strong, stable identifier to recover flights even when IDs shift between search & pricing */
+const keyOf = (f) =>
+  [
+    f?.airline || "",
+    f?.flightNumber || "",
+    new Date(f?.departureTime || 0).toISOString(),
+    new Date(f?.arrivalTime || 0).toISOString(),
+    f?.origin || "",
+    f?.destination || "",
+  ].join("|");
+
+/* ----------------------- component ----------------------- */
+const BookingConfirmationPage = () => {
+  const { user } = useContext(AuthContext);
+  const [agentData, setAgentData] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
+
   const [tripDetails, setTripDetails] = useState(null);
+  const [availableFlights, setAvailableFlights] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState(null);
+
   const [adults, setAdults] = useState(0);
   const [children, setChildren] = useState(0);
   const [infants, setInfants] = useState(0);
-  const [error, setError] = useState(null);
+
   const [isAgent, setIsAgent] = useState(false);
   const [agentFee, setAgentFee] = useState(0);
+
   const [showCancellation, setShowCancellation] = useState(false);
   const [showReadMore, setShowReadMore] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isFormValid, setIsFormValid] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [availableFlights, setAvailableFlights] = useState([]);
-  const [formData, setFormData] = useState({
-    full_name: '',
-    email: '',
-    phone: '',
-    travelers: [],
-    payment_method: '',
-    agree_terms: false,
+
+  // --- NEW: 10-minute hold timer state ---
+  const [holdUntil, setHoldUntil] = useState(0);
+  const [now, setNow] = useState(Date.now());
+  const [repriceTrigger, setRepriceTrigger] = useState(0);
+  const searchKey = useMemo(() => {
+    const sp = new URLSearchParams(location.search);
+    return `bc_hold:${sp.get("solutionId") || ""}:${sp.get("flightId") || ""}:${sp.get("returnFlightId") || ""}`;
+  }, [location.search]);
+  const timeLeftMs = Math.max(0, holdUntil - now);
+  const holdExpired = timeLeftMs <= 0;
+  const mm = String(Math.floor(timeLeftMs / 60000)).padStart(2, "0");
+  const ss = String(Math.floor((timeLeftMs % 60000) / 1000)).padStart(2, "0");
+  const timeLeftLabel = `${mm}:${ss}`;
+
+  /* ---------- Agency Markup ---------- */
+
+  const agentMarkupPercent = user?.agency_markup || 0;
+  // console.info('Agent markup: ', agentMarkupPercent);
+
+  const [formData, setFormData] = useState(() => {
+    // autosave restore
+    const cached = localStorage.getItem("bookingFormDraft");
+    return (
+      (cached && JSON.parse(cached)) || {
+        full_name: "",
+        email: "",
+        phone: "",
+        travelers: [],
+        payment_method: "",
+        agree_terms: false,
+      }
+    );
   });
 
-  // Set Agent
+  /* ---------- role ---------- */
   useEffect(() => {
-    if (user?.role === 'agent') {
-      setIsAgent(true);
-    } else {
-      setIsAgent(false);
-    }
+    setIsAgent(user?.role === "agent");
   }, [user]);
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Initialize travelers and counts based on query parameters
+  /* ---------- parse counts & seed travelers ---------- */
   useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const adultsCount = parseInt(searchParams.get('adults')) || 2;
-    const childrenCount = parseInt(searchParams.get('children')) || 0;
-    const infantsCount = parseInt(searchParams.get('infants')) || 0;
+    const sp = new URLSearchParams(location.search);
+    const adultsCount = parseInt(sp.get("adults")) || 2;
+    const childrenCount = parseInt(sp.get("children")) || 0;
+    const infantsCount = parseInt(sp.get("infants")) || 0;
 
     setAdults(adultsCount);
     setChildren(childrenCount);
     setInfants(infantsCount);
 
-    const initialTravelers = [
-      ...Array(adultsCount).fill().map(() => ({
-        type: 'adult',
-        title: import.meta.env.ENV_MODE === 'development' ? 'Mr' : '',
-        first_name: import.meta.env.ENV_MODE === 'development' ? `Elan${String.fromCharCode(65 + Math.floor(Math.random() * 26))}` : '',
-        last_name: import.meta.env.ENV_MODE === 'development' ? `Mask${String.fromCharCode(65 + Math.floor(Math.random() * 26))}` : '',
-        nationality: import.meta.env.ENV_MODE === 'development' ? 'PK' : '',
-        dob_month: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        dob_day: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        dob_year: import.meta.env.ENV_MODE === 'development' ? '1984' : '',
-        passport: import.meta.env.ENV_MODE === 'development' ? '6655899745626' : '',
-        passport_issuance_month: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        passport_issuance_day: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        passport_issuance_year: import.meta.env.ENV_MODE === 'development' ? '2020' : '',
-        passport_expiry_month: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        passport_expiry_day: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        passport_expiry_year: import.meta.env.ENV_MODE === 'development' ? String(new Date().getFullYear() + 2) : '',
-      })),
-      ...Array(childrenCount).fill().map(() => ({
-        type: 'child',
-        title: import.meta.env.ENV_MODE === 'development' ? 'Miss' : '',
-        first_name: import.meta.env.ENV_MODE === 'development' ? `Elan${String.fromCharCode(65 + Math.floor(Math.random() * 26))}` : '',
-        last_name: import.meta.env.ENV_MODE === 'development' ? `Mask${String.fromCharCode(65 + Math.floor(Math.random() * 26))}` : '',
-        nationality: import.meta.env.ENV_MODE === 'development' ? 'PK' : '',
-        dob_month: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        dob_day: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        dob_year: import.meta.env.ENV_MODE === 'development' ? '2015' : '',
-        passport: import.meta.env.ENV_MODE === 'development' ? '6655899745626' : '',
-        passport_issuance_month: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        passport_issuance_day: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        passport_issuance_year: import.meta.env.ENV_MODE === 'development' ? '2020' : '',
-        passport_expiry_month: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        passport_expiry_day: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        passport_expiry_year: import.meta.env.ENV_MODE === 'development' ? String(new Date().getFullYear() + 2) : '',
-      })),
-      ...Array(infantsCount).fill().map(() => ({
-        type: 'infant',
-        title: import.meta.env.ENV_MODE === 'development' ? 'Miss' : '',
-        first_name: import.meta.env.ENV_MODE === 'development' ? `Elan${String.fromCharCode(65 + Math.floor(Math.random() * 26))}` : '',
-        last_name: import.meta.env.ENV_MODE === 'development' ? `Mask${String.fromCharCode(65 + Math.floor(Math.random() * 26))}` : '',
-        nationality: import.meta.env.ENV_MODE === 'development' ? 'PK' : '',
-        dob_month: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        dob_day: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        dob_year: import.meta.env.ENV_MODE === 'development' ? '2023' : '',
-        passport: import.meta.env.ENV_MODE === 'development' ? '6655899745626' : '',
-        passport_issuance_month: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        passport_issuance_day: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        passport_issuance_year: import.meta.env.ENV_MODE === 'development' ? '2020' : '',
-        passport_expiry_month: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        passport_expiry_day: import.meta.env.ENV_MODE === 'development' ? '01' : '',
-        passport_expiry_year: import.meta.env.ENV_MODE === 'development' ? String(new Date().getFullYear() + 2) : '',
-      })),
-    ];
-    setFormData(prev => ({ ...prev, travelers: initialTravelers }));
+    // seed travelers only when empty to preserve edits
+    setFormData((prev) => {
+      if (prev.travelers?.length) return prev;
+      const dev = import.meta.env.ENV_MODE === "development";
+      const mk = (type, defaults = {}) => ({
+        type,
+        title: dev ? (type === "adult" ? "Mr" : "Miss") : "",
+        first_name: dev ? `Test${Math.random().toString(36).slice(2, 5)}` : "",
+        last_name: dev ? `User${Math.random().toString(36).slice(2, 5)}` : "",
+        nationality: dev ? "PK" : "",
+        dob_month: dev ? "01" : "",
+        dob_day: dev ? "01" : "",
+        dob_year: dev ? (type === "infant" ? "2023" : type === "child" ? "2015" : "1988") : "",
+        passport: dev ? "X1234567" : "",
+        passport_issuance_month: dev ? "01" : "",
+        passport_issuance_day: dev ? "01" : "",
+        passport_issuance_year: dev ? "2020" : "",
+        passport_expiry_month: dev ? "01" : "",
+        passport_expiry_day: dev ? "01" : "",
+        passport_expiry_year: dev ? String(new Date().getFullYear() + 2) : "",
+        ...defaults,
+      });
+      return {
+        ...prev,
+        travelers: [
+          ...Array(adultsCount).fill(0).map(() => mk("adult")),
+          ...Array(childrenCount).fill(0).map(() => mk("child")),
+          ...Array(infantsCount).fill(0).map(() => mk("infant")),
+        ],
+      };
+    });
   }, [location.search]);
 
-  // Form validation
+  /* ---------- form autosave ---------- */
   useEffect(() => {
+    localStorage.setItem("bookingFormDraft", JSON.stringify(formData));
+  }, [formData]);
+
+  /* ---------- validation ---------- */
+  useEffect(() => {
+    const requiredTravelers = adults + children + infants;
+    const travelerComplete = (t) =>
+      t.title &&
+      t.first_name &&
+      t.last_name &&
+      t.nationality &&
+      t.dob_month &&
+      t.dob_day &&
+      t.dob_year &&
+      t.passport &&
+      t.passport_issuance_month &&
+      t.passport_issuance_day &&
+      t.passport_issuance_year &&
+      t.passport_expiry_month &&
+      t.passport_expiry_day &&
+      t.passport_expiry_year;
+
     const isValid =
       formData.full_name &&
       formData.email &&
       formData.phone &&
       formData.agree_terms &&
       formData.payment_method &&
-      formData.travelers.length >= adults + children + infants &&
-      formData.travelers.every(
-        (traveler) =>
-          traveler.title &&
-          traveler.first_name &&
-          traveler.last_name &&
-          traveler.nationality &&
-          traveler.dob_month &&
-          traveler.dob_day &&
-          traveler.dob_year &&
-          traveler.passport &&
-          traveler.passport_issuance_month &&
-          traveler.passport_issuance_day &&
-          traveler.passport_issuance_year &&
-          traveler.passport_expiry_month &&
-          traveler.passport_expiry_day &&
-          traveler.passport_expiry_year
-      ) &&
-      (formData.payment_method !== 'credit_card' ||
+      formData.travelers.length >= requiredTravelers &&
+      formData.travelers.every(travelerComplete) &&
+      (formData.payment_method !== "credit_card" ||
         (formData.card_full_name && formData.card_number && formData.card_expiration && formData.card_cvv));
-    setIsFormValid(isValid);
-    console.log('isFormValid:', isValid, 'formData:', formData, 'counts:', { adults, children, infants }); // Debug
+
+    setIsFormValid(Boolean(isValid));
   }, [formData, adults, children, infants]);
 
-  // Precise Pricing
-  useEffect(() => {
-  const fetchFlightData = async () => {
-    try {
-      const searchParams = new URLSearchParams(location.search);
-
-      const journeysFromUrl = [];
-      let i = 0;
-
-      while (searchParams.has(`flights[${i}][origin]`)) {
-        journeysFromUrl.push({
-          airline: searchParams.get(`flights[${i}][airline]`),
-          flightNum: searchParams.get(`flights[${i}][flightNum]`),
-          arrival: searchParams.get(`flights[${i}][arrival]`),
-          arrivalDate: searchParams.get(`flights[${i}][arrivalDate]`),
-          arrivalTime: searchParams.get(`flights[${i}][arrivalTime]`),
-          departure: searchParams.get(`flights[${i}][departure]`),
-          departureDate: searchParams.get(`flights[${i}][departureDate]`),
-          departureTime: searchParams.get(`flights[${i}][departureTime]`),
-          bookingCode: searchParams.get(`flights[${i}][bookingCode]`)
-        });
-        i++;
-      }
-
-      const tripType = searchParams.get('tripType') || 'oneway';
-      const cabinType = searchParams.get('flightType') || 'Economy';
-      const adults = parseInt(searchParams.get('adults')) || 1;
-      const children = parseInt(searchParams.get('children')) || 0;
-      const infants = parseInt(searchParams.get('infants')) || 0;
-      const departureDate = searchParams.get('depart') || null;
-      const returnDate = searchParams.get('returnDate') || null;
-
-      const solutionId = searchParams.get('solutionId') || null;
-      const solutionKey = searchParams.get('solutionKey') || null;
-      const flightId = searchParams.get('flightId');
-      const returnFlightId = searchParams.get('returnFlightId');
-
-      const params = {
-        journeys: journeysFromUrl,
-        tripType,
-        cabinType,
-        adults,
-        children,
-        infants,
-        departureDate,
-        returnDate,
-        solutionId,
-        solutionKey
-      };
-
-      // console.info('Trip Details:', params);
-
-
-      // Step 2: Call flygasal API to fetch matching flights
-      const response = await flygasal.precisePricing(params);
-      const outboundFlights = flygasal.transformPreciseData(response.data);
-      console.info('Pricing Response:', response.data);
-
-        let returnFlights = [];
-
-        // If round trip, fetch return flights too
-        if (tripType === 'return' && returnDate) {
-          const returnParams = {
-            ...params,
-            flights: [{ origin: params.destination, destination: params.origin, depart: returnDate }],
-          };
-          const returnResponse = await flygasal.precisePricing(returnParams);
-          returnFlights = flygasal.transformPreciseData(returnResponse.data);
-        }
-
-        const allFlights = [...outboundFlights, ...returnFlights];
-        console.info('All Flights: ', allFlights);
-        setAvailableFlights(allFlights);
-
-      // Step 3: Match selected flights using flightId(s)
-      const selectedOutbound = allFlights.find(f => f.id === flightId);
-      const selectedReturn = tripType === 'return' && returnFlightId ? allFlights.find(f => f.id === returnFlightId) : null;
-      
-      console.info('Selected Outbond: ', selectedOutbound);
-      if (!selectedOutbound) {
-        setError(`Outbound flight not found for ID: ${flightId}`);
-        return;
-      }
-
-      if (tripType === 'return' && returnFlightId && !selectedReturn) {
-        setError(`Return flight not found for ID: ${returnFlightId}`);
-        return;
-      }
-
-      // Step 4: Set final trip data
-      setTripDetails({
-        tripType,
-        origin: params.origin,
-        destination: params.destination,
-        departDate: params.departureDate,
-        returnDate: params.returnDate,
-        fareSourceCode: params.flightId,
-        solutionId: params.solutionId,
-        adults,
-        children,
-        infants,
-        outbound: selectedOutbound,
-        return: selectedReturn,
-        totalPrice: selectedOutbound.price + (selectedReturn ? selectedReturn.price : 0),
-        cancellation_policy: 'Non-refundable after 24 hours. Cancellations within 24 hours of booking are refundable with a $50 fee.',
-      });
-
-      const errorCode = response?.data?.errorCode;
-      const errorMsg = response?.data?.errorMsg;
-
-      if (errorCode) {
-        if (errorCode === 'B021') {
-          setError('The selected fare is no longer available. Please choose another flight.');
-        } else if (errorCode === 'B020') {
-          setError('Can not find any price for this flight.');
-        } else {
-          setError(errorMsg || 'Failed to load booking details.');
-        }
-      } else {
-        setError(null); // Clear any previous error
-        // Optionally, you can set the pricing data here
-        // setPricingData(response.data);
-      }
-
-    } catch (err) {
-      console.error('Error loading confirmation:', err);
-      setError('Failed to load booking details.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  fetchFlightData();
-  }, [location.search]);
-
-
-  // Map passenger types from form values ('adult', 'child', 'infant')
-  // to the format expected by the backend: 'ADT' (Adult), 'CHD' (Child), 'INF' (Infant)
-  const typeMap = {
-    adult: 'ADT',
-    child: 'CHD',
-    infant: 'INF',
-  };
-
-  // Handle payment submission
-  const handlePayment = async (paymentMethod) => {
-    if (!isFormValid) {
-      console.log('Form invalid, cannot proceed with payment');
-      return;
-    }
-    setIsProcessing(true);
-
-    try {
-      const searchParams = new URLSearchParams(location.search);
-      let paymentSuccess = false;
-      const solutionId = searchParams.get('solutionId') || null;
-      // console.info(`Selected Flight: ${outbound.origin}`);
-
-      const bookingDetails = {
-        selectedFlight: outbound,
-        solutionId: solutionId,
-        // fareSourceCode: ,
-        passengers: formData.travelers.map((traveler) => ({
-          firstName: traveler.first_name,
-          lastName: traveler.last_name,
-          type: typeMap[traveler.type.toLowerCase()] || 'ADT', // default to 'ADT' if unknown
-          dob: traveler.dob_year && traveler.dob_month && traveler.dob_day
-          ? `${traveler.dob_year}-${String(traveler.dob_month).padStart(2, '0')}-${String(traveler.dob_day).padStart(2, '0')}`
-          : null, // Format: 'YYYY-MM-DD'
-          gender: traveler.gender || 'Male', // 'Male' or 'Female'
-          passportNumber: traveler.passport || null,
-          passportExpiry: traveler.passport_expiry_year && traveler.passport_expiry_month && traveler.passport_expiry_day
-          ? `${traveler.passport_expiry_year}-${String(traveler.passport_expiry_month).padStart(2, '0')}-${String(traveler.passport_expiry_day).padStart(2, '0')}`
-          : null, // Format: 'YYYY-MM-DD'
-        })),
-        contactName: formData.full_name,
-        contactEmail: formData.email,
-        contactPhone: formData.phone,
-        totalPrice: tripDetails.totalPrice + agentFee,
-        currency: tripDetails.currency || 'USD', // Set a default if not already available
-        agent_fee: agentFee,
-        payment_method: 'wallet',
-      };
-
-      console.log(JSON.stringify(bookingDetails, null, 2));
-
-      const response = await flygasal.createBooking(bookingDetails);
-
-      let booking = null;
-
-      if (response?.data?.booking?.order_num) {
-        paymentSuccess = true;
-        booking = response.data.booking;
-      } else {
-        const readableMessage =
-          response?.data?.errorMsg || 'Booking failed. Please try again later.';
-        throw new Error(readableMessage);
-      }
-
-      if (paymentSuccess && booking) {
-        navigate(`/flights/invoice/${booking.order_num}`);
-        // navigate('/flight/confirmation-success');
-      }
-
-    } catch (err) {
-      console.error('Flight booking error:', err);
-      setIsProcessing(false);
-    }
-  };
-
-
-  // Check cancellation policy height
-  useEffect(() => {
-    const p = document.querySelector('.to--be > p');
-    if (p && p.scrollHeight > p.offsetHeight) {
-      setShowReadMore(true);
-    }
-  }, [tripDetails]);
-
-  // Get airport and airline details
+  /* ---------- helpers ---------- */
   const getAirportName = (code) => {
-    const airport = airports.find((a) => a.value === code);
-    return airport ? `${airport.city} (${airport.value})` : code;
+    const a = airports.find((x) => x.value === code);
+    return a ? `${a.city} (${a.value})` : code || "—";
   };
   const getCityName = (code) => {
-    const airport = airports.find((a) => a.value === code);
-    return airport ? airport.city : code;
+    const a = airports.find((x) => x.value === code);
+    return a ? a.city : code || "—";
   };
-
   const getAirlineName = (code) => {
-    const airline = airlines.find((a) => a.code === code);
-    return airline ? airline.name : code;
+    const a = airlines.find((x) => x.code === code);
+    return a ? a.name : code || "—";
   };
-
   const getAirlineLogo = (code) => {
-    const airline = airlines.find((a) => a.code === code);
-    return airline ? airline.logo : 'https://via.placeholder.com/40';
+    const a = airlines.find((x) => x.code === code);
+    return a ? a.logo : "/assets/img/airlines/placeholder.png";
   };
-
-  const getPassengerSummary = (adults, children, infants) => {
-    const parts = [];
-    if (adults > 0) parts.push(`${adults} Adult${adults > 1 ? 's' : ''}`);
-    if (children > 0) parts.push(`${children} Child${children > 1 ? 'ren' : ''}`);
-    if (infants > 0) parts.push(`${infants} Infant${infants > 1 ? 's' : ''}`);
-    return parts.join(', ');
-  };
-
-  // Calculate trip duration
   const calculateDuration = (departure, arrival) => {
     const depart = new Date(departure);
     const arrive = new Date(arrival);
-    const diff = (arrive - depart) / (1000 * 60 * 60);
-    const hours = Math.floor(diff);
-    const minutes = Math.round((diff - hours) * 60);
-    return `${hours}h ${minutes}m`;
+    const diff = Math.max(0, (arrive - depart) / (1000 * 60)); // in mins
+    const h = Math.floor(diff / 60);
+    const m = Math.round(diff % 60);
+    return `${h}h ${m}m`;
+  };
+  const formatTime = (s) =>
+    s ? new Date(s).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }) : "";
+  const formatDate = (s) =>
+    s ? new Date(s).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "";
+  const formatDateMonth = (s) =>
+    s ? new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+
+  const getPassengerSummary = (a, c, i) => {
+    const parts = [];
+    if (a > 0) parts.push(`${a} Adult${a > 1 ? "s" : ""}`);
+    if (c > 0) parts.push(`${c} Child${c > 1 ? "ren" : ""}`);
+    if (i > 0) parts.push(`${i} Infant${i > 1 ? "s" : ""}`);
+    return parts.join(", ");
   };
 
-  const formatTime = (dateString) => {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  /* ---------- fetch precise pricing & match flights (bugfix) ---------- */
+  useEffect(() => {
+    const run = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const sp = new URLSearchParams(location.search);
+
+        // Read journeys array from URL
+        const journeysFromUrl = [];
+        let idx = 0;
+        while (sp.has(`flights[${idx}][origin]`)) {
+          journeysFromUrl.push({
+            airline: sp.get(`flights[${idx}][airline]`),
+            flightNum: sp.get(`flights[${idx}][flightNum]`),
+            arrival: sp.get(`flights[${idx}][arrival]`),
+            arrivalDate: sp.get(`flights[${idx}][arrivalDate]`),
+            arrivalTime: sp.get(`flights[${idx}][arrivalTime]`),
+            departure: sp.get(`flights[${idx}][departure]`),
+            departureDate: sp.get(`flights[${idx}][departureDate]`),
+            departureTime: sp.get(`flights[${idx}][departureTime]`),
+            bookingCode: sp.get(`flights[${idx}][bookingCode]`),
+            destination: sp.get(`flights[${idx}][arrival]`),
+            origin: sp.get(`flights[${idx}][departure]`),
+          });
+          idx++;
+        }
+
+        // Derive origin/destination from first journey (bug: these were undefined before)
+        const derivedOrigin = journeysFromUrl[0]?.origin || sp.get("origin") || "";
+        const derivedDestination = journeysFromUrl[0]?.destination || sp.get("destination") || "";
+
+        const tripType = sp.get("tripType") || "oneway";
+        const cabinType = sp.get("flightType") || sp.get("cabin") || "Economy";
+        const adultsQ = parseInt(sp.get("adults")) || 1;
+        const childrenQ = parseInt(sp.get("children")) || 0;
+        const infantsQ = parseInt(sp.get("infants")) || 0;
+        const departureDate = sp.get("depart") || journeysFromUrl[0]?.departureDate || null;
+        const returnDate = sp.get("returnDate") || null;
+
+        const solutionId = sp.get("solutionId") || null;
+        const solutionKey = sp.get("solutionKey") || null;
+        const flightId = sp.get("flightId") || null;
+        const returnFlightId = sp.get("returnFlightId") || null;
+        const currency = sp.get("currency") || "USD";
+
+        const params = {
+          journeys: journeysFromUrl,
+          tripType,
+          cabinType,
+          adults: adultsQ,
+          children: childrenQ,
+          infants: infantsQ,
+          departureDate,
+          returnDate,
+          solutionId,
+          solutionKey,
+          origin: derivedOrigin,        // <-- fix
+          destination: derivedDestination, // <-- fix
+          currency,
+        };
+
+        // 1) Price outbound
+        const priceResp = await flygasal.precisePricing(params);
+        const outboundFlights = flygasal.transformPreciseData(priceResp.data) || [];
+
+        // 2) If roundtrip and we need return pricing, do a scoped call (some APIs require mirrored search)
+        let returnFlights = [];
+        if (tripType === "return" && returnDate) {
+          const returnParams = {
+            ...params,
+            // Some providers expect reversed legs explicitly
+            journeys: [
+              {
+                airline: journeysFromUrl[0]?.airline,
+                flightNum: journeysFromUrl[0]?.flightNum,
+                origin: params.destination,
+                destination: params.origin,
+                departureDate: returnDate,
+                departureTime: "",
+                arrivalDate: "",
+                arrivalTime: "",
+                bookingCode: journeysFromUrl[0]?.bookingCode,
+              },
+            ],
+            departureDate: returnDate,
+          };
+          const retResp = await flygasal.precisePricing(returnParams);
+          returnFlights = flygasal.transformPreciseData(retResp.data) || [];
+        }
+
+        const allFlights = [...outboundFlights, ...returnFlights];
+        setAvailableFlights(allFlights);
+
+        // Build fast indices for matching
+        const byId = new Map(allFlights.filter((f) => f?.id).map((f) => [String(f.id), f]));
+        const byKey = new Map(allFlights.map((f) => [keyOf(f), f]));
+
+        // Find selected flights
+        const selectedOutbound =
+          (flightId && byId.get(String(flightId))) ||
+          byKey.get(
+            keyOf({
+              airline: journeysFromUrl[0]?.airline,
+              flightNumber: journeysFromUrl[0]?.flightNum,
+              departureTime: `${journeysFromUrl[0]?.departureDate}T${journeysFromUrl[0]?.departureTime || "00:00"}`,
+              arrivalTime: `${journeysFromUrl[0]?.arrivalDate}T${journeysFromUrl[0]?.arrivalTime || "00:00"}`,
+              origin: derivedOrigin,
+              destination: derivedDestination,
+            })
+          ) ||
+          outboundFlights[0]; // graceful fallback
+
+        let selectedReturn = null;
+        if (tripType === "return" && returnDate) {
+          selectedReturn =
+            (returnFlightId && byId.get(String(returnFlightId))) ||
+            // fallback: first return that goes destination -> origin on return date
+            returnFlights.find(
+              (f) =>
+                f.origin === derivedDestination &&
+                f.destination === derivedOrigin &&
+                toYMD(f.departureTime) === toYMD(returnDate)
+            ) ||
+            returnFlights[0] ||
+            null;
+        }
+
+        if (!selectedOutbound) {
+          setError(`Outbound flight not found (ID: ${flightId || "n/a"}). Try reselecting your flight.`);
+          return;
+        }
+        if (tripType === "return" && !selectedReturn) {
+          setError(`Return flight not found (ID: ${returnFlightId || "n/a"}). Try reselecting your flight.`);
+          return;
+        }
+
+        const totalPrice =
+          Number(selectedOutbound?.price || 0) + Number(selectedReturn?.price || 0);
+
+        setTripDetails({
+          tripType,
+          origin: params.origin,
+          destination: params.destination,
+          departDate: params.departureDate,
+          returnDate: params.returnDate,
+          fareSourceCode: params.flightId, // keep for compat if used elsewhere
+          solutionId: params.solutionId,
+          adults: adultsQ,
+          children: childrenQ,
+          infants: infantsQ,
+          currency,
+          outbound: selectedOutbound,
+          return: selectedReturn,
+          totalPrice,
+          cancellation_policy:
+            "Non-refundable after 24 hours. Cancellations within 24 hours of booking are refundable with a $50 fee.",
+        });
+
+        // Surface meaningful backend errors (after we try to set a workable state)
+        const errorCode = priceResp?.data?.errorCode;
+        const errorMsg = priceResp?.data?.errorMsg;
+        if (errorCode) {
+          if (errorCode === "B021") setError("The selected fare is no longer available. Please choose another flight.");
+          else if (errorCode === "B020") setError("Cannot find any price for this flight.");
+          else setError(errorMsg || "Failed to load booking details.");
+        }
+      } catch (e) {
+        console.error("Error loading confirmation:", e);
+        setError("Failed to load booking details.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
+    // include repriceTrigger so "Reprice" can refresh pricing without changing the URL
+  }, [location.search, repriceTrigger]);
+
+  /* ---------- NEW: start & tick the 10-minute hold once trip is ready ---------- */
+  useEffect(() => {
+    if (!tripDetails) return;
+    // restore existing hold for this flight selection (per-tab)
+    let stored = Number(sessionStorage.getItem(searchKey) || 0);
+    const tooOld = !stored || stored - Date.now() <= 0 || stored - Date.now() > 15 * 60 * 1000;
+    if (tooOld) {
+      stored = Date.now() + 10 * 60 * 1000; // 10 minutes
+      sessionStorage.setItem(searchKey, String(stored));
+    }
+    setHoldUntil(stored);
+  }, [tripDetails, searchKey]);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const reprice = () => {
+    sessionStorage.removeItem(searchKey);
+    setHoldUntil(0);
+    setRepriceTrigger((x) => x + 1);
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
+  /* ---------- cancellation policy clamp ---------- */
+  useEffect(() => {
+    const p = document.querySelector(".to--be > p");
+    if (p && p.scrollHeight > p.offsetHeight) setShowReadMore(true);
+  }, [tripDetails]);
 
-  const formatDateMonth = (dateString) => {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  const handleFormChange = (e, index) => {
+  /* ---------- event handlers ---------- */
+  const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
-    if (name.startsWith('traveler_')) {
-      const [_, field, idx] = name.split('_');
-      setFormData(prev => ({
+    if (name.startsWith("traveler_")) {
+      const [, field, idx] = name.split("_");
+      setFormData((prev) => ({
         ...prev,
-        travelers: prev.travelers.map((t, i) => i === parseInt(idx) ? { ...t, [field]: value } : t),
+        travelers: prev.travelers.map((t, i) => (i === parseInt(idx, 10) ? { ...t, [field]: value } : t)),
       }));
     } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: type === 'checkbox' ? checked : value,
-      }));
+      setFormData((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
     }
   };
 
   const addTraveler = (type) => {
     if (formData.travelers.length >= 9) return;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       travelers: [
         ...prev.travelers,
         {
           type,
-          title: '',
-          first_name: '',
-          last_name: '',
-          nationality: '',
-          dob_month: '',
-          dob_day: '',
-          dob_year: '',
-          passport: '',
-          passport_issuance_month: '',
-          passport_issuance_day: '',
-          passport_issuance_year: '',
-          passport_expiry_month: '',
-          passport_expiry_day: '',
-          passport_expiry_year: '',
+          title: "",
+          first_name: "",
+          last_name: "",
+          nationality: "",
+          dob_month: "",
+          dob_day: "",
+          dob_year: "",
+          passport: "",
+          passport_issuance_month: "",
+          passport_issuance_day: "",
+          passport_issuance_year: "",
+          passport_expiry_month: "",
+          passport_expiry_day: "",
+          passport_expiry_year: "",
         },
       ],
     }));
@@ -507,7 +512,7 @@ const BookingConfirmationPage = ({ user }) => {
   const removeTraveler = (index) => {
     const minTravelers = adults + children + infants;
     if (formData.travelers.length <= minTravelers) return;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       travelers: prev.travelers.filter((_, i) => i !== index),
     }));
@@ -519,31 +524,127 @@ const BookingConfirmationPage = ({ user }) => {
     setIsSubmitting(true);
     setTimeout(() => {
       setIsSubmitting(false);
-      navigate('/flight/confirmation-success');
-    }, 2000);
+      navigate("/flight/confirmation-success");
+    }, 1200);
   };
 
+  const typeMap = { adult: "ADT", child: "CHD", infant: "INF" };
+
+  const priceBreakdown = (totalPrice) => {
+    const base = Number(totalPrice) || 0;
+    const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
+    const total = +(base + markup).toFixed(2);
+    return { base, markup, total };
+  };
+  
+  const { base, markup, total } = priceBreakdown(totalPrice);
+
+  const handlePayment = async () => {
+    // NEW: block if hold expired
+    if (holdExpired) {
+      setError("Your fare hold has expired. Click Reprice to refresh availability and pricing.");
+      return;
+    }
+    if (!isFormValid || !tripDetails) return;
+
+    setIsProcessing(true);
+    try {
+      const { outbound, return: rtn, totalPrice, currency } = tripDetails;
+      const bookingDetails = {
+        selectedFlight: outbound, // keep compatibility with your backend
+        selectedReturnFlight: rtn || undefined,
+        solutionId: tripDetails.solutionId || null,
+        passengers: formData.travelers.map((t) => ({
+          firstName: t.first_name,
+          lastName: t.last_name,
+          type: typeMap[t.type?.toLowerCase()] || "ADT",
+          dob:
+            t.dob_year && t.dob_month && t.dob_day
+              ? `${t.dob_year}-${String(t.dob_month).padStart(2, "0")}-${String(t.dob_day).padStart(2, "0")}`
+              : null,
+          gender: t.gender || "Male",
+          passportNumber: t.passport || null,
+          passportExpiry:
+            t.passport_expiry_year && t.passport_expiry_month && t.passport_expiry_day
+              ? `${t.passport_expiry_year}-${String(t.passport_expiry_month).padStart(2, "0")}-${String(
+                  t.passport_expiry_day
+                ).padStart(2, "0")}`
+              : null,
+        })),
+        contactName: formData.full_name,
+        contactEmail: formData.email,
+        contactPhone: formData.phone,
+        totalPrice: Number(totalPrice || 0) + Number(agentFee || 0),
+        currency: currency || "USD",
+        agent_fee: markup || 0,
+        payment_method: formData.payment_method || "wallet",
+      };
+
+      const resp = await flygasal.createBooking(bookingDetails);
+      const booking = resp?.data?.booking;
+
+      if (booking?.order_num) {
+        navigate(`/flights/invoice/${booking.order_num}`);
+      } else {
+        const readable =
+          resp?.data?.errorMsg || "Booking failed. Please try again or select a different flight.";
+        throw new Error(readable);
+      }
+    } catch (err) {
+      console.error("Flight booking error:", err);
+      setError(err?.message || "We couldn’t complete your booking.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  /* ---------- loading & error UI ---------- */
   if (error) {
     return (
-      <div className="container mx-auto py-14 mt-5 text-center">
-        <h2 className="text-red-600 text-3xl font-bold">Error</h2>
-        <p className="text-gray-600 mt-2">{error}</p>
-        <button
-          className="mt-4 bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg hover:bg-blue-800 transition duration-200"
-          onClick={() => navigate('/flight/availability')}
-        >
-          Back to Flight Search
-        </button>
+      <div className="container mx-auto px-4 py-14 mt-5">
+        <div className="mx-auto max-w-2xl rounded-xl border border-rose-200 bg-rose-50 p-6 text-rose-800">
+          <div className="text-xl font-semibold">We hit a snag</div>
+          <p className="mt-1 text-sm">{error}</p>
+          <div className="mt-4 flex gap-2">
+            <button
+              className="rounded-lg bg-blue-700 px-4 py-2 text-white hover:bg-blue-800"
+              onClick={() => navigate("/flight/availability")}
+            >
+              Back to Flight Search
+            </button>
+            <button
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-slate-700 hover:bg-slate-50"
+              onClick={() => window.location.reload()}
+            >
+              Try again
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (!tripDetails || !tripDetails.outbound) {
-    return <div className="text-center py-10 text-gray-600">Loading...</div>;
+  if (loading || !tripDetails?.outbound) {
+    return (
+      <div className="container mx-auto px-4 py-10">
+        {/* simple skeletons */}
+        <div className="mb-4 h-40 w-full animate-pulse rounded-2xl bg-slate-100" />
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="md:col-span-2 space-y-3">
+            <div className="h-28 w-full animate-pulse rounded-xl bg-slate-100" />
+            <div className="h-96 w-full animate-pulse rounded-xl bg-slate-100" />
+          </div>
+          <div className="space-y-3">
+            <div className="h-56 w-full animate-pulse rounded-xl bg-slate-100" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  const { tripType, outbound, return: returnFlight, totalPrice, cancellation_policy } = tripDetails;
-  const finalPrice = totalPrice;
+  /* ---------- render ---------- */
+  const { tripType, outbound, return: returnFlight, totalPrice, cancellation_policy, currency } = tripDetails;
+  const finalPrice = Number(totalPrice || 0) + Number(agentFee || 0);
 
   return (
     <div className="relative bg-gray-100 font-sans">
@@ -558,16 +659,52 @@ const BookingConfirmationPage = ({ user }) => {
         <div className="inset-0 bg-gradient-to-b from-black/50 to-transparent"></div>
         <div className="container mx-auto h-full flex items-center justify-center">
           <div className="text-center text-white">
-            <h1 className="text-4xl md:text-5xl font-bold mb-2">Book Your Journey to {getCityName(outbound.destination)}</h1>
-            <p className="text-lg md:text-xl">Secure your flights with ease and start your adventure!</p>
+            <h1 className="text-3xl md:text-5xl font-bold">
+              Book your journey to {getCityName(outbound.destination)}
+            </h1>
+            <p className="text-sm md:text-base opacity-90">
+              {getAirportName(outbound.origin)} → {getAirportName(outbound.destination)} •{" "}
+              {formatDate(outbound.departureTime)}
+              {tripType === "return" && returnFlight ? ` · Return ${formatDate(returnFlight.departureTime)}` : ""}
+            </p>
           </div>
         </div>
       </motion.section>
 
+
       {/* Main Content */}
-      <div className="container mx-auto px-4 pt-0" style={{ marginTop: '-70px' }}>
-        {/* <PayPalScriptProvider options={{ 'client-id': 'your-paypal-client-id' }}>
-        </PayPalScriptProvider> */}
+      <div className="container px-4 lg:px-0 pt-0" style={{ marginTop: '-70px' }}>
+        
+        {/* NEW: subtle timer pill under the hero (doesn't alter layout much) */}
+        <div className="container px-4 lg:px-0">
+          <div className="flex justify-end">
+            <div
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs md:text-sm ${
+                holdExpired ? "bg-rose-50 text-rose-700 border-rose-200" : "bg-amber-50 text-amber-700 border-amber-200"
+              }`}
+              title={holdExpired ? "Hold expired" : "We’re holding this fare for you"}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="opacity-80">
+                <path d="M12 8v5l3 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+              {holdExpired ? (
+                <>
+                  <span>Price hold expired</span>
+                  <button
+                    type="button"
+                    onClick={reprice}
+                    className="ml-1 underline decoration-rose-400 hover:opacity-80"
+                  >
+                    Reprice
+                  </button>
+                </>
+              ) : (
+                <span>Price hold: {timeLeftLabel}</span>
+              )}
+            </div>
+          </div>
+        </div>
           <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row gap-6">
             {/* Left Column: Booking Form */}
             <BookingForm
@@ -611,7 +748,9 @@ const BookingConfirmationPage = ({ user }) => {
               isFormValid={isFormValid}
               isProcessing={isProcessing}
               setIsProcessing={setIsProcessing}
-              totalPrice={tripDetails.totalPrice + agentFee}
+              totalPrice={totalPrice}
+              currency={currency}
+              agentMarkupPercent={agentMarkupPercent}
             />
 
             {/* Right Column: Flight Details */}
@@ -619,6 +758,7 @@ const BookingConfirmationPage = ({ user }) => {
               getPassengerSummary={getPassengerSummary}
               totalPrice={totalPrice}
               finalPrice={finalPrice}
+              agentMarkupPercent={agentMarkupPercent}
               setAgentFee={setAgentFee}
               agentFee={agentFee}
               isAgent={isAgent}
@@ -634,11 +774,16 @@ const BookingConfirmationPage = ({ user }) => {
               getAirlineName={getAirlineName}
               getAirlineLogo={getAirlineLogo}
               returnFlight={returnFlight}
+              tripDetails={tripDetails}
               calculateDuration={calculateDuration}
               isFormValid={isFormValid}
               formData={formData}
               handlePayment={handlePayment}
               isProcessing={isProcessing}
+              /* Optional: these extra props are harmless if unused */
+              holdExpired={holdExpired}
+              timeLeftLabel={timeLeftLabel}
+              currency={currency}
             />
 
             {/* Hidden Inputs */}
@@ -687,20 +832,20 @@ const BookingConfirmationPage = ({ user }) => {
           </form>
       </div>
 
-      {/* Loading Spinner */}
+      {/* Fullscreen spinner during mock submit */}
       <AnimatePresence>
         {isSubmitting && (
           <motion.div
-            className="fixed inset-0 flex items-center justify-center bg-gray-100 bg-opacity-75 z-50"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-gray-100/80"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
             <motion.div
-              className="w-12 h-12 border-4 border-blue-700 border-t-transparent rounded-full"
+              className="h-12 w-12 rounded-full border-4 border-blue-700 border-t-transparent"
               animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-            ></motion.div>
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            />
           </motion.div>
         )}
       </AnimatePresence>

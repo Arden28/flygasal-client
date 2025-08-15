@@ -11,14 +11,13 @@ const FlightDetails = ({
   formatDate,
   outbound,
   returnFlight,
+  tripDetails,
   tripType,
   adults,
   children,
   infants,
   isAgent,
-  agentFee,
-  setAgentFee,
-  finalPrice,
+  agentMarkupPercent,
   totalPrice,
   getPassengerSummary,
   calculateDuration,
@@ -26,6 +25,7 @@ const FlightDetails = ({
   formData,
   handlePayment,
   isProcessing,
+  currency = "USD",
 }) => {
   const navigate = useNavigate();
   const [openSections, setOpenSections] = useState({
@@ -33,12 +33,26 @@ const FlightDetails = ({
     return: false,
   });
 
+  // console.info('FlightDetails props:', tripDetails);
+
+  const money = (n, currency = "USD") =>
+    (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
+
   const toggleAccordion = (key) => {
     setOpenSections((prev) => ({
       ...prev,
       [key]: !prev[key],
     }));
   };
+
+  const priceBreakdown = (totalPrice) => {
+    const base = Number(totalPrice) || 0;
+    const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
+    const total = +(base + markup).toFixed(2);
+    return { base, markup, total };
+  };
+  
+  const { base, markup, total } = priceBreakdown(totalPrice);
 
   return (
     <div className="w-full lg:w-1/3 mb-4">
@@ -261,35 +275,24 @@ const FlightDetails = ({
                   </div>
                 )}
               </div>
-              <div className="price-summary mb-3">
+              <div className="price-summary mb-3 mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                 {isAgent === true && (
                   <div className="d-flex justify-content-between align-items-center mt-2">
-                    <span className="text-start text-sm font-semibold">Price</span>
-                    <span className="text-end text-sm font-semibold">${totalPrice.toFixed(2)}</span>
+                    <span className="text-start text-sm font-semibold">Base</span>
+                    <span className="text-end text-sm font-semibold">{money(totalPrice)}</span>
                   </div>
                 )}
                 {isAgent === true && (
                   <div className="d-flex justify-content-between align-items-center mt-2">
-                    <span className="text-start text-sm font-semibold">Agent Service Fee</span>
+                    <span className="text-start text-sm font-semibold">Agent markup ({agentMarkupPercent}%)</span>
                     <span className="text-end text-sm font-semibold">
-                      + $
-                      <input
-                        id="agent_fee"
-                        type="number"
-                        value={agentFee}
-                        onChange={(e) => {
-                          const raw = e.target.value.replace(/[^0-9]/g, '');
-                          const cleaned = raw.replace(/^0+(?=\d)/, '');
-                          setAgentFee(cleaned === '' ? 0 : parseFloat(cleaned));
-                        }}
-                        className="p-0 appearance-none w-[35px] bg-transparent border-none text-black focus:outline-none focus:ring-0 text-sm"
-                      />
+                      {money(markup, currency)}
                     </span>
                   </div>
                 )}
                 <div className="d-flex justify-content-between align-items-center mt-1">
                   <span className="text-start text-lg font-semibold">Total</span>
-                  <span className="text-end text-lg font-bold">${(finalPrice + agentFee).toFixed(2)}</span>
+                  <span className="text-end text-lg font-bold">{money(total, currency)}</span>
                 </div>
               </div>
               <div className="checkout-btn">

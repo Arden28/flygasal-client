@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { airports, airlines } from "../../data/fakeData";
 import FilterModal from "../../components/client/FilterModal";
@@ -9,12 +9,16 @@ import Pagination from "../../components/client/Pagination";
 import FlightSearchForm from "../../components/client/FlightSearchForm";
 import flygasal from "../../api/flygasalService";
 import { motion, AnimatePresence } from "framer-motion";
+import { AuthContext } from "../../context/AuthContext";
 
 const flightsPerPage = 25;
 const MAX_RETURNS_PER_OUTBOUND = 6;
 const MAX_RESULTS = 500; // 100 results max
 
 const FlightPage = () => {
+  const { user } = useContext(AuthContext);
+  // console.info('Agent: ', user);
+  
   const location = useLocation();
 
   // Core search state
@@ -50,11 +54,8 @@ const FlightPage = () => {
   const timerRef = useRef(null);
 
   // Markup
-  const agentMarkupPercent =
-    typeof window !== "undefined" && window.__AGENT__?.agent_markup != null
-      ? Number(window.__AGENT__.agent_markup)
-      : 0;
-  const currency = "USD";
+  const agentMarkupPercent = user?.agency_markup || 0;
+  // console.info('Agent markup: ', agentMarkupPercent);
 
   // ---------- Helpers ----------
   const formatTimer = (s) => {
@@ -592,7 +593,7 @@ const FlightPage = () => {
                       calculateDuration={calculateDuration}
                       getAirportName={getAirportName}
                       agentMarkupPercent={agentMarkupPercent}
-                      currency={currency}
+                      // currency={currency}
                       totalCount={filteredItineraries.length}
                       currentPage={safePage}                        
                       pageSize={flightsPerPage}

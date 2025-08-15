@@ -153,7 +153,7 @@ const TravelerInformation = ({
       {/* Personal Information */}
       <div className="row gap-1 mb-3">
         <div className="col-md-4">
-          <label className="label-text absolute top-0 text-gray-500 text-sm">Full Name</label>
+          <label className="label-text top-0 text-gray-500 text-sm">Full Name</label>
           <input
             type="text"
             name="full_name"
@@ -165,7 +165,7 @@ const TravelerInformation = ({
           />
         </div>
         <div className="col-md-4">
-          <label className="label-text absolute top-0 text-gray-500 text-sm">Email</label>
+          <label className="label-text top-0 text-gray-500 text-sm">Email</label>
           <input
             type="email"
             name="email"
@@ -177,7 +177,7 @@ const TravelerInformation = ({
           />
         </div>
         <div className="col-md-3">
-          <label className="label-text absolute top-0 left-3 text-gray-500 text-sm">Phone</label>
+          <label className="label-text top-0 left-3 text-gray-500 text-sm">Phone</label>
           <input
             type="tel"
             name="phone"

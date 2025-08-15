@@ -27,6 +27,7 @@ export default function Navbar() {
 
   const navLinks = useMemo(() => ([
     { to: "/flight/availability", label: "Flights" },
+    { to: "/flight/availability", label: "Hotels" },
     { to: "/blogs", label: "Blog" },
     { to: "/about", label: "About Us" },
   ]), []);
@@ -111,7 +112,7 @@ export default function Navbar() {
 
           {/* Desktop nav */}
           <nav className="hidden lg:block">
-            <ul className="flex items-center gap-1">
+            <ul className="flex gap-1">
               {navLinks.map((it) => (
                 <li key={it.to}>
                   <Link

@@ -30,14 +30,10 @@ const DepositPage = ({ rootUrl = "/", apiUrl = "/api/" }) => {
       setIsLoading(true);
       setError("");
       try {
-        const res = await apiService.post("/transactions", { user_id: user.id });
+        const res = await apiService.get("/transactions");
+        console.log("Fetch deposits response:", res);
         // Normalize success flag across possible backends
-        const ok =
-          res?.data?.status === "true" ||
-          res?.status === "true" ||
-          res?.success === "true" ||
-          res?.data?.success === "true" ||
-          res?.data?.ok === true;
+        const ok = res?.success === true;
 
         const rows = res?.data?.data ?? res?.data?.rows ?? res?.data ?? [];
 

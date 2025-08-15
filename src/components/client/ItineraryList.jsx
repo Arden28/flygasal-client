@@ -1,7 +1,8 @@
-import React, { useMemo } from "react";
+import React, { useContext, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import FlightSegment from "../../components/client/FlightSegment";
+import { AuthContext } from "../../context/AuthContext";
 
 const money = (n, currency = "USD") =>
   (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
@@ -57,6 +58,7 @@ const ItineraryList = ({
   currentPage,
   pageSize,
 }) => {
+
   const navigate = useNavigate();
 
   const pageSummary = useMemo(() => {
@@ -192,7 +194,6 @@ const ItineraryList = ({
 
                     {isRoundTrip && (
                       <div className="mt-2 border-t border-dashed border-slate-200 pt-2">
-                        {/* {itinerary.outbound.destination} */}
                         <FlightSegment
                           flight={itinerary.return}
                           segmentType="Return"
