@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -11,67 +11,49 @@ import {
   Legend,
   Filler,
 } from "chart.js";
+import apiService from "../../api/apiService";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
-function useLabels(range) {
-  // Create labels dynamically based on range
-  if (range === "7d") {
-    // Last 7 days
-    const now = new Date();
-    return Array.from({ length: 7 }).map((_, i) => {
-      const d = new Date(now);
-      d.setDate(d.getDate() - (6 - i));
-      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    });
-  }
-  if (range === "30d") {
-    // last 5 weeks (approx)
-    return ["W-4", "W-3", "W-2", "W-1", "This W"];
-  }
-  if (range === "6m") {
-    const now = new Date();
-    return Array.from({ length: 6 }).map((_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-      return d.toLocaleString(undefined, { month: "short" });
-    });
-  }
-  // 12m
-  const now = new Date();
-  return Array.from({ length: 12 }).map((_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
-    return d.toLocaleString(undefined, { month: "short" });
-  });
-}
-
-function fakeSeries(range) {
-  // Generate lightweight demo series — swap with API-fed arrays later
-  if (range === "7d") {
-    const sales = [1200, 1600, 900, 2200, 1800, 2400, 2600];
-    const bookings = [12, 18, 10, 24, 20, 26, 28];
-    return { sales, bookings };
-  }
-  if (range === "30d") {
-    const sales = [5800, 6400, 6100, 7200, 6900];
-    const bookings = [52, 58, 55, 67, 63];
-    return { sales, bookings };
-  }
-  if (range === "6m") {
-    const sales = [12000, 19000, 30000, 25000, 40000, 35000];
-    const bookings = [120, 190, 300, 250, 400, 350];
-    return { sales, bookings };
-  }
-  // 12m
-  const sales = [9, 11, 12, 13, 16, 14, 18, 20, 19, 23, 22, 25].map((v) => v * 1000);
-  const bookings = [90, 110, 120, 130, 160, 140, 180, 200, 190, 230, 220, 250];
-  return { sales, bookings };
-}
-
-export default function SalesChart({ range = "30d", currency = "USD" }) {
-  const labels = useLabels(range);
-  const { sales, bookings } = useMemo(() => fakeSeries(range), [range]);
-
+export default function SalesChart({ range = "30d", currency = "USD", prefetched }) {
   const chartRef = useRef(null);
+
+  // If parent passed prefetched summary trends, use them; otherwise fetch once here.
+  const [labels, setLabels] = useState(prefetched?.labels || []);
+  const [sales, setSales] = useState(prefetched?.revenue || []);
+  const [bookings, setBookings] = useState(prefetched?.bookings || []);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (prefetched && prefetched.labels?.length) {
+      setLabels(prefetched.labels);
+      setSales(prefetched.revenue || []);
+      setBookings(prefetched.bookings || []);
+      setError("");
+      return;
+    }
+
+    let cancel = false;
+    (async () => {
+      setError("");
+      try {
+        // Pull everything from /dashboard/summary to get aligned labels + both series
+        const res = await apiService.get("/dashboard/summary", { params: { range } });
+        const data = res?.data?.data;
+        if (!data) throw new Error("Invalid chart payload");
+        if (cancel) return;
+        setLabels(data.labels || []);
+        setSales((data.trends?.revenue || []).map(Number));
+        setBookings((data.trends?.bookings || []).map(Number));
+      } catch (e) {
+        console.error(e);
+        if (!cancel) setError("Failed to load chart.");
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [range, prefetched?.labels]);
 
   const data = useMemo(() => {
     // gradient fill for sales
@@ -118,7 +100,7 @@ export default function SalesChart({ range = "30d", currency = "USD" }) {
   const options = useMemo(
     () => ({
       responsive: true,
-      maintainAspectRatio: false,
+      maintainAspectRatio: false, // key for responsiveness w/ fixed height wrapper
       interaction: { intersect: false, mode: "index" },
       plugins: {
         legend: {
@@ -158,7 +140,11 @@ export default function SalesChart({ range = "30d", currency = "USD" }) {
           ticks: {
             callback: (v) => {
               try {
-                return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 0 }).format(v);
+                return new Intl.NumberFormat(undefined, {
+                  style: "currency",
+                  currency,
+                  maximumFractionDigits: 0,
+                }).format(v);
               } catch {
                 return `${currency} ${v}`;
               }
@@ -210,21 +196,28 @@ export default function SalesChart({ range = "30d", currency = "USD" }) {
           Download PNG
         </button>
       </div>
+
+      {/* Responsive height wrapper prevents overflow on small screens */}
       <div className="h-72 sm:h-80">
+        {/* react-chartjs-2 v5 forwards the Chart instance to ref */}
         <Line
-          ref={(node) => {
-            // react-chartjs-2 forwards to node?.chartInstance in v4; expose canvas helpers with getDatasetMeta
-            chartRef.current = node?.canvas
-              ? {
-                  toBase64Image: (...args) => node?.toBase64Image?.(...args),
-                  update: (...args) => node?.update?.(...args),
-                }
-              : node;
+          ref={(instance) => {
+            // expose only the methods we use
+            if (!instance) {
+              chartRef.current = null;
+              return;
+            }
+            chartRef.current = {
+              toBase64Image: (...args) => instance.toBase64Image?.(...args),
+              update: (...args) => instance.update?.(...args),
+            };
           }}
           data={data}
           options={options}
         />
       </div>
+
+      {error && <p className="mt-2 text-[11px] text-red-600">{error}</p>}
     </div>
   );
 }
