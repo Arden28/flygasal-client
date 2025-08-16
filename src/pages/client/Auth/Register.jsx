@@ -1,698 +1,631 @@
-import React, { useState, useEffect, useContext } from 'react';
-import Select from 'react-select';
-import HCaptcha from '@hcaptcha/react-hcaptcha';
-import { AuthContext } from '../../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useContext, useRef } from "react";
+import Select from "react-select";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
+import { AuthContext } from "../../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
-// Mock translation object to replace PHP T::
+/* ---------------- i18n ---------------- */
 const T = {
-  signup: 'Sign Up',
-  name: 'Full Name',
-  last_name: 'Last Name',
-  select: 'Select',
-  country: 'Country',
-  phone: 'Phone Number',
-  email: 'Email',
-  address: 'Address',
-  password: 'Password',
-  by_signup_i_agree_to_terms_and_policy: 'By signing up, I agree to the Terms and Policy',
-  agent: 'Agent',
-  agency_name: 'Agency Name',
-  agency_license: 'Agency License',
-  agency_city: 'Agency City',
-  agency_address: 'Agency Address',
+  signup: "Sign Up",
+  agent: "Agent",
+  name: "Full Name",
+  country: "Country",
+  select_country: "Select Country",
+  phone: "Phone Number",
+  email: "Email",
+  address: "Address",
+  password: "Password",
+  confirm_password: "Confirm Password",
+  by_signup_i_agree_to_terms_and_policy: "By signing up, I agree to the Terms and Policy",
+  agency_name: "Agency Name",
+  agency_license: "Agency License",
+  agency_city: "Agency City",
+  agency_address: "Agency Address",
+  continue: "Continue",
+  back: "Back",
+  create_account: "Create Account",
+  already_have_account: "Already have an account?",
+  sign_in: "Sign in",
+
+  // Marketing copy
+  hero_title: "Join Fly Gasal as an Agent",
+  hero_sub: "Access wholesale rates, manage bookings, and grow your travel business with a dashboard built for agencies.",
+  cta_get_started: "Get Started",
+  why_join_title: "Why join Fly Gasal?",
+  why_join_sub: "Access wholesale rates and premium inventory to boost your travel agency's revenue.",
+  feat1_title: "Wholesale Rates",
+  feat1_desc: "Access exclusive B2B fares and room rates to maximize your margins.",
+  feat2_title: "Premium Inventory",
+  feat2_desc: "Book flights and stays across global carriers and top hotels.",
+  feat3_title: "Agent Dashboard",
+  feat3_desc: "Manage bookings, invoices, markups, and reports in one place.",
+  feat4_title: "Dedicated Support",
+  feat4_desc: "Priority, 24/7 support tailored for travel agencies.",
+  how_title: "How it works",
+  how_sub: "Start booking with wholesale rates today.",
+  step1_t: "Register as an Agent",
+  step1_d: "Complete a quick verification of your agency credentials.",
+  step2_t: "Access Your Dashboard",
+  step2_d: "Log in and unlock wholesale rates and premium inventory.",
+  step3_t: "Make Bookings",
+  step3_d: "Search, filter, and confirm bookings in real time.",
+  step4_t: "Grow Your Business",
+  step4_d: "Track performance, manage clients, and scale profitably.",
 };
 
-// Mock country data to replace PHP foreach loop
+/* ---------------- Countries (mock) ---------------- */
 const countries = [
-  { id: '1', iso: 'us', nicename: 'United States', phonecode: '1' },
-  { id: '2', iso: 'uk', nicename: 'United Kingdom', phonecode: '44' },
-  { id: '3', iso: 'ca', nicename: 'Canada', phonecode: '1' },
-  { id: '4', iso: 'in', nicename: 'India', phonecode: '91' },
-  { id: '5', iso: 'au', nicename: 'Australia', phonecode: '61' },
+  { id: "1", iso: "us", nicename: "United States", phonecode: "1" },
+  { id: "2", iso: "uk", nicename: "United Kingdom", phonecode: "44" },
+  { id: "3", iso: "ca", nicename: "Canada", phonecode: "1" },
+  { id: "4", iso: "in", nicename: "India", phonecode: "91" },
+  { id: "5", iso: "au", nicename: "Australia", phonecode: "61" },
 ];
 
+/* ---------------- Styles for react-select ---------------- */
+const selectStyles = {
+  control: (p, s) => ({
+    ...p,
+    borderRadius: 12,
+    minHeight: 48,
+    borderColor: s.isFocused ? "#60a5fa" : "#e5e7eb",
+    boxShadow: s.isFocused ? "0 0 0 3px rgba(59,130,246,.2)" : "none",
+    ":hover": { borderColor: "#93c5fd" },
+  }),
+  menu: (p) => ({ ...p, borderRadius: 12, overflow: "hidden" }),
+  option: (p, s) => ({
+    ...p,
+    padding: "10px 12px",
+    background: s.isFocused ? "#f3f4f6" : "white",
+  }),
+};
+
+const CustomOption = ({ innerProps, data }) => (
+  <div {...innerProps} className="d-flex align-items-center px-3 py-2">
+    <img src={`/assets/img/flags/${data.iso}.svg`} alt="" width={18} className="me-2" />
+    <span>
+      {data.nicename} (+{data.phonecode})
+    </span>
+  </div>
+);
+const CustomSingleValue = ({ innerProps, data }) => (
+  <div {...innerProps} className="d-flex align-items-center">
+    <img src={`/assets/img/flags/${data.iso}.svg`} alt="" width={18} className="me-2" />
+    <span>
+      {data.nicename} (+{data.phonecode})
+    </span>
+  </div>
+);
+
+/* ---------------- Helpers ---------------- */
+const digitsOnly = (v) => v.replace(/\D+/g, "");
+const strength = (pwd) => {
+  let sc = 0;
+  if (pwd.length >= 8) sc++;
+  if (/[A-Z]/.test(pwd)) sc++;
+  if (/[a-z]/.test(pwd)) sc++;
+  if (/\d/.test(pwd)) sc++;
+  if (/[^A-Za-z0-9]/.test(pwd)) sc++;
+  return Math.min(sc, 4);
+};
+
 const Register = ({
-  formToken = 'static_form_token',
-  hcaptchaSiteKey = 'f32aa812-3254-479a-839c-4e8a70388cac', // Replace with your actual reCAPTCHA site key
-  recaptchaSiteKey = 'f32aa812-3254-479a-839c-4e8a70388cac', // Replace with your actual reCAPTCHA site key
+  formToken = "static_form_token",
+  hcaptchaSiteKey = "f32aa812-3254-479a-839c-4e8a70388cac",
 }) => {
   const { register } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
+
+  const [step, setStep] = useState(1); // 1: account, 2: agency
   const [isAgreed, setIsAgreed] = useState(false);
-  const [isRecaptchaVerified, setIsRecaptchaVerified] = useState(false);
-  const initialFormState = {
-    name: '',
+  const [isCaptchaOk, setIsCaptchaOk] = useState(false);
+  const captchaRef = useRef(null);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+  const [touched, setTouched] = useState({});
+
+  const [form, setForm] = useState({
+    name: "",
     phone_country_code: null,
-    phone: '',
-    email: '',
-    password: '',
-    agency_name: '',
-    agency_license: '',
-    agency_city: '',
-    agency_address: '',
-    agency_logo: '',
+    phone: "",
+    email: "",
+    password: "",
+    confirm_password: "",
+    agency_name: "",
+    agency_license: "",
+    agency_city: "",
+    agency_address: "",
+  });
+
+  /* -------- Validation -------- */
+  const step1Errors = () => {
+    const e = {};
+    if (!form.name.trim()) e.name = "Full name is required.";
+    if (!form.phone_country_code) e.phone_country_code = "Country is required.";
+    if (!form.phone.trim()) e.phone = "Phone number is required.";
+    else if (!/^\d{7,15}$/.test(form.phone.trim())) e.phone = "Phone must be 7–15 digits.";
+    if (!form.email.trim()) e.email = "Email is required.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = "Invalid email format.";
+    if (!form.password) e.password = "Password is required.";
+    else if (form.password.length < 8) e.password = "Use at least 8 characters.";
+    if (!form.confirm_password) e.confirm_password = "Please confirm your password.";
+    else if (form.confirm_password !== form.password) e.confirm_password = "Passwords do not match.";
+    return e;
   };
-  const [formState, setFormState] = useState(initialFormState);
-  const [formErrors, setFormErrors] = useState({}); // Object for field-specific and general errors
+  const step2Errors = () => {
+    const e = {};
+    if (!form.agency_name.trim()) e.agency_name = "Agency name is required.";
+    if (!form.agency_license.trim()) e.agency_license = "Agency license is required.";
+    if (!form.agency_city.trim()) e.agency_city = "Agency city is required.";
+    if (!form.agency_address.trim()) e.agency_address = "Agency address is required.";
+    if (!isAgreed) e.terms = "You must agree to the Terms and Policy.";
+    if (!isCaptchaOk) e.recaptcha = "Please complete the verification.";
+    return e;
+  };
 
-  useEffect(() => {
-    // Load reCAPTCHA script dynamically
-    const script = document.createElement('script');
-    script.src = `https://www.google.com/recaptcha/api.js?render=explicit`; // Use explicit render mode
-    script.async = true;
-    script.defer = true;
-    document.body.appendChild(script);
+  const markTouched = (name) => setTouched((t) => ({ ...t, [name]: true }));
 
-    // Define the callback function globally for reCAPTCHA
-    window.correctCaptcha = (response) => {
-      // You might want to send this response token to your backend for verification
-      console.log("reCAPTCHA response:", response);
-      setIsRecaptchaVerified(true);
-    };
-
-    script.onload = () => {
-      // Ensure grecaptcha is available before trying to render
-      if (window.grecaptcha && window.grecaptcha.render) {
-        window.grecaptcha.render('recaptcha-container', {
-          sitekey: recaptchaSiteKey,
-          callback: window.correctCaptcha,
-          'expired-callback': () => setIsRecaptchaVerified(false), // Handle token expiration
-          'error-callback': () => setIsRecaptchaVerified(false), // Handle errors
-        });
-      }
-    };
-
-    return () => {
-      // Cleanup: Remove the script and global callback
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-      delete window.correctCaptcha;
-      // Reset reCAPTCHA on unmount if it was rendered
-      if (window.grecaptcha && window.grecaptcha.reset) {
-        window.grecaptcha.reset();
-      }
-    };
-  }, [recaptchaSiteKey]); // Add recaptchaSiteKey to dependencies
-
-
-    // Custom styles for react-select
-    const selectStyles = {
-      control: (provided) => ({
-        ...provided,
-        borderRadius: '0.5rem',
-        padding: '0.5rem',
-        paddingLeft: '0.8rem',
-        border: '1px solid #e5e7eb',
-        boxShadow: 'none',
-        '&:hover': {
-          borderColor: '#3b82f6',
-        },
-      }),
-      container: (provided) => ({
-        ...provided,
-        zIndex: 200,
-      }),
-      menu: (provided) => ({
-        ...provided,
-        borderRadius: '0.5rem',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-        marginTop: '0.25rem',
-      }),
-      option: (provided) => ({
-        ...provided,
-        backgroundColor: 'transparent',
-        '&:hover': {
-          backgroundColor: '#f3f4f6',
-        },
-      }),
-    };
-
-  // Custom Option Component for react-select
-  const CustomOption = ({ innerProps, label, data }) => (
-    <div
-      {...innerProps}
-      className="flex items-center p-3 hover:bg-gray-100 cursor-pointer transition-colors duration-200"
-    >
-      <img
-        src={`/assets/img/flags/${data.iso.toLowerCase()}.svg`} // Ensure lowercase for consistency
-        alt={`${data.nicename} flag`}
-        className="w-[20px] mr-3"
-      />
-      <span>{`${data.nicename} (+${data.phonecode})`}</span>
-    </div>
-  );
-
-  // Custom SingleValue Component for react-select
-  const CustomSingleValue = ({ innerProps, children, data }) => (
-    <div {...innerProps} className="flex items-center">
-      <img
-        src={`/assets/img/flags/${data.iso.toLowerCase()}.svg`}
-        alt={`${data.nicename} flag`}
-        className="w-[20px] mr-3"
-      />
-      <span>{`${data.nicename} (+${data.phonecode})`}</span>
-    </div>
-  );
-
-
-  // Handle form field changes
-  const handleInputChange = (e) => {
+  /* -------- Handlers -------- */
+  const onInput = (e) => {
     const { name, value } = e.target;
-    setFormState((prev) => ({ ...prev, [name]: value }));
-    // Clear error for the field when user starts typing
-    setFormErrors((prev) => ({ ...prev, [name]: '' }));
+    const v = name === "phone" ? digitsOnly(value) : value;
+    setForm((f) => ({ ...f, [name]: v }));
+    if (formErrors[name]) setFormErrors((er) => ({ ...er, [name]: "" }));
+  };
+  const onCountry = (opt) => {
+    setForm((f) => ({ ...f, phone_country_code: opt }));
+    if (formErrors.phone_country_code) setFormErrors((er) => ({ ...er, phone_country_code: "" }));
   };
 
-  // Handle country select change
-  const handleCountryChange = (selectedOption) => {
-    setFormState((prev) => ({ ...prev, phone_country_code: selectedOption }));
-    setFormErrors((prev) => ({ ...prev, phone_country_code: '' }));
+  const goNext = () => {
+    const e = step1Errors();
+    if (Object.keys(e).length) {
+      setFormErrors(e);
+      const first = Object.keys(e)[0];
+      const el = document.getElementById(first);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      el?.focus();
+      return;
+    }
+    setFormErrors({});
+    setStep(2);
+    setTimeout(() => document.getElementById("agency_name")?.focus(), 50);
   };
+  const goBack = () => setStep(1);
 
-  // Handle hCaptcha verification
-  const handleVerificationSuccess = (token) => {
-    console.log('hCaptcha token:', token);
-    setIsRecaptchaVerified(!!token);
-  };
-
-  // Validate form fields
-  const validateForm = () => {
-    const errors = {};
-    if (!formState.name.trim()) {
-      errors.name = 'Full Name is required.';
-    }
-    if (!formState.phone_country_code) {
-      errors.phone_country_code = 'Country is required.';
-    }
-    if (!formState.phone.trim()) {
-      errors.phone = 'Phone Number is required.';
-    } else if (!/^\d{7,15}$/.test(formState.phone.trim())) {
-      errors.phone = 'Phone number must be 7-15 digits.';
-    }
-    if (!formState.email.trim()) {
-      errors.email = 'Email is required.';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formState.email.trim())) {
-      errors.email = 'Invalid email format.';
-    }
-    if (!formState.password.trim()) {
-      errors.password = 'Password is required.';
-    } else if (formState.password.length < 6) {
-      errors.password = 'Password must be at least 6 characters.';
-    }
-    return errors;
-  };
-
-  // Handle form submission
-  const handleSubmit = async (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate form and display errors if any
-    const errors = validateForm();
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      // Scroll to and focus the first error field for accessibility
-      const firstErrorField = Object.keys(errors)[0];
-      const element = document.getElementById(firstErrorField);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        element.focus();
-      }
-      return;
-    }
-
-    // Check if user agreed to terms
-    if (!isAgreed) {
-      setFormErrors({ terms: 'You must agree to the Terms and Policy' });
-      return;
-    }
-
-    // Check reCAPTCHA verification (uncomment when implemented)
-    
-    if (!isRecaptchaVerified) {
-      setFormErrors({ recaptcha: 'Please complete the reCAPTCHA verification' });
+    const e2 = step2Errors();
+    if (Object.keys(e2).length) {
+      setFormErrors(e2);
+      const first = Object.keys(e2)[0];
+      const el = document.getElementById(first === "recaptcha" ? "hcaptcha-box" : first);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
 
     setIsLoading(true);
-
     try {
-      // Prepare user data for registration, mapping phone to phone_number
-      const userData = {
-        name: formState.name,
-        email: formState.email,
-        password: formState.password,
-        phone_number: formState.phone, // Map to backend field
-        phone_country_code: formState.phone_country_code?.id || null, // Handle object or null
-        agency_name: formState.agency_name,
-        agency_license: formState.agency_license,
-        agency_city: formState.agency_city,
-        agency_address: formState.agency_address,
-        agency_logo: formState.agency_logo, // Handle file upload separately if needed
-        wallet_balance: formState.walletBalance, // Use snake_case for backend
-        role: 'agent', // Set role to agent
+      const payload = {
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+        phone_number: form.phone.trim(),
+        phone_country_code: form.phone_country_code?.phonecode || null,
+        phone_country_iso: form.phone_country_code?.iso || null,
+        agency_name: form.agency_name.trim(),
+        agency_license: form.agency_license.trim(),
+        agency_city: form.agency_city.trim(),
+        agency_address: form.agency_address.trim(),
+        role: "agent",
+        form_token: formToken,
       };
-
-      // Call register function and await user response for role-based redirect
-      await register(userData);
-
-      // Reset form state, agreement, and reCAPTCHA
-      setFormState(initialFormState);
+      await register(payload);
+      // reset
+      setForm({
+        name: "",
+        phone_country_code: null,
+        phone: "",
+        email: "",
+        password: "",
+        confirm_password: "",
+        agency_name: "",
+        agency_license: "",
+        agency_city: "",
+        agency_address: "",
+      });
       setIsAgreed(false);
-      setIsRecaptchaVerified(false);
-      setFormErrors({}); // Clear errors
-
-      // Redirect with full page refresh
-      window.location.assign('/signup-success');
-    } catch (error) {
-      // Handle API errors with user-friendly message
-      const errorMessage = error.response?.data?.message || 'Registration failed. Please try again.';
-      setFormErrors({ general: errorMessage });
-      console.error('Registration failed:', error);
+      setIsCaptchaOk(false);
+      setFormErrors({});
+      navigate("/signup-success", { replace: true });
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Registration failed. Please try again.";
+      setFormErrors({ general: msg });
     } finally {
       setIsLoading(false);
     }
   };
 
+  /* -------- Visual helpers -------- */
+  const pwdScore = strength(form.password);
+  const pwdBars = ["#fee2e2", "#fde68a", "#bbf7d0", "#86efac"];
+  const pwdBarColor = pwdScore ? pwdBars[pwdScore - 1] : "#e5e7eb";
+
   return (
     <>
-      <style>
-        {`
-        .hero-section { background-color: #fff; padding: 80px 0; }
-        .features-section { background-color: #f5f5f5; padding: 60px 0; }
-        .feature-icon { width: 64px; height: 64px; margin-bottom: 20px; }
-        .how-it-works { padding: 60px 0; }
-        .step-number { width: 40px; height: 40px; border-radius: 50%; background-color: #f5f5f5; display: flex; align-items: center; justify-content: center; margin-right: 15px; }
-        .btn-register { background-color: #006CE4; color: white; padding: 8px 24px; border-radius: 4px; text-decoration: none; }
-        .btn-register:hover { background-color: #0056b3; color: white; }
-        /* Adjusted select styles to directly apply to react-select components */
-        .react-select__control {
-            border-radius: 6px !important;
-            border: 1px solid #dee2e6;
-        }
-        .react-select__control--is-focused {
-            border-color: #80bdff !important; /* Example Bootstrap focus color */
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
-        }
-        .is-invalid .react-select__control {
-          border-color: #dc3545 !important;
-          padding-right: calc(1.5em + 0.75rem);
-          background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e") !important;
-          background-repeat: no-repeat;
-          background-position: right calc(0.375em + 0.1875rem) center;
-          background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
-        }
-        `}
-      </style>
-      <section className="hero-section">
+      <style>{`
+        .hero-grad{background:linear-gradient(135deg,#f8fbff 0%,#f5f7ff 40%,#f9f9ff 100%)}
+        .card-glass{backdrop-filter:saturate(180%) blur(6px); background:rgba(255,255,255,.88)}
+        .step-dot{width:28px;height:28px;border-radius:9999px}
+        .step-dot.active{background:#2563eb;color:#fff}
+        .step-dot.done{background:#22c55e;color:#fff}
+        .feature-card{transition:transform .2s ease, box-shadow .2s ease}
+        .feature-card:hover{transform:translateY(-2px); box-shadow:0 10px 20px rgba(0,0,0,.06)}
+      `}</style>
+
+      {/* Hero */}
+      <section className="hero-grad py-5">
         <div className="container">
-          <p>{/* Response message if needed */}</p>
-          <div className="row align-items-center">
+          <div className="row align-items-center g-4">
             <div className="col-lg-6">
-              <h1 className="mb-3 strong bold">
-                Join <span className="text-primary">Fly Gasal</span> as an agent today!
-              </h1>
-              <p className="mb-4">
-                Get the best pricing in the market and build better business with us – register
-                today with our official networks
-              </p>
-              <a href="#signup" className="btn btn-primary px-5 py-3">
-                Signup
-              </a>
+              <h1 className="fw-bold mb-3">{T.hero_title}</h1>
+              <p className="text-muted mb-4">{T.hero_sub}</p>
+              <a href="#why-join" className="btn btn-primary btn-lg px-4">{T.cta_get_started}</a>
             </div>
             <div className="col-lg-6">
-              <img
-                src={`/assets/img/agent.jpg`}
-                alt="Hero image"
-                className="img-fluid rounded-5"
-              />
+              <img src="/assets/img/agent.jpg" alt="Agent" className="img-fluid rounded-4 shadow-sm" />
             </div>
           </div>
         </div>
       </section>
-      <section className="features-section">
+
+      {/* Why Join / Advantages */}
+      <section className="py-5 bg-white" id="why-join">
         <div className="container">
-          <h2 className="mb-4 strong">Why join Fly Gasal?</h2>
-          <p className="mb-5">
-            Access wholesale rates and premium inventory to boost your travel agency's revenue
-          </p>
+          <div className="text-center mb-4">
+            <h2 className="fw-semibold">{T.why_join_title}</h2>
+            <p className="text-muted">{T.why_join_sub}</p>
+          </div>
+
           <div className="row g-4">
             <div className="col-md-3">
-              <img
-                src={`/assets/img/ico1.png`}
-                alt="Rates"
-                className="feature-icon"
-              />
-              <h3 className="h5 strong">Wholesale Rates</h3>
-              <p>
-                Access exclusive B2B rates up to 40% below retail prices across 500,000+ properties
-                worldwide to maximize your profit margins.
-              </p>
+              <div className="feature-card h-100 p-4 rounded-4 border bg-white">
+                <img src="/assets/img/ico1.png" alt="" width={48} className="mb-3" />
+                <h5 className="fw-semibold mb-1">{T.feat1_title}</h5>
+                <p className="text-muted small mb-0">{T.feat1_desc}</p>
+              </div>
             </div>
             <div className="col-md-3">
-              <img
-                src={`/assets/img/ico2.png`}
-                alt="Inventory"
-                className="feature-icon"
-              />
-              <h3 className="h5 strong">Premium Inventory</h3>
-              <p>
-                Book luxury hotels, resorts, and unique properties with guaranteed availability and
-                real-time confirmation for your clients.
-              </p>
+              <div className="feature-card h-100 p-4 rounded-4 border bg-white">
+                <img src="/assets/img/ico2.png" alt="" width={48} className="mb-3" />
+                <h5 className="fw-semibold mb-1">{T.feat2_title}</h5>
+                <p className="text-muted small mb-0">{T.feat2_desc}</p>
+              </div>
             </div>
             <div className="col-md-3">
-              <img
-                src={`/assets/img/ico3.png`}
-                alt="Platform"
-                className="feature-icon"
-              />
-              <h3 className="h5 strong">Agent Dashboard</h3>
-              <p>
-                Manage bookings, access reports, and track commissions through our intuitive
-                platform designed specifically for travel agents.
-              </p>
+              <div className="feature-card h-100 p-4 rounded-4 border bg-white">
+                <img src="/assets/img/ico3.png" alt="" width={48} className="mb-3" />
+                <h5 className="fw-semibold mb-1">{T.feat3_title}</h5>
+                <p className="text-muted small mb-0">{T.feat3_desc}</p>
+              </div>
             </div>
             <div className="col-md-3">
-              <img
-                src={`/assets/img/ico4.png`}
-                alt="Support"
-                className="feature-icon"
-              />
-              <h3 className="h5 strong">Dedicated Support</h3>
-              <p>
-                Get priority access to our 24/7 travel agent support team for quick resolution of
-                booking modifications and queries.
-              </p>
+              <div className="feature-card h-100 p-4 rounded-4 border bg-white">
+                <img src="/assets/img/ico4.png" alt="" width={48} className="mb-3" />
+                <h5 className="fw-semibold mb-1">{T.feat4_title}</h5>
+                <p className="text-muted small mb-0">{T.feat4_desc}</p>
+              </div>
             </div>
           </div>
         </div>
       </section>
-      <section className="how-it-works">
+
+      {/* How it works */}
+      <section className="py-5 bg-light">
         <div className="container">
-          <h2 className="strong mb-1">How does it work?</h2>
-          <p className="mb-5">Start booking with wholesale rates today</p>
-          <div className="row align-items-center">
+          <div className="text-center mb-4">
+            <h2 className="fw-semibold">{T.how_title}</h2>
+            <p className="text-muted">{T.how_sub}</p>
+          </div>
+          <div className="row align-items-center g-4">
             <div className="col-lg-6">
-              <div className="mb-2 d-flex align-items-start">
-                <div className="step-number">1</div>
-                <div>
-                  <h3 className="h5 strong">Register as an Agent</h3>
-                  <p>Complete our simple verification process to confirm your agency credentials</p>
-                </div>
-              </div>
-              <div className="mb-2 d-flex align-items-start">
-                <div className="step-number">2</div>
-                <div>
-                  <h3 className="h5 strong">Access Your Dashboard</h3>
-                  <p>
-                    Get instant access to wholesale rates and premium inventory through your
-                    dedicated portal
-                  </p>
-                </div>
-              </div>
-              <div className="mb-2 d-flex align-items-start">
-                <div className="step-number">3</div>
-                <div>
-                  <h3 className="h5 strong">Make Bookings</h3>
-                  <p>Search filter book with exclusive B2B rates with instant confirmation</p>
-                </div>
-              </div>
-              <div className="mb-2 d-flex align-items-start">
-                <div className="step-number">4</div>
-                <div>
-                  <h3 className="h5 strong">Grow Your Business</h3>
-                  <p>Track your bookings, manage client requests, and expand your travel business</p>
-                </div>
-              </div>
+              <ol className="list-unstyled m-0">
+                {[
+                  { n: 1, t: T.step1_t, d: T.step1_d },
+                  { n: 2, t: T.step2_t, d: T.step2_d },
+                  { n: 3, t: T.step3_t, d: T.step3_d },
+                  { n: 4, t: T.step4_t, d: T.step4_d },
+                ].map((s) => (
+                  <li key={s.n} className="d-flex align-items-start mb-3">
+                    <div className="me-3 d-flex align-items-center justify-content-center rounded-circle bg-white border" style={{width:40,height:40}}>
+                      <strong>{s.n}</strong>
+                    </div>
+                    <div>
+                      <h6 className="mb-1">{s.t}</h6>
+                      <p className="text-muted small mb-0">{s.d}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
             </div>
             <div className="col-lg-6">
-              <img
-                src={`/assets/img/agent2.jpg`}
-                alt="How it works illustration"
-                className="img-fluid rounded-5 w-100"
-              />
+              <img src="/assets/img/agent2.jpg" alt="How it works" className="img-fluid rounded-4 shadow-sm w-100" />
             </div>
           </div>
         </div>
       </section>
-      <div className="bg-light" id="signup">
-        <div className="row p-2">
-          <div className="col-md-6 mx-auto">
-                <form id="signupForm" onSubmit={handleSubmit} className="mb-5"> {/* Changed id to avoid conflict */}
-                  <div className="container-fluid">
-                    <div className="card mt-5 col-md-12 mx-auto rounded-4">
-                      <div className="p-3 p-md-4">
-                        <h3 className="font-bold text-2xl">{T.signup} {T.agent}</h3>
-                        {/* <p className="mb-4"></p> */}
-                        {formErrors.general && <div className="alert alert-danger col-md-5 mx-auto">{formErrors.general}</div>}
-                        <div className="row">
-                            <div className="form-floating mb-3 col-md-6">
-                            <input
-                                type="text"
-                                className={`form-control ${formErrors.name ? 'is-invalid' : ''}`}
-                                id="name"
-                                placeholder=" "
-                                name="name"
-                                value={formState.name}
-                                onChange={handleInputChange}
-                                required
-                                aria-describedby="name_error"
-                            />
-                            <label htmlFor="name">{T.name}</label>
-                            {formErrors.name && (
-                                <div id="name_error" className="invalid-feedback">
-                                {formErrors.name}
-                                </div>
-                            )}
-                            </div>
-                            <div className="form-floating mb-3 col-md-6">
-                                <Select
-                                    options={countries}
-                                    value={formState.phone_country_code}
-                                    onChange={handleCountryChange}
-                                    components={{ Option: CustomOption }}
-                                    styles={selectStyles}
-                                    placeholder={`${T.select} ${T.country}`}
-                                    isSearchable
-                                    getOptionLabel={(option) => `${option.nicename} (+${option.phonecode})`}
-                                    getOptionValue={(option) => option.id}
-                                    required
-                                    aria-label="Select country"
-                                    className={formErrors.phone_country_code ? 'is-invalid' : ''}
-                                />
-                                <label htmlFor="phone_country_code">{`${T.select} ${T.country}`}</label>
-                                {formErrors.phone_country_code && (
-                                    <div className="invalid-feedback">{formErrors.phone_country_code}</div>
-                                )}
-                            </div>
-                            <div className="form-floating mb-3 col-md-6">
-                              <input
-                                type="tel"
-                                className={`form-control ${formErrors.phone ? 'is-invalid' : ''}`}
-                                id="phone"
-                                placeholder=" "
-                                name="phone"
-                                value={formState.phone}
-                                onChange={handleInputChange}
-                                required
-                                aria-describedby="phone_error"
-                              />
-                              <label htmlFor="phone">{T.phone}</label>
-                              {formErrors.phone && (
-                                <div id="phone_error" className="invalid-feedback">{formErrors.phone}</div>
-                              )}
-                            </div>
-                            
-                            <div className="form-floating mb-3 col-md-6">
-                            <input
-                                type="email"
-                                className={`form-control ${formErrors.email ? 'is-invalid' : ''}`}
-                                id="email"
-                                placeholder=" "
-                                name="email"
-                                value={formState.email}
-                                onChange={handleInputChange}
-                                required
-                                aria-describedby="email_error"
-                            />
-                            <label htmlFor="email">{`${T.email} ${T.address}`}</label>
-                            {formErrors.email && (
-                                <div id="email_error" className="invalid-feedback">
-                                {formErrors.email}
-                                </div>
-                            )}
-                            </div>
 
-                            <div className="form-floating mb-3 col-md-12">
-                            <input
-                                type="password"
-                                className={`form-control ${formErrors.password ? 'is-invalid' : ''}`}
-                                id="password"
-                                placeholder=" "
-                                name="password"
-                                value={formState.password}
-                                onChange={handleInputChange}
-                                required
-                                aria-describedby="password_error"
-                            />
-                            <label htmlFor="password">{T.password}</label>
-                            {formErrors.password && (
-                                <div id="password_error" className="invalid-feedback">{formErrors.password}</div>
-                            )}
-                            </div>
-                            
-                            <div className="form-floating mb-3 col-md-6">
-                                <input
-                                    type="text"
-                                    className={`form-control ${formErrors.agency_name ? 'is-invalid' : ''}`}
-                                    id="agency_name"
-                                    placeholder=" "
-                                    name="agency_name"
-                                    value={formState.agency_name}
-                                    onChange={handleInputChange}
-                                    required
-                                    aria-describedby="agency_name_error"
-                                />
-                                <label htmlFor="agency_name">{T.agency_name}</label>
-                                {formErrors.agency_name && (
-                                    <div id="agency_name_error" className="invalid-feedback">
-                                    {formErrors.agency_name}
-                                    </div>
-                                )}
-                            </div>
-                            
-                            <div className="form-floating mb-3 col-md-6">
-                                <input
-                                    type="text"
-                                    className={`form-control ${formErrors.agency_license ? 'is-invalid' : ''}`}
-                                    id="agency_license"
-                                    placeholder=" "
-                                    name="agency_license"
-                                    value={formState.agency_license}
-                                    onChange={handleInputChange}
-                                    required
-                                    aria-describedby="agency_licence_error"
-                                />
-                                <label htmlFor="agency_license">{T.agency_license}</label>
-                                {formErrors.agency_license && (
-                                    <div id="agency_licence_error" className="invalid-feedback">
-                                    {formErrors.agency_license}
-                                    </div>
-                                )}
-                            </div>
-                            
-                            <div className="form-floating mb-3 col-md-6">
-                                <input
-                                    type="text"
-                                    className={`form-control ${formErrors.agency_city ? 'is-invalid' : ''}`}
-                                    id="agency_city"
-                                    placeholder=" "
-                                    name="agency_city"
-                                    value={formState.agency_city}
-                                    onChange={handleInputChange}
-                                    required
-                                    aria-describedby="agency_licence_error"
-                                />
-                                <label htmlFor="agency_city">{T.agency_city}</label>
-                                {formErrors.agency_license && (
-                                    <div id="agency_city_error" className="invalid-feedback">
-                                    {formErrors.agency_city}
-                                    </div>
-                                )}
-                            </div>
-                            
-                            <div className="form-floating mb-3 col-md-6">
-                                <input
-                                    type="text"
-                                    className={`form-control ${formErrors.agency_address ? 'is-invalid' : ''}`}
-                                    id="agency_address"
-                                    placeholder=" "
-                                    name="agency_address"
-                                    value={formState.agency_address}
-                                    onChange={handleInputChange}
-                                    required
-                                    aria-describedby="agency_licence_error"
-                                />
-                                <label htmlFor="agency_address">{T.agency_address}</label>
-                                {formErrors.agency_license && (
-                                    <div id="agency_address_error" className="invalid-feedback">
-                                    {formErrors.agency_address}
-                                    </div>
-                                )}
-                            </div>
+      {/* Form */}
+      <section className="py-4 bg-light" id="signup-form">
+        <div className="container">
+          <div className="col-lg-8 mx-auto">
+            <div className="card card-glass border-0 shadow-sm rounded-4">
+              <div className="card-body p-4 p-md-5">
 
-                        </div>
+                {/* Header + Stepper */}
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h3 className="mb-0 fw-semibold">
+                    {T.signup} <span className="text-primary">{T.agent}</span>
+                  </h3>
+                  <a href="/login" className="text-sm text-decoration-none">
+                    {T.already_have_account} <strong>{T.sign_in}</strong>
+                  </a>
+                </div>
 
-                        
-                      <HCaptcha
-                        sitekey={hcaptchaSiteKey}
-                        onVerify={handleVerificationSuccess}
-                        onExpire={() => setIsRecaptchaVerified(false)}
-                        onError={() => setIsRecaptchaVerified(false)}
-                      />
-                        {formErrors.recaptcha && ( // Add error message for recaptcha if needed
-                            <div className="text-danger mt-1">{formErrors.recaptcha}</div>
-                        )}
-                        <div className="mt-4">
+                <div className="d-flex align-items-center gap-3 mb-4">
+                  <div className={`step-dot d-flex align-items-center justify-content-center ${step === 1 ? "active" : "done"}`}>1</div>
+                  <div className="flex-fill" style={{height:2, background:"#e5e7eb"}} />
+                  <div className={`step-dot d-flex align-items-center justify-content-center ${step === 2 ? "active" : ""}`}>2</div>
+                </div>
+
+                {formErrors.general && <div className="alert alert-danger">{formErrors.general}</div>}
+
+                <form onSubmit={onSubmit} noValidate>
+                  {step === 1 && (
+                    <>
+                      <div className="row g-3">
+                        <div className="col-md-12">
+                          <label htmlFor="name" className="form-label">* {T.name}</label>
                           <input
-                            type="checkbox"
-                            className="form-check-input agree"
-                            id="terms"
-                            checked={isAgreed}
-                            onChange={(e) => setIsAgreed(e.target.checked)}
-                            aria-label="Agree to terms and policy"
-                            required // Make this visually required, validation handled by state
+                            id="name"
+                            name="name"
+                            type="text"
+                            className={`form-control form-control-lg ${touched.name && formErrors.name ? "is-invalid" : ""}`}
+                            value={form.name}
+                            onChange={onInput}
+                            onBlur={() => markTouched("name")}
+                            placeholder="Jane Doe"
+                            autoComplete="name"
                           />
-                          <label className="form-check-label ms-2" htmlFor="terms">
-                            {T.by_signup_i_agree_to_terms_and_policy}
-                          </label>
+                          {touched.name && formErrors.name && <div className="invalid-feedback">{formErrors.name}</div>}
                         </div>
-                        <hr />
-                        <div className="pt-0 pb-2">
-                          <div className="mt-3 row">
-                            <div className="col-md-12">
-                              <div className="signup_button" style={{ display: isLoading ? 'none' : 'block' }}>
-                                <button
-                                  id="submitBTN"
-                                  style={{ height: '44px' }}
-                                  type="submit"
-                                  className="btn btn-primary w-100 d-flex align-items-center justify-content-center font-bold"
-                                  disabled={!isAgreed 
-                                    // || !isRecaptchaVerified 
-                                    || isLoading} // Disable while loading
-                                >
-                                  <span>{T.signup}</span>
-                                </button>
-                              </div>
-                              <div className="loading_button" style={{ display: isLoading ? 'block' : 'none' }}>
-                                <button
-                                  style={{ height: '44px' }}
-                                  className="gap-2 w-100 btn btn-primary rounded-sm font-bold uppercase"
-                                  type="button"
-                                  disabled
-                                >
-                                  <span
-                                    className="spinner-border spinner-border-sm"
-                                    role="status"
-                                    aria-hidden="true"
-                                  ></span>
-                                </button>
-                              </div>
-                            </div>
+
+                        <div className="col-md-6">
+                          <label htmlFor="phone_country_code" className="form-label">* {T.select_country}</label>
+                          <Select
+                            inputId="phone_country_code"
+                            classNamePrefix="react-select"
+                            options={countries}
+                            value={form.phone_country_code}
+                            onChange={onCountry}
+                            styles={selectStyles}
+                            components={{ Option: CustomOption, SingleValue: CustomSingleValue }}
+                            getOptionValue={(o) => o.id}
+                            placeholder={T.select_country}
+                          />
+                          {touched.phone_country_code && formErrors.phone_country_code && (
+                            <div className="text-danger small mt-1">{formErrors.phone_country_code}</div>
+                          )}
+                        </div>
+
+                        <div className="col-md-6">
+                          <label htmlFor="phone" className="form-label">* {T.phone}</label>
+                          <div className="input-group input-group-lg">
+                            <span className="input-group-text">+{form.phone_country_code?.phonecode || "—"}</span>
+                            <input
+                              id="phone"
+                              name="phone"
+                              type="tel"
+                              className={`form-control ${touched.phone && formErrors.phone ? "is-invalid" : ""}`}
+                              value={form.phone}
+                              onChange={onInput}
+                              onBlur={() => markTouched("phone")}
+                              placeholder="712345678"
+                              inputMode="numeric"
+                              autoComplete="tel"
+                            />
+                            {touched.phone && formErrors.phone && <div className="invalid-feedback">{formErrors.phone}</div>}
                           </div>
                         </div>
+
+                        <div className="col-md-6">
+                          <label htmlFor="email" className="form-label">* {T.email}</label>
+                          <input
+                            id="email"
+                            name="email"
+                            type="email"
+                            className={`form-control form-control-lg ${touched.email && formErrors.email ? "is-invalid" : ""}`}
+                            value={form.email}
+                            onChange={onInput}
+                            onBlur={() => markTouched("email")}
+                            placeholder="you@company.com"
+                            autoComplete="email"
+                          />
+                          {touched.email && formErrors.email && <div className="invalid-feedback">{formErrors.email}</div>}
+                        </div>
+
+                        <div className="col-md-6">
+                          <label htmlFor="password" className="form-label">* {T.password}</label>
+                          <div>
+                            <input
+                              id="password"
+                              name="password"
+                              type="password"
+                              className={`form-control form-control-lg ${touched.password && formErrors.password ? "is-invalid" : ""}`}
+                              value={form.password}
+                              onChange={onInput}
+                              onBlur={() => markTouched("password")}
+                              placeholder="••••••••"
+                              autoComplete="new-password"
+                            />
+                            <div className="mt-2 d-flex gap-1">
+                              {[0,1,2,3].map((i) => (
+                                <div key={i} style={{height:6, flex:1, borderRadius:4, background: i < strength(form.password) ? pwdBarColor : "#e5e7eb"}} />
+                              ))}
+                            </div>
+                            {touched.password && formErrors.password && <div className="invalid-feedback d-block">{formErrors.password}</div>}
+                          </div>
+                        </div>
+
+                        <div className="col-md-6">
+                          <label htmlFor="confirm_password" className="form-label">* {T.confirm_password}</label>
+                          <input
+                            id="confirm_password"
+                            name="confirm_password"
+                            type="password"
+                            className={`form-control form-control-lg ${touched.confirm_password && formErrors.confirm_password ? "is-invalid" : ""}`}
+                            value={form.confirm_password}
+                            onChange={onInput}
+                            onBlur={() => markTouched("confirm_password")}
+                            placeholder="••••••••"
+                            autoComplete="new-password"
+                          />
+                          {touched.confirm_password && formErrors.confirm_password && (
+                            <div className="invalid-feedback">{formErrors.confirm_password}</div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <input type="hidden" name="user_type" value="agent" /> {/* Added user_type hidden input */}
-                    <input type="hidden" name="form_token" value={formToken} />
-                  </div>
+
+                      <div className="mt-4 d-flex justify-content-end">
+                        <button type="button" className="btn btn-primary btn-lg px-4" onClick={goNext}>
+                          {T.continue}
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  {step === 2 && (
+                    <>
+                      <div className="row g-3">
+                        <div className="col-md-6">
+                          <label htmlFor="agency_name" className="form-label">* {T.agency_name}</label>
+                          <input
+                            id="agency_name"
+                            name="agency_name"
+                            type="text"
+                            className={`form-control form-control-lg ${touched.agency_name && formErrors.agency_name ? "is-invalid" : ""}`}
+                            value={form.agency_name}
+                            onChange={onInput}
+                            onBlur={() => markTouched("agency_name")}
+                            placeholder="Awesome Travels Ltd."
+                          />
+                          {touched.agency_name && formErrors.agency_name && <div className="invalid-feedback">{formErrors.agency_name}</div>}
+                        </div>
+
+                        <div className="col-md-6">
+                          <label htmlFor="agency_license" className="form-label">* {T.agency_license}</label>
+                          <input
+                            id="agency_license"
+                            name="agency_license"
+                            type="text"
+                            className={`form-control form-control-lg ${touched.agency_license && formErrors.agency_license ? "is-invalid" : ""}`}
+                            value={form.agency_license}
+                            onChange={onInput}
+                            onBlur={() => markTouched("agency_license")}
+                            placeholder="IATA / Local License"
+                          />
+                          {touched.agency_license && formErrors.agency_license && <div className="invalid-feedback">{formErrors.agency_license}</div>}
+                        </div>
+
+                        <div className="col-md-6">
+                          <label htmlFor="agency_city" className="form-label">* {T.agency_city}</label>
+                          <input
+                            id="agency_city"
+                            name="agency_city"
+                            type="text"
+                            className={`form-control form-control-lg ${touched.agency_city && formErrors.agency_city ? "is-invalid" : ""}`}
+                            value={form.agency_city}
+                            onChange={onInput}
+                            onBlur={() => markTouched("agency_city")}
+                            placeholder="Nairobi"
+                          />
+                          {touched.agency_city && formErrors.agency_city && <div className="invalid-feedback">{formErrors.agency_city}</div>}
+                        </div>
+
+                        <div className="col-md-6">
+                          <label htmlFor="agency_address" className="form-label">* {T.agency_address}</label>
+                          <input
+                            id="agency_address"
+                            name="agency_address"
+                            type="text"
+                            className={`form-control form-control-lg ${touched.agency_address && formErrors.agency_address ? "is-invalid" : ""}`}
+                            value={form.agency_address}
+                            onChange={onInput}
+                            onBlur={() => markTouched("agency_address")}
+                            placeholder="123 Riverside Rd."
+                          />
+                          {touched.agency_address && formErrors.agency_address && <div className="invalid-feedback">{formErrors.agency_address}</div>}
+                        </div>
+                      </div>
+
+                      {/* Terms + Captcha */}
+                      <div className="form-check mt-4">
+                        <input
+                          id="terms"
+                          className="form-check-input"
+                          type="checkbox"
+                          checked={isAgreed}
+                          onChange={(e) => setIsAgreed(e.target.checked)}
+                        />
+                        <label htmlFor="terms" className="form-check-label ms-2">
+                          {T.by_signup_i_agree_to_terms_and_policy}
+                        </label>
+                        {formErrors.terms && <div className="text-danger small mt-1">{formErrors.terms}</div>}
+                      </div>
+
+                      <div className="mt-3" id="hcaptcha-box">
+                        <HCaptcha
+                          sitekey={hcaptchaSiteKey}
+                          onVerify={() => setIsCaptchaOk(true)}
+                          onExpire={() => setIsCaptchaOk(false)}
+                          onError={() => setIsCaptchaOk(false)}
+                          ref={captchaRef}
+                        />
+                        {formErrors.recaptcha && <div className="text-danger small mt-1">{formErrors.recaptcha}</div>}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="mt-4 d-flex justify-content-between">
+                        <button type="button" className="btn btn-light btn-lg" onClick={goBack}>
+                          {T.back}
+                        </button>
+                        <button type="submit" className="btn btn-primary btn-lg px-4" disabled={isLoading}>
+                          {isLoading ? (
+                            <>
+                              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+                              {T.create_account}
+                            </>
+                          ) : (
+                            T.create_account
+                          )}
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  <input type="hidden" name="user_type" value="agent" />
+                  <input type="hidden" name="form_token" value={formToken} />
                 </form>
+              </div>
+            </div>
+
+            <p className="text-center mt-3 text-muted">
+              {T.already_have_account} <a href="/login">{T.sign_in}</a>
+            </p>
           </div>
         </div>
-      </div>
+      </section>
     </>
   );
 };

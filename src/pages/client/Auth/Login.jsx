@@ -93,7 +93,7 @@ const Login = ({
   };
 
   return (
-    <div className="py-5 mt-5">
+    <div className="mt-5">
       {error && <div className="alert alert-danger col-md-5 mx-auto">{error}</div>}
       <form id="login" onSubmit={handleLoginSubmit} className="mb-5">
         <div className="container">

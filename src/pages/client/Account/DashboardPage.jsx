@@ -162,32 +162,35 @@ const DashboardPage = ({ rootUrl = "/", apiUrl = "/api", apiKey = "mock_api_key"
       try {
         // Try summary
         // If your backend supports range, pass it; fall back gracefully.
-        const resSummary = await apiService.get?.("/dashboard/summary", { params: { range } });
-        const okS = resSummary && (resSummary?.data?.success || resSummary?.data?.status === "true");
-        const sData = okS ? (resSummary?.data?.data || resSummary?.data) : null;
+        // const resSummary = await apiService.get?.("/dashboard/summary", { params: { range } });
+        // const okS = resSummary && (resSummary?.data?.success || resSummary?.data?.status === "true");
+        // const sData = okS ? (resSummary?.data?.data || resSummary?.data) : null;
 
         // Try recent bookings
-        const resBookings = await apiService.get?.("/bookings", { params: { limit: 5, sort: "desc", user_id: user?.id } });
-        const okB = resBookings && (resBookings?.data?.status === "true" || resBookings?.data?.success || Array.isArray(resBookings?.data?.data));
-        const bData = okB ? (Array.isArray(resBookings?.data?.data) ? resBookings.data.data : []) : [];
+        const resBookings = await apiService.get("/bookings");
+        console.log("Bookings response:", resBookings);
+        const okB = resBookings?.data?.status === "true" || resBookings?.success === true;
+        const bData = resBookings?.data?.data.data;
+        // const okB = resBookings && (resBookings?.success || Array.isArray(resBookings?.data?.data.data));
+        // const bData = okB ? (Array.isArray(resBookings?.data?.data.data) ? resBookings.data.data.data : []) : [];
 
         // Try wallet transactions
-        const resTx = await apiService.get?.("/wallet/transactions", { params: { limit: 5 } });
-        const okT = resTx && (resTx?.data?.status === "true" || resTx?.data?.success || Array.isArray(resTx?.data?.data));
+        const resTx = await apiService.get("/transactions");
+        const okT = resTx && (resTx?.data?.status === "true" || resTx?.success || Array.isArray(resTx?.data?.data));
         const tData = okT ? (Array.isArray(resTx?.data?.data) ? resTx.data.data : []) : [];
 
         if (!cancelled) {
           // Merge summary with fallback
-          setSummary((prev) => ({
-            currency: sData?.currency || prev.currency,
-            balance: String(sData?.balance ?? prev.balance),
-            totalBookings: Number(sData?.totalBookings ?? prev.totalBookings),
-            pendingInvoices: Number(sData?.pendingInvoices ?? 0),
-            issued: Number(sData?.issued ?? 0),
-            toBePaid: Number(sData?.toBePaid ?? 0),
-            cancelled: Number(sData?.cancelled ?? 0),
-            trend: Array.isArray(sData?.trend) && sData.trend.length ? sData.trend : prev.trend.length ? prev.trend : [2, 4, 3, 6, 7, 6, 9],
-          }));
+          // setSummary((prev) => ({
+          //   currency: sData?.currency || prev.currency,
+          //   balance: String(sData?.balance ?? prev.balance),
+          //   totalBookings: Number(sData?.totalBookings ?? prev.totalBookings),
+          //   pendingInvoices: Number(sData?.pendingInvoices ?? 0),
+          //   issued: Number(sData?.issued ?? 0),
+          //   toBePaid: Number(sData?.toBePaid ?? 0),
+          //   cancelled: Number(sData?.cancelled ?? 0),
+          //   trend: Array.isArray(sData?.trend) && sData.trend.length ? sData.trend : prev.trend.length ? prev.trend : [2, 4, 3, 6, 7, 6, 9],
+          // }));
 
           setRecentBookings(
             bData.map((b) => ({
@@ -195,7 +198,7 @@ const DashboardPage = ({ rootUrl = "/", apiUrl = "/api", apiKey = "mock_api_key"
               customer: b.client_name || b.customer || "—",
               pnr: b.pnr || "—",
               type: (b.type || "—").toString(),
-              amount: b.price ?? b.amount ?? 0,
+              amount: b.total_amount ?? 0,
               currency: b.currency || "USD",
               status: b.status || "—",
               date: getDate(b.date || b.created_at || b.createdAt || b.created_time),

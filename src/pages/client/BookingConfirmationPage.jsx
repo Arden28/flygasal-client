@@ -530,14 +530,6 @@ const BookingConfirmationPage = () => {
 
   const typeMap = { adult: "ADT", child: "CHD", infant: "INF" };
 
-  const priceBreakdown = (totalPrice) => {
-    const base = Number(totalPrice) || 0;
-    const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
-    const total = +(base + markup).toFixed(2);
-    return { base, markup, total };
-  };
-  
-  const { base, markup, total } = priceBreakdown(totalPrice);
 
   const handlePayment = async () => {
     // NEW: block if hold expired
@@ -550,6 +542,16 @@ const BookingConfirmationPage = () => {
     setIsProcessing(true);
     try {
       const { outbound, return: rtn, totalPrice, currency } = tripDetails;
+      
+      const priceBreakdown = (totalPrice) => {
+        const base = Number(totalPrice) || 0;
+        const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
+        const total = +(base + markup).toFixed(2);
+        return { base, markup, total };
+      };
+      
+      const { base, markup, total } = priceBreakdown(totalPrice);
+
       const bookingDetails = {
         selectedFlight: outbound, // keep compatibility with your backend
         selectedReturnFlight: rtn || undefined,

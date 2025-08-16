@@ -30,49 +30,6 @@ export default function Bookings() {
 
   // Mock data
   useEffect(() => {
-    // const mockBookings = [
-    //   {
-    //     id: 'AT9002',
-    //     date: '2025-07-20',
-    //     module: 'Flights',
-    //     supplier: 'Royal Air Maroc',
-    //     traveller: 'John Doe',
-    //     email: 'john.doe@example.com',
-    //     bookingStatus: 'Confirmed',
-    //     paymentStatus: 'Paid',
-    //     total: 310,
-    //     currency: 'USD',
-    //     pnr: 'ABC123',
-    //     paymentMethod: 'Visa',
-    //     flightDetails: {
-    //       airline: 'AT',
-    //       origin: 'CDG',
-    //       destination: 'CMN',
-    //       departureTime: '2025-07-20T13:00:00Z',
-    //       arrivalTime: '2025-07-20T16:45:00Z',
-    //       flightNumber: 'AT801',
-    //       stops: 0,
-    //       stopoverAirportCodes: [],
-    //       cabin: 'Economy',
-    //       baggage: '23kg',
-    //       refundable: true,
-    //     },
-    //   },
-    //   {
-    //     id: 'BKG67890',
-    //     date: '2025-07-14',
-    //     module: 'Hotels',
-    //     supplier: 'SupplierName',
-    //     traveller: 'Jane Smith',
-    //     email: 'jane.smith@example.com',
-    //     bookingStatus: 'Cancelled',
-    //     paymentStatus: 'Unpaid',
-    //     total: 300,
-    //     currency: 'USD',
-    //     pnr: null,
-    //     paymentMethod: 'PayPal',
-    //   },
-    // ];
 
     const fetchBookings = async () => {
       
@@ -134,12 +91,6 @@ export default function Bookings() {
 
     fetchBookings();
     setLoading(false);
-    // Future API call: GET /api/bookings
-    // fetch('https://your-laravel-api.com/api/bookings')
-    //   .then(res => res.json())
-    //   .then(data => setBookings(data.data))
-    //   .catch(err => setError('Failed to fetch bookings'))
-    //   .finally(() => setLoading(false));
   }, []);
 
   // Sorting logic
