@@ -2,7 +2,7 @@
 // Source: OpenFlights airlines.dat (IATA + Active=Y). See https://openflights.org/data.php
 // Grouped by country using comment blocks.
 
-export const airlines = [
+export const rawAirlines = [
   // --  S.A. --
   { code: '4C', name: 'Aires', logo: '/assets/img/airlines/4C.png' },
 

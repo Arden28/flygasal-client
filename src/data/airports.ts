@@ -2,7 +2,7 @@
 // Source: OurAirports (IATA-filtered). See https://ourairports.com/data/ and https://openflights.org/data.php
 // NOTE: Classified by region & country using comment blocks for readability in diffs.
 
-export const airports = [
+export const rawAirports = [
   // === Africa ===
   // -- AO --
   { value: 'AZZ', label: 'Ambriz Airport (AZZ)', city: 'Ambriz', country: 'AO' },

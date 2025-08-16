@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   CreditCardIcon,
   DocumentArrowDownIcon,
@@ -42,16 +42,17 @@ const titleCase = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 /** Normalize types/statuses from API into our canonical lowercase forms */
 const normalizeType = (val) => {
   const s = safeStr(val).toLowerCase().trim();
-  if (["wallet deposit", "wallet_deposit", "wallet topup", "wallet-topup", "topup", "deposit"].includes(s)) return "wallet_topup";
+  if (["wallet deposit", "wallet_deposit", "wallet topup", "wallet-topup", "topup", "deposit"].includes(s))
+    return "wallet_topup";
   if (s === "bookings") return "booking";
   if (s === "refunds") return "refund";
   return s || "booking";
 };
 const normalizeStatus = (val) => {
   const s = safeStr(val).toLowerCase().trim();
-  if (s.startsWith("comp")) return "completed";
+  if (s.startsWith("comp") || s === "approved") return "completed";
   if (s.startsWith("pend")) return "pending";
-  if (s.startsWith("fail") || s === "cancelled" || s === "canceled") return "failed";
+  if (s.startsWith("fail") || s === "rejected" || s === "cancelled" || s === "canceled") return "failed";
   return s || "pending";
 };
 
@@ -60,6 +61,7 @@ export default function Transactions() {
   const [query, setQuery] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const qTimer = useRef();
+  const navigate = useNavigate();
 
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -81,11 +83,11 @@ export default function Transactions() {
   const [reportMonth, setReportMonth] = useState("");
   const [reportDateRange, setReportDateRange] = useState({ start: "", end: "" });
 
-  // Approve Top-up modal
+  // Approve/Decline Top-up modal
   const [approveTx, setApproveTx] = useState(null); // holds the transaction object
   const [approveAmount, setApproveAmount] = useState("");
   const [approveNote, setApproveNote] = useState("");
-  const [approveLoading, setApproveLoading] = useState(false);
+  const [decisionLoading, setDecisionLoading] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -100,21 +102,22 @@ export default function Transactions() {
       try {
         const response = await apiService.get("/transactions");
         const rows = response?.data?.data || [];
-        // console.log("Fetched transactions:", rows);
+        console.log("Fetched transactions:", rows);
 
         const formatted = rows.map((t) => {
           const type = normalizeType(t.type || t.transaction_type);
           const status = normalizeStatus(t.status);
           return {
-            id: safeStr(t.trx_id || t.id || ""),
+            id: safeStr(t.trx_id || ""),   // display id (could be trx code)
+            dbId: t.id ?? "",                     // internal DB id for backend validations
             date: safeStr(t.date || t.created_at || ""), // Expect ISO or YYYY-MM-DD
             type,
             amount: Number(t.amount) || 0,
             currency: safeStr(t.currency || "USD"),
-            status: safeStr(t.status || "pending"),
+            status, // normalized
             traveller: safeStr(t.name || t.traveller || "N/A"),
-            email: safeStr(t.email || "john.doe@example.com"),
-            bookingId: safeStr(t.booking_id || t.bookingId || ""),
+            email: safeStr(t.email || "N/A"),
+            bookingId: safeStr(t.booking_num || "N/A"),
             paymentMethod: safeStr(t.payment_gateway || t.paymentMethod || "bank"),
           };
         });
@@ -263,6 +266,16 @@ export default function Transactions() {
     toast.success("Exported to Excel.");
   };
 
+  const handleInvoice = (t) => {
+    if (t.type === "booking") {
+      // Redirect to invoice page for bookings
+      navigate(`/flights/invoice/${t.bookingId || t.order_num}`);
+    } else {
+      // Generate PDF for other transaction types
+      generateInvoicePDF(t);
+    }
+  };
+
   const generateInvoicePDF = (t) => {
     try {
       const doc = new jsPDF();
@@ -372,7 +385,7 @@ export default function Transactions() {
     setShowReportModal(false);
   };
 
-  /* ---------------- UI ---------------- */
+  /* ---------------- UI helpers ---------------- */
   const chipCounts = {
     all: baseForStatusCounts.length,
     completed: baseForStatusCounts.filter((t) => t.status === "completed").length,
@@ -424,39 +437,71 @@ export default function Transactions() {
     setApproveNote("");
   };
 
-  const handleApproveTopup = async () => {
+  const submitTopupDecision = async (decision /* 'approved' | 'rejected' */) => {
     if (!approveTx) return;
     const amt = Number(approveAmount);
-    if (!isFinite(amt) || amt <= 0) return toast.error("Enter a valid amount.");
+    if (!isFinite(amt) || amt < 0) return toast.error("Enter a valid amount.");
 
-    setApproveLoading(true);
-    try {
-      // Adjust to your backend route/signature
-      const res = await apiService.post("/transactions/approve_topup", {
-        transaction_id: approveTx.id,
+    // Ensure we send a DB id to Laravel's "exists:transactions,id" validator
+    const txIdForApi =
+      approveTx?.dbId != null
+        ? approveTx.dbId
+        : Number(approveTx?.id) && !isNaN(Number(approveTx.id))
+        ? Number(approveTx.id)
+        : null;
+
+    if (!txIdForApi) {
+      return toast.error("Cannot proceed: missing internal transaction id.");
+    }
+
+    setDecisionLoading(true);
+    try{
+      // Laravel endpoint you added
+      const res = await apiService.post("/transactions/approve", {
+        transaction_id: txIdForApi,
         amount: amt,
-        currency: approveTx.currency,
+        status: decision, // 'approved' or 'rejected'
         note: approveNote,
       });
+      console.log("Approve response:", res);
 
-      const ok = res?.data?.status === "true" || res?.data?.ok === true || res?.status === 200;
-      if (!ok) throw new Error(res?.data?.message || "Approval failed");
+      if (!(res && (res.status === 200 || res.status === 201))) {
+        throw new Error(res?.data?.message || "Request failed");
+      }
 
-      // Update local state
+      const serverStatus = safeStr(res?.data?.data?.status).toLowerCase();
+      let normalized = normalizeStatus(serverStatus); // -> completed | pending | failed
+      if (normalized === "pending") {
+        normalized = decision === "approved" ? "completed" : "failed";
+      }
+
+      const newAmount = Number(res?.data?.data?.amount) || amt;
+      const newCurrency = safeStr(res?.data?.data?.currency) || approveTx.currency;
+
       setTransactions((rows) =>
-        rows.map((r) => (r.id === approveTx.id ? { ...r, status: "completed", amount: amt } : r))
+        rows.map((r) =>
+          r.id === approveTx.id ? { ...r, status: normalized, amount: newAmount, currency: newCurrency } : r
+        )
       );
+
       setAuditLog((l) => [
         ...l,
-        { action: `Approved wallet top-up ${approveTx.id} (${money(amt, approveTx.currency)})`, timestamp: new Date().toISOString() },
+        {
+          action:
+            decision === "approved"
+              ? `Approved wallet top-up ${approveTx.id} (${money(newAmount, newCurrency)})`
+              : `Declined wallet top-up ${approveTx.id}`,
+          timestamp: new Date().toISOString(),
+        },
       ]);
-      toast.success("Top-up approved & credited.");
+
+      toast.success(decision === "approved" ? "Top-up approved & credited." : "Top-up declined.");
       setApproveTx(null);
     } catch (e) {
       console.error(e);
-      toast.error(e?.message || "Failed to approve top-up.");
+      toast.error(e?.message || "Action failed.");
     } finally {
-      setApproveLoading(false);
+      setDecisionLoading(false);
     }
   };
 
@@ -694,18 +739,18 @@ export default function Transactions() {
                       <td className="p-2 whitespace-nowrap">{t.paymentMethod}</td>
                       <td className="p-2">
                         <div className="flex items-center gap-2 flex-wrap">
-                          {/* Approve button only for pending wallet_topup */}
-                          {t.type == "wallet_topup" && t.status === "pending" && (
+                          {/* Approve/Decline button only for pending wallet_topup */}
+                          {t.type === "wallet_topup" && t.status === "pending" && (
                             <button
                               onClick={() => openApproveModal(t)}
                               className="flex items-center px-2 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs"
                             >
                               <CheckIcon className="w-4 h-4 mr-1" />
-                              Approve
+                              Approve / Decline
                             </button>
                           )}
                           <button
-                            onClick={() => generateInvoicePDF(t)}
+                            onClick={() => handleInvoice(t)}
                             className="flex items-center px-2 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs"
                           >
                             <DocumentTextIcon className="w-4 h-4 mr-1" />
@@ -751,7 +796,7 @@ export default function Transactions() {
                     className="mr-2"
                     aria-label={`Select ${t.id}`}
                   />
-                  <CreditCardIcon className="w-5 h-5 text-gray-400 mr-2" />
+                <CreditCardIcon className="w-5 h-5 text-gray-400 mr-2" />
                   <span className="font-medium text-sm">{t.id}</span>
                 </div>
                 <p className="text-xs text-gray-600">Date: {t.date || "—"}</p>
@@ -767,18 +812,18 @@ export default function Transactions() {
                 {t.bookingId && <p className="text-xs text-gray-600">Booking ID: {t.bookingId}</p>}
                 <p className="text-xs text-gray-600">Payment Method: {t.paymentMethod}</p>
                 <div className="mt-2 flex gap-2 flex-wrap">
-                  {/* Approve button only for pending wallet_topup */}
+                  {/* Approve/Decline button only for pending wallet_topup */}
                   {t.type === "wallet_topup" && t.status === "pending" && (
                     <button
                       onClick={() => openApproveModal(t)}
                       className="flex items-center px-2 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs"
                     >
                       <CheckIcon className="w-3 h-3 mr-1" />
-                      Approve
+                      Approve / Decline
                     </button>
                   )}
                   <button
-                    onClick={() => generateInvoicePDF(t)}
+                    onClick={() => handleInvoice(t)}
                     className="flex items-center px-2 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs"
                   >
                     <DocumentTextIcon className="w-3 h-3 mr-1" />
@@ -962,11 +1007,11 @@ export default function Transactions() {
         </div>
       )}
 
-      {/* Approve Top-up Modal */}
+      {/* Approve/Decline Top-up Modal */}
       {approveTx && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
-            <h3 className="text-sm font-semibold mb-2">Approve Wallet Top-up</h3>
+            <h3 className="text-sm font-semibold mb-2">Approve or Decline Wallet Top-up</h3>
             <p className="text-xs text-gray-600 mb-4">
               Transaction <span className="font-mono">{approveTx.id}</span> • {approveTx.email || "N/A"}
             </p>
@@ -992,9 +1037,7 @@ export default function Transactions() {
                   className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
                   required
                 />
-                <p className="mt-1 text-[11px] text-gray-500">
-                  Adjust if the bank deposit differs from the requested amount.
-                </p>
+                <p className="mt-1 text-[11px] text-gray-500">Adjust if the bank deposit differs from the requested amount.</p>
               </div>
               <div>
                 <label className="block text-xs text-gray-700 mb-1">Note (optional)</label>
@@ -1007,23 +1050,33 @@ export default function Transactions() {
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-2 mt-5">
+            <div className="flex justify-between items-center mt-5">
               <button
                 type="button"
                 onClick={() => setApproveTx(null)}
                 className="px-3 py-1 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 text-xs"
-                disabled={approveLoading}
+                disabled={decisionLoading}
               >
                 Cancel
               </button>
-              <button
-                type="button"
-                onClick={handleApproveTopup}
-                className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs disabled:opacity-60"
-                disabled={approveLoading}
-              >
-                {approveLoading ? "Approving..." : "Approve & Credit"}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => submitTopupDecision("rejected")}
+                  className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs disabled:opacity-60"
+                  disabled={decisionLoading}
+                >
+                  {decisionLoading ? "Processing..." : "Decline"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => submitTopupDecision("approved")}
+                  className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs disabled:opacity-60"
+                  disabled={decisionLoading}
+                >
+                  {decisionLoading ? "Processing..." : "Approve & Credit"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
