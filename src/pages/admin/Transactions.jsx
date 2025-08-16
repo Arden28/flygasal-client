@@ -37,6 +37,23 @@ const money = (n, c = "USD") => {
     return `${c} ${x.toFixed(2)}`;
   }
 };
+const titleCase = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
+/** Normalize types/statuses from API into our canonical lowercase forms */
+const normalizeType = (val) => {
+  const s = safeStr(val).toLowerCase().trim();
+  if (["wallet deposit", "wallet_deposit", "wallet topup", "wallet-topup", "topup", "deposit"].includes(s)) return "wallet_topup";
+  if (s === "bookings") return "booking";
+  if (s === "refunds") return "refund";
+  return s || "booking";
+};
+const normalizeStatus = (val) => {
+  const s = safeStr(val).toLowerCase().trim();
+  if (s.startsWith("comp")) return "completed";
+  if (s.startsWith("pend")) return "pending";
+  if (s.startsWith("fail") || s === "cancelled" || s === "canceled") return "failed";
+  return s || "pending";
+};
 
 export default function Transactions() {
   /* ---------------- State ---------------- */
@@ -64,6 +81,12 @@ export default function Transactions() {
   const [reportMonth, setReportMonth] = useState("");
   const [reportDateRange, setReportDateRange] = useState({ start: "", end: "" });
 
+  // Approve Top-up modal
+  const [approveTx, setApproveTx] = useState(null); // holds the transaction object
+  const [approveAmount, setApproveAmount] = useState("");
+  const [approveNote, setApproveNote] = useState("");
+  const [approveLoading, setApproveLoading] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -76,21 +99,25 @@ export default function Transactions() {
       setError("");
       try {
         const response = await apiService.get("/transactions");
-        console.info("Fetched transactions:", response?.data);
         const rows = response?.data?.data || [];
+        // console.log("Fetched transactions:", rows);
 
-        const formatted = rows.map((t) => ({
-          id: safeStr(t.trx_id || t.id || ""),
-          date: safeStr(t.date || ""), // Expect ISO or YYYY-MM-DD
-          type: safeStr(t.type || "booking"),
-          amount: Number(t.amount) || 0,
-          currency: safeStr(t.currency || "USD"),
-          status: safeStr(t.status || "pending"),
-          traveller: safeStr(t.name || "N/A"),
-          email: safeStr(t.email || "john.doe@example.com"),
-          bookingId: safeStr(t.booking_id || t.bookingId || "AT9002"),
-          paymentMethod: safeStr(t.payment_gateway || t.paymentMethod || "Bank"),
-        }));
+        const formatted = rows.map((t) => {
+          const type = normalizeType(t.type || t.transaction_type);
+          const status = normalizeStatus(t.status);
+          return {
+            id: safeStr(t.trx_id || t.id || ""),
+            date: safeStr(t.date || t.created_at || ""), // Expect ISO or YYYY-MM-DD
+            type,
+            amount: Number(t.amount) || 0,
+            currency: safeStr(t.currency || "USD"),
+            status: safeStr(t.status || "pending"),
+            traveller: safeStr(t.name || t.traveller || "N/A"),
+            email: safeStr(t.email || "john.doe@example.com"),
+            bookingId: safeStr(t.booking_id || t.bookingId || ""),
+            paymentMethod: safeStr(t.payment_gateway || t.paymentMethod || "bank"),
+          };
+        });
 
         if (!cancel) setTransactions(formatted);
       } catch (e) {
@@ -142,7 +169,7 @@ export default function Transactions() {
   const endD = useMemo(() => (dateFilter.end ? parseD(dateFilter.end) : null), [dateFilter.end]);
 
   const baseForStatusCounts = useMemo(() => {
-    // For status chip counts, ignore statusFilter so chips show available counts with other filters applied
+    // For chip counts, ignore statusFilter so chips reflect other filters
     return sorted.filter((t) => {
       const qMatch =
         !debouncedQ ||
@@ -189,10 +216,10 @@ export default function Transactions() {
 
   const handleBulk = (action) => {
     if (!selectedIds.length) return;
-    const toStatus = action === "complete" ? "Completed" : "Failed";
+    const toStatus = action === "complete" ? "completed" : "failed";
     setTransactions((rows) => rows.map((r) => (selectedIds.includes(r.id) ? { ...r, status: toStatus } : r)));
     setAuditLog((l) => [...l, { action: `Bulk ${action} (${selectedIds.length})`, timestamp: new Date().toISOString() }]);
-    toast.success(`Marked ${selectedIds.length} as ${toStatus}.`);
+    toast.success(`Marked ${selectedIds.length} as ${titleCase(toStatus)}.`);
     setSelectedIds([]);
   };
 
@@ -227,11 +254,9 @@ export default function Transactions() {
       "Payment Method": t.paymentMethod,
     }));
     const ws = XLSX.utils.json_to_sheet(exportData);
-    // Auto width
-    const colWidths = Object.keys(exportData[0] || {}).map((k) => ({
+    ws["!cols"] = Object.keys(exportData[0] || {}).map((k) => ({
       wch: Math.max(k.length, ...exportData.map((r) => String(r[k] || "").length)) + 2,
     }));
-    ws["!cols"] = colWidths;
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Transactions");
     XLSX.writeFile(wb, "transactions.xlsx");
@@ -249,7 +274,7 @@ export default function Transactions() {
         ["Date", t.date],
         ["Type", t.type],
         ["Amount", money(t.amount, t.currency)],
-        ["Status", t.status],
+        ["Status", titleCase(t.status)],
         ["Traveller", t.traveller],
         ["Email", t.email],
         ["Booking ID", t.bookingId || "N/A"],
@@ -313,9 +338,9 @@ export default function Transactions() {
         const summary = [
           ["Transactions", String(rangeFiltered.length)],
           ["Total Amount", money(total, ccy)],
-          ["Completed", String(rangeFiltered.filter((t) => t.status === "Completed").length)],
-          ["Pending", String(rangeFiltered.filter((t) => t.status === "Pending").length)],
-          ["Failed", String(rangeFiltered.filter((t) => t.status === "Failed").length)],
+          ["Completed", String(rangeFiltered.filter((t) => t.status === "completed").length)],
+          ["Pending", String(rangeFiltered.filter((t) => t.status === "pending").length)],
+          ["Failed", String(rangeFiltered.filter((t) => t.status === "failed").length)],
         ];
         let y = 30;
         summary.forEach(([k, v]) => {
@@ -327,7 +352,11 @@ export default function Transactions() {
         doc.text("Rows:", 14, y);
         y += 6;
         rangeFiltered.slice(0, 40).forEach((t) => {
-          doc.text(`${t.id}  |  ${t.date}  |  ${t.type}  |  ${money(t.amount, t.currency)}  |  ${t.status}`, 14, y);
+          doc.text(
+            `${t.id}  |  ${t.date}  |  ${t.type}  |  ${money(t.amount, t.currency)}  |  ${titleCase(t.status)}`,
+            14,
+            y
+          );
           y += 6;
           if (y > 280) {
             doc.addPage();
@@ -346,9 +375,9 @@ export default function Transactions() {
   /* ---------------- UI ---------------- */
   const chipCounts = {
     all: baseForStatusCounts.length,
-    completed: baseForStatusCounts.filter((t) => t.status === "Completed").length,
-    pending: baseForStatusCounts.filter((t) => t.status === "Pending").length,
-    failed: baseForStatusCounts.filter((t) => t.status === "Failed").length,
+    completed: baseForStatusCounts.filter((t) => t.status === "completed").length,
+    pending: baseForStatusCounts.filter((t) => t.status === "pending").length,
+    failed: baseForStatusCounts.filter((t) => t.status === "failed").length,
   };
 
   const headerCell = (label, key) => (
@@ -389,387 +418,447 @@ export default function Transactions() {
     </div>
   );
 
+  const openApproveModal = (t) => {
+    setApproveTx(t);
+    setApproveAmount(String(t.amount || ""));
+    setApproveNote("");
+  };
+
+  const handleApproveTopup = async () => {
+    if (!approveTx) return;
+    const amt = Number(approveAmount);
+    if (!isFinite(amt) || amt <= 0) return toast.error("Enter a valid amount.");
+
+    setApproveLoading(true);
+    try {
+      // Adjust to your backend route/signature
+      const res = await apiService.post("/transactions/approve_topup", {
+        transaction_id: approveTx.id,
+        amount: amt,
+        currency: approveTx.currency,
+        note: approveNote,
+      });
+
+      const ok = res?.data?.status === "true" || res?.data?.ok === true || res?.status === 200;
+      if (!ok) throw new Error(res?.data?.message || "Approval failed");
+
+      // Update local state
+      setTransactions((rows) =>
+        rows.map((r) => (r.id === approveTx.id ? { ...r, status: "completed", amount: amt } : r))
+      );
+      setAuditLog((l) => [
+        ...l,
+        { action: `Approved wallet top-up ${approveTx.id} (${money(amt, approveTx.currency)})`, timestamp: new Date().toISOString() },
+      ]);
+      toast.success("Top-up approved & credited.");
+      setApproveTx(null);
+    } catch (e) {
+      console.error(e);
+      toast.error(e?.message || "Failed to approve top-up.");
+    } finally {
+      setApproveLoading(false);
+    }
+  };
+
+  const StatusPill = ({ status }) => {
+    const s = (status || "").toLowerCase();
+    const cls =
+      s === "completed"
+        ? "bg-green-100 text-green-800"
+        : s === "pending"
+        ? "bg-yellow-100 text-yellow-800"
+        : "bg-red-100 text-red-800";
+    return (
+      <span className={`px-2 py-1 text-xs font-semibold rounded-full inline-flex items-center ${cls}`}>
+        {s === "completed" && <CheckIcon className="w-4 h-4 mr-1" />}
+        {s === "failed" && <XMarkIcon className="w-4 h-4 mr-1" />}
+        {titleCase(s)}
+      </span>
+    );
+  };
+
   return (
-    <div className="relative max-w-screen-xl mx-auto p-2 xs:p-3 sm:p-4 md:p-6 overflow-x-hidden">
-      {/* Top bar */}
-      <div className="flex justify-between items-center mb-4 bg-white rounded-lg shadow p-4">
-        <h1 className="text-lg sm:text-xl font-semibold text-gray-800">Transactions</h1>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowReportModal(true)}
-            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-xs"
-          >
-            Generate Report
-          </button>
-          <Link to="/" className="bg-slate-700 text-white px-3 py-1.5 rounded-lg hover:bg-slate-800 text-xs">
-            Back
-          </Link>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
-          <div className="relative col-span-2">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-xs"
-              placeholder="Transaction ID, Traveller, or Email"
-              aria-label="Search"
-            />
-            {query && (
-              <button
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs"
-                onClick={() => setQuery("")}
-                aria-label="Clear search"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-          <div>
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-xs"
-              aria-label="Type"
-            >
-              <option value="">All Types</option>
-              <option value="booking">Booking</option>
-              <option value="refund">Refund</option>
-              <option value="wallet_topup">Wallet Deposit</option>
-            </select>
-          </div>
-          <div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-xs"
-              aria-label="Status"
-            >
-              <option value="">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="failed">Failed</option>
-            </select>
-          </div>
-          <div>
-            <input
-              type="date"
-              value={dateFilter.start}
-              onChange={(e) => setDateFilter((d) => ({ ...d, start: e.target.value }))}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-xs"
-              aria-label="Start date"
-            />
-          </div>
-          <div>
-            <input
-              type="date"
-              value={dateFilter.end}
-              onChange={(e) => setDateFilter((d) => ({ ...d, end: e.target.value }))}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-xs"
-              aria-label="End date"
-            />
-          </div>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={exportToExcel}
-            className="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 text-xs"
-          >
-            <DocumentArrowDownIcon className="w-4 h-4 inline-block mr-1" />
-            Export Excel
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setQuery("");
-              setTypeFilter("");
-              setStatusFilter("");
-              setDateFilter({ start: "", end: "" });
-            }}
-            className="px-3 py-1.5 rounded-lg border text-xs hover:bg-gray-50"
-          >
-            Reset Filters
-          </button>
-        </div>
-      </div>
-
-      {/* Status chips (scrollable on mobile, no page overflow) */}
-      <div className="flex overflow-x-auto mb-4 gap-2 py-2 -mx-1 px-1">
-        {[
-          { label: "All", value: "", count: chipCounts.all },
-          { label: "Completed", value: "Completed", count: chipCounts.completed },
-          { label: "Pending", value: "Pending", count: chipCounts.pending },
-          { label: "Failed", value: "Failed", count: chipCounts.failed },
-        ].map(({ label, value, count }) => {
-          const active = statusFilter === value;
-          return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-4 overflow-x-hidden">
+        {/* Top bar */}
+        <div className="flex justify-between items-center mb-4 bg-white rounded-lg shadow p-4">
+          <h1 className="text-lg sm:text-xl font-semibold text-gray-800">Transactions</h1>
+          <div className="flex gap-2">
             <button
-              key={label}
-              onClick={() => setStatusFilter(value)}
-              className={`px-3 py-2 rounded-lg border text-xs flex-shrink-0 min-w-[110px] ${
-                active ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-gray-300 bg-white"
-              }`}
-              aria-label={`Filter ${label}`}
+              onClick={() => setShowReportModal(true)}
+              className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-xs"
             >
-              <span className="mr-2">{label}</span>
-              <strong className={active ? "text-indigo-700" : "text-gray-800"}>{count}</strong>
+              Generate Report
             </button>
-          );
-        })}
-      </div>
-
-      {/* Bulk actions */}
-      {selectedIds.length > 0 && (
-        <div className="mb-3 flex gap-2 flex-wrap">
-          <button
-            onClick={() => handleBulk("complete")}
-            className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs"
-          >
-            Complete Selected
-          </button>
-          <button
-            onClick={() => handleBulk("fail")}
-            className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs"
-          >
-            Fail Selected
-          </button>
+            <Link to="/" className="bg-slate-700 text-white px-3 py-1.5 rounded-lg hover:bg-slate-800 text-xs">
+              Back
+            </Link>
+          </div>
         </div>
-      )}
 
-      {/* Loading / Error */}
-      {loading && <TableSkeleton />}
-      {!loading && error && <div className="p-4 bg-red-100 text-red-800 rounded-lg mb-4">{error}</div>}
+        {/* Filters */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+            <div className="relative col-span-2">
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-xs"
+                placeholder="Transaction ID, Traveller, or Email"
+                aria-label="Search"
+              />
+              {query && (
+                <button
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs"
+                  onClick={() => setQuery("")}
+                  aria-label="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <div>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-xs"
+                aria-label="Type"
+              >
+                <option value="">All Types</option>
+                <option value="booking">Booking</option>
+                <option value="refund">Refund</option>
+                <option value="wallet_topup">Wallet Deposit</option>
+              </select>
+            </div>
+            <div>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-xs"
+                aria-label="Status"
+              >
+                <option value="">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
+            <div>
+              <input
+                type="date"
+                value={dateFilter.start}
+                onChange={(e) => setDateFilter((d) => ({ ...d, start: e.target.value }))}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-xs"
+                aria-label="Start date"
+              />
+            </div>
+            <div>
+              <input
+                type="date"
+                value={dateFilter.end}
+                onChange={(e) => setDateFilter((d) => ({ ...d, end: e.target.value }))}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-xs"
+                aria-label="End date"
+              />
+            </div>
+          </div>
 
-      {/* Desktop table */}
-      {!loading && !error && (
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-[1000px] divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="p-2 w-8">
-                    <input
-                      type="checkbox"
-                      checked={allOnPageSelected}
-                      onChange={toggleSelectAllPage}
-                      aria-label="Select all on page"
-                    />
-                  </th>
-                  {headerCell("Transaction ID", "id")}
-                  {headerCell("Date", "date")}
-                  {headerCell("Type", "type")}
-                  {headerCell("Amount", "amount")}
-                  {headerCell("Status", "status")}
-                  <th className="p-2 text-left text-xs font-semibold text-gray-600">Traveller</th>
-                  <th className="p-2 text-left text-xs font-semibold text-gray-600">Email</th>
-                  <th className="p-2 text-left text-xs font-semibold text-gray-600">Booking ID</th>
-                  <th className="p-2 text-left text-xs font-semibold text-gray-600">Payment Method</th>
-                  <th className="p-2 text-left text-xs font-semibold text-gray-600">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {pageRows.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-50">
-                    <td className="p-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={exportToExcel}
+              className="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 text-xs"
+            >
+              <DocumentArrowDownIcon className="w-4 h-4 inline-block mr-1" />
+              Export Excel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setQuery("");
+                setTypeFilter("");
+                setStatusFilter("");
+                setDateFilter({ start: "", end: "" });
+              }}
+              className="px-3 py-1.5 rounded-lg border text-xs hover:bg-gray-50"
+            >
+              Reset Filters
+            </button>
+          </div>
+        </div>
+
+        {/* Status chips */}
+        <div className="flex overflow-x-auto mb-4 gap-2 py-2">
+          {[
+            { label: "All", value: "", count: chipCounts.all },
+            { label: "Completed", value: "completed", count: chipCounts.completed },
+            { label: "Pending", value: "pending", count: chipCounts.pending },
+            { label: "Failed", value: "failed", count: chipCounts.failed },
+          ].map(({ label, value, count }) => {
+            const active = statusFilter === value;
+            return (
+              <button
+                key={label}
+                onClick={() => setStatusFilter(value)}
+                className={`px-3 py-2 rounded-lg border text-xs flex-shrink-0 min-w-[110px] ${
+                  active ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-gray-300 bg-white"
+                }`}
+                aria-label={`Filter ${label}`}
+              >
+                <span className="mr-2">{label}</span>
+                <strong className={active ? "text-indigo-700" : "text-gray-800"}>{count}</strong>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Bulk actions */}
+        {selectedIds.length > 0 && (
+          <div className="mb-3 flex gap-2 flex-wrap">
+            <button
+              onClick={() => handleBulk("complete")}
+              className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs"
+            >
+              Complete Selected
+            </button>
+            <button
+              onClick={() => handleBulk("fail")}
+              className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs"
+            >
+              Fail Selected
+            </button>
+          </div>
+        )}
+
+        {/* Loading / Error */}
+        {loading && <TableSkeleton />}
+        {!loading && error && (
+          <div className="p-4 bg-red-100 text-red-800 rounded-lg mb-4">{error}</div>
+        )}
+
+        {/* Desktop table ONLY (md+) */}
+        {!loading && !error && (
+          <div className="hidden md:block bg-white shadow rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-[1000px] divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="p-2 w-8">
                       <input
                         type="checkbox"
-                        checked={selectedIds.includes(t.id)}
-                        onChange={() => toggleSelect(t.id)}
-                        aria-label={`Select ${t.id}`}
+                        checked={allOnPageSelected}
+                        onChange={toggleSelectAllPage}
+                        aria-label="Select all on page"
                       />
-                    </td>
-                    <td className="p-2 whitespace-nowrap">
-                      <span className="font-medium">{t.id}</span>
-                    </td>
-                    <td className="p-2 whitespace-nowrap">{t.date || "—"}</td>
-                    <td className="p-2 whitespace-nowrap">{t.type}</td>
-                    <td className="p-2 whitespace-nowrap">
-                      <strong>{money(t.amount, t.currency)}</strong>
-                    </td>
-                    <td className="p-2">
-                      <span
-                        className={`px-2 py-1 text-xs font-semibold rounded-full inline-flex items-center ${
-                          t.status === "Completed"
-                            ? "bg-green-100 text-green-800"
-                            : t.status === "Pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {t.status === "Completed" && <CheckIcon className="w-4 h-4 mr-1" />}
-                        {t.status === "Pending" && <CheckIcon className="w-4 h-4 mr-1" />}
-                        {t.status === "Failed" && <XMarkIcon className="w-4 h-4 mr-1" />}
-                        {t.status}
-                      </span>
-                    </td>
-                    <td className="p-2 whitespace-nowrap">{t.traveller}</td>
-                    <td className="p-2 whitespace-nowrap max-w-[180px] truncate" title={t.email}>
-                      {t.email}
-                    </td>
-                    <td className="p-2 whitespace-nowrap">{t.bookingId || "N/A"}</td>
-                    <td className="p-2 whitespace-nowrap">{t.paymentMethod}</td>
-                    <td className="p-2">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => generateInvoicePDF(t)}
-                          className="flex items-center px-2 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs"
-                        >
-                          <DocumentTextIcon className="w-4 h-4 mr-1" />
-                          Invoice
-                        </button>
-                        <button
-                          onClick={() => setEditTransaction({ ...t })}
-                          className="flex items-center px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs"
-                        >
-                          <PencilIcon className="w-4 h-4 mr-1" />
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => setShowDeleteModal(t.id)}
-                          className="flex items-center px-2 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs"
-                        >
-                          <TrashIcon className="w-4 h-4 mr-1" />
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+                    </th>
+                    {headerCell("Transaction ID", "id")}
+                    {headerCell("Date", "date")}
+                    {headerCell("Type", "type")}
+                    {headerCell("Amount", "amount")}
+                    {headerCell("Status", "status")}
+                    <th className="p-2 text-left text-xs font-semibold text-gray-600">Traveller</th>
+                    <th className="p-2 text-left text-xs font-semibold text-gray-600">Email</th>
+                    <th className="p-2 text-left text-xs font-semibold text-gray-600">Booking ID</th>
+                    <th className="p-2 text-left text-xs font-semibold text-gray-600">Payment Method</th>
+                    <th className="p-2 text-left text-xs font-semibold text-gray-600">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {pageRows.length === 0 && <div className="p-4 text-center text-gray-500">No transactions found.</div>}
-          </div>
-        </div>
-      )}
-
-      {/* Mobile cards */}
-      {!loading && !error && (
-        <div className="md:hidden space-y-3 mt-3">
-          {pageRows.map((t) => (
-            <div key={t.id} className="bg-white p-4 rounded-lg shadow">
-              <div className="flex items-center mb-2">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(t.id)}
-                  onChange={() => toggleSelect(t.id)}
-                  className="mr-2"
-                  aria-label={`Select ${t.id}`}
-                />
-                <CreditCardIcon className="w-5 h-5 text-gray-400 mr-2" />
-                <span className="font-medium text-sm">{t.id}</span>
-              </div>
-              <p className="text-xs text-gray-600">Date: {t.date || "—"}</p>
-              <p className="text-xs text-gray-600">Type: {t.type}</p>
-              <p className="text-xs text-gray-600">Amount: {money(t.amount, t.currency)}</p>
-              <p className="text-xs text-gray-600">
-                Status:{" "}
-                <span
-                  className={`px-2 py-1 text-xs font-semibold rounded-full inline-flex items-center ${
-                    t.status === "Completed"
-                      ? "bg-green-100 text-green-800"
-                      : t.status === "Pending"
-                      ? "bg-yellow-100 text-yellow-800"
-                      : "bg-red-100 text-red-800"
-                  }`}
-                >
-                  {t.status === "Completed" && <CheckIcon className="w-3 h-3 mr-1" />}
-                  {t.status === "Pending" && <CheckIcon className="w-3 h-3 mr-1" />}
-                  {t.status === "Failed" && <XMarkIcon className="w-3 h-3 mr-1" />}
-                  {t.status}
-                </span>
-              </p>
-              <p className="text-xs text-gray-600">Traveller: {t.traveller}</p>
-              <p className="text-xs text-gray-600 truncate" title={t.email}>
-                Email: {t.email}
-              </p>
-              <p className="text-xs text-gray-600">Booking ID: {t.bookingId || "N/A"}</p>
-              <p className="text-xs text-gray-600">Payment Method: {t.paymentMethod}</p>
-              <div className="mt-2 flex gap-2 flex-wrap">
-                <button
-                  onClick={() => generateInvoicePDF(t)}
-                  className="flex items-center px-2 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs"
-                >
-                  <DocumentTextIcon className="w-3 h-3 mr-1" />
-                  Invoice
-                </button>
-                <button
-                  onClick={() => setEditTransaction({ ...t })}
-                  className="flex items-center px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs"
-                >
-                  <PencilIcon className="w-3 h-3 mr-1" />
-                  Edit
-                </button>
-                <button
-                  onClick={() => setShowDeleteModal(t.id)}
-                  className="flex items-center px-2 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs"
-                >
-                  <TrashIcon className="w-3 h-3 mr-1" />
-                  Delete
-                </button>
-              </div>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {pageRows.map((t) => (
+                    <tr key={t.id} className="hover:bg-gray-50">
+                      <td className="p-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(t.id)}
+                          onChange={() => toggleSelect(t.id)}
+                          aria-label={`Select ${t.id}`}
+                        />
+                      </td>
+                      <td className="p-2 whitespace-nowrap">
+                        <span className="font-medium">{t.id}</span>
+                      </td>
+                      <td className="p-2 whitespace-nowrap">{t.date || "—"}</td>
+                      <td className="p-2 whitespace-nowrap">{t.type}</td>
+                      <td className="p-2 whitespace-nowrap">
+                        <strong>{money(t.amount, t.currency)}</strong>
+                      </td>
+                      <td className="p-2">
+                        <StatusPill status={t.status} />
+                      </td>
+                      <td className="p-2 whitespace-nowrap">{t.traveller}</td>
+                      <td className="p-2 whitespace-nowrap max-w-[180px] truncate" title={t.email}>
+                        {t.email}
+                      </td>
+                      <td className="p-2 whitespace-nowrap">{t.bookingId || "N/A"}</td>
+                      <td className="p-2 whitespace-nowrap">{t.paymentMethod}</td>
+                      <td className="p-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {/* Approve button only for pending wallet_topup */}
+                          {t.type == "wallet_topup" && t.status === "pending" && (
+                            <button
+                              onClick={() => openApproveModal(t)}
+                              className="flex items-center px-2 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs"
+                            >
+                              <CheckIcon className="w-4 h-4 mr-1" />
+                              Approve
+                            </button>
+                          )}
+                          <button
+                            onClick={() => generateInvoicePDF(t)}
+                            className="flex items-center px-2 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs"
+                          >
+                            <DocumentTextIcon className="w-4 h-4 mr-1" />
+                            Invoice
+                          </button>
+                          <button
+                            onClick={() => setEditTransaction({ ...t })}
+                            className="flex items-center px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs"
+                          >
+                            <PencilIcon className="w-4 h-4 mr-1" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => setShowDeleteModal(t.id)}
+                            className="flex items-center px-2 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs"
+                          >
+                            <TrashIcon className="w-4 h-4 mr-1" />
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {pageRows.length === 0 && (
+                <div className="p-4 text-center text-gray-500">No transactions found.</div>
+              )}
             </div>
-          ))}
-          {pageRows.length === 0 && <div className="p-4 text-center text-gray-500 text-sm">No transactions found.</div>}
-        </div>
-      )}
-
-      {/* Pagination */}
-      {!loading && !error && filtered.length > 0 && (
-        <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-600">Show</span>
-            <select
-              value={perPage}
-              onChange={(e) => setPerPage(parseInt(e.target.value, 10))}
-              className="p-2 border rounded-lg text-xs"
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-            </select>
-            <span className="text-xs text-gray-600">per page</span>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 bg-blue-600 text-white rounded-lg disabled:bg-gray-300 text-xs"
-            >
-              Previous
-            </button>
-            <span className="text-xs text-gray-600">
-              Page {currentPage} of {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 bg-blue-600 text-white rounded-lg disabled:bg-gray-300 text-xs"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* Audit Log */}
-      {!loading && !error && auditLog.length > 0 && (
-        <div className="mt-6 bg-white p-4 rounded-lg shadow">
-          <h2 className="text-sm font-semibold mb-3">Audit Log</h2>
-          <ul className="space-y-1">
-            {auditLog.map((log, i) => (
-              <li key={i} className="text-xs text-gray-600">
-                {log.timestamp}: {log.action}
-              </li>
+        {/* Mobile cards ONLY (< md) */}
+        {!loading && !error && (
+          <div className="md:hidden space-y-3 mt-3">
+            {pageRows.map((t) => (
+              <div key={t.id} className="bg-white p-4 rounded-lg shadow">
+                <div className="flex items-center mb-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(t.id)}
+                    onChange={() => toggleSelect(t.id)}
+                    className="mr-2"
+                    aria-label={`Select ${t.id}`}
+                  />
+                  <CreditCardIcon className="w-5 h-5 text-gray-400 mr-2" />
+                  <span className="font-medium text-sm">{t.id}</span>
+                </div>
+                <p className="text-xs text-gray-600">Date: {t.date || "—"}</p>
+                <p className="text-xs text-gray-600">Type: {t.type}</p>
+                <p className="text-xs text-gray-600">Amount: {money(t.amount, t.currency)}</p>
+                <p className="text-xs text-gray-600">
+                  Status: <StatusPill status={t.status} />
+                </p>
+                <p className="text-xs text-gray-600">Traveller: {t.traveller}</p>
+                <p className="text-xs text-gray-600 truncate" title={t.email}>
+                  Email: {t.email}
+                </p>
+                {t.bookingId && <p className="text-xs text-gray-600">Booking ID: {t.bookingId}</p>}
+                <p className="text-xs text-gray-600">Payment Method: {t.paymentMethod}</p>
+                <div className="mt-2 flex gap-2 flex-wrap">
+                  {/* Approve button only for pending wallet_topup */}
+                  {t.type === "wallet_topup" && t.status === "pending" && (
+                    <button
+                      onClick={() => openApproveModal(t)}
+                      className="flex items-center px-2 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs"
+                    >
+                      <CheckIcon className="w-3 h-3 mr-1" />
+                      Approve
+                    </button>
+                  )}
+                  <button
+                    onClick={() => generateInvoicePDF(t)}
+                    className="flex items-center px-2 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs"
+                  >
+                    <DocumentTextIcon className="w-3 h-3 mr-1" />
+                    Invoice
+                  </button>
+                  <button
+                    onClick={() => setEditTransaction({ ...t })}
+                    className="flex items-center px-2 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs"
+                  >
+                    <PencilIcon className="w-3 h-3 mr-1" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteModal(t.id)}
+                    className="flex items-center px-2 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs"
+                  >
+                    <TrashIcon className="w-3 h-3 mr-1" />
+                    Delete
+                  </button>
+                </div>
+              </div>
             ))}
-          </ul>
-        </div>
-      )}
+            {pageRows.length === 0 && (
+              <div className="p-4 text-center text-gray-500 text-sm">No transactions found.</div>
+            )}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!loading && !error && filtered.length > 0 && (
+          <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-600">Show</span>
+              <select
+                value={perPage}
+                onChange={(e) => setPerPage(parseInt(e.target.value, 10))}
+                className="p-2 border rounded-lg text-xs"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+              <span className="text-xs text-gray-600">per page</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 bg-blue-600 text-white rounded-lg disabled:bg-gray-300 text-xs"
+              >
+                Previous
+              </button>
+              <span className="text-xs text-gray-600">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 bg-blue-600 text-white rounded-lg disabled:bg-gray-300 text-xs"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Audit Log */}
+        {!loading && !error && auditLog.length > 0 && (
+          <div className="mt-6 bg-white p-4 rounded-lg shadow">
+            <h2 className="text-sm font-semibold mb-3">Audit Log</h2>
+            <ul className="space-y-1">
+              {auditLog.map((log, i) => (
+                <li key={i} className="text-xs text-gray-600">
+                  {log.timestamp}: {log.action}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
 
       {/* Edit Modal */}
       {editTransaction && (
@@ -783,9 +872,7 @@ export default function Transactions() {
                   type="number"
                   step="0.01"
                   value={editTransaction.amount}
-                  onChange={(e) =>
-                    setEditTransaction({ ...editTransaction, amount: e.target.value })
-                  }
+                  onChange={(e) => setEditTransaction({ ...editTransaction, amount: e.target.value })}
                   className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                   required
                   min="0"
@@ -812,9 +899,9 @@ export default function Transactions() {
                   className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                   required
                 >
-                  <option value="Pending">Pending</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Failed">Failed</option>
+                  <option value="pending">Pending</option>
+                  <option value="completed">Completed</option>
+                  <option value="failed">Failed</option>
                 </select>
               </div>
               <div>
@@ -825,7 +912,7 @@ export default function Transactions() {
                   className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
                   required
                 >
-                  <option>Bank</option>
+                  <option>bank</option>
                   <option>Visa</option>
                   <option>MasterCard</option>
                   <option>PayPal</option>
@@ -869,6 +956,73 @@ export default function Transactions() {
                 className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approve Top-up Modal */}
+      {approveTx && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h3 className="text-sm font-semibold mb-2">Approve Wallet Top-up</h3>
+            <p className="text-xs text-gray-600 mb-4">
+              Transaction <span className="font-mono">{approveTx.id}</span> • {approveTx.email || "N/A"}
+            </p>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">Type</label>
+                  <div className="text-xs font-medium">Wallet Deposit</div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-700 mb-1">Status</label>
+                  <div className="text-xs font-medium">{titleCase(approveTx.status)}</div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">Amount ({approveTx.currency})</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={approveAmount}
+                  onChange={(e) => setApproveAmount(e.target.value)}
+                  className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
+                  required
+                />
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Adjust if the bank deposit differs from the requested amount.
+                </p>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-700 mb-1">Note (optional)</label>
+                <textarea
+                  value={approveNote}
+                  onChange={(e) => setApproveNote(e.target.value)}
+                  rows={3}
+                  className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
+                  placeholder="Reference / bank slip / internal note"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                type="button"
+                onClick={() => setApproveTx(null)}
+                className="px-3 py-1 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 text-xs"
+                disabled={approveLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApproveTopup}
+                className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs disabled:opacity-60"
+                disabled={approveLoading}
+              >
+                {approveLoading ? "Approving..." : "Approve & Credit"}
               </button>
             </div>
           </div>

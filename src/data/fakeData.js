@@ -108,6 +108,7 @@ export const airports = [
   { value: 'BKK', label: 'Suvarnabhumi Airport (BKK)', city: 'Bangkok', country: 'Thailand' },
   { value: 'SIN', label: 'Singapore Changi Airport (SIN)', city: 'Singapore', country: 'Singapore' },
   { value: 'KUL', label: 'Kuala Lumpur International Airport (KUL)', city: 'Kuala Lumpur', country: 'Malaysia' },
+  { value: 'PEN', label: 'Penang International Airport (PEN)', city: 'Penang', country: 'Malaysia' },
   { value: 'ICN', label: 'Incheon International Airport (ICN)', city: 'Seoul', country: 'South Korea' },
   { value: 'DEL', label: 'Indira Gandhi International Airport (DEL)', city: 'Delhi', country: 'India' },
   { value: 'BOM', label: 'Chhatrapati Shivaji Maharaj International Airport (BOM)', city: 'Mumbai', country: 'India' },
