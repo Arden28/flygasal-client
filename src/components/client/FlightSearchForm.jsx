@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import Select from "react-select";
+import Select, { components as selectComponents } from "react-select";
 import { DateRange } from "react-date-range";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
@@ -9,13 +9,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { format, addDays, startOfToday, isValid } from "date-fns";
 
 /**
- * FlightSearchForm (Refined v3)
- * - Fix: range picking selected same day twice (set moveRangeOnFirstSelection=false)
- * - Fix: calendar overflow on md/lg; calendar now drops below row and is width-clamped
- * - Safer defaults: normalize dates to today+; fixes return < depart
- * - Popovers close on outside click/ESC; responsive months (1 on mobile, 2 on desktop for return)
+ * FlightSearchForm (Chunked Airports)
+ * - On menu open: show only 30 airports (cheap)
+ * - On typing: search across ALL airports, but cap visible results (e.g., 120)
+ * - Disable react-select internal filtering; we supply pre-filtered options
+ * - Keep everything smooth even with 8k+ airports
  */
 const MAX_TRAVELLERS = 9;
+const DEFAULT_MENU_COUNT = 30;   // initial items when the menu opens
+const SEARCH_LIMIT = 120;        // max items to render while typing
 
 // Simple media query hook for responsive calendar
 const useMedia = (query) => {
@@ -39,10 +41,84 @@ const safeParseDate = (value, fallback = today) => {
 };
 const clampToToday = (d) => (d < today ? today : d);
 
+// Build a lowercase search index once (value/city/country/label)
+const useAirportIndex = () =>
+  useMemo(
+    () =>
+      airports.map((a) => ({
+        ...a,
+        _v: (a.value || "").toLowerCase(),
+        _c: (a.city || "").toLowerCase(),
+        _co: (a.country || "").toLowerCase(),
+        _l: (a.label || "").toLowerCase(),
+        _s: `${(a.value || "").toLowerCase()} ${(a.city || "").toLowerCase()} ${(a.country || "").toLowerCase()} ${(a.label || "").toLowerCase()}`,
+      })),
+    []
+  );
+
+// Rank & slice a search across the full index
+function searchAirports(index, rawQuery, limit = SEARCH_LIMIT) {
+  const q = (rawQuery || "").trim().toLowerCase();
+  if (!q) return index.slice(0, DEFAULT_MENU_COUNT);
+
+  const parts = q.split(/\s+/).filter(Boolean);
+  const scored = [];
+
+  for (const a of index) {
+    // quick check: all tokens must be present somewhere
+    let ok = true;
+    for (const p of parts) {
+      if (!a._s.includes(p)) { ok = false; break; }
+    }
+    if (!ok) continue;
+
+    // lightweight ranking
+    let score = 0;
+    if (a._v.startsWith(q)) score += 120;         // IATA starts with
+    if (a._c.startsWith(q)) score += 80;          // city starts with
+    if (a._l.startsWith(q)) score += 60;          // label starts with
+    if (a._co.startsWith(q)) score += 30;         // country starts with
+    if (a._s.includes(q)) score += 10;            // general contains
+
+    scored.push([score, a]);
+  }
+
+  scored.sort((x, y) => y[0] - x[0] || x[1].label.localeCompare(y[1].label, "en"));
+  return scored.slice(0, limit).map((t) => t[1]);
+}
+
 const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isDesktop = useMedia("(min-width: 768px)");
+
+  // ----- Airports chunked menus -----
+  const AIRPORT_INDEX = useAirportIndex();
+
+  // Per-field menu state: { [key]: { input: string, options: Airport[] } }
+  // key format: `${idx}:origin` or `${idx}:destination`
+  const [airportMenus, setAirportMenus] = useState({});
+  const menuKey = (idx, field) => `${idx}:${field}`;
+
+  const defaultChunk = useMemo(() => AIRPORT_INDEX.slice(0, DEFAULT_MENU_COUNT), [AIRPORT_INDEX]);
+
+  const ensureMenu = (key) => airportMenus[key] ?? { input: "", options: defaultChunk };
+  const setMenu = (key, data) => setAirportMenus((prev) => ({ ...prev, [key]: data }));
+
+  const handleMenuOpen = (idx, field) => {
+    const key = menuKey(idx, field);
+    // On first open, show only the default chunk (30)
+    setMenu(key, { input: "", options: defaultChunk });
+  };
+
+  const handleInputChange = (idx, field) => (inputValue, meta) => {
+    const key = menuKey(idx, field);
+    // react-select calls with action types; ignore menu-close clear spam
+    if (meta?.action === "menu-close") return inputValue;
+    const results = searchAirports(AIRPORT_INDEX, inputValue, SEARCH_LIMIT);
+    setMenu(key, { input: inputValue, options: results });
+    return inputValue;
+  };
 
   // ----- State -----
   const [tripType, setTripType] = useState("oneway"); // oneway | return
@@ -96,13 +172,24 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
     setFlightType(params.flightType || "Economy");
 
     // Normalize each segment
-    const normSegments = params.flights.map((f) => {
+    const normSegments = params.flights.map((f, i) => {
       let start = clampToToday(safeParseDate(f.depart));
       let end = params.tripType === "return" ? clampToToday(safeParseDate(params.returnDate, addDays(start, 5))) : start;
       if (end < start) end = start; // ensure logical order
+
+      // Keep selected values as objects (they don't need to be present in the current options list)
+      const originObj = airports.find((a) => a.value === f.origin) || null;
+      const destObj = airports.find((a) => a.value === f.destination) || null;
+
+      // Seed menus for this row so opening feels instant
+      const oKey = menuKey(i, "origin");
+      const dKey = menuKey(i, "destination");
+      setMenu(oKey, ensureMenu(oKey));
+      setMenu(dKey, ensureMenu(dKey));
+
       return {
-        origin: airports.find((a) => a.value === f.origin) || null,
-        destination: airports.find((a) => a.value === f.destination) || null,
+        origin: originObj,
+        destination: destObj,
         dateRange: { startDate: start, endDate: end, key: "selection" },
       };
     });
@@ -111,6 +198,7 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
     setAdults(params.adults || 1);
     setChildren(params.children || 0);
     setInfants(params.infants || 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, location.search]);
 
   // Close calendar when switching trip type; also coerce dates for oneway
@@ -143,8 +231,8 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
   const popoverRef = useRef(null);
   useEffect(() => {
     const onClick = (e) => {
-      // if (!popoverRef.current) return;
-      // if (!popoverRef.current.contains(e.target)) closeAllPopovers();
+      // If you want outside-click close, uncomment below:
+      // if (popoverRef.current && !popoverRef.current.contains(e.target)) closeAllPopovers();
     };
     const onEsc = (e) => e.key === "Escape" && closeAllPopovers();
     document.addEventListener("mousedown", onClick);
@@ -157,6 +245,12 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
 
   // ----- Handlers -----
   const addFlight = () => {
+    const idx = flightsState.length;
+    const oKey = menuKey(idx, "origin");
+    const dKey = menuKey(idx, "destination");
+    setMenu(oKey, { input: "", options: defaultChunk });
+    setMenu(dKey, { input: "", options: defaultChunk });
+
     setFlightsState((prev) => [
       ...prev,
       {
@@ -256,21 +350,16 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
     }, 500);
   };
 
-  // ----- Select customizations -----
-  const filterOption = (option, searchText) => {
-    const s = (searchText || "").toLowerCase();
-    return (
-      option.data.label.toLowerCase().includes(s) ||
-      option.data.city.toLowerCase().includes(s) ||
-      option.data.country.toLowerCase().includes(s) ||
-      option.data.value.toLowerCase().includes(s)
-    );
-  };
+  // ----- Select UI bits -----
+  // We don’t use filterOption (we pre-filter the options list)
+  // const filterOption = ...
 
   const CustomOption = ({ innerProps, data }) => (
     <div {...innerProps} className="flex items-center p-3 hover:bg-gray-100 cursor-pointer transition-colors">
       <div className="flex-1">
-        <div className="font-medium">{data.city} — {data.country}</div>
+        <div className="font-medium">
+          {data.city ? `${data.city} — ${data.country}` : data.country}
+        </div>
         <div className="text-xs text-gray-500">{data.label}</div>
       </div>
     </div>
@@ -286,9 +375,24 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
       paddingLeft: 6,
       ":hover": { borderColor: "#60a5fa" },
     }),
-    menu: (base) => ({ ...base, borderRadius: 12, overflow: "hidden", boxShadow: "0 10px 25px rgba(0,0,0,.08)" }),
-    option: (base, state) => ({ ...base, backgroundColor: state.isFocused ? "#f3f4f6" : "transparent", color: "#111827" }),
+    menu: (base) => ({
+      ...base,
+      borderRadius: 12,
+      overflow: "hidden",
+      boxShadow: "0 10px 25px rgba(0,0,0,.08)",
+      zIndex: 999999,        // <— ensure above local stuff if not using portal
+    }),
+    menuPortal: (base) => ({
+      ...base,
+      zIndex: 999999,        // <— ensure above sticky headers/modals/backdrops
+    }),
+    option: (base, state) => ({
+      ...base,
+      backgroundColor: state.isFocused ? "#f3f4f6" : "transparent",
+      color: "#111827",
+    }),
   };
+
 
   // Date picker theme overrides
   const datePickerStyles = `
@@ -301,6 +405,11 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
     .rdrInRange{background:#bfdbfe!important}
     .rdrDayToday .rdrDayNumber span:after{background:#3b82f6}
   `;
+
+  // Helper to pull proper options per row/field
+  const menuOptions = (idx, field) => ensureMenu(menuKey(idx, field)).options;
+  const noOptionsMessage = ({ inputValue }) =>
+    inputValue && inputValue.length > 1 ? "No airports match your search" : "Type to search airports";
 
   return (
     <form id="flights-search" onSubmit={handleSubmit} className="content m-0">
@@ -363,14 +472,21 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
               <div className="md:col-span-4">
                 <label className="block text-xs text-gray-500 mb-1">From</label>
                 <Select
-                  options={airports}
+                  options={menuOptions(idx, "origin")}
                   value={flight.origin}
                   onChange={(v) => handleFlightChange(idx, "origin", v)}
-                  filterOption={filterOption}
+                  onMenuOpen={() => handleMenuOpen(idx, "origin")}
+                  onInputChange={handleInputChange(idx, "origin")}
                   components={{ Option: CustomOption }}
                   styles={selectStyles}
                   placeholder="City or airport"
                   isSearchable
+                  filterOption={null}                 // <-- we already pre-filter
+                  menuPortalTarget={document.body}    // reduce layout reflow
+                  maxMenuHeight={384}
+                  menuPlacement="auto"
+                  getOptionValue={(opt) => opt.value}
+                  noOptionsMessage={noOptionsMessage}
                 />
               </div>
 
@@ -390,14 +506,21 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
               <div className="md:col-span-4">
                 <label className="block text-xs text-gray-500 mb-1">To</label>
                 <Select
-                  options={airports}
+                  options={menuOptions(idx, "destination")}
                   value={flight.destination}
                   onChange={(v) => handleFlightChange(idx, "destination", v)}
-                  filterOption={filterOption}
+                  onMenuOpen={() => handleMenuOpen(idx, "destination")}
+                  onInputChange={handleInputChange(idx, "destination")}
                   components={{ Option: CustomOption }}
                   styles={selectStyles}
                   placeholder="City or airport"
                   isSearchable
+                  filterOption={null}
+                  menuPortalTarget={document.body}
+                  maxMenuHeight={384}
+                  menuPlacement="auto"
+                  getOptionValue={(opt) => opt.value}
+                  noOptionsMessage={noOptionsMessage}
                 />
               </div>
 
@@ -420,7 +543,7 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
               </div>
             </div>
 
-            {/* Calendar panel: now flows BELOW the row (no absolute positioning, no overflow) */}
+            {/* Calendar panel */}
             <AnimatePresence>
               {openDatePickerIdx === idx && (
                 <motion.div
@@ -443,8 +566,6 @@ const FlightSearchForm = ({ searchParams, setAvailableFlights, setReturnFlights 
                         direction="horizontal"
                         showDateDisplay
                         moveRangeOnFirstSelection={false}
-                        // shownDate={shownMonthByIdx[idx] || flight.dateRange.startDate}
-                        // onShownDateChange={(d) => handleShownDateChange(idx, d)}
                         rangeColors={["#3b82f6"]}
                         className="w-full"
                       />
