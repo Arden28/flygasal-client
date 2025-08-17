@@ -34,6 +34,4 @@ export const T = {
     markupsinformation: 'Markups Information',
     agency_markups: 'Flight Markups',
     cancel: 'Cancel',
-    save: 'Save',
-    show: 'Show',
 };
