@@ -33,6 +33,8 @@ import AdminLogin from "../pages/admin/Login";
 import ConfirmationSuccessPage from "../pages/client/ConfirmationSuccessPage";
 import AgencyPage from "../pages/client/Account/AgencyPage";
 import Deposits from "../pages/client/Account/DepositPage";
+import About from "../pages/client/Company/About";
+import NotFound from "../pages/error/NotFound";
 
 export default function AppRoutes() {
 
@@ -41,6 +43,7 @@ export default function AppRoutes() {
     const [message, setMessage] = useState({ text: '', type: '' }); // Global message state
     const [currentView, setCurrentView] = useState('');
     
+
   return (
     <BrowserRouter>
       <Routes>
@@ -48,7 +51,7 @@ export default function AppRoutes() {
         <Route
           path="/"  element={<ClientLayout user={user} />} >
           <Route index element={<Home />} />
-          <Route path="/about" element={<AboutPage />} />
+          <Route path="/about" element={<About />} />
           <Route path="/flight/availability" element={<FlightPage />} />
           <Route path="/flight/trip-review" element={<TripReviewPage />} />
           <Route path="/flight/booking-confirmation" element={<BookingConfirmationPage user={user} />} />
@@ -68,7 +71,12 @@ export default function AppRoutes() {
 
           {/* Add more client pages here */}
         </Route>
+        
+        {/* Catch all unmatched routes */}
+        <Route path="*" element={<NotFound />} />
+
         <Route path="/" element={<ClientLayout />}>
+          {/* <Route path="/about" element={<About />} /> */}
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Register signupUrl="http://flygasal.test/api/auth/register" />} />
         </Route>

@@ -3,8 +3,9 @@ import Headbar from "../../../components/client/Headbar";
 import { AuthContext } from "../../../context/AuthContext";
 import { T } from "../../../utils/translation";
 import apiService from "../../../api/apiService";
+import { useNavigate } from "react-router-dom";
 
-// ---- small utils ------------------------------------------------------------
+/* ======================= small utils ======================= */
 const currency = (num, curr = "USD") => {
   const n = Number(num);
   if (Number.isNaN(n)) return num ?? "";
@@ -24,8 +25,10 @@ const StatusChip = ({ value }) => {
     confirmed: "bg-green-100 text-green-700 border-green-200",
     pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
     cancelled: "bg-red-100 text-red-700 border-red-200",
+    canceled: "bg-red-100 text-red-700 border-red-200",
     failed: "bg-red-100 text-red-700 border-red-200",
     refunded: "bg-purple-100 text-purple-700 border-purple-200",
+    ticketed: "bg-emerald-100 text-emerald-700 border-emerald-200",
   };
   const cls = map[v] || "bg-gray-100 text-gray-600 border-gray-200";
   return (
@@ -35,7 +38,10 @@ const StatusChip = ({ value }) => {
   );
 };
 
-// skeletons
+const isCancelled = (s) => ["cancelled", "canceled", "voided"].includes(String(s || "").toLowerCase());
+const isCancelable = (s) => !isCancelled(s); // adjust if more rules are needed
+
+/* ======================= skeletons ======================= */
 const TableSkeleton = ({ rows = 8 }) => (
   <div className="animate-pulse">
     <div className="h-10 bg-gray-50 border-b" />
@@ -52,13 +58,15 @@ const TableSkeleton = ({ rows = 8 }) => (
   </div>
 );
 
-// ---- main -------------------------------------------------------------------
+/* ======================= main ======================= */
 const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
   const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
 
   const [bookings, setBookings] = useState(initialBookings);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(null); // order_num currently being canceled
 
   // filters
   const [query, setQuery] = useState("");
@@ -79,10 +87,8 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
 
   // derived constants
   const STATUS_OPTIONS = useMemo(() => {
-    // derive from data as a convenience
     const uniq = new Set(bookings.map((b) => String(b.status || "").toLowerCase()).filter(Boolean));
-    // common ordering up front
-    const common = ["confirmed", "pending", "cancelled", "failed", "refunded"];
+    const common = ["confirmed", "pending", "cancelled", "failed", "refunded", "ticketed"];
     const rest = [...uniq].filter((v) => !common.includes(v));
     return [...common.filter((v) => uniq.has(v)), ...rest];
   }, [bookings]);
@@ -96,18 +102,20 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
 
   const canFetch = !!user?.id;
 
-  // fetch
+  // fetch list
   useEffect(() => {
     if (!canFetch) return;
     const fetchBookings = async () => {
       setIsLoading(true);
       setError("");
       try {
-        // Ensure params are passed correctly
         const res = await apiService.get("/bookings");
-        console.log("Fetch bookings response:", res);
-        const ok = res?.data?.status === "true" || res?.success === true;
-        const rows = res?.data?.data.data;
+        const ok = res?.data?.status === "true" || res?.success === true || res?.data?.success === true;
+        const rows =
+          res?.data?.data?.data ??
+          res?.data?.bookings ??
+          res?.data?.data ??
+          [];
         if (ok) setBookings(Array.isArray(rows) ? rows : []);
         else setError(res?.data?.message || res?.message || "Failed to fetch bookings");
       } catch (e) {
@@ -136,27 +144,25 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
     const max = maxAmount !== "" ? Number(maxAmount) : null;
 
     const pass = (b) => {
-      // search
       if (q) {
         const hay =
           String(b.client_name || "").toLowerCase() +
           " " +
           String(b.booking_id || b.id || "").toLowerCase() +
           " " +
-          String(b.pnr || "").toLowerCase();
+          String(b.pnr || "").toLowerCase() +
+          " " +
+          String(b.order_num || "").toLowerCase();
         if (!hay.includes(q)) return false;
       }
-      // status
       if (sActive) {
         const v = String(b.status || "").toLowerCase();
         if (!statusSet.has(v)) return false;
       }
-      // type
       if (typeFilter !== "all") {
         const t = String(b.type || "").toLowerCase();
         if (t !== typeFilter) return false;
       }
-      // date range
       const dRaw = getDateField(b);
       if (from || to) {
         const d = dRaw ? new Date(dRaw) : null;
@@ -168,9 +174,8 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
           if (d > end) return false;
         }
       }
-      // amount range
       if (min !== null || max !== null) {
-        const amt = Number(b.total_amount);
+        const amt = Number(b.total_amount ?? b.amount ?? b.price_total);
         if (Number.isFinite(amt)) {
           if (min !== null && amt < min) return false;
           if (max !== null && amt > max) return false;
@@ -181,7 +186,6 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
 
     const base = bookings.filter(pass);
 
-    // sorting
     const cmp = (a, b) => {
       const dir = sortDir === "asc" ? 1 : -1;
       const by = sortBy;
@@ -192,8 +196,8 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
           bv = (b.client_name || "").toString().toLowerCase();
           break;
         case "price":
-          av = Number(a.price) || 0;
-          bv = Number(b.total_amount) || 0;
+          av = Number(a.total_amount ?? a.amount ?? a.price_total) || 0;
+          bv = Number(b.total_amount ?? b.amount ?? b.price_total) || 0;
           break;
         case "booking_id":
           av = (a.booking_id || a.id || "").toString().toLowerCase();
@@ -273,13 +277,14 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
   };
 
   const exportCSV = () => {
-    const headers = ["Client", "Booking ID", "PNR", "Type", "Price", "Currency", "Status", "Date"];
+    const headers = ["Client", "Booking ID", "Order #", "PNR", "Type", "Price", "Currency", "Status", "Date"];
     const rows = filtered.map((b) => [
       b.client_name ?? "",
       b.booking_id ?? b.id ?? "",
+      b.order_num ?? "",
       b.pnr ?? "",
       b.type ?? "",
-      b.total_amount ?? "",
+      b.total_amount ?? b.amount ?? b.price_total ?? "",
       b.currency ?? "USD",
       b.status ?? "",
       getDateField(b) ?? "",
@@ -294,6 +299,74 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
     URL.revokeObjectURL(url);
   };
 
+  /* ======================= actions ======================= */
+  const handleShow = (b) => {
+    if (b?.order_num) {
+      navigate(`/flights/invoice/${b.order_num}`);
+    } else {
+      alert("This booking does not have an order number yet.");
+    }
+  };
+
+  const fetchOne = async (orderNum) => {
+    try {
+      const r = await apiService.get(`/bookings/${encodeURIComponent(orderNum)}`);
+      return r?.data?.booking || r?.data?.data?.booking || r?.data?.data || r?.data;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const handleCancel = async (b) => {
+    const order = b?.order_num;
+    if (!order) {
+      alert("Missing order number for this booking.");
+      return;
+    }
+
+    // Refresh status first to avoid double-cancel
+    setBusy(order);
+    try {
+      const latest = await fetchOne(order);
+      const current = latest?.status ?? b.status;
+      if (!isCancelable(current)) {
+        // already cancelled; update row and exit
+        if (latest) {
+          setBookings((prev) => prev.map((x) => (x.order_num === order ? { ...x, ...latest } : x)));
+        }
+        return;
+      }
+
+      const ok = window.confirm(T.cancel_confirm || "Are you sure you want to cancel this booking?");
+      if (!ok) return;
+
+      const resp = await apiService.post(`/bookings/${encodeURIComponent(order)}/cancel`);
+      const updated =
+        resp?.data?.booking ||
+        resp?.data?.data?.booking ||
+        resp?.data?.data ||
+        resp?.data ||
+        { status: "cancelled" };
+
+      setBookings((prev) => prev.map((x) => (x.order_num === order ? { ...x, ...updated } : x)));
+    } catch (e) {
+      const msg =
+        e?.response?.data?.errorMsg ||
+        e?.response?.data?.message ||
+        e?.message ||
+        (T.cancel_failed || "We couldn’t cancel this booking right now.");
+      alert(msg);
+      // soft refresh row
+      const latest = await fetchOne(order);
+      if (latest) {
+        setBookings((prev) => prev.map((x) => (x.order_num === order ? { ...x, ...latest } : x)));
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /* ======================= render ======================= */
   return (
     <div>
       <Headbar T={T} rootUrl={rootUrl} user={user} />
@@ -311,7 +384,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
             <button
               type="button"
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2"
-              onClick={() => {/* TODO: open create/import flow */}}
+              onClick={() => {/* placeholder for create/import flow */}}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2z" />
@@ -340,7 +413,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
                   id="q"
                   value={query}
                   onChange={(e) => { setQuery(e.target.value); setPage(1); }}
-                  placeholder={T.search_placeholder || "Search by client, booking ID, PNR"}
+                  placeholder={T.search_placeholder || "Search by client, booking ID, PNR or Order #"}
                   className="block w-full rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 pl-10 px-3 py-2.5"
                 />
                 <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-500">
@@ -512,6 +585,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
                       </th>
                       <Th label={T.client_name || "Client Name"} sortKey="client_name" sortBy={sortBy} sortDir={sortDir} onSort={setSort} />
                       <Th label={T.booking_id || "Booking ID"} sortKey="booking_id" sortBy={sortBy} sortDir={sortDir} onSort={setSort} />
+                      <th className="py-3 pr-3">Order #</th>
                       <th className="py-3 pr-3">PNR</th>
                       <th className="py-3 pr-3">{T.type || "Type"}</th>
                       <Th label={T.price || "Price"} sortKey="price" sortBy={sortBy} sortDir={sortDir} onSort={setSort} />
@@ -524,8 +598,10 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
                     {pageItems.map((b) => {
                       const id = b.booking_id || b.id;
                       const isChecked = selected.has(id);
+                      const order = b.order_num;
+                      const cancelDisabled = !isCancelable(b.status) || busy === order || !order;
                       return (
-                        <tr key={id} className="border-b last:border-b-0 hover:bg-gray-50/40">
+                        <tr key={`${id}-${order ?? ""}`} className="border-b last:border-b-0 hover:bg-gray-50/40">
                           <td className="py-3 px-3">
                             <input
                               type="checkbox"
@@ -537,21 +613,32 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
                           </td>
                           <td className="py-3 pr-3 font-medium text-gray-900">{b.client_name || "—"}</td>
                           <td className="py-3 pr-3">{id || "—"}</td>
+                          <td className="py-3 pr-3">{order || "—"}</td>
                           <td className="py-3 pr-3">{b.pnr || "—"}</td>
                           <td className="py-3 pr-3 capitalize">{b.type || "—"}</td>
-                          <td className="py-3 pr-3">{currency(b.total_amount, b.currency || "USD")}</td>
+                          <td className="py-3 pr-3">{currency(b.total_amount ?? b.amount ?? b.price_total, b.currency || "USD")}</td>
                           <td className="py-3 pr-3"><StatusChip value={b.status} /></td>
                           <td className="py-3 pr-3">{getDateField(b) ? new Date(getDateField(b)).toLocaleString() : "—"}</td>
                           <td className="py-3 pl-3">
                             <div className="flex items-center gap-2">
-                              <button className="rounded-lg border px-2.5 py-1.5 text-xs hover:bg-gray-50" onClick={() => {/* TODO: show details */}}>
-                                {T.show || "Show"}
+                              <button
+                                className="rounded-lg flex gap-2 border px-2.5 py-1.5 text-xs hover:bg-gray-50"
+                                onClick={() => handleShow(b)}
+                                title="Show invoice"
+                              >
+                                <i className="bi bi-file-earmark-text-fill"></i>
+                                <span>{T.show || "Show"}</span>
                               </button>
-                              <button className="rounded-lg border px-2.5 py-1.5 text-xs hover:bg-gray-50" onClick={() => {/* TODO: edit */}}>
-                                {T.edit || "Edit"}
-                              </button>
-                              <button className="rounded-lg border px-2.5 py-1.5 text-xs hover:bg-gray-50 text-red-600" onClick={() => {/* TODO: delete */}}>
-                                {T.delete || "Delete"}
+                              <button
+                                className={`rounded-lg border px-2.5 py-1.5 text-xs ${
+                                  cancelDisabled
+                                    ? "text-gray-400 bg-gray-50 cursor-not-allowed"
+                                    : "text-red-600 hover:bg-gray-50"
+                                }`}
+                                disabled={cancelDisabled}
+                                onClick={() => handleCancel(b)}
+                              >
+                                {busy === order ? (T.cancelling || "Cancelling…") : (T.cancel || "Cancel")}
                               </button>
                             </div>
                           </td>
@@ -566,9 +653,11 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
               <div className="md:hidden space-y-3 p-4">
                 {pageItems.map((b) => {
                   const id = b.booking_id || b.id;
+                  const order = b.order_num;
                   const isChecked = selected.has(id);
+                  const cancelDisabled = !isCancelable(b.status) || busy === order || !order;
                   return (
-                    <div key={id} className="rounded-xl border border-gray-100 p-4">
+                    <div key={`${id}-${order ?? ""}`} className="rounded-xl border border-gray-100 p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <input
@@ -583,7 +672,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
                         <StatusChip value={b.status} />
                       </div>
                       <div className="mt-2 text-sm text-gray-700">
-                        {(T.booking_id || "Booking ID")}: {id || "—"} · PNR: {b.pnr || "—"}
+                        {(T.booking_id || "Booking ID")}: {id || "—"} · Order: {order || "—"} · PNR: {b.pnr || "—"}
                       </div>
                       <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
                         <div>
@@ -592,7 +681,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
                         </div>
                         <div>
                           <div className="text-gray-500">{T.price || "Price"}</div>
-                          <div className="font-medium">{currency(b.total_amount, b.currency || "USD")}</div>
+                          <div className="font-medium">{currency(b.total_amount ?? b.amount ?? b.price_total, b.currency || "USD")}</div>
                         </div>
                         <div className="col-span-2">
                           <div className="text-gray-500">{T.date || "Date"}</div>
@@ -601,14 +690,23 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
                         <div className="col-span-2">
                           <div className="text-gray-500">{T.actions || "Actions"}</div>
                           <div className="mt-1 flex items-center gap-2">
-                            <button className="rounded-lg border px-2.5 py-1.5 text-xs hover:bg-gray-50" onClick={() => {/* TODO */}}>
-                              {T.show || "Show"}
+                            <button
+                              className="rounded-lg d-flex gap-2 border px-2.5 py-1.5 text-xs hover:bg-gray-50"
+                              onClick={() => handleShow(b)}
+                            >
+                              <i className="bi bi-file-earmark-text-fill"></i>
+                              <span>{T.show || "Show"}</span>
                             </button>
-                            <button className="rounded-lg border px-2.5 py-1.5 text-xs hover:bg-gray-50" onClick={() => {/* TODO */}}>
-                              {T.edit || "Edit"}
-                            </button>
-                            <button className="rounded-lg border px-2.5 py-1.5 text-xs hover:bg-gray-50 text-red-600" onClick={() => {/* TODO */}}>
-                              {T.delete || "Delete"}
+                            <button
+                              className={`rounded-lg border px-2.5 py-1.5 text-xs ${
+                                cancelDisabled
+                                  ? "text-gray-400 bg-gray-50 cursor-not-allowed"
+                                  : "text-red-600 hover:bg-gray-50"
+                              }`}
+                              disabled={cancelDisabled}
+                              onClick={() => handleCancel(b)}
+                            >
+                              {busy === order ? (T.cancelling || "Cancelling…") : (T.cancel || "Cancel")}
                             </button>
                           </div>
                         </div>
@@ -631,7 +729,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
             <button
               className="rounded-lg border px-3 py-1.5 hover:bg-gray-50 disabled:opacity-50"
               disabled={selected.size === 0}
-              onClick={() => {/* TODO: bulk export / delete */}}
+              onClick={() => {/* bulk actions placeholder */}}
             >
               {T.bulk_actions || "Bulk actions"}
             </button>
@@ -687,7 +785,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
   );
 };
 
-// header cell w/ sorting affordance
+/* ======================= header cell w/ sorting ======================= */
 const Th = ({ label, sortKey, sortBy, sortDir, onSort }) => {
   const sortable = !!sortKey && !!onSort;
   const active = sortable && sortBy === sortKey;
