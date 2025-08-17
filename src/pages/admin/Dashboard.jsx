@@ -39,7 +39,7 @@ export default function Dashboard() {
       if (first) setBootLoading(true);
       setError("");
       try {
-        const res = await apiService.get("/dashboard/summary", { params: { range } });
+        const res = await apiService.get("/admin/dashboard/summary", { params: { range } });
         const data = res?.data?.data;
         if (!data) throw new Error("Invalid dashboard payload");
         if (!cancel) setSummary(data);

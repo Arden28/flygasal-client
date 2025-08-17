@@ -38,7 +38,7 @@ export default function SalesChart({ range = "30d", currency = "USD", prefetched
       setError("");
       try {
         // Pull everything from /dashboard/summary to get aligned labels + both series
-        const res = await apiService.get("/dashboard/summary", { params: { range } });
+        const res = await apiService.get("/admin/dashboard/summary", { params: { range } });
         const data = res?.data?.data;
         if (!data) throw new Error("Invalid chart payload");
         if (cancel) return;
