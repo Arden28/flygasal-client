@@ -227,6 +227,7 @@ export default function Users() {
         action: `Added user ${newUser.id}`,
         timestamp: new Date().toISOString()
       }]);
+      console.info('Data: ', newUser);
       setAddUser(null);
       await apiService.post('/admin/users', newUser);
       toast.success('User added successfully!');

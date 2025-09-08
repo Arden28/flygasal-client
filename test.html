@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fly Gasal – Static Clone (v2)</title>
+
+  <!-- Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          colors: {
+            aa: {
+              violet: '#5A39F0',
+              violetDark: '#3421A8',
+              lavender: '#F0EEFA',
+              lilac: '#EDEBFA',
+              plum: '#D8D4F7',
+              tealDeep: '#0C3C3A',
+              navy: '#0B0C2A',
+              navyAlt: '#0E1033',
+              star: '#00B67A',
+            }
+          },
+          boxShadow: {
+            card: '0 10px 24px rgba(17, 24, 39, 0.08)',
+          },
+          keyframes: {
+            marquee: {
+              '0%': { transform: 'translateX(0)' },
+              '100%': { transform: 'translateX(-50%)' },
+            },
+          },
+          animation: {
+            marquee: 'marquee 28s linear infinite',
+            marqueeFast: 'marquee 18s linear infinite',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    .hero-grad {
+        background-image: url('public/assets/img/hero_background.webp');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+    .pill { border-radius: 9999px; }
+    .tile, .logo-tile { border-radius: 18px; }
+
+    /* edge fades for carousels (soft reveal on sides) */
+    .edge-fade {
+      -webkit-mask-image: linear-gradient(to right, transparent 0, black 60px, black calc(100% - 60px), transparent 100%);
+              mask-image: linear-gradient(to right, transparent 0, black 60px, black calc(100% - 60px), transparent 100%);
+    }
+
+    /* cloud shape strip (SVG masked) */
+    .cloud-strip {
+      background: url('assets/decoration/clouds.svg') repeat-x center / 900px 120px;
+      opacity: .9;
+      height: 90px;
+    }
+    
+    .marquee:hover .track { animation-play-state: paused; }
+
+    /* subtle tilt for artistic flow */
+    .tilt-1 { transform: rotate(-1.2deg); }
+    .tilt-2 { transform: rotate(0.8deg); }
+
+    /* stagger the logo tiles up/down for a wavy line */
+    .stagger > li:nth-child(odd)  { transform: translateY(-6px); }
+    .stagger > li:nth-child(even) { transform: translateY(6px); }
+
+    /* optional gentle bobbing per logo (adds life without being noisy) */
+    @keyframes bob {
+        0%,100% { transform: translateY(0) }
+        50%     { transform: translateY(-3px) }
+    }
+    .bob { animation: bob 4.5s ease-in-out infinite }
+    .stagger > li:nth-child(3n) .bob { animation-duration: 5.5s }
+    .stagger > li:nth-child(4n) .bob { animation-duration: 6.2s }
+
+  </style>
+</head>
+<body class="font-sans text-slate-900 antialiased">
+
+  <!-- Header -->
+  <header class="absolute inset-x-0 top-0 z-40">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between py-4">
+        <a href="#" class="flex items-center gap-3">
+          <img class="h-[30px]" src="public/assets/img/logo/flygasal.png" alt="Fly Gasal" />
+        </a>
+        <nav class="flex items-center gap-3">
+          <button class="hidden sm:flex items-center gap-2 pill border border-white/20 bg-white/10 text-white/90 px-3 py-1.5 hover:bg-white/20">
+            <img src="public/assets/img/flags/us.svg" alt="" class="h-4 w-6 rounded-sm">
+            <span class="text-sm">USD</span>
+          </button>
+          <a href="#" class="hidden sm:flex items-center gap-2 pill border border-white/20 bg-white/10 text-white px-3 py-1.5 hover:bg-white/20">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m3 3 1.5 1.5M21 21l-1.5-1.5M8 7h8m-8 5h8m-8 5h5"/></svg>
+            <span class="text-sm">Manage booking</span>
+          </a>
+          <button class="pill border border-white/30 bg-white/10 text-white px-3 py-1.5 hover:bg-white/20">Menu</button>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="relative hero-grad text-white overflow-hidden">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-28 pb-10">
+      <div class="text-center py-12">
+        <h1 class="text-4xl sm:text-6xl font-bold tracking-tight">Discover Your Next Adventure</h1>
+        <p class="mt-3 text-lg sm:text-xl text-white/90">Book your perfect flight with confidence.</p>
+      </div>
+
+      <!-- Tabs -->
+      <div class="mx-auto mt-8 flex w-full max-w-3xl items-center justify-center gap-2">
+        <div class="bg-[#9E88D6] p-2 rounded-2xl">
+            <button class="pill bg-white text-slate-900 px-4 py-2 text-sm font-medium shadow hover:bg-white/90">Return</button>
+            <button class="pill px-4 py-2 text-sm font-medium hover:bg-white/20">One way</button>
+            <button class="pill px-4 py-2 text-sm font-medium hover:bg-white/20">Multi-city</button>
+        </div>
+      </div>
+
+      <!-- Search pill -->
+      <div class="relative mx-auto mt-4 w-full max-w-5xl">
+        <div class="md:rounded-3xl rounded-3xl  bg-white/95 text-slate-900 shadow-card ring-5 ring-black/5 overflow-hidden relative z-10">
+          <div class="grid grid-cols-1 sm:grid-cols-4">
+            <div class="flex items-center gap-3 px-5 py-4 border-b sm:border-b-0 sm:border-r border-slate-200/70">
+              <svg class="h-5 w-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12h18M3 12l4-4m-4 4 4 4"/></svg>
+              <input class="w-full bg-transparent placeholder-slate-400 focus:outline-none" placeholder="Where from?">
+            </div>
+            <div class="flex items-center gap-3 px-5 py-4 border-b sm:border-b-0 sm:border-r border-slate-200/70">
+              <svg class="h-5 w-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12H3m18 0-4-4m4 4-4 4"/></svg>
+              <input class="w-full bg-transparent placeholder-slate-400 focus:outline-none" placeholder="Where to?">
+            </div>
+            <div class="flex items-center gap-3 px-5 py-4 border-b sm:border-b-0 sm:border-r border-slate-200/70">
+              <svg class="h-5 w-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7h8M7 11h10M6 15h12"/></svg>
+              <input class="w-full bg-transparent placeholder-slate-400 focus:outline-none" placeholder="Dates">
+            </div>
+            <div class="flex items-center justify-between gap-3 px-5 py-4">
+              <div class="flex items-center gap-3">
+                <svg class="h-5 w-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 8h14M7 8V6a3 3 0 0 1 6 0v2"/></svg>
+                <button class="text-left text-slate-700">1 Adult, Economy</button>
+              </div>
+              <button class="grid h-10 w-10 place-items-center rounded-full bg-aa.violet text-white hover:bg-aa.violetDark">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Clouds directly under the search pill -->
+        <div class="absolute inset-x-0 top-full translate-y-1">
+          <div class="cloud-strip"></div>
+        </div>
+      </div>
+
+      <!-- Trust line -->
+      <div class="mt-7 text-center text-white/90">
+        <div class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-2">
+          <span>Trusted by 100,000+ customers every year</span>
+          <span class="hidden sm:inline-flex items-center gap-1 pl-2 border-l border-white/20">
+            <span class="inline-flex -space-x-0.5">
+              <img src="public/assets/img/trustpilot-5star.svg" class="inline-block h-[20px] bg-aa.star rounded" />
+            </span>
+            <span class="text-white/80 text-sm">Verified by Trustpilot</span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- HERO: auto-scrolling payments -->
+    <div class="pb-10">
+      <div class="edge-fade mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="relative overflow-hidden">
+          <!-- Track: duplicate content for seamless scroll -->
+          <ul class="flex items-center gap-10 min-w-max animate-marqueeFast">
+            <!-- Group 1 -->
+            <li><img class="h-50 object-contain" src="public/assets/img/gateways/bitcoin.svg" alt="Bitcoin"></li>
+            <li><img class="h-50 object-contain" src="public/assets/img/gateways/afterpay.svg" alt="Afterpay"></li>
+            <li><img class="h-50 object-contain" src="public/assets/img/gateways/clearpay.svg" alt="Clearpay"></li>
+            <li><img class="h-50 object-contain" src="public/assets/img/gateways/mastercard.svg" alt="Mastercard"></li>
+            <li><img class="h-50 object-contain" src="public/assets/img/gateways/paypal.svg" alt="PayPal"></li>
+            <li><img class="h-50 object-contain" src="public/assets/img/gateways/tamara.svg" alt="Tamara"></li>
+            <li><img class="h-50 object-contain" src="public/assets/img/gateways/tether.svg" alt="Tether"></li>
+            <li><img class="h-50 object-contain" src="public/assets/img/gateways/visa.svg" alt="Visa"></li>
+            <!-- Group 2 (duplicate) -->
+            <li><img class="h-50 object-contain" src="public/assets/img/gateways/bitcoin.svg" alt=""></li>
+            <li><img class="h-50 object-contain" src="public/assets/img/gateways/afterpay.svg" alt=""></li>
+            <li><img class="h-50 object-contain" src="public/assets/img/gateways/clearpay.svg" alt=""></li>
+            <li><img class="h-50 object-contain" src="public/assets/img/gateways/mastercard.svg" alt=""></li>
+            <li><img class="h-50 object-contain" src="public/assets/img/gateways/paypal.svg" alt=""></li>
+            <li><img class="h-50 object-contain" src="public/assets/img/gateways/tamara.svg" alt=""></li>
+            <li><img class="h-50 object-contain" src="public/assets/img/gateways/tether.svg" alt=""></li>
+            <li><img class="h-50 object-contain" src="public/assets/img/gateways/visa.svg" alt=""></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3-up Value Props -->
+  <section class="bg-white">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
+      <h1 class="text-center text-2xl sm:text-4xl font-semibold text-slate-900">The future of flight booking has landed</h1>
+      <div class="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <div class="tile bg-aa.lavender p-6 bg-[#EEEDFB]">
+          <img src="public/assets/img/icons/plane.svg" class="h-10 w-10" alt="">
+          <h3 class="mt-4 text-xl font-semibold">Find your perfect flight</h3>
+          <p class="mt-2 text-slate-700">Compare 600+ airlines, add extras, and pick from 40+ ways to pay.</p>
+        </div>
+        <div class="tile bg-aa.lavender p-6 bg-[#EEEDFB]">
+          <img src="public/assets/img/icons/calendar.svg" class="h-10 w-10" alt="">
+          <h3 class="mt-4 text-xl font-semibold">Pay over time</h3>
+          <p class="mt-2 text-slate-700">Exclusive partners let you spread the cost, or pay later.</p>
+        </div>
+        <div class="tile bg-aa.lavender p-6 bg-[#EEEDFB]">
+          <img src="public/assets/img/icons/lock.svg" class="h-10 w-10" alt="">
+          <h3 class="mt-4 text-xl font-semibold">Book with confidence</h3>
+          <p class="mt-2 text-slate-700">Next-level support, instant confirmation, and protection.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LARGE TESTIMONIAL (full-width background image with overlay text) -->
+  <section class="relative w-full">
+    <div class="relative min-h-[680px] w-full bg-center bg-cover"
+         style="background-image:url('public/assets/img/bottom-tp-block-3.webp')">
+      <!-- gradient scrim for legibility -->
+      <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.55),rgba(0,0,0,0.25)_45%,rgba(0,0,0,0.25)_55%,rgba(0,0,0,0.2))]"></div>
+
+      <div class="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
+        <div class="max-w-2xl">
+          <div class="inline-flex items-center gap-2 rounded-full bg-aa.star/20 px-3 py-1 text-aa.star">
+              <img src="public/assets/img/trustpilot-5star.svg" class="inline-block h-[20px] bg-aa.star rounded" />
+               <span class="text-white/90">Verified by Trustpilot</span>
+          </div>
+          <h3 class="mt-4 text-white text-3xl sm:text-4xl font-semibold leading-tight">
+            “Fly Gasal made it possible for me to visit my family whom I hadn't seen in 5+ years.
+            With everything so expensive, their payment plans made everything more affordable.”
+          </h3>
+        </div>
+      </div>
+    </div>
+  </section>
+
+<!-- Trustpilot one-line infinite scroller -->
+<section class="bg-aa.tealDeep text-white">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
+    <div class="text-center">
+      <div class="inline-flex items-center gap-2 text-aa.star">★★★★★ <span class="text-white/80">Trustpilot</span></div>
+      <h3 class="mt-2 text-2xl sm:text-3xl font-extrabold">What travelers are saying</h3>
+    </div>
+
+    <!-- Single line marquee -->
+    <div class="mt-8 edge-fade relative overflow-hidden">
+      <ul class="trust-line flex items-stretch gap-4 sm:gap-6 min-w-max animate-[marquee_34s_linear_infinite]">
+        <!-- === UNIQUE CARDS === -->
+        <li class="w-[260px] sm:w-[320px]">
+          <article class="tile bg-white text-slate-900 shadow-card rounded-2xl p-4 flex items-start gap-3">
+            <img src="public/assets/img/avatar-1.png" alt="Garlos" class="h-10 w-10 rounded-full object-cover">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 text-aa.star text-xs sm:text-sm">
+              <img src="public/assets/img/trustpilot-5star.svg" class="inline-block h-[15px] bg-aa.star rounded" />
+              </div>
+              <p class="mt-1 text-sm leading-snug">So easy to use; payment options helped me book without stress.</p>
+              <div class="mt-2 text-xs text-slate-500">Garlos • 🇲🇽 Mexico</div>
+            </div>
+          </article>
+        </li>
+
+        <li class="w-[260px] sm:w-[320px]">
+          <article class="tile bg-white text-slate-900 shadow-card rounded-2xl p-4 flex items-start gap-3">
+            <img src="public/assets/img/avatar-1.png" alt="David V" class="h-10 w-10 rounded-full object-cover">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 text-aa.star text-xs sm:text-sm">
+              <img src="public/assets/img/trustpilot-5star.svg" class="inline-block h-[15px] bg-aa.star rounded" />
+              </div>
+              <p class="mt-1 text-sm leading-snug">BNPL made our family trip possible. Smooth booking, instant confirmation.</p>
+              <div class="mt-2 text-xs text-slate-500">David V • 🇺🇸 United States</div>
+            </div>
+          </article>
+        </li>
+
+        <li class="w-[260px] sm:w-[320px]">
+          <article class="tile bg-white text-slate-900 shadow-card rounded-2xl p-4 flex items-start gap-3">
+            <img src="public/assets/img/avatar-1.png" alt="Dimitra A" class="h-10 w-10 rounded-full object-cover">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 text-aa.star text-xs sm:text-sm">
+              <img src="public/assets/img/trustpilot-5star.svg" class="inline-block h-[15px] bg-aa.star rounded" />
+              </div>
+              <p class="mt-1 text-sm leading-snug">I’ve used them three times; each experience has been awesome!</p>
+              <div class="mt-2 text-xs text-slate-500">Dimitra A • 🇬🇷 Greece</div>
+            </div>
+          </article>
+        </li>
+
+        <li class="w-[260px] sm:w-[320px]">
+          <article class="tile bg-white text-slate-900 shadow-card rounded-2xl p-4 flex items-start gap-3">
+            <img src="public/assets/img/avatar-1.png" alt="Ariane" class="h-10 w-10 rounded-full object-cover">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 text-aa.star text-xs sm:text-sm">
+              <img src="public/assets/img/trustpilot-5star.svg" class="inline-block h-[15px] bg-aa.star rounded" />
+              </div>
+              <p class="mt-1 text-sm leading-snug">Great support after booking; changes handled quickly.</p>
+              <div class="mt-2 text-xs text-slate-500">Ariane • 🇫🇷 France</div>
+            </div>
+          </article>
+        </li>
+
+        <li class="w-[260px] sm:w-[320px]">
+          <article class="tile bg-white text-slate-900 shadow-card rounded-2xl p-4 flex items-start gap-3">
+            <img src="public/assets/img/avatar-1.png" alt="Fatima" class="h-10 w-10 rounded-full object-cover">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 text-aa.star text-xs sm:text-sm">
+              <img src="public/assets/img/trustpilot-5star.svg" class="inline-block h-[15px] bg-aa.star rounded" />
+              </div>
+              <p class="mt-1 text-sm leading-snug">Payment plans made it possible to see my family after 5+ years.</p>
+              <div class="mt-2 text-xs text-slate-500">Fatima • 🇲🇦 Morocco</div>
+            </div>
+          </article>
+        </li>
+
+        <!-- === DUPLICATE THE SAME SET FOR SEAMLESS LOOP === -->
+        <li class="w-[260px] sm:w-[320px]"><!-- duplicate of card 1 -->
+          <article class="tile bg-white text-slate-900 shadow-card rounded-2xl p-4 flex items-start gap-3">
+            <img src="public/assets/img/avatar-1.png" alt="" class="h-10 w-10 rounded-full object-cover">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 text-aa.star text-xs sm:text-sm">
+              <img src="public/assets/img/trustpilot-5star.svg" class="inline-block h-[15px] bg-aa.star rounded" />
+              </div>
+              <p class="mt-1 text-sm leading-snug">So easy to use; payment options helped me book without stress.</p>
+              <div class="mt-2 text-xs text-slate-500">Garlos • 🇲🇽 Mexico</div>
+            </div>
+          </article>
+        </li>
+
+        <li class="w-[260px] sm:w-[320px]"><!-- duplicate of card 2 -->
+          <article class="tile bg-white text-slate-900 shadow-card rounded-2xl p-4 flex items-start gap-3">
+            <img src="public/assets/img/avatar-1.png" alt="" class="h-10 w-10 rounded-full object-cover">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 text-aa.star text-xs sm:text-sm">
+              <img src="public/assets/img/trustpilot-5star.svg" class="inline-block h-[15px] bg-aa.star rounded" />
+              </div>
+              <p class="mt-1 text-sm leading-snug">BNPL made our family trip possible. Smooth booking, instant confirmation.</p>
+              <div class="mt-2 text-xs text-slate-500">David V • 🇺🇸 United States</div>
+            </div>
+          </article>
+        </li>
+
+        <li class="w-[260px] sm:w-[320px]"><!-- duplicate of card 3 -->
+          <article class="tile bg-white text-slate-900 shadow-card rounded-2xl p-4 flex items-start gap-3">
+            <img src="public/assets/img/avatar-1.png" alt="" class="h-10 w-10 rounded-full object-cover">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 text-aa.star text-xs sm:text-sm">
+              <img src="public/assets/img/trustpilot-5star.svg" class="inline-block h-[15px] bg-aa.star rounded" />
+              </div>
+              <p class="mt-1 text-sm leading-snug">I’ve used them three times; each experience has been awesome!</p>
+              <div class="mt-2 text-xs text-slate-500">Dimitra A • 🇬🇷 Greece</div>
+            </div>
+          </article>
+        </li>
+
+        <li class="w-[260px] sm:w-[320px]"><!-- duplicate of card 4 -->
+          <article class="tile bg-white text-slate-900 shadow-card rounded-2xl p-4 flex items-start gap-3">
+            <img src="public/assets/img/avatar-1.png" alt="" class="h-10 w-10 rounded-full object-cover">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 text-aa.star text-xs sm:text-sm">
+              <img src="public/assets/img/trustpilot-5star.svg" class="inline-block h-[15px] bg-aa.star rounded" />
+              </div>
+              <p class="mt-1 text-sm leading-snug">Great support after booking; changes handled quickly.</p>
+              <div class="mt-2 text-xs text-slate-500">Ariane • 🇫🇷 France</div>
+            </div>
+          </article>
+        </li>
+
+        <li class="w-[260px] sm:w-[320px]"><!-- duplicate of card 5 -->
+          <article class="tile bg-white text-slate-900 shadow-card rounded-2xl p-4 flex items-start gap-3">
+            <img src="public/assets/img/avatar-1.png" alt="" class="h-10 w-10 rounded-full object-cover">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 text-aa.star text-xs sm:text-sm">
+              <img src="public/assets/img/trustpilot-5star.svg" class="inline-block h-[15px] bg-aa.star rounded" />
+              </div>
+              <p class="mt-1 text-sm leading-snug">Payment plans made it possible to see my family after 5+ years.</p>
+              <div class="mt-2 text-xs text-slate-500">Fatima • 🇲🇦 Morocco</div>
+            </div>
+          </article>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+
+
+  <section class="bg-white">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
+      <h3 class="text-center text-3xl sm:text-4xl font-extrabold">Destinations ready for you to explore</h3>
+
+      <div class="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <!-- 9 cards -->
+        <!-- Card -->
+        <a class="tile overflow-hidden bg-aa.lilac p-4 hover:shadow-card" href="#">
+          <div class="flex items-center gap-4">
+            <img class="h-20 w-28 object-cover rounded-md" src="public/assets/img/destinations/australia.jpg" alt="">
+            <div>
+              <h4 class="font-semibold">Australia</h4>
+              <p class="text-slate-600 text-sm">Flights to Australia</p>
+              <span class="mt-2 inline-block text-aa.violet text-sm">Explore →</span>
+            </div>
+          </div>
+        </a>
+        <!-- Duplicate & replace images/text for Canada, France, Hong Kong, India, Malaysia, New Zealand, United Kingdom, United States -->
+        <a class="tile overflow-hidden bg-aa.lilac p-4 hover:shadow-card" href="#">
+          <div class="flex items-center gap-4">
+            <img class="h-20 w-28 object-cover rounded-md" src="public/assets/img/destinations/canada.jpg" alt="">
+            <div>
+              <h4 class="font-semibold">Canada</h4>
+              <p class="text-slate-600 text-sm">Flights to Canada</p>
+              <span class="mt-2 inline-block text-aa.violet text-sm">Explore →</span>
+            </div>
+          </div>
+        </a>
+        <a class="tile overflow-hidden bg-aa.lilac p-4 hover:shadow-card" href="#">
+          <div class="flex items-center gap-4">
+            <img class="h-20 w-28 object-cover rounded-md" src="public/assets/img/destinations/france.jpg" alt="">
+            <div>
+              <h4 class="font-semibold">France</h4>
+              <p class="text-slate-600 text-sm">Flights to France</p>
+              <span class="mt-2 inline-block text-aa.violet text-sm">Explore →</span>
+            </div>
+          </div>
+        </a>
+
+        <!-- add the remaining 6 similarly... -->
+        <a class="tile overflow-hidden bg-aa.lilac p-4 hover:shadow-card" href="#">
+          <div class="flex items-center gap-4">
+            <img class="h-20 w-28 object-cover rounded-md" src="public/assets/img/destinations/hong-kong.jpg" alt="">
+            <div>
+              <h4 class="font-semibold">Hong Kong</h4>
+              <p class="text-slate-600 text-sm">Flights to Hong Kong</p>
+              <span class="mt-2 inline-block text-aa.violet text-sm">Explore →</span>
+            </div>
+          </div>
+        </a>
+        <a class="tile overflow-hidden bg-aa.lilac p-4 hover:shadow-card" href="#">
+          <div class="flex items-center gap-4">
+            <img class="h-20 w-28 object-cover rounded-md" src="public/assets/img/destinations/india.jpg" alt="">
+            <div>
+              <h4 class="font-semibold">India</h4>
+              <p class="text-slate-600 text-sm">Flights to India</p>
+              <span class="mt-2 inline-block text-aa.violet text-sm">Explore →</span>
+            </div>
+          </div>
+        </a>
+        <a class="tile overflow-hidden bg-aa.lilac p-4 hover:shadow-card" href="#">
+          <div class="flex items-center gap-4">
+            <img class="h-20 w-28 object-cover rounded-md" src="public/assets/img/destinations/malaysia.jpg" alt="">
+            <div>
+              <h4 class="font-semibold">Malaysia</h4>
+              <p class="text-slate-600 text-sm">Flights to Malaysia</p>
+              <span class="mt-2 inline-block text-aa.violet text-sm">Explore →</span>
+            </div>
+          </div>
+        </a>
+        <a class="tile overflow-hidden bg-aa.lilac p-4 hover:shadow-card" href="#">
+          <div class="flex items-center gap-4">
+            <img class="h-20 w-28 object-cover rounded-md" src="public/assets/img/destinations/new-zealand.jpg" alt="">
+            <div>
+              <h4 class="font-semibold">New Zealand</h4>
+              <p class="text-slate-600 text-sm">Flights to New Zealand</p>
+              <span class="mt-2 inline-block text-aa.violet text-sm">Explore →</span>
+            </div>
+          </div>
+        </a>
+        <a class="tile overflow-hidden bg-aa.lilac p-4 hover:shadow-card" href="#">
+          <div class="flex items-center gap-4">
+            <img class="h-20 w-28 object-cover rounded-md" src="public/assets/img/destinations/uk.jpg" alt="">
+            <div>
+              <h4 class="font-semibold">United Kingdom</h4>
+              <p class="text-slate-600 text-sm">Flights to the UK</p>
+              <span class="mt-2 inline-block text-aa.violet text-sm">Explore →</span>
+            </div>
+          </div>
+        </a>
+        <a class="tile overflow-hidden bg-aa.lilac p-4 hover:shadow-card" href="#">
+          <div class="flex items-center gap-4">
+            <img class="h-20 w-28 object-cover rounded-md" src="public/assets/img/destinations/usa.jpg" alt="">
+            <div>
+              <h4 class="font-semibold">United States</h4>
+              <p class="text-slate-600 text-sm">Flights to the USA</p>
+              <span class="mt-2 inline-block text-aa.violet text-sm">Explore →</span>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <div class="mt-8 text-center">
+        <a href="#" class="pill bg-aa.violet text-white px-5 py-3 inline-flex items-center gap-2 hover:bg-aa.violetDark">Explore all destinations →</a>
+      </div>
+    </div>
+  </section>
+
+<!-- Airlines mosaic with artistic multi-lane auto-scroll -->
+<section class="bg-aa.lilac/60">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
+    <h3 class="text-center text-3xl sm:text-4xl font-extrabold text-slate-900">
+      Access airlines all around the world
+    </h3>
+
+    <!-- LANE A (left ➜ right, slower, slight tilt) -->
+    <div class="marquee mt-10 edge-fade relative overflow-hidden tilt-1">
+      <ul class="track flex items-center gap-6 min-w-max animate-marquee [&>li]:transition-transform stagger">
+        <!-- set A -->
+        <li class="logo-tile bg-white p-4 shadow-card">
+          <img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/qantas.svg" alt="Qantas">
+        </li>
+        <li class="logo-tile bg-white p-4 shadow-card">
+          <img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/riyadh-air.svg" alt="Riyadh Air">
+        </li>
+        <li class="logo-tile bg-white p-4 shadow-card">
+          <img class="bob h-9 mx-auto object-contain" src="public/assets/img/airlines/southwest.svg" alt="Southwest">
+        </li>
+        <li class="logo-tile bg-white p-4 shadow-card">
+          <img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/air-canada.svg" alt="Air Canada">
+        </li>
+        <li class="logo-tile bg-white p-4 shadow-card">
+          <img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/american.svg" alt="American Airlines">
+        </li>
+        <li class="logo-tile bg-white p-4 shadow-card">
+          <img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/cebu-pacific.svg" alt="Cebu Pacific">
+        </li>
+        <li class="logo-tile bg-white p-4 shadow-card">
+          <img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/delta.svg" alt="Delta">
+        </li>
+        <li class="logo-tile bg-white p-4 shadow-card">
+          <img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/emirates.svg" alt="Emirates">
+        </li>
+        <li class="logo-tile bg-white p-4 shadow-card">
+          <img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/qatar.svg" alt="Qatar Airways">
+        </li>
+        <li class="logo-tile bg-white p-4 shadow-card">
+          <img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/ryanair.svg" alt="Ryanair">
+        </li>
+        <li class="logo-tile bg-white p-4 shadow-card">
+          <img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/wizz.svg" alt="Wizz Air">
+        </li>
+        <li class="logo-tile bg-white p-4 shadow-card">
+          <!-- FIXED path: air-new-zealand.svg -->
+          <img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/air-new-zealand.svg" alt="Air New Zealand">
+        </li>
+
+        <!-- duplicate for seamless loop -->
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/qantas.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/riyadh-air.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-9 mx-auto object-contain" src="public/assets/img/airlines/southwest.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/air-canada.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/american.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/cebu-pacific.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/delta.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/emirates.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/qatar.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/ryanair.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/wizz.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/air-new-zealand.svg" alt=""></li>
+      </ul>
+    </div>
+
+    <!-- LANE B (right ➜ left, faster, opposite tilt) -->
+    <div class="marquee mt-6 edge-fade relative overflow-hidden tilt-2">
+      <ul class="track flex items-center gap-6 min-w-max animate-marqueeFast [animation-direction:reverse] [&>li]:transition-transform stagger">
+        <!-- reuse same set or vary brands -->
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/air-canada.svg" alt="Air Canada"></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/american.svg" alt="American Airlines"></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/cebu-pacific.svg" alt="Cebu Pacific"></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-9 mx-auto object-contain" src="public/assets/img/airlines/southwest.svg" alt="Southwest"></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/emirates.svg" alt="Emirates"></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/qatar.svg" alt="Qatar Airways"></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/ryanair.svg" alt="Ryanair"></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/wizz.svg" alt="Wizz Air"></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/qantas.svg" alt="Qantas"></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/delta.svg" alt="Delta"></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/riyadh-air.svg" alt="Riyadh Air"></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/air-new-zealand.svg" alt="Air New Zealand"></li>
+
+        <!-- duplicate -->
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/air-canada.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/american.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/cebu-pacific.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-9 mx-auto object-contain" src="public/assets/img/airlines/southwest.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/emirates.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/qatar.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/ryanair.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/wizz.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/qantas.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/delta.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/riyadh-air.svg" alt=""></li>
+        <li class="logo-tile bg-white p-4 shadow-card"><img class="bob h-8 mx-auto object-contain" src="public/assets/img/airlines/air-new-zealand.svg" alt=""></li>
+      </ul>
+    </div>
+
+    <!-- CTA -->
+    <div class="mt-10 text-center">
+      <a href="#" class="pill bg-aa.violet text-white px-5 py-3 inline-flex items-center gap-2 hover:bg-aa.violetDark">
+        Explore all airlines →
+      </a>
+    </div>
+  </div>
+</section>
+
+
+  <!-- Help cards -->
+  <section class="bg-white">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
+      <div class="grid gap-6 md:grid-cols-3">
+        <div class="tile overflow-hidden bg-white shadow-card">
+          <img src="public/assets/img/before.jpg" class="h-44 w-full object-cover" alt="">
+          <div class="p-6">
+            <h4 class="text-lg font-semibold">Before you book</h4>
+            <p class="mt-2 text-slate-700">What makes us unique and why you should book your flights the Fly Gasal way.</p>
+            <a class="mt-4 inline-block text-aa.violet" href="#">About us →</a>
+          </div>
+        </div>
+        <div class="tile overflow-hidden bg-white shadow-card">
+          <img src="public/assets/img/after.jpg" class="h-44 w-full object-cover" alt="">
+          <div class="p-6">
+            <h4 class="text-lg font-semibold">After you book</h4>
+            <p class="mt-2 text-slate-700">Our next-level customer support team is on hand and available every step of the way.</p>
+            <a class="mt-4 inline-block text-aa.violet" href="#">Our service →</a>
+          </div>
+        </div>
+        <div class="tile overflow-hidden bg-white shadow-card">
+          <img src="public/assets/img" class="h-44 w-full object-cover" alt="">
+          <div class="p-6">
+            <h4 class="text-lg font-semibold">Need help?</h4>
+            <p class="mt-2 text-slate-700">Check out our help centre for answers to all of your questions.</p>
+            <a class="mt-4 inline-block text-aa.violet" href="#">Help centre →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer with background color -->
+  <footer class="bg-[#0E0930] text-white">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
+      <div class="grid gap-10 md:grid-cols-4">
+        <div>
+          <a href="#" class="flex items-center gap-3">
+            <img class="h-8 w-8" src="public/assets/img/logo-mark.svg" alt="">
+            <span class="font-semibold">Fly Gasal</span>
+          </a>
+        </div>
+        <div>
+          <h5 class="font-semibold">Book with us</h5>
+          <ul class="mt-3 space-y-2 text-white/80">
+            <li><a href="#">Airlines we ticket</a></li>
+            <li><a href="#">Buy now, pay later</a></li>
+            <li><a href="#">Pay the way you want</a></li>
+            <li><a href="#">You're protected</a></li>
+            <li><a href="#">Our customer service</a></li>
+            <li><a href="#">Travel agents</a></li>
+            <li><a href="#">Best Fare Finder</a></li>
+            <li><a href="#">Search &amp; book</a></li>
+            <li><a href="#">Multi stop search</a></li>
+          </ul>
+        </div>
+        <div>
+          <h5 class="font-semibold">My booking</h5>
+          <ul class="mt-3 space-y-2 text-white/80">
+            <li><a href="#">Manage my booking</a></li>
+            <li><a href="#">Help centre</a></li>
+            <li><a href="#">Contact us</a></li>
+            <li><a href="#">Travel advice</a></li>
+          </ul>
+        </div>
+        <div>
+          <h5 class="font-semibold">Company</h5>
+          <ul class="mt-3 space-y-2 text-white/80">
+            <li><a href="#">About us</a></li>
+            <li><a href="#">Reviews</a></li>
+            <li><a href="#">Blog</a></li>
+            <li><a href="#">Media centre</a></li>
+            <li><a href="#">Careers</a></li>
+            <li><a href="#">Modern Slavery</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

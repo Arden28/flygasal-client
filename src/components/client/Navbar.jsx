@@ -32,8 +32,6 @@ export default function Navbar() {
     () => [
       { to: "/flight/availability", label: "Flights" },
       { to: "/hotel/availability", label: "Hotels" },
-      { to: "/blogs", label: "Blog" },
-      { to: "/about", label: "About Us" },
     ],
     []
   );
@@ -135,7 +133,8 @@ export default function Navbar() {
   };
 
   return (
-    <header ref={rootRef} className="sticky top-0 z-[250] bg-white/80 backdrop-blur border-b border-gray-100">
+    <header ref={rootRef} 
+      className="sticky top-0 z-[250] bg-white/60 backdrop-blur-md border-b border-white/20 shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-14 items-center justify-between">
           {/* Brand */}

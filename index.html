@@ -24,6 +24,55 @@
     <link rel="stylesheet" type="text/css" href="/assets/css/theme.css">
     <!-- Including agent-specific styles (optional, included as per PHP logic) -->
     <link rel="stylesheet" type="text/css" href="/assets/css/agent.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+          colors: {
+            aa: {
+              violet: '#5A39F0',
+              violetDark: '#3421A8',
+              lavender: '#F0EEFA',
+              lilac: '#EDEBFA',
+              plum: '#D8D4F7',
+              tealDeep: '#0C3C3A',
+              navy: '#0B0C2A',
+              navyAlt: '#0E1033',
+              star: '#00B67A',
+            }
+          },
+          boxShadow: {
+            card: '0 10px 24px rgba(17, 24, 39, 0.08)',
+          },
+          keyframes: {
+            marquee: {
+              '0%': { transform: 'translateX(0)' },
+              '100%': { transform: 'translateX(-50%)' },
+            },
+          },
+          animation: {
+            marquee: 'marquee 28s linear infinite',
+            marqueeFast: 'marquee 18s linear infinite',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    
+    .hero-grad {
+        background-image: url("/assets/img/visitor.jpg");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+  </style>
 
     <!-- Including external scripts -->
     <!-- <script src="https://cdn.jsdelivr.net/gh/codeqasim/cdn@main/scripts.js"></script> -->

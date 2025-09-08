@@ -1911,3 +1911,43 @@ body {
 .custom-radio:checked {
   background-color: #e6f0ff;
 }
+
+    .pill { border-radius: 9999px; }
+    .tile, .logo-tile { border-radius: 18px; }
+
+    .pill.active{
+      background-color: #fff;
+      box-shadow: var(--bs-box-shadow) !important;
+    }
+
+    /* edge fades for carousels (soft reveal on sides) */
+    .edge-fade {
+      -webkit-mask-image: linear-gradient(to right, transparent 0, black 60px, black calc(100% - 60px), transparent 100%);
+              mask-image: linear-gradient(to right, transparent 0, black 60px, black calc(100% - 60px), transparent 100%);
+    }
+
+    /* cloud shape strip (SVG masked) */
+    .cloud-strip {
+      background: url('assets/decoration/clouds.svg') repeat-x center / 900px 120px;
+      opacity: .9;
+      height: 90px;
+    }
+    
+    .marquee:hover .track { animation-play-state: paused; }
+
+    /* subtle tilt for artistic flow */
+    .tilt-1 { transform: rotate(-1.2deg); }
+    .tilt-2 { transform: rotate(0.8deg); }
+
+    /* stagger the logo tiles up/down for a wavy line */
+    .stagger > li:nth-child(odd)  { transform: translateY(-6px); }
+    .stagger > li:nth-child(even) { transform: translateY(6px); }
+
+    /* optional gentle bobbing per logo (adds life without being noisy) */
+    @keyframes bob {
+        0%,100% { transform: translateY(0) }
+        50%     { transform: translateY(-3px) }
+    }
+    .bob { animation: bob 4.5s ease-in-out infinite }
+    .stagger > li:nth-child(3n) .bob { animation-duration: 5.5s }
+    .stagger > li:nth-child(4n) .bob { animation-duration: 6.2s }
