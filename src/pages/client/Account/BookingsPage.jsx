@@ -303,7 +303,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
   /* ======================= actions ======================= */
   const handleShow = (b) => {
     if (b?.order_num) {
-      navigate(`/flights/invoice/${b.order_num}`);
+      navigate(`/flight/booking/invoice/${b.order_num}`);
     } else {
       alert("This booking does not have an order number yet.");
     }

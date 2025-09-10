@@ -269,7 +269,7 @@ export default function Transactions() {
   const handleInvoice = (t) => {
     if (t.type === "booking") {
       // Redirect to invoice page for bookings
-      navigate(`/flights/invoice/${t.bookingId || t.order_num}`);
+      navigate(`/flight/booking/invoice/${t.bookingId || t.order_num}`);
     } else {
       // Generate PDF for other transaction types
       generateInvoicePDF(t);

@@ -1,5 +1,5 @@
 import React from 'react';
-import SearchTabs from './SearchTabs';
+import SearchTabs from './Flight/SearchTabs';
 
 const HeroSection = () => {
     return (
@@ -19,7 +19,7 @@ const HeroSection = () => {
                 <span>Trusted by 100,000+ customers every year</span>
                 <span className="hidden sm:inline-flex items-center gap-1 pl-2 border-l border-white/20">
                     <span className="inline-flex -space-x-0.5">
-                    <img src="public/assets/img/trustpilot-5star.svg" className="inline-block h-[20px] bg-aa.star rounded" />
+                    <img src="/assets/img/trustpilot-5star.svg" className="inline-block h-[20px] bg-aa.star rounded" />
                     </span>
                     <span className="text-white/80 text-sm">Verified by Trustpilot</span>
                 </span>

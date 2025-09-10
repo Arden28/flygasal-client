@@ -1,15 +1,15 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { airports, airlines } from "../../data/fakeData";
-import FilterModal from "../../components/client/FilterModal";
-import FlightHeader from "../../components/client/FlightHeader";
-import SortNavigation from "../../components/client/SortNavigation";
-import ItineraryList from "../../components/client/ItineraryList";
-import Pagination from "../../components/client/Pagination";
-import FlightSearchForm from "../../components/client/FlightSearchForm";
-import flygasal from "../../api/flygasalService";
+import { airports, airlines } from "../../../data/fakeData";
+import FilterModal from "../../../components/client/Modals/FilterModal";
+import FlightHeader from "../../../components/client/Flight/FlightHeader";
+import SortNavigation from "../../../components/client/Flight/SortNavigation";
+import ItineraryList from "../../../components/client/Flight/ItineraryList";
+import Pagination from "../../../components/client/Pagination";
+import FlightSearchForm from "../../../components/client/Flight/FlightSearchForm";
+import flygasal from "../../../api/flygasalService";
 import { motion, AnimatePresence } from "framer-motion";
-import { AuthContext } from "../../context/AuthContext";
+import { AuthContext } from "../../../context/AuthContext";
 
 const flightsPerPage = 25;
 const MAX_RETURNS_PER_OUTBOUND = 6;

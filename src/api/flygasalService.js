@@ -270,9 +270,23 @@ const flygasal = {
         }
     },
 
-    // transformPricingData: async (pkData) => {
+    payOrderWithWallet: async (criteria) => {
+        try {
+            const response = await apiService.post('/transactions/pay', criteria);
+            return response.data;
+        } catch (error) {
+            console.error('Payment failed: ', error);
+        }
+    },
 
-    // },
+    ticketing: async (criteria) => {
+        try {
+            const response = await apiService.post('/bookings/ticketing', criteria);
+            return response.data;
+        } catch (error) {
+            console.error('Ticketing failed: ', error);
+        }
+    }
   
 };
 

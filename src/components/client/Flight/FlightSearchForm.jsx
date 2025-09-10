@@ -5,7 +5,7 @@ import Select, { components as RS } from "react-select";
 import { DateRange } from "react-date-range";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
-import { airports, flights } from "../../data/fakeData";
+import { airports, flights } from "../../../data/fakeData";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, addDays, startOfToday, isValid, addWeeks } from "date-fns";
 
@@ -740,7 +740,7 @@ export default function FlightSearchInlineBar({
           </div>
 
           {/* Swap */}
-          <div className="flex items-center justify-center md:-mx-8" style={{ zIndex: 100000 }}>
+          <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100000 }}>
             <button
               type="button"
               onClick={() => swapPlaces(0)}

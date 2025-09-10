@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import {
   getAirlineLogo as utilsGetAirlineLogo,
   getAirlineName as utilsGetAirlineName,
-} from "../../utils/utils";
+} from "../../../utils/utils";
 
 /* ----------------------- helpers ----------------------- */
 const norm = (s = "") =>

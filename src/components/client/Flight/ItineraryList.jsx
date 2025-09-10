@@ -1,8 +1,8 @@
 import React, { useContext, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import FlightSegment from "../../components/client/FlightSegment";
-import { AuthContext } from "../../context/AuthContext";
+import FlightSegment from "./FlightSegment";
+import { AuthContext } from "../../../context/AuthContext";
 
 const money = (n, currency = "USD") =>
   (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
@@ -102,7 +102,7 @@ const ItineraryList = ({
     params.set("totalWithMarkup", String(total));
     params.set("currency", currency);
 
-    navigate(`/flight/booking-confirmation?${params.toString()}`);
+    navigate(`/flight/booking/details?${params.toString()}`);
   };
 
   const priceBreakdown = (it) => {

@@ -8,13 +8,10 @@ import { AuthContext } from "../context/AuthContext";
 // Pages
 import Home from "../pages/client/Home";
 import Dashboard from "../pages/admin/Dashboard";
-import FlightPage from "../pages/client/FlightPage";
-import TripReviewPage from "../pages/client/TripReviewPage";
-import BookingConfirmationPage from "../pages/client/BookingConfirmationPage";
+import FlightPage from "../pages/client/Flight/FlightPage";
 import Login from "../pages/client/Auth/Login";
 import Register from "../pages/client/Auth/Register";
 import RegisterSuccessPage from "../pages/client/Auth/RegisterSuccessPage";
-import AboutPage from "../pages/client/AboutPage";
 import DashboardPage from "../pages/client/Account/DashboardPage";
 import BookingsPage from "../pages/client/Account/BookingsPage";
 import ProfilePage from "../pages/client/Account/ProfilePage";
@@ -25,16 +22,17 @@ import Settings from "../pages/admin/Settings";
 import UserDetails from "../pages/admin/UserDetails";
 import Bookings from "../pages/admin/Bookings";
 import BookingDetails from "../pages/admin/BookingDetails";
+import BookingDetail from "../pages/client/Flight/BookingDetail";
 import Airlines from "../pages/admin/Airlines";
 import Airports from "../pages/admin/Airports";
 import Transactions from "../pages/admin/Transactions";
 import UserRoles from "../pages/admin/UserRoles";
 import AdminLogin from "../pages/admin/Login";
-import ConfirmationSuccessPage from "../pages/client/ConfirmationSuccessPage";
 import AgencyPage from "../pages/client/Account/AgencyPage";
 import Deposits from "../pages/client/Account/DepositPage";
 import About from "../pages/client/Company/About";
 import NotFound from "../pages/error/NotFound";
+import BookingConfirmation from "../pages/client/Flight/BookingConfirmation";
 
 export default function AppRoutes() {
 
@@ -47,18 +45,17 @@ export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
+        
         {/* Client-side */}
         <Route
           path="/"  element={<ClientLayout user={user} />} >
           <Route index element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/flight/availability" element={<FlightPage />} />
-          <Route path="/flight/trip-review" element={<TripReviewPage />} />
-          <Route path="/flight/booking-confirmation" element={<BookingConfirmationPage user={user} />} />
-          <Route path="/flight/confirmation-success" element={<ConfirmationSuccessPage user={user} />} />
+          <Route path="/flight/booking/details" element={<BookingDetail user={user} />} />
           <Route
-            path="/flights/invoice/:orderNumber"
-            element={<ConfirmationSuccessPage user={user} />}
+            path="/flight/booking/invoice/:orderNumber"
+            element={<BookingConfirmation user={user} />}
           />
           <Route path="/signup-success" element={<RegisterSuccessPage />} />
           {/* Profile */}

@@ -1,12 +1,12 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import FlightDetails from "../../components/client/FlightDetails";
-import BookingForm from "../../components/client/BookingForm";
+import BookingHeader from "../../../components/client/Flight/BookingHeader";
+import BookingForm from "../../../components/client/Flight/BookingForm";
 import { PayPalScriptProvider } from "@paypal/react-paypal-js";
-import { flights, airlines, airports } from "../../data/fakeData";
-import flygasal from "../../api/flygasalService";
-import { AuthContext } from "../../context/AuthContext";
+import { flights, airlines, airports } from "../../../data/fakeData";
+import flygasal from "../../../api/flygasalService";
+import { AuthContext } from "../../../context/AuthContext";
 
 /* ----------------------- constants ----------------------- */
 const countries = [
@@ -75,7 +75,7 @@ const keyOf = (f) =>
   ].join("|");
 
 /* ----------------------- component ----------------------- */
-const BookingConfirmationPage = () => {
+const BookingDetail = () => {
   const { user } = useContext(AuthContext);
   const [agentData, setAgentData] = useState(null);
   const location = useLocation();
@@ -128,7 +128,7 @@ const BookingConfirmationPage = () => {
         phone: "",
         travelers: [],
         payment_method: "",
-        agree_terms: false,
+        agree_terms: true,
       }
     );
   });
@@ -223,8 +223,12 @@ const BookingConfirmationPage = () => {
   /* ---------- helpers ---------- */
   const getAirportName = (code) => {
     const a = airports.find((x) => x.value === code);
-    return a ? `${a.city} (${a.value})` : code || "—";
+    return a ? `${a.label}` : code || "—";
   };
+  // const getAirportName = (code) => {
+  //   const a = airports.find((x) => x.value === code);
+  //   return a ? `${a.city} (${a.value})` : code || "—";
+  // };
   const getCityName = (code) => {
     const a = airports.find((x) => x.value === code);
     return a ? a.city : code || "—";
@@ -586,7 +590,7 @@ const BookingConfirmationPage = () => {
       const booking = resp?.data?.booking;
 
       if (booking?.order_num) {
-        navigate(`/flights/invoice/${booking.order_num}`);
+        navigate(`/flight/booking/invoice/${booking.order_num}`);
       } else {
         const readable =
           resp?.data?.errorMsg || "Booking failed. Please try again or select a different flight.";
@@ -649,65 +653,22 @@ const BookingConfirmationPage = () => {
   const finalPrice = Number(totalPrice || 0) + Number(agentFee || 0);
 
   return (
-    <div className="relative bg-gray-100 font-sans">
-      {/* Hero Section */}
-      <motion.section
-        className="h-64 md:h-80 bg-cover bg-center m-0"
-        style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1436491865332-7a61a109cc05?fit=crop&w=1920&h=400&q=80")' }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1 }}
-      >
-        <div className="inset-0 bg-gradient-to-b from-black/50 to-transparent"></div>
-        <div className="container mx-auto h-full flex items-center justify-center">
-          <div className="text-center text-white">
-            <h1 className="text-3xl md:text-5xl font-bold">
-              Book your journey to {getCityName(outbound.destination)}
-            </h1>
-            <p className="text-sm md:text-base opacity-90">
-              {getAirportName(outbound.origin)} → {getAirportName(outbound.destination)} •{" "}
-              {formatDate(outbound.departureTime)}
-              {tripType === "return" && returnFlight ? ` · Return ${formatDate(returnFlight.departureTime)}` : ""}
-            </p>
-          </div>
-        </div>
-      </motion.section>
+    <div className="min-h-screen bg-slate-50 bg-[#F6F6F7]">
+      {/* Header */}
+      <BookingHeader 
+        outbound={outbound}
+        returnFlight={returnFlight}
+        tripType={tripType}
+        totalPrice={totalPrice}
+        getAirportName={getAirportName}
+        formatDate={formatDate}
+      />
 
 
       {/* Main Content */}
-      <div className="container px-4 lg:px-0 pt-0" style={{ marginTop: '-70px' }}>
+      <div className="container px-0 lg:px-0 py-3" style={{ maxWidth: "785px" }}>
         
-        {/* NEW: subtle timer pill under the hero (doesn't alter layout much) */}
-        <div className="container px-4 lg:px-0">
-          <div className="flex justify-end">
-            <div
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs md:text-sm ${
-                holdExpired ? "bg-rose-50 text-rose-700 border-rose-200" : "bg-amber-50 text-amber-700 border-amber-200"
-              }`}
-              title={holdExpired ? "Hold expired" : "We’re holding this fare for you"}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="opacity-80">
-                <path d="M12 8v5l3 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-              {holdExpired ? (
-                <>
-                  <span>Price hold expired</span>
-                  <button
-                    type="button"
-                    onClick={reprice}
-                    className="ml-1 underline decoration-rose-400 hover:opacity-80"
-                  >
-                    Reprice
-                  </button>
-                </>
-              ) : (
-                <span>Price hold: {timeLeftLabel}</span>
-              )}
-            </div>
-          </div>
-        </div>
-          <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row gap-6">
+          <form onSubmit={handleSubmit} className="">
             {/* Left Column: Booking Form */}
             <BookingForm
               searchParams={new URLSearchParams(location.search)}
@@ -751,12 +712,19 @@ const BookingConfirmationPage = () => {
               isProcessing={isProcessing}
               setIsProcessing={setIsProcessing}
               totalPrice={totalPrice}
-              currency={currency}
+              finalPrice={finalPrice}
+              setAgentFee={setAgentFee}
+              agentFee={agentFee}
+              isAgent={isAgent}
               agentMarkupPercent={agentMarkupPercent}
+              currency={currency}
+              handlePayment={handlePayment}
+              holdExpired={holdExpired}
+              timeLeftLabel={timeLeftLabel}
             />
 
             {/* Right Column: Flight Details */}
-            <FlightDetails
+            {/* <FlightDetails
               getPassengerSummary={getPassengerSummary}
               totalPrice={totalPrice}
               finalPrice={finalPrice}
@@ -782,11 +750,10 @@ const BookingConfirmationPage = () => {
               formData={formData}
               handlePayment={handlePayment}
               isProcessing={isProcessing}
-              /* Optional: these extra props are harmless if unused */
               holdExpired={holdExpired}
               timeLeftLabel={timeLeftLabel}
               currency={currency}
-            />
+            /> */}
 
             {/* Hidden Inputs */}
             <input type="hidden" name="booking_data" value={btoa(JSON.stringify({ cancellation_policy, adults, children, infants }))} />
@@ -855,4 +822,4 @@ const BookingConfirmationPage = () => {
   );
 };
 
-export default BookingConfirmationPage;
+export default BookingDetail;
