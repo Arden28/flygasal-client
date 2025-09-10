@@ -755,7 +755,15 @@ const BookingConfirmation = ({
         throw new Error(resp?.data?.errorMsg || "Payment failed. Please try again.");
       }
 
-      // const response = awa
+      const ticketCriteria = {
+        orderNum: orderNumber,
+        contact: {
+          name: user.name,
+          email: user.email,
+          telNum: user.phone_number ?? null,
+        }
+      };
+      const response = await flygasal.ticketing(ticketCriteria);
 
       // Optimistic UI: mark paid immediately
       setBookingData((prev) => (prev ? { ...prev, payStatus: "paid" } : prev));
