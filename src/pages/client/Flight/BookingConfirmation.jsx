@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import flygasal from "../../../api/flygasalService";
 import { getAirlineLogo, getAirlineName, getAirportName } from "../../../utils/utils";
 import { formatDate, formatTime } from "../../../utils/dateFormatter";
@@ -928,7 +928,10 @@ const BookingConfirmation = ({
             <div className="mx-auto max-w-6xl px-2 sm:px-4 py-2">
               <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-3">
                 <div className="flex justify-center sm:justify-start w-full sm:w-auto">
-                  <img src="/assets/img/logo/flygasal.png" alt="Fly Gasal" className="h-8 sm:h-10 object-contain" />
+                  <Link
+                    to="/">
+                    <img src="/assets/img/logo/flygasal.png" alt="Fly Gasal" className="h-8 sm:h-10 object-contain" />
+                  </Link>
                 </div>
                 <ol className="flex items-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar" aria-label="Booking steps">
                   {steps.map((s) => {

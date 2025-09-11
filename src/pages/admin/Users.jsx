@@ -238,7 +238,8 @@ export default function Users() {
   };
 
   return (
-    <div className="relative max-w-7xl mx-auto p-2 sm:p-4 md:p-6">
+    <div className="relative p-2">
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 bg-white rounded-lg shadow p-3 sm:p-4">
         <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 mb-2 sm:mb-0">Users Management</h1>
         <div className="flex gap-2">
