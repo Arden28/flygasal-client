@@ -765,10 +765,11 @@ const BookingConfirmation = ({
         }
       };
       const response = await flygasal.ticketing(ticketCriteria);
-      const okay = response?.data?.success === true;
+      console.info('Ticketing: ', response);
+      const okay = response?.success === true;
       
       if (!okay) {
-        throw new Error(response?.data?.error || "Ticketing failed. Please try again.");
+        throw new Error(response?.error || "Ticketing failed. Please try again.");
       }
 
 
