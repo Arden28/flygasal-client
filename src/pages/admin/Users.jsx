@@ -10,7 +10,6 @@ import {
   FunnelIcon,
   CheckCircleIcon,
   XMarkIcon,
-  EllipsisVerticalIcon,
   ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
 import { Link } from "react-router-dom";
@@ -63,21 +62,32 @@ function Modal({ open, title, onClose, children, footer }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
   if (!open) return null;
+
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center p-4" role="dialog" aria-modal="true" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 sm:p-6 overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
       <div
         ref={ref}
-        className="relative z-10 w-full max-w-md rounded-2xl bg-white ring-1 ring-gray-200"
+        className="relative z-10 w-full max-w-md sm:max-w-lg rounded-2xl bg-white ring-1 ring-gray-200 flex max-h-[90vh] flex-col"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Header (fixed) */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
           <div className="text-sm font-semibold text-gray-900">{title}</div>
           <button onClick={onClose} className="p-1 rounded hover:bg-gray-50" aria-label="Close">
             <XMarkIcon className="h-5 w-5 text-gray-500" />
           </button>
         </div>
-        <div className="p-4">{children}</div>
+
+        {/* Body (scrollable) */}
+        <div className="flex-1 overflow-y-auto p-4">{children}</div>
+
+        {/* Footer (fixed) */}
         {footer && <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">{footer}</div>}
       </div>
     </div>
@@ -147,7 +157,7 @@ export default function Users() {
           status: u.is_active ? "Active" : "Inactive",
           walletBalance: Number(u.wallet_balance ?? 0),
 
-          // NEW: include agency fields if present
+          // agency fields if present
           agency_license: u.agency_license || "",
           agency_country: u.agency_country || "",
           agency_city: u.agency_city || "",
@@ -331,11 +341,7 @@ export default function Users() {
       toast.error("Please fill all fields correctly.");
       return;
     }
-    // NEW: require agency details if type is agent
-    if (
-      u.type === "agent" &&
-      (!u.agency_license || !u.agency_country || !u.agency_city || !u.agency_address)
-    ) {
+    if (u.type === "agent" && (!u.agency_license || !u.agency_country || !u.agency_city || !u.agency_address)) {
       toast.error("Please complete all agency details for agents.");
       return;
     }
@@ -344,7 +350,6 @@ export default function Users() {
       setUsers((list) => list.map((x) => (x.id === u.id ? u : x)));
       setAuditLog((log) => [...log, { action: `Edited user ${u.id}`, timestamp: new Date().toISOString() }]);
       setEditUser(null);
-      // Send snake_case as-is (backend ready)
       await apiService.put(`/admin/users/${u.id}`, u);
       toast.success("User updated.");
     } catch (e) {
@@ -363,8 +368,6 @@ export default function Users() {
       type: "Client",
       status: "Active",
       walletBalance: 0,
-
-      // NEW: agency fields
       agency_license: "",
       agency_country: "",
       agency_city: "",
@@ -379,25 +382,16 @@ export default function Users() {
       toast.error("Please fill all fields correctly.");
       return;
     }
-    // NEW: require agency details when creating an agent
-    if (
-      u.type === "agent" &&
-      (!u.agency_license || !u.agency_country || !u.agency_city || !u.agency_address)
-    ) {
+    if (u.type === "agent" && (!u.agency_license || !u.agency_country || !u.agency_city || !u.agency_address)) {
       toast.error("Please complete all agency details for agents.");
       return;
     }
 
     try {
-      const newUser = {
-        ...u,
-        id: `user_${Date.now()}`,
-      };
+      const newUser = { ...u, id: `user_${Date.now()}` };
       setUsers((list) => [...list, newUser]);
       setAuditLog((log) => [...log, { action: `Added user ${newUser.id}`, timestamp: new Date().toISOString() }]);
       setAddUser(null);
-
-      // Send with snake_case keys so Laravel can map directly
       await apiService.post("/admin/users", newUser);
       toast.success("User added.");
     } catch (e) {
@@ -622,11 +616,7 @@ export default function Users() {
                   <td className={cx("px-3 text-sm text-gray-700 truncate", rowPad)}>{u.email}</td>
                   <td className={cx("px-3 text-sm text-gray-700", rowPad)}>{u.type}</td>
                   <td className={cx("px-3", rowPad)}>
-                    <Badge
-                      tone={
-                        u.status === "Active" ? "green" : u.status === "Inactive" ? "red" : "amber"
-                      }
-                    >
+                    <Badge tone={u.status === "Active" ? "green" : u.status === "Inactive" ? "red" : "amber"}>
                       {u.status}
                     </Badge>
                   </td>
@@ -649,7 +639,6 @@ export default function Users() {
                         <PencilIcon className="h-4 w-4" />
                         Edit
                       </button>
-
                       {u.status !== "Active" && (
                         <button
                           onClick={() => setShowApprovalModal(u.id)}
@@ -660,7 +649,6 @@ export default function Users() {
                           Approve
                         </button>
                       )}
-
                       <button
                         onClick={() => setShowDeleteModal(u.id)}
                         className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
@@ -806,9 +794,7 @@ export default function Users() {
       {selectedUsers.length > 0 && (
         <div className="fixed bottom-3 left-3 right-3 z-20 md:left-[calc(76px+12px)] md:right-3">
           <div className="mx-auto max-w-7xl rounded-xl bg-white ring-1 ring-gray-200 px-3 py-2 flex items-center justify-between">
-            <div className="text-sm text-gray-700">
-              {selectedUsers.length} selected
-            </div>
+            <div className="text-sm text-gray-700">{selectedUsers.length} selected</div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleBulkAction("approve")}
@@ -850,7 +836,10 @@ export default function Users() {
       )}
 
       {/* Advanced Filters */}
-      <Modal open={showFilterModal} onClose={() => setShowFilterModal(false)} title="Advanced Filters"
+      <Modal
+        open={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        title="Advanced Filters"
         footer={
           <div className="flex justify-end gap-2">
             <button
@@ -991,11 +980,11 @@ export default function Users() {
               >
                 <option value="Client">Client</option>
                 <option value="agent">Agent</option>
-                <option value="Admin">Admin</option>
+                <option value="admin">Admin</option>
               </select>
             </div>
 
-            {/* NEW: Agency details (only when agent) */}
+            {/* Agency fields (only when Agent) */}
             {addUser.type === "agent" && (
               <>
                 <div className="pt-2 border-t border-gray-200">
@@ -1131,11 +1120,11 @@ export default function Users() {
               >
                 <option value="Client">Client</option>
                 <option value="agent">Agent</option>
-                <option value="Admin">Admin</option>
+                <option value="admin">Admin</option>
               </select>
             </div>
 
-            {/* NEW: Agency details (only when agent) */}
+            {/* Agency fields (only when Agent) */}
             {editUser.type === "agent" && (
               <>
                 <div className="pt-2 border-t border-gray-200">
