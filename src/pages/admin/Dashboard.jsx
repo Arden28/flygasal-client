@@ -132,7 +132,7 @@ export default function Dashboard() {
                       key={k}
                       onClick={() => setRange(k)}
                       className={`px-3 py-1.5 text-xs font-medium rounded-lg ${
-                        active ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50"
+                        active ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50"
                       }`}
                       aria-pressed={active}
                     >

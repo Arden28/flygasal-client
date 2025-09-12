@@ -24,10 +24,10 @@ export default function DashboardWidget({
 }) {
   const variants = {
     indigo: {
-      card: "bg-gradient-to-br from-indigo-50 to-white ring-indigo-100",
-      iconWrap: "bg-indigo-100 text-indigo-700",
-      text: "text-indigo-800",
-      accent: "text-indigo-600",
+      card: "bg-gradient-to-br from-blue-50 to-white ring-blue-100",
+      iconWrap: "bg-blue-100 text-blue-700",
+      text: "text-blue-800",
+      accent: "text-blue-600",
       spark: "#6366F1",
     },
     emerald: {

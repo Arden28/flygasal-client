@@ -263,12 +263,12 @@ export default function Airports() {
             key={label}
             onClick={() => setStatusFilter(value)}
             className={`p-3 border rounded-lg cursor-pointer min-w-[120px] flex-shrink-0 ${
-              statusFilter === value ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 bg-white'
+              statusFilter === value ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'
             }`}
             aria-label={`Filter by ${label} status`}
           >
             <span className="text-xs">{label}</span>
-            <strong className={`text-sm ${statusFilter === value ? 'text-indigo-600' : 'text-gray-800'}`}>{count}</strong>
+            <strong className={`text-sm ${statusFilter === value ? 'text-blue-600' : 'text-gray-800'}`}>{count}</strong>
           </div>
         ))}
       </div>

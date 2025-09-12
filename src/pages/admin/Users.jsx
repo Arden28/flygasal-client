@@ -144,8 +144,14 @@ export default function Users() {
           name: u.name,
           email: u.email,
           type: u.roles?.[0]?.name ?? "N/A",
-          status: u.is_active ? "Active" : "Inactive", // consider pending if provided
+          status: u.is_active ? "Active" : "Inactive",
           walletBalance: Number(u.wallet_balance ?? 0),
+
+          // NEW: include agency fields if present
+          agency_license: u.agency_license || "",
+          agency_country: u.agency_country || "",
+          agency_city: u.agency_city || "",
+          agency_address: u.agency_address || "",
         }));
         if (!cancelled) setUsers(formatted);
       } catch (e) {
@@ -325,10 +331,20 @@ export default function Users() {
       toast.error("Please fill all fields correctly.");
       return;
     }
+    // NEW: require agency details if type is agent
+    if (
+      u.type === "agent" &&
+      (!u.agency_license || !u.agency_country || !u.agency_city || !u.agency_address)
+    ) {
+      toast.error("Please complete all agency details for agents.");
+      return;
+    }
+
     try {
       setUsers((list) => list.map((x) => (x.id === u.id ? u : x)));
       setAuditLog((log) => [...log, { action: `Edited user ${u.id}`, timestamp: new Date().toISOString() }]);
       setEditUser(null);
+      // Send snake_case as-is (backend ready)
       await apiService.put(`/admin/users/${u.id}`, u);
       toast.success("User updated.");
     } catch (e) {
@@ -338,7 +354,22 @@ export default function Users() {
   };
 
   const handleAdd = () => {
-    setAddUser({ id: "", name: "", email: "", phone: "", password: "", type: "Client", status: "Active", walletBalance: 0 });
+    setAddUser({
+      id: "",
+      name: "",
+      email: "",
+      phone: "",
+      password: "",
+      type: "Client",
+      status: "Active",
+      walletBalance: 0,
+
+      // NEW: agency fields
+      agency_license: "",
+      agency_country: "",
+      agency_city: "",
+      agency_address: "",
+    });
   };
 
   const handleSaveAdd = async (e) => {
@@ -348,11 +379,25 @@ export default function Users() {
       toast.error("Please fill all fields correctly.");
       return;
     }
+    // NEW: require agency details when creating an agent
+    if (
+      u.type === "agent" &&
+      (!u.agency_license || !u.agency_country || !u.agency_city || !u.agency_address)
+    ) {
+      toast.error("Please complete all agency details for agents.");
+      return;
+    }
+
     try {
-      const newUser = { ...u, id: `user_${Date.now()}` };
+      const newUser = {
+        ...u,
+        id: `user_${Date.now()}`,
+      };
       setUsers((list) => [...list, newUser]);
       setAuditLog((log) => [...log, { action: `Added user ${newUser.id}`, timestamp: new Date().toISOString() }]);
       setAddUser(null);
+
+      // Send with snake_case keys so Laravel can map directly
       await apiService.post("/admin/users", newUser);
       toast.success("User added.");
     } catch (e) {
@@ -945,10 +990,64 @@ export default function Users() {
                 required
               >
                 <option value="Client">Client</option>
-                <option value="Agent">Agent</option>
+                <option value="agent">Agent</option>
                 <option value="Admin">Admin</option>
               </select>
             </div>
+
+            {/* NEW: Agency details (only when agent) */}
+            {addUser.type === "agent" && (
+              <>
+                <div className="pt-2 border-t border-gray-200">
+                  <div className="text-xs font-medium text-gray-700 mb-2">Agency Details</div>
+                  <div className="grid grid-cols-1 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700">Agency License</label>
+                      <input
+                        type="text"
+                        value={addUser.agency_license}
+                        onChange={(e) => setAddUser({ ...addUser, agency_license: e.target.value })}
+                        className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
+                        required
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700">Agency Country</label>
+                        <input
+                          type="text"
+                          value={addUser.agency_country}
+                          onChange={(e) => setAddUser({ ...addUser, agency_country: e.target.value })}
+                          className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700">Agency City</label>
+                        <input
+                          type="text"
+                          value={addUser.agency_city}
+                          onChange={(e) => setAddUser({ ...addUser, agency_city: e.target.value })}
+                          className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700">Agency Address</label>
+                      <input
+                        type="text"
+                        value={addUser.agency_address}
+                        onChange={(e) => setAddUser({ ...addUser, agency_address: e.target.value })}
+                        className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
             <div>
               <label className="block text-xs font-medium text-gray-700">Status</label>
               <select
@@ -1031,10 +1130,64 @@ export default function Users() {
                 required
               >
                 <option value="Client">Client</option>
-                <option value="Agent">Agent</option>
+                <option value="agent">Agent</option>
                 <option value="Admin">Admin</option>
               </select>
             </div>
+
+            {/* NEW: Agency details (only when agent) */}
+            {editUser.type === "agent" && (
+              <>
+                <div className="pt-2 border-t border-gray-200">
+                  <div className="text-xs font-medium text-gray-700 mb-2">Agency Details</div>
+                  <div className="grid grid-cols-1 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700">Agency License</label>
+                      <input
+                        type="text"
+                        value={editUser.agency_license || ""}
+                        onChange={(e) => setEditUser({ ...editUser, agency_license: e.target.value })}
+                        className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
+                        required
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700">Agency Country</label>
+                        <input
+                          type="text"
+                          value={editUser.agency_country || ""}
+                          onChange={(e) => setEditUser({ ...editUser, agency_country: e.target.value })}
+                          className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700">Agency City</label>
+                        <input
+                          type="text"
+                          value={editUser.agency_city || ""}
+                          onChange={(e) => setEditUser({ ...editUser, agency_city: e.target.value })}
+                          className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700">Agency Address</label>
+                      <input
+                        type="text"
+                        value={editUser.agency_address || ""}
+                        onChange={(e) => setEditUser({ ...editUser, agency_address: e.target.value })}
+                        className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
             <div>
               <label className="block text-xs font-medium text-gray-700">Status</label>
               <select

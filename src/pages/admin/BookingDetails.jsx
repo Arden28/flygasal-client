@@ -224,7 +224,7 @@ export default function BookingDetails() {
           <Link to="/bookings" className="px-3 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm" aria-label="Back to bookings">
             Back
           </Link>
-          <a href="#" className="px-3 py-1 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 text-sm" aria-label="View invoice">
+          <a href="#" className="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm" aria-label="View invoice">
             View Invoice
           </a>
           {booking.module === 'Flights' && booking.bookingStatus !== 'Ticketed' && (

@@ -1,711 +1,1010 @@
-import { useState, useEffect } from 'react';
-import { CogIcon, EnvelopeIcon, PaperAirplaneIcon, CreditCardIcon, BellIcon } from '@heroicons/react/24/outline';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import apiService from '../../api/apiService';
+// src/components/admin/Settings.jsx
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  CogIcon,
+  EnvelopeIcon,
+  PaperAirplaneIcon,
+  BellIcon,
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  CheckCircleIcon,
+} from "@heroicons/react/24/outline";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import apiService from "../../api/apiService";
 
+/* --------------------------------- Utils --------------------------------- */
+const cx = (...c) => c.filter(Boolean).join(" ");
+const deepEqual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const emailOk = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e ?? "");
+const intOr = (v, d = 0) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : d;
+};
+
+// Basic lists (short, tweak as needed)
+const CURRENCIES = [
+  { v: "usd", l: "USD" },
+  { v: "eur", l: "EUR" },
+  { v: "gbp", l: "GBP" },
+];
+const LANGUAGES = [
+  { v: "en", l: "English" },
+  { v: "es", l: "Spanish" },
+  { v: "fr", l: "French" },
+];
+const TIMEZONES = [
+  "UTC",
+  "America/New_York",
+  "Europe/London",
+  "Asia/Tokyo",
+  "Africa/Nairobi",
+  "Asia/Dubai",
+];
+
+/* ------------------------------- Components ------------------------------ */
+const Section = ({ title, icon: Icon, children, footer }) => (
+  <section className="rounded-lg border border-gray-200 bg-white">
+    <header className="flex items-center gap-2 border-b border-gray-200 px-4 py-3">
+      {Icon && <Icon className="h-5 w-5 text-gray-500" />}
+      <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
+    </header>
+    <div className="p-4">{children}</div>
+    {footer && <div className="border-t border-gray-200 px-4 py-3">{footer}</div>}
+  </section>
+);
+
+const Labeled = ({ label, hint, children }) => (
+  <label className="block">
+    <div className="mb-1 flex items-baseline justify-between">
+      <span className="text-xs font-medium text-gray-700">{label}</span>
+      {hint && <span className="text-[11px] text-gray-500">{hint}</span>}
+    </div>
+    {children}
+  </label>
+);
+
+const TextInput = (props) => (
+  <input
+    {...props}
+    className={cx(
+      "w-full h-10 rounded-md border border-gray-300 px-3 text-sm outline-none focus:ring-2 focus:ring-blue-500",
+      props.className
+    )}
+  />
+);
+
+const Select = ({ options = [], ...props }) => (
+  <select
+    {...props}
+    className={cx(
+      "w-full h-10 rounded-md border border-gray-300 px-3 text-sm outline-none focus:ring-2 focus:ring-blue-500",
+      props.className
+    )}
+  >
+    {options.map((o) =>
+      typeof o === "string" ? (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ) : (
+        <option key={o.v} value={o.v}>
+          {o.l}
+        </option>
+      )
+    )}
+  </select>
+);
+
+const Toggle = ({ checked, onChange, label }) => (
+  <button
+    type="button"
+    aria-pressed={checked}
+    onClick={() => onChange(!checked)}
+    className={cx(
+      "relative inline-flex h-6 w-11 items-center rounded-full border",
+      checked ? "bg-blue-600 border-blue-600" : "bg-white border-gray-300"
+    )}
+  >
+    <span
+      className={cx(
+        "inline-block h-5 w-5 transform rounded-full bg-white transition",
+        checked ? "translate-x-5" : "translate-x-1",
+        "ring-1 ring-inset ring-gray-200"
+      )}
+    />
+    <span className="sr-only">{label}</span>
+  </button>
+);
+
+/* --------------------------------- Page ---------------------------------- */
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState('system');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [systemSettings, setSystemSettings] = useState({
-    siteName: 'FlyGasal',
-    defaultCurrency: 'usd',
+  const [active, setActive] = useState(() => localStorage.getItem("settings.activeTab") || "system");
+
+  // Per-tab busy flags
+  const [busy, setBusy] = useState({
+    systemLoad: true,
+    systemSave: false,
+    emailLoad: true,
+    emailSave: false,
+    emailTest: false,
+    pkfareLoad: true,
+    pkfareSave: false,
+    pkfareTest: false,
+    notifLoad: true,
+    notifSave: false,
+  });
+
+  const setBusyFlag = (k, v) => setBusy((b) => ({ ...b, [k]: v }));
+
+  const [err, setErr] = useState("");
+
+  // System
+  const [system, setSystem] = useState({
+    siteName: "FlyGasal",
+    defaultCurrency: "usd",
     maintenanceMode: false,
-    timezone: 'UTC',
-    language: 'en',
+    timezone: "UTC",
+    language: "en",
     maxLoginAttempts: 5,
   });
-  const [emailSettings, setEmailSettings] = useState({
-    smtpHost: '',
-    smtpPort: '',
-    smtpKey: '',
-    encryption: 'tls',
-    senderEmail: '',
+  const [systemInit, setSystemInit] = useState(system);
+
+  // Email
+  const [email, setEmail] = useState({
+    smtpHost: "",
+    smtpPort: "",
+    smtpKey: "",
+    encryption: "tls",
+    senderEmail: "",
   });
-  const [pkfareSettings, setPkfareSettings] = useState({
-    baseUrl: 'https://api.pkfare.com',
-    partnerId: '',
-    partnerKey: '',
-    environment: 'production',
+  const [showSmtp, setShowSmtp] = useState(false);
+  const [emailInit, setEmailInit] = useState(email);
+
+  // PKfare
+  const [pkfare, setPkfare] = useState({
+    baseUrl: "https://api.pkfare.com",
+    partnerId: "",
+    partnerKey: "",
+    environment: "production",
     timeout: 30,
   });
-  const [paymentSettings, setPaymentSettings] = useState({
-    stripeApiKey: '',
-    paypalClientId: '',
-    stripeTestMode: false,
-    paypalTestMode: false,
-    supportedCurrencies: ['USD'],
-  });
-  const [notificationSettings, setNotificationSettings] = useState({
+  const [showPkKey, setShowPkKey] = useState(false);
+  const [pkfareInit, setPkfareInit] = useState(pkfare);
+
+  // Notifications
+  const [notif, setNotif] = useState({
     emailNotifications: true,
     smsNotifications: false,
     emailBookingConfirmation: true,
     smsBookingConfirmation: false,
   });
+  const [notifInit, setNotifInit] = useState(notif);
 
-  const tabs = [
-    { id: 'system', name: 'System Settings', icon: CogIcon },
-    { id: 'email', name: 'Email API', icon: EnvelopeIcon },
-    { id: 'pkfare', name: 'PKfare API', icon: PaperAirplaneIcon },
-    // { id: 'payment', name: 'Payment APIs', icon: CreditCardIcon },
-    { id: 'notification', name: 'Notification Settings', icon: BellIcon },
-  ];
+  const importRef = useRef(null);
 
-  // Fetch System settings from backend API
+  /* ------------------------------ Fetch init ----------------------------- */
   useEffect(() => {
-    const fetchSystemSettings = async () => {
-      setLoading(true);
+    let cancel = false;
+
+    // SYSTEM
+    (async () => {
+      setBusyFlag("systemLoad", true);
+      setErr("");
       try {
-        const response = await apiService.get('/admin/settings');
-        const data = response.data;
-        setSystemSettings({
-          siteName: data.site_name || 'FlyGasal',
-          defaultCurrency: data.default_currency || 'usd',
-          maintenanceMode: !!data.maintenance_mode,
-          timezone: data.timezone || 'UTC',
-          language: data.language || 'en',
-          maxLoginAttempts: data.max_login_attempts || 5,
-        });
-        setLoading(false);
-      } catch (error) {
-        setError('Failed to load system settings');
-        setLoading(false);
-      }
-    };
-
-    fetchSystemSettings();
-  }, []);
-
-  // Fetch email settings from backend API
-  useEffect(() => {
-    const fetchEmailSettings = async () => {
-      setLoading(true);
-      try {
-        const response = await apiService.get('/admin/email-settings');
-        // if (!response.ok) throw new Error('Failed to load email settings');
-        const data = response.data;
-        setEmailSettings({
-          smtpHost: data.MAIL_HOST || '',
-          smtpPort: data.MAIL_PORT || '',
-          smtpKey: data.MAIL_PASSWORD || '',
-          encryption: data.MAIL_ENCRYPTION || 'tls',
-          senderEmail: data.MAIL_FROM_ADDRESS || '',
-        });
-        setLoading(false);
-      } catch (error) {
-        setError('Failed to load email settings');
-        setLoading(false);
-      }
-    };
-
-    fetchEmailSettings();
-  }, []);
-
-  // Handle form submissions
-  const handleSystemSubmit = async (e) => {
-    e.preventDefault();
-    if (!systemSettings.siteName || systemSettings.maxLoginAttempts < 1) {
-      toast.error('Please fill all required fields correctly.');
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      await apiService.post('/admin/settings', {
-        site_name: systemSettings.siteName,
-        default_currency: systemSettings.defaultCurrency,
-        timezone: systemSettings.timezone,
-        language: systemSettings.language,
-        login_attemps: systemSettings.maxLoginAttempts,
-        maintenance_mode: systemSettings.maintenanceMode,
-      });
-      toast.success('System settings saved successfully!');
-    } catch (err) {
-      toast.error('Failed to save system settings');
-      setError('Failed to save system settings');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEmailSubmit = async (e) => {
-    e.preventDefault();
-    if (
-      !emailSettings.smtpHost ||
-      !emailSettings.smtpPort ||
-      !emailSettings.senderEmail.includes('@')
-    ) {
-      toast.error('Please fill all required fields correctly.');
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      await apiService.post('/admin/email-settings', {
-        MAIL_MAILER: 'smtp',
-        MAIL_HOST: emailSettings.smtpHost,
-        MAIL_PORT: emailSettings.smtpPort,
-        MAIL_USERNAME: emailSettings.senderEmail,
-        MAIL_PASSWORD: emailSettings.smtpKey,
-        MAIL_ENCRYPTION: emailSettings.encryption,
-        MAIL_FROM_ADDRESS: emailSettings.senderEmail,
-        MAIL_FROM_NAME: 'FlyGasal',
-      });
-      toast.success('Email settings saved successfully!');
-    } catch (err) {
-      toast.error('Failed to save email settings');
-      setError('Failed to save email settings');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-    // Fetch PKfare settings from backend API
-  useEffect(() => {
-    const fetchPkfareSettings = async () => {
-      setLoading(true);
-      try {
-        const response = await apiService.get('/admin/pkfare-settings');
-        const data = response.data;
-        // console.info(data);
-        setPkfareSettings({
-          baseUrl: data.PKFARE_API_BASE_URL || 'https://api.pkfare.com',
-          partnerId: data.PKFARE_PARTNER_ID || '',
-          partnerKey: data.PKFARE_PARTNER_KEY || '',
-          environment: data.PKFARE_ENVIRONMENT || 'production',
-          timeout: data.PKFARE_TIMEOUT || 30,
-        });
-        setLoading(false);
-      } catch (error) {
-        setError('Failed to load PKfare settings');
-        setLoading(false);
-      }
-    };
-
-    fetchPkfareSettings();
-  }, []);
-
-  const handlePkfareSubmit = async (e) => {
-    e.preventDefault();
-    if (!pkfareSettings.baseUrl || !pkfareSettings.partnerId || !pkfareSettings.partnerKey || pkfareSettings.timeout < 1) {
-      toast.error('Please fill all required fields correctly.');
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      await apiService.post('/admin/email-settings', {
-        PKFARE_API_BASE_URL: pkfareSettings.baseUrl,
-        PKFARE_PARTNER_ID: pkfareSettings.partnerId,
-        PKFARE_PARTNER_KEY: pkfareSettings.partnerKey,
-      });
-      toast.success('PKFare settings saved successfully!');
-    } catch (err) {
-      toast.error('Failed to save PKFare settings');
-      setError('Failed to save PKFare settings');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePaymentSubmit = (e) => {
-    e.preventDefault();
-    if (!paymentSettings.stripeApiKey || !paymentSettings.paypalClientId || paymentSettings.supportedCurrencies.length === 0) {
-      toast.error('Please fill all required fields correctly.');
-      return;
-    }
-    setLoading(true);
-    setTimeout(() => {
-      toast.success('Payment settings saved successfully!');
-      setLoading(false);
-    }, 500);
-    // Future API call: PUT /api/settings/payment
-    // fetch('https://your-laravel-api.com/api/settings/payment', {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(paymentSettings),
-    // })
-    //   .then(() => toast.success('Payment settings saved successfully!'))
-    //   .catch(() => toast.error('Failed to save payment settings'))
-    //   .finally(() => setLoading(false));
-  };
-
-    // Fetch Notification settings from backend API
-    useEffect(() => {
-      const fetchNotificationSettings = async () => {
-        setLoading(true);
-        try {
-          const response = await apiService.get('/admin/settings');
-          const data = response.data;
-          setNotificationSettings({
-            emailNotifications: !!data.email_notification,
-            smsNotifications: !!data.sms_notification,
-            emailBookingConfirmation: !!data.booking_confirmation_email,
-            smsBookingConfirmation: !!data.booking_confirmation_sms,
-          });
-          setLoading(false);
-        } catch (error) {
-          setError('Failed to load notification settings');
-          setLoading(false);
+        const res = await apiService.get("/admin/settings");
+        const d = res?.data || {};
+        const s = {
+          siteName: d.site_name || "FlyGasal",
+          defaultCurrency: (d.default_currency || "usd").toLowerCase(),
+          maintenanceMode: !!d.maintenance_mode,
+          timezone: d.timezone || "UTC",
+          language: d.language || "en",
+          maxLoginAttempts: intOr(d.max_login_attempts ?? d.login_attempts ?? 5, 5),
+        };
+        if (!cancel) {
+          setSystem(s);
+          setSystemInit(s);
         }
-      };
+      } catch (e) {
+        if (!cancel) setErr("Failed to load system settings.");
+      } finally {
+        if (!cancel) setBusyFlag("systemLoad", false);
+      }
+    })();
 
-      fetchNotificationSettings();
-    }, []);
+    // EMAIL
+    (async () => {
+      setBusyFlag("emailLoad", true);
+      try {
+        const res = await apiService.get("/admin/email-settings");
+        const d = res?.data || {};
+        const e = {
+          smtpHost: d.MAIL_HOST || "",
+          smtpPort: String(d.MAIL_PORT || ""),
+          smtpKey: d.MAIL_PASSWORD || "",
+          encryption: (d.MAIL_ENCRYPTION || "tls").toLowerCase(),
+          senderEmail: d.MAIL_FROM_ADDRESS || "",
+        };
+        if (!cancel) {
+          setEmail(e);
+          setEmailInit(e);
+        }
+      } catch (e) {
+        if (!cancel) setErr("Failed to load email settings.");
+      } finally {
+        if (!cancel) setBusyFlag("emailLoad", false);
+      }
+    })();
 
-  const handleNotificationSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+    // PKFARE
+    (async () => {
+      setBusyFlag("pkfareLoad", true);
+      try {
+        const res = await apiService.get("/admin/pkfare-settings");
+        const d = res?.data || {};
+        const p = {
+          baseUrl: d.PKFARE_API_BASE_URL || "https://api.pkfare.com",
+          partnerId: d.PKFARE_PARTNER_ID || "",
+          partnerKey: d.PKFARE_PARTNER_KEY || "",
+          environment: (d.PKFARE_ENVIRONMENT || "production").toLowerCase(),
+          timeout: intOr(d.PKFARE_TIMEOUT ?? 30, 30),
+        };
+        if (!cancel) {
+          setPkfare(p);
+          setPkfareInit(p);
+        }
+      } catch (e) {
+        if (!cancel) setErr("Failed to load PKfare settings.");
+      } finally {
+        if (!cancel) setBusyFlag("pkfareLoad", false);
+      }
+    })();
+
+    // NOTIF
+    (async () => {
+      setBusyFlag("notifLoad", true);
+      try {
+        const res = await apiService.get("/admin/settings");
+        const d = res?.data || {};
+        const n = {
+          emailNotifications: !!d.email_notification,
+          smsNotifications: !!d.sms_notification,
+          emailBookingConfirmation: !!d.booking_confirmation_email,
+          smsBookingConfirmation: !!d.booking_confirmation_sms,
+        };
+        if (!cancel) {
+          setNotif(n);
+          setNotifInit(n);
+        }
+      } catch (e) {
+        if (!cancel) setErr("Failed to load notification settings.");
+      } finally {
+        if (!cancel) setBusyFlag("notifLoad", false);
+      }
+    })();
+
+    return () => {
+      cancel = true;
+    };
+  }, []);
+
+  /* -------------------------- Persist active tab -------------------------- */
+  useEffect(() => {
+    localStorage.setItem("settings.activeTab", active);
+  }, [active]);
+
+  /* ------------------------- Unsaved changes guard ------------------------ */
+  const dirty =
+    !deepEqual(system, systemInit) ||
+    !deepEqual(email, emailInit) ||
+    !deepEqual(pkfare, pkfareInit) ||
+    !deepEqual(notif, notifInit);
+
+  useEffect(() => {
+    const onBeforeUnload = (e) => {
+      if (dirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
+
+  /* --------------------------------- Save -------------------------------- */
+  const saveSystem = async (e) => {
+    e?.preventDefault?.();
+    if (!system.siteName || intOr(system.maxLoginAttempts, 0) < 1) {
+      return toast.error("Please fill all required fields correctly.");
+    }
+    setBusyFlag("systemSave", true);
+    setErr("");
     try {
-      await apiService.post('/admin/settings/notification', {
-        email_notification: notificationSettings.emailNotifications,
-        sms_notification: notificationSettings.smsNotifications,
-        booking_confirmation_email: notificationSettings.emailBookingConfirmation,
-        booking_confirmation_sms: notificationSettings.smsBookingConfirmation,
+      await apiService.post("/admin/settings", {
+        site_name: system.siteName,
+        default_currency: system.defaultCurrency,
+        timezone: system.timezone,
+        language: system.language,
+        // send both spellings for safety with legacy backend
+        login_attempts: system.maxLoginAttempts,
+        login_attemps: system.maxLoginAttempts,
+        maintenance_mode: system.maintenanceMode,
       });
-      toast.success('Notification settings saved successfully!');
-    } catch (err) {
-      toast.error('Failed to save notification settings');
-      setError('Failed to save notification settings');
+      setSystemInit(system);
+      toast.success("System settings saved.");
+    } catch (e1) {
+      setErr("Failed to save system settings.");
+      toast.error("Failed to save system settings.");
     } finally {
-      setLoading(false);
+      setBusyFlag("systemSave", false);
     }
   };
+
+  const saveEmail = async (e) => {
+    e?.preventDefault?.();
+    if (!email.smtpHost || !email.smtpPort || !emailOk(email.senderEmail)) {
+      return toast.error("Please fill all required fields correctly.");
+    }
+    setBusyFlag("emailSave", true);
+    setErr("");
+    try {
+      await apiService.post("/admin/email-settings", {
+        MAIL_MAILER: "smtp",
+        MAIL_HOST: email.smtpHost,
+        MAIL_PORT: email.smtpPort,
+        MAIL_USERNAME: email.senderEmail,
+        MAIL_PASSWORD: email.smtpKey,
+        MAIL_ENCRYPTION: email.encryption,
+        MAIL_FROM_ADDRESS: email.senderEmail,
+        MAIL_FROM_NAME: system.siteName || "FlyGasal",
+      });
+      setEmailInit(email);
+      toast.success("Email settings saved.");
+    } catch (e1) {
+      setErr("Failed to save email settings.");
+      toast.error("Failed to save email settings.");
+    } finally {
+      setBusyFlag("emailSave", false);
+    }
+  };
+
+  const testEmail = async () => {
+    if (!emailOk(email.senderEmail)) return toast.error("Enter a valid sender email first.");
+    setBusyFlag("emailTest", true);
+    try {
+      const res = await apiService.post("/admin/email-settings/test", {
+        host: email.smtpHost,
+        port: email.smtpPort,
+        encryption: email.encryption,
+        from: email.senderEmail,
+        key: email.smtpKey,
+      });
+      if (res?.status >= 200 && res?.status < 300) toast.success("SMTP connection OK.");
+      else throw new Error();
+    } catch {
+      toast.error("SMTP test failed.");
+    } finally {
+      setBusyFlag("emailTest", false);
+    }
+  };
+
+  const savePkfare = async (e) => {
+    e?.preventDefault?.();
+    if (!pkfare.baseUrl || !pkfare.partnerId || !pkfare.partnerKey || intOr(pkfare.timeout, 0) < 1) {
+      return toast.error("Please fill all required fields correctly.");
+    }
+    setBusyFlag("pkfareSave", true);
+    setErr("");
+    try {
+      await apiService.post("/admin/pkfare-settings", {
+        PKFARE_API_BASE_URL: pkfare.baseUrl,
+        PKFARE_PARTNER_ID: pkfare.partnerId,
+        PKFARE_PARTNER_KEY: pkfare.partnerKey,
+        PKFARE_ENVIRONMENT: pkfare.environment,
+        PKFARE_TIMEOUT: pkfare.timeout,
+      });
+      setPkfareInit(pkfare);
+      toast.success("PKfare settings saved.");
+    } catch (e1) {
+      setErr("Failed to save PKfare settings.");
+      toast.error("Failed to save PKfare settings.");
+    } finally {
+      setBusyFlag("pkfareSave", false);
+    }
+  };
+
+  const testPkfare = async () => {
+    setBusyFlag("pkfareTest", true);
+    try {
+      const res = await apiService.post("/admin/pkfare-settings/ping", {
+        base_url: pkfare.baseUrl,
+        partner_id: pkfare.partnerId,
+        partner_key: pkfare.partnerKey,
+        environment: pkfare.environment,
+        timeout: pkfare.timeout,
+      });
+      if (res?.status >= 200 && res?.status < 300) toast.success("PKfare connection OK.");
+      else throw new Error();
+    } catch {
+      toast.error("PKfare test failed.");
+    } finally {
+      setBusyFlag("pkfareTest", false);
+    }
+  };
+
+  const saveNotif = async (e) => {
+    e?.preventDefault?.();
+    setBusyFlag("notifSave", true);
+    setErr("");
+    try {
+      await apiService.post("/admin/settings/notification", {
+        email_notification: notif.emailNotifications,
+        sms_notification: notif.smsNotifications,
+        booking_confirmation_email: notif.emailBookingConfirmation,
+        booking_confirmation_sms: notif.smsBookingConfirmation,
+      });
+      setNotifInit(notif);
+      toast.success("Notification settings saved.");
+    } catch (e1) {
+      setErr("Failed to save notification settings.");
+      toast.error("Failed to save notification settings.");
+    } finally {
+      setBusyFlag("notifSave", false);
+    }
+  };
+
+  /* --------------------------- Export / Import --------------------------- */
+  const exportJSON = () => {
+    const payload = {
+      system,
+      email: { ...email, smtpKey: email.smtpKey ? "****" : "" }, // mask for export
+      pkfare: { ...pkfare, partnerKey: pkfare.partnerKey ? "****" : "" },
+      notification: notif,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "settings_backup.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importJSON = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const d = JSON.parse(reader.result);
+        if (d.system) setSystem(d.system);
+        if (d.email) setEmail((prev) => ({ ...prev, ...d.email, smtpKey: prev.smtpKey })); // keep secret
+        if (d.pkfare) setPkfare((prev) => ({ ...prev, ...d.pkfare, partnerKey: prev.partnerKey }));
+        if (d.notification) setNotif(d.notification);
+        toast.success("Imported (secrets kept from current form).");
+      } catch {
+        toast.error("Invalid JSON file.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const resetTab = (tab) => {
+    if (tab === "system") setSystem(systemInit);
+    if (tab === "email") setEmail(emailInit);
+    if (tab === "pkfare") setPkfare(pkfareInit);
+    if (tab === "notification") setNotif(notifInit);
+  };
+
+  /* ------------------------------- Rendering ------------------------------ */
+  const Tab = ({ id, name, Icon }) => {
+    const activeTab = active === id;
+    return (
+      <button
+        onClick={() => setActive(id)}
+        className={cx(
+          "flex items-center gap-2 px-3 py-2 text-xs sm:text-sm rounded-md",
+          activeTab ? "bg-blue-50 text-blue-700" : "text-gray-600 hover:bg-gray-100"
+        )}
+        aria-current={activeTab ? "page" : undefined}
+      >
+        <Icon className="h-5 w-5" />
+        {name}
+      </button>
+    );
+  };
+
+  const topBar = (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 className="text-lg sm:text-xl font-semibold text-gray-900">Settings</h1>
+        <p className="text-xs text-gray-500">Configure system defaults, integrations and notifications.</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={exportJSON}
+          className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-xs hover:bg-gray-50"
+        >
+          <ArrowDownTrayIcon className="h-4 w-4" />
+          Export
+        </button>
+        <button
+          onClick={() => importRef.current?.click()}
+          className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-xs hover:bg-gray-50"
+        >
+          <ArrowUpTrayIcon className="h-4 w-4" />
+          Import
+        </button>
+        <input
+          ref={importRef}
+          type="file"
+          accept="application/json"
+          className="hidden"
+          onChange={(e) => importJSON(e.target.files?.[0])}
+        />
+      </div>
+    </div>
+  );
+
+  const tabs = (
+    <nav className="flex flex-wrap gap-2 border-b border-gray-200 pb-2" aria-label="Settings tabs">
+      <Tab id="system" name="System" Icon={CogIcon} />
+      <Tab id="email" name="Email API" Icon={EnvelopeIcon} />
+      <Tab id="pkfare" name="PKfare API" Icon={PaperAirplaneIcon} />
+      <Tab id="notification" name="Notifications" Icon={BellIcon} />
+    </nav>
+  );
 
   return (
-    <div className="relative p-6">
-      <h1 className="text-2xl font-bold mb-6">Settings</h1>
+    <div className="min-h-screen bg-gray-50">
+      <div className="mx-auto px-2 sm:px-6 py-2">
+        {topBar}
+        <div className="mt-4">{tabs}</div>
 
-      {/* Loading and Error States */}
-      {loading && (
-        <div className="flex justify-center p-6">
-          <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+        {err && <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{err}</div>}
+
+        <div className="mt-4 grid gap-4">
+          {/* SYSTEM */}
+          {active === "system" && (
+            <Section
+              title="System Settings"
+              icon={CogIcon}
+              footer={
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] text-gray-500">
+                    {deepEqual(system, systemInit) ? (
+                      <span className="inline-flex items-center gap-1">
+                        <CheckCircleIcon className="h-4 w-4" /> No changes
+                      </span>
+                    ) : (
+                      "You have unsaved changes"
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => resetTab("system")}
+                      className="rounded-md border border-gray-300 bg-white px-3 py-2 text-xs hover:bg-gray-50"
+                      disabled={busy.systemSave}
+                    >
+                      Reset
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveSystem}
+                      disabled={busy.systemSave}
+                      className={cx(
+                        "rounded-md px-3 py-2 text-xs text-white",
+                        busy.systemSave ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
+                      )}
+                    >
+                      {busy.systemSave ? "Saving..." : "Save Changes"}
+                    </button>
+                  </div>
+                </div>
+              }
+            >
+              {busy.systemLoad ? (
+                <div className="animate-pulse space-y-3">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="h-4 rounded bg-gray-100" />
+                  ))}
+                </div>
+              ) : (
+                <form onSubmit={saveSystem} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Labeled label="Site Name">
+                    <TextInput
+                      value={system.siteName}
+                      onChange={(e) => setSystem((s) => ({ ...s, siteName: e.target.value }))}
+                      required
+                      aria-label="Site name"
+                    />
+                  </Labeled>
+
+                  <Labeled label="Default Currency">
+                    <Select
+                      value={system.defaultCurrency}
+                      onChange={(e) => setSystem((s) => ({ ...s, defaultCurrency: e.target.value }))}
+                      options={CURRENCIES}
+                      aria-label="Default currency"
+                    />
+                  </Labeled>
+
+                  <Labeled label="Timezone">
+                    <Select
+                      value={system.timezone}
+                      onChange={(e) => setSystem((s) => ({ ...s, timezone: e.target.value }))}
+                      options={TIMEZONES}
+                      aria-label="Timezone"
+                    />
+                  </Labeled>
+
+                  <Labeled label="Language">
+                    <Select
+                      value={system.language}
+                      onChange={(e) => setSystem((s) => ({ ...s, language: e.target.value }))}
+                      options={LANGUAGES}
+                      aria-label="Language"
+                    />
+                  </Labeled>
+
+                  <Labeled label="Max Login Attempts" hint="Minimum 1">
+                    <TextInput
+                      type="number"
+                      min={1}
+                      value={system.maxLoginAttempts}
+                      onChange={(e) => setSystem((s) => ({ ...s, maxLoginAttempts: intOr(e.target.value, 1) }))}
+                      required
+                      aria-label="Max login attempts"
+                    />
+                  </Labeled>
+
+                  <div className="flex items-center gap-3 pt-2">
+                    <Toggle
+                      checked={system.maintenanceMode}
+                      onChange={(v) => setSystem((s) => ({ ...s, maintenanceMode: v }))}
+                      label="Enable maintenance mode"
+                    />
+                    <span className="text-sm text-gray-700">Enable Maintenance Mode</span>
+                  </div>
+                </form>
+              )}
+            </Section>
+          )}
+
+          {/* EMAIL */}
+          {active === "email" && (
+            <Section
+              title="Email (SMTP)"
+              icon={EnvelopeIcon}
+              footer={
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] text-gray-500">
+                    {deepEqual(email, emailInit) ? (
+                      <span className="inline-flex items-center gap-1">
+                        <CheckCircleIcon className="h-4 w-4" /> No changes
+                      </span>
+                    ) : (
+                      "You have unsaved changes"
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => resetTab("email")}
+                      className="rounded-md border border-gray-300 bg-white px-3 py-2 text-xs hover:bg-gray-50"
+                      disabled={busy.emailSave || busy.emailTest}
+                    >
+                      Reset
+                    </button>
+                    <button
+                      type="button"
+                      onClick={testEmail}
+                      disabled={busy.emailTest}
+                      className={cx(
+                        "rounded-md px-3 py-2 text-xs text-blue-700 border border-blue-600",
+                        busy.emailTest ? "opacity-60" : "hover:bg-blue-50"
+                      )}
+                    >
+                      {busy.emailTest ? "Testing…" : "Test Connection"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveEmail}
+                      disabled={busy.emailSave}
+                      className={cx(
+                        "rounded-md px-3 py-2 text-xs text-white",
+                        busy.emailSave ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
+                      )}
+                    >
+                      {busy.emailSave ? "Saving..." : "Save Email Settings"}
+                    </button>
+                  </div>
+                </div>
+              }
+            >
+              {busy.emailLoad ? (
+                <div className="animate-pulse space-y-3">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="h-4 rounded bg-gray-100" />
+                  ))}
+                </div>
+              ) : (
+                <form onSubmit={saveEmail} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Labeled label="SMTP Host">
+                    <TextInput
+                      value={email.smtpHost}
+                      onChange={(e) => setEmail((s) => ({ ...s, smtpHost: e.target.value }))}
+                      required
+                      placeholder="smtp.example.com"
+                    />
+                  </Labeled>
+                  <Labeled label="SMTP Port">
+                    <TextInput
+                      type="number"
+                      value={email.smtpPort}
+                      onChange={(e) => setEmail((s) => ({ ...s, smtpPort: e.target.value }))}
+                      required
+                      placeholder="587"
+                    />
+                  </Labeled>
+                  <Labeled label="Encryption">
+                    <Select
+                      value={email.encryption}
+                      onChange={(e) => setEmail((s) => ({ ...s, encryption: e.target.value }))}
+                      options={[
+                        { v: "tls", l: "TLS" },
+                        { v: "ssl", l: "SSL" },
+                        { v: "none", l: "None" },
+                      ]}
+                    />
+                  </Labeled>
+                  <Labeled label="Sender Email">
+                    <TextInput
+                      type="email"
+                      value={email.senderEmail}
+                      onChange={(e) => setEmail((s) => ({ ...s, senderEmail: e.target.value }))}
+                      required
+                      placeholder="sender@example.com"
+                    />
+                  </Labeled>
+                  <div className="sm:col-span-2">
+                    <Labeled label="SMTP Key / Password">
+                      <div className="flex items-center gap-2">
+                        <TextInput
+                          type={showSmtp ? "text" : "password"}
+                          value={email.smtpKey}
+                          onChange={(e) => setEmail((s) => ({ ...s, smtpKey: e.target.value }))}
+                          placeholder="••••••••"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSmtp((v) => !v)}
+                          className="inline-flex h-10 items-center rounded-md border border-gray-300 bg-white px-3 text-sm hover:bg-gray-50"
+                          aria-label={showSmtp ? "Hide key" : "Show key"}
+                        >
+                          {showSmtp ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                        </button>
+                      </div>
+                    </Labeled>
+                  </div>
+                </form>
+              )}
+            </Section>
+          )}
+
+          {/* PKFARE */}
+          {active === "pkfare" && (
+            <Section
+              title="PKfare API (Flights)"
+              icon={PaperAirplaneIcon}
+              footer={
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] text-gray-500">
+                    {deepEqual(pkfare, pkfareInit) ? (
+                      <span className="inline-flex items-center gap-1">
+                        <CheckCircleIcon className="h-4 w-4" /> No changes
+                      </span>
+                    ) : (
+                      "You have unsaved changes"
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => resetTab("pkfare")}
+                      className="rounded-md border border-gray-300 bg-white px-3 py-2 text-xs hover:bg-gray-50"
+                      disabled={busy.pkfareSave || busy.pkfareTest}
+                    >
+                      Reset
+                    </button>
+                    <button
+                      type="button"
+                      onClick={testPkfare}
+                      disabled={busy.pkfareTest}
+                      className={cx(
+                        "rounded-md px-3 py-2 text-xs text-blue-700 border border-blue-600",
+                        busy.pkfareTest ? "opacity-60" : "hover:bg-blue-50"
+                      )}
+                    >
+                      {busy.pkfareTest ? "Testing…" : "Test Connection"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={savePkfare}
+                      disabled={busy.pkfareSave}
+                      className={cx(
+                        "rounded-md px-3 py-2 text-xs text-white",
+                        busy.pkfareSave ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
+                      )}
+                    >
+                      {busy.pkfareSave ? "Saving..." : "Save PKfare Settings"}
+                    </button>
+                  </div>
+                </div>
+              }
+            >
+              {busy.pkfareLoad ? (
+                <div className="animate-pulse space-y-3">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="h-4 rounded bg-gray-100" />
+                  ))}
+                </div>
+              ) : (
+                <form onSubmit={savePkfare} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Labeled label="API Base URL">
+                    <TextInput
+                      value={pkfare.baseUrl}
+                      onChange={(e) => setPkfare((s) => ({ ...s, baseUrl: e.target.value }))}
+                      required
+                      placeholder="https://api.pkfare.com"
+                    />
+                  </Labeled>
+                  <Labeled label="Partner ID">
+                    <TextInput
+                      value={pkfare.partnerId}
+                      onChange={(e) => setPkfare((s) => ({ ...s, partnerId: e.target.value }))}
+                      required
+                      placeholder="Your partner ID"
+                    />
+                  </Labeled>
+                  <div className="sm:col-span-2">
+                    <Labeled label="Partner Key">
+                      <div className="flex items-center gap-2">
+                        <TextInput
+                          type={showPkKey ? "text" : "password"}
+                          value={pkfare.partnerKey}
+                          onChange={(e) => setPkfare((s) => ({ ...s, partnerKey: e.target.value }))}
+                          required
+                          placeholder="••••••••"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPkKey((v) => !v)}
+                          className="inline-flex h-10 items-center rounded-md border border-gray-300 bg-white px-3 text-sm hover:bg-gray-50"
+                          aria-label={showPkKey ? "Hide key" : "Show key"}
+                        >
+                          {showPkKey ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                        </button>
+                      </div>
+                    </Labeled>
+                  </div>
+                  <Labeled label="Environment">
+                    <Select
+                      value={pkfare.environment}
+                      onChange={(e) => setPkfare((s) => ({ ...s, environment: e.target.value }))}
+                      options={[
+                        { v: "sandbox", l: "Sandbox" },
+                        { v: "production", l: "Production" },
+                      ]}
+                    />
+                  </Labeled>
+                  <Labeled label="Timeout (seconds)" hint="Minimum 1">
+                    <TextInput
+                      type="number"
+                      min={1}
+                      value={pkfare.timeout}
+                      onChange={(e) => setPkfare((s) => ({ ...s, timeout: intOr(e.target.value, 30) }))}
+                      required
+                    />
+                  </Labeled>
+                </form>
+              )}
+            </Section>
+          )}
+
+          {/* NOTIFICATION */}
+          {active === "notification" && (
+            <Section
+              title="Notification Settings"
+              icon={BellIcon}
+              footer={
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] text-gray-500">
+                    {deepEqual(notif, notifInit) ? (
+                      <span className="inline-flex items-center gap-1">
+                        <CheckCircleIcon className="h-4 w-4" /> No changes
+                      </span>
+                    ) : (
+                      "You have unsaved changes"
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => resetTab("notification")}
+                      className="rounded-md border border-gray-300 bg-white px-3 py-2 text-xs hover:bg-gray-50"
+                      disabled={busy.notifSave}
+                    >
+                      Reset
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveNotif}
+                      disabled={busy.notifSave}
+                      className={cx(
+                        "rounded-md px-3 py-2 text-xs text-white",
+                        busy.notifSave ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
+                      )}
+                    >
+                      {busy.notifSave ? "Saving..." : "Save Notification Settings"}
+                    </button>
+                  </div>
+                </div>
+              }
+            >
+              {busy.notifLoad ? (
+                <div className="animate-pulse space-y-3">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="h-4 rounded bg-gray-100" />
+                  ))}
+                </div>
+              ) : (
+                <form onSubmit={saveNotif} className="grid grid-cols-1 gap-4">
+                  <div className="flex items-center gap-3">
+                    <Toggle
+                      checked={notif.emailNotifications}
+                      onChange={(v) => setNotif((n) => ({ ...n, emailNotifications: v }))}
+                      label="Enable Email Notifications"
+                    />
+                    <span className="text-sm text-gray-700">Enable Email Notifications</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Toggle
+                      checked={notif.smsNotifications}
+                      onChange={(v) => setNotif((n) => ({ ...n, smsNotifications: v }))}
+                      label="Enable SMS Notifications"
+                    />
+                    <span className="text-sm text-gray-700">Enable SMS Notifications</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Toggle
+                      checked={notif.emailBookingConfirmation}
+                      onChange={(v) => setNotif((n) => ({ ...n, emailBookingConfirmation: v }))}
+                      label="Send booking confirmation by email"
+                    />
+                    <span className="text-sm text-gray-700">Send Booking Confirmation via Email</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Toggle
+                      checked={notif.smsBookingConfirmation}
+                      onChange={(v) => setNotif((n) => ({ ...n, smsBookingConfirmation: v }))}
+                      label="Send booking confirmation by SMS"
+                    />
+                    <span className="text-sm text-gray-700">Send Booking Confirmation via SMS</span>
+                  </div>
+                </form>
+              )}
+            </Section>
+          )}
         </div>
-      )}
-      {error && (
-        <div className="p-4 bg-red-100 text-red-800 rounded-lg mb-4">{error}</div>
-      )}
 
-      {/* Tab Navigation */}
-      {!loading && !error && (
-        <div className="border-b border-gray-200 mb-6">
-          <nav className="flex flex-wrap gap-2" aria-label="Settings tabs">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center px-4 py-2 font-medium text-sm rounded-t-lg transition-colors duration-200 ${
-                  activeTab === tab.id
-                    ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-500'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                }`}
-                aria-current={activeTab === tab.id ? 'page' : undefined}
-                aria-label={`Switch to ${tab.name}`}
-              >
-                <tab.icon className="w-5 h-5 mr-2" />
-                {tab.name}
-              </button>
-            ))}
-          </nav>
-        </div>
-      )}
-
-      {/* Tab Content */}
-      {!loading && !error && (
-        <div className="space-y-6">
-          {activeTab === 'system' && (
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-lg font-semibold mb-4 flex items-center">
-                <CogIcon className="w-6 h-6 mr-2 text-gray-500" />
-                System Settings
-              </h2>
-              <form onSubmit={handleSystemSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Site Name</label>
-                  <input
-                    type="text"
-                    value={systemSettings.siteName}
-                    onChange={(e) => setSystemSettings({ ...systemSettings, siteName: e.target.value })}
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                    aria-label="Site name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Default Currency</label>
-                  <select
-                    value={systemSettings.defaultCurrency}
-                    onChange={(e) => setSystemSettings({ ...systemSettings, defaultCurrency: e.target.value })}
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label="Default currency"
-                  >
-                    <option value="usd">USD</option>
-                    <option value="eur">EUR</option>
-                    <option value="gbp">GBP</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Timezone</label>
-                  <select
-                    value={systemSettings.timezone}
-                    onChange={(e) => setSystemSettings({ ...systemSettings, timezone: e.target.value })}
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label="Timezone"
-                  >
-                    <option value="UTC">UTC</option>
-                    <option value="America/New_York">America/New York</option>
-                    <option value="Europe/London">Europe/London</option>
-                    <option value="Asia/Tokyo">Asia/Tokyo</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Language</label>
-                  <select
-                    value={systemSettings.language}
-                    onChange={(e) => setSystemSettings({ ...systemSettings, language: e.target.value })}
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label="Language"
-                  >
-                    <option value="en">English</option>
-                    <option value="es">Spanish</option>
-                    <option value="fr">French</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Max Login Attempts</label>
-                  <input
-                    type="number"
-                    value={systemSettings.maxLoginAttempts}
-                    onChange={(e) => setSystemSettings({ ...systemSettings, maxLoginAttempts: parseInt(e.target.value) || 1 })}
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    min="1"
-                    required
-                    aria-label="Maximum login attempts"
-                  />
-                </div>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={systemSettings.maintenanceMode}
-                    onChange={(e) => setSystemSettings({ ...systemSettings, maintenanceMode: e.target.checked })}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    aria-label="Enable maintenance mode"
-                  />
-                  <span className="ml-2 text-sm text-gray-600">Enable Maintenance Mode</span>
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  aria-label="Save system settings"
-                >
-                  {loading ? 'Saving...' : 'Save Changes'}
-                </button>
-              </form>
-            </div>
-          )}
-
-          {activeTab === 'email' && (
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-lg font-semibold mb-4 flex items-center">
-                <EnvelopeIcon className="w-6 h-6 mr-2 text-gray-500" />
-                Email API
-              </h2>
-              <form onSubmit={handleEmailSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">SMTP Host</label>
-                  <input
-                    type="text"
-                    value={emailSettings.smtpHost}
-                    onChange={(e) => setEmailSettings({ ...emailSettings, smtpHost: e.target.value })}
-                    placeholder="smtp.example.com"
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                    aria-label="SMTP host"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">SMTP Port</label>
-                  <input
-                    type="number"
-                    value={emailSettings.smtpPort}
-                    onChange={(e) => setEmailSettings({ ...emailSettings, smtpPort: e.target.value })}
-                    placeholder="587"
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                    aria-label="SMTP port"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">SMTP Key</label>
-                  <input
-                    type="text"
-                    value={emailSettings.smtpKey}
-                    onChange={(e) => setEmailSettings({ ...emailSettings, smtpKey: e.target.value })}
-                    placeholder="your-smtp-key"
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label="SMTP key"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Encryption</label>
-                  <select
-                    value={emailSettings.encryption}
-                    onChange={(e) => setEmailSettings({ ...emailSettings, encryption: e.target.value })}
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label="SMTP encryption"
-                  >
-                    <option value="tls">TLS</option>
-                    <option value="ssl">SSL</option>
-                    <option value="none">None</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Sender Email</label>
-                  <input
-                    type="email"
-                    value={emailSettings.senderEmail}
-                    onChange={(e) => setEmailSettings({ ...emailSettings, senderEmail: e.target.value })}
-                    placeholder="sender@example.com"
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                    aria-label="Sender email"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  aria-label="Save email settings"
-                >
-                  {loading ? 'Saving...' : 'Save Email Settings'}
-                </button>
-              </form>
-            </div>
-          )}
-
-          {activeTab === 'pkfare' && (
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-lg font-semibold mb-4 flex items-center">
-                <PaperAirplaneIcon className="w-6 h-6 mr-2 text-gray-500" />
-                PKfare API (Flight Booking)
-              </h2>
-              <form onSubmit={handlePkfareSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">PKfare API Base Url</label>
-                  <input
-                    type="text"
-                    value={pkfareSettings.baseUrl}
-                    onChange={(e) => setPkfareSettings({ ...pkfareSettings, baseUrl: e.target.value })}
-                    placeholder="PKfare API Base Url"
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                    aria-label="PKfare API Base Url"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">PKfare Partner ID</label>
-                  <input
-                    type="text"
-                    value={pkfareSettings.partnerId}
-                    onChange={(e) => setPkfareSettings({ ...pkfareSettings, partnerId: e.target.value })}
-                    placeholder="PKfare Partner ID"
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                    aria-label="PKfare Partner ID"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">PKfare Partner Key</label>
-                  <input
-                    type="text"
-                    value={pkfareSettings.partnerKey}
-                    onChange={(e) => setPkfareSettings({ ...pkfareSettings, partnerKey: e.target.value })}
-                    placeholder="your-pkfare-key"
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                    aria-label="PKfare Partner key"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Environment</label>
-                  <select
-                    value={pkfareSettings.environment}
-                    onChange={(e) => setPkfareSettings({ ...pkfareSettings, environment: e.target.value })}
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label="PKfare environment"
-                  >
-                    <option value="sandbox">Sandbox</option>
-                    <option value="production">Production</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Request Timeout (seconds)</label>
-                  <input
-                    type="number"
-                    value={pkfareSettings.timeout}
-                    onChange={(e) => setPkfareSettings({ ...pkfareSettings, timeout: parseInt(e.target.value) || 30 })}
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    min="1"
-                    required
-                    aria-label="PKfare request timeout"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  aria-label="Save PKfare settings"
-                >
-                  {loading ? 'Saving...' : 'Save PKfare Settings'}
-                </button>
-              </form>
-            </div>
-          )}
-
-          {activeTab === 'payment' && (
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-lg font-semibold mb-4 flex items-center">
-                <CreditCardIcon className="w-6 h-6 mr-2 text-gray-500" />
-                Payment APIs
-              </h2>
-              <form onSubmit={handlePaymentSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Stripe API Key</label>
-                  <input
-                    type="text"
-                    value={paymentSettings.stripeApiKey}
-                    onChange={(e) => setPaymentSettings({ ...paymentSettings, stripeApiKey: e.target.value })}
-                    placeholder="your-stripe-key"
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                    aria-label="Stripe API key"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">PayPal Client ID</label>
-                  <input
-                    type="text"
-                    value={paymentSettings.paypalClientId}
-                    onChange={(e) => setPaymentSettings({ ...paymentSettings, paypalClientId: e.target.value })}
-                    placeholder="your-paypal-client-id"
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                    aria-label="PayPal client ID"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Supported Currencies</label>
-                  <select
-                    multiple
-                    value={paymentSettings.supportedCurrencies}
-                    onChange={(e) => setPaymentSettings({
-                      ...paymentSettings,
-                      supportedCurrencies: Array.from(e.target.selectedOptions, option => option.value),
-                    })}
-                    className="mt-1 w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    aria-label="Supported currencies"
-                  >
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
-                    <option value="JPY">JPY</option>
-                  </select>
-                </div>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={paymentSettings.stripeTestMode}
-                    onChange={(e) => setPaymentSettings({ ...paymentSettings, stripeTestMode: e.target.checked })}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    aria-label="Enable Stripe test mode"
-                  />
-                  <span className="ml-2 text-sm text-gray-600">Enable Stripe Test Mode</span>
-                </div>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={paymentSettings.paypalTestMode}
-                    onChange={(e) => setPaymentSettings({ ...paymentSettings, paypalTestMode: e.target.checked })}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    aria-label="Enable PayPal test mode"
-                  />
-                  <span className="ml-2 text-sm text-gray-600">Enable PayPal Test Mode</span>
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  aria-label="Save payment settings"
-                >
-                  {loading ? 'Saving...' : 'Save Payment Settings'}
-                </button>
-              </form>
-            </div>
-          )}
-
-          {activeTab === 'notification' && (
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-lg font-semibold mb-4 flex items-center">
-                <BellIcon className="w-6 h-6 mr-2 text-gray-500" />
-                Notification Settings
-              </h2>
-              <form onSubmit={handleNotificationSubmit} className="space-y-4">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={notificationSettings.emailNotifications}
-                    onChange={(e) => setNotificationSettings({ ...notificationSettings, emailNotifications: e.target.checked })}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    aria-label="Enable email notifications"
-                  />
-                  <span className="ml-2 text-sm text-gray-600">Enable Email Notifications</span>
-                </div>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={notificationSettings.smsNotifications}
-                    onChange={(e) => setNotificationSettings({ ...notificationSettings, smsNotifications: e.target.checked })}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    aria-label="Enable SMS notifications"
-                  />
-                  <span className="ml-2 text-sm text-gray-600">Enable SMS Notifications</span>
-                </div>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={notificationSettings.emailBookingConfirmation}
-                    onChange={(e) => setNotificationSettings({ ...notificationSettings, emailBookingConfirmation: e.target.checked })}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    aria-label="Send booking confirmation via email"
-                  />
-                  <span className="ml-2 text-sm text-gray-600">Send Booking Confirmation via Email</span>
-                </div>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={notificationSettings.smsBookingConfirmation}
-                    onChange={(e) => setNotificationSettings({ ...notificationSettings, smsBookingConfirmation: e.target.checked })}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    aria-label="Send booking confirmation via SMS"
-                  />
-                  <span className="ml-2 text-sm text-gray-600">Send Booking Confirmation via SMS</span>
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  aria-label="Save notification settings"
-                >
-                  {loading ? 'Saving...' : 'Save Notification Settings'}
-                </button>
-              </form>
-            </div>
-          )}
-        </div>
-      )}
+        <p className="mt-6 text-center text-[11px] text-gray-500">
+          Changes are saved per section. Export a backup before large edits.
+        </p>
+      </div>
 
       <ToastContainer position="top-right" autoClose={3000} />
     </div>

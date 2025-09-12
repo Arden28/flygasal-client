@@ -36,7 +36,7 @@ function Badge({ children, tone = "gray" }) {
     red: "bg-rose-50 text-rose-700 ring-rose-200",
     amber: "bg-amber-50 text-amber-800 ring-amber-200",
     gray: "bg-gray-50 text-gray-700 ring-gray-200",
-    indigo: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+    indigo: "bg-blue-50 text-blue-700 ring-blue-200",
   };
   return (
     <span className={cx("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1", tones[tone])}>
@@ -51,7 +51,7 @@ function Pill({ active, children, onClick }) {
       onClick={onClick}
       className={cx(
         "min-w-[96px] sm:min-w-[112px] px-3 py-2 rounded-full text-xs font-medium border transition-colors",
-        active ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+        active ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
       )}
     >
       {children}
@@ -1146,7 +1146,7 @@ export default function Bookings() {
             </button>
             <button
               onClick={handleSaveEdit}
-              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-700"
+              className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
             >
               Save
             </button>

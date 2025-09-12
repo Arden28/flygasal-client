@@ -185,7 +185,7 @@ const Header = () => {
 const Decor = () => (
   <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
     <div className="absolute -top-24 -left-20 h-72 w-72 rounded-full bg-sky-200/60 blur-3xl" />
-    <div className="absolute top-10 right-0 h-72 w-72 rounded-full bg-indigo-200/50 blur-3xl" />
+    <div className="absolute top-10 right-0 h-72 w-72 rounded-full bg-blue-200/50 blur-3xl" />
     <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-cyan-200/60 blur-3xl" />
     <div className="absolute inset-0 bg-[radial-gradient(#00000011_1px,transparent_1px)] [background-size:18px_18px] opacity-10" />
   </div>
