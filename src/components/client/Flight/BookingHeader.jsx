@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { useMemo } from "react";
 
 /**
  * BookingHeader (light, pro)
@@ -8,6 +9,10 @@ import { Check } from "lucide-react";
  * - Full-width progress bar at the very bottom in brandColor
  */
 export default function BookingHeader({
+  searchParams,
+  adults,
+  children,
+  infants,
   outbound,
   returnFlight,
   tripType,
@@ -25,6 +30,16 @@ export default function BookingHeader({
   brandColor = "#0ea5e9", // sky-500 default
   className = "",
 }) {
+  
+  
+    const pax = useMemo(() => {
+      const a = Number(adults || 1);
+      const c = Number(children || 0);
+      // const i = Number(infants || 0);
+      const parts = a + c;
+      return parts;
+    }, [adults, children]);
+
   const total = steps.length;
   const step = Math.min(Math.max(currentStep, 1), total);
 
@@ -77,7 +92,7 @@ export default function BookingHeader({
             </span>
             <div className="">
                 <span className="font-normal text-sm text-muted">
-                    Total Price
+                    Total Price ({pax} Pax)
                 </span>
             </div>
           </div>

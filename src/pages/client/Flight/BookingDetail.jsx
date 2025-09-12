@@ -74,7 +74,184 @@ const keyOf = (f) =>
     f?.destination || "",
   ].join("|");
 
-/* ----------------------- component ----------------------- */
+/** Build a "back to search" URL that keeps user inputs but strips selection-only params */
+const buildAvailabilitySearch = (search) => {
+  const keep = new URLSearchParams(search);
+  ["solutionId", "solutionKey", "flightId", "returnFlightId"].forEach((k) => keep.delete(k));
+  const q = keep.toString();
+  return `/flight/availability${q ? `?${q}` : ""}`;
+};
+
+/* ======================================================
+   Fancy Aviation Loading (accessible)
+   ====================================================== */
+const AirLoading = ({ location }) => {
+  const sp = new URLSearchParams(location.search);
+  const origin = sp.get("origin") || sp.get("flights[0][departure]") || "—";
+  const destination = sp.get("destination") || sp.get("flights[0][arrival]") || "—";
+  const depart = sp.get("depart") || sp.get("flights[0][departureDate]") || null;
+
+  const formatNice = (s) =>
+    s ? new Date(s).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "—";
+
+  return (
+    <div className="min-h-screen bg-[#F6F6F7]">
+      <div className="container mx-auto px-4 py-10">
+        <div className="mx-auto max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          {/* Sky scene */}
+          <div className="relative h-56 overflow-hidden" aria-hidden="true">
+            <div className="absolute inset-0 bg-gradient-to-b from-sky-50 via-white to-white" />
+
+            {/* moving clouds */}
+            <motion.div
+              className="absolute -left-40 top-8 h-16 w-64 rounded-full bg-white/80 blur-md"
+              animate={{ x: ["0%", "140%"] }}
+              transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+            />
+            <motion.div
+              className="absolute left-10 top-24 h-12 w-40 rounded-full bg-white/70 blur-md"
+              animate={{ x: ["0%", "120%"] }}
+              transition={{ duration: 14, repeat: Infinity, ease: "linear", delay: 1.2 }}
+            />
+
+            {/* dashed route line */}
+            <div className="absolute inset-x-8 bottom-10">
+              <div className="relative h-6">
+                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-t-2 border-dashed border-slate-300" />
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-slate-700" />
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-slate-700" />
+                <motion.div
+                  className="absolute -left-4 top-1/2 -translate-y-1/2"
+                  animate={{ left: ["-16px", "calc(100% - 16px)"] }}
+                  transition={{ duration: 2.6, repeat: Infinity, ease: [0.4, 0.0, 0.2, 1] }}
+                >
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-slate-800">
+                    <path d="M2 16l20-8-9 9-2 5-3-4-6-2z" strokeWidth="1.2" />
+                  </svg>
+                </motion.div>
+              </div>
+            </div>
+
+            {/* route labels */}
+            <div className="absolute inset-x-6 bottom-4 flex items-center justify-between text-[11px] text-slate-600">
+              <span className="rounded-full border border-slate-300 bg-white/70 px-2 py-0.5">
+                {origin}
+              </span>
+              <span className="rounded-full border border-slate-300 bg-white/70 px-2 py-0.5">
+                {destination}
+              </span>
+            </div>
+          </div>
+
+          {/* Title / subtitle */}
+          <div className="px-6 pb-6 pt-4 text-center" role="status" aria-live="polite">
+            <motion.h2
+              className="mx-auto inline-block bg-clip-text text-base font-semibold text-transparent"
+              style={{
+                backgroundImage: "linear-gradient(90deg, #0ea5e9, #111827, #0ea5e9)",
+                backgroundSize: "200% 100%",
+              }}
+              animate={{ backgroundPositionX: ["0%", "100%"] }}
+              transition={{ duration: 2.2, repeat: Infinity, ease: "linear" }}
+            >
+              Checking availability…
+            </motion.h2>
+            <p className="mt-1 text-xs text-slate-600">
+              {origin} → {destination} {depart ? `• ${formatNice(depart)}` : ""}
+            </p>
+
+            <div className="mx-auto mt-4 h-1.5 w-48 overflow-hidden rounded-full bg-slate-200" aria-hidden="true">
+              <motion.div
+                className="h-full w-1/3 rounded-full bg-sky-600"
+                animate={{ x: ["-30%", "130%"] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ======================================================
+   Modern Error State
+   ====================================================== */
+const ErrorState = ({ message, onBack, onRetry, onReprice, location }) => {
+  const sp = new URLSearchParams(location.search);
+  const origin = sp.get("origin") || sp.get("flights[0][departure]") || "—";
+  const destination = sp.get("destination") || sp.get("flights[0][arrival]") || "—";
+  const tripType = sp.get("tripType") || "oneway";
+
+  return (
+    <div className="min-h-screen bg-[#F6F6F7]">
+      <div className="container mx-auto px-4 py-14">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-auto max-w-2xl rounded-2xl border border-rose-200 bg-white p-6"
+        >
+          <div className="flex items-start gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-rose-300 bg-rose-50 text-rose-700">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" strokeWidth="1.5"/>
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-lg font-semibold text-slate-900">We couldn’t get this fare</h3>
+              <p className="mt-1 text-sm text-slate-700">{message}</p>
+
+              <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+                <span className="rounded-full border border-slate-300 bg-slate-50 px-2 py-0.5">
+                  Route: {origin} → {destination}
+                </span>
+                <span className="rounded-full border border-slate-300 bg-slate-50 px-2 py-0.5">
+                  Trip: {tripType}
+                </span>
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                <button
+                  className="rounded-lg bg-blue-700 px-4 py-2 text-white hover:bg-blue-800"
+                  onClick={onBack}
+                >
+                  Back to Flight Search
+                </button>
+                <button
+                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-slate-700 hover:bg-slate-50"
+                  onClick={onRetry}
+                >
+                  Try again
+                </button>
+                {onReprice && (
+                  <button
+                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-slate-700 hover:bg-slate-50"
+                    onClick={onReprice}
+                  >
+                    Reprice
+                  </button>
+                )}
+              </div>
+
+              <details className="mt-3 text-xs text-slate-600">
+                <summary className="cursor-pointer select-none text-slate-700">Why this happens</summary>
+                <ul className="mt-2 list-disc pl-5">
+                  <li>The fare changed or sold out while you were reviewing it.</li>
+                  <li>The return leg no longer matches the outbound constraints.</li>
+                  <li>A temporary network hiccup interrupted the request.</li>
+                </ul>
+              </details>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+/* ======================================================
+   Booking Detail
+   ====================================================== */
 const BookingDetail = () => {
   const { user } = useContext(AuthContext);
   const [agentData, setAgentData] = useState(null);
@@ -99,7 +276,7 @@ const BookingDetail = () => {
   const [showReadMore, setShowReadMore] = useState(false);
   const [isFormValid, setIsFormValid] = useState(false);
 
-  // --- NEW: 10-minute hold timer state ---
+  // --- 10-minute hold timer state ---
   const [holdUntil, setHoldUntil] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [repriceTrigger, setRepriceTrigger] = useState(0);
@@ -114,12 +291,9 @@ const BookingDetail = () => {
   const timeLeftLabel = `${mm}:${ss}`;
 
   /* ---------- Agency Markup ---------- */
-
   const agentMarkupPercent = user?.agency_markup || 0;
-  // console.info('Agent markup: ', agentMarkupPercent);
 
   const [formData, setFormData] = useState(() => {
-    // autosave restore
     const cached = localStorage.getItem("bookingFormDraft");
     return (
       (cached && JSON.parse(cached)) || {
@@ -225,10 +399,6 @@ const BookingDetail = () => {
     const a = airports.find((x) => x.value === code);
     return a ? `${a.label}` : code || "—";
   };
-  // const getAirportName = (code) => {
-  //   const a = airports.find((x) => x.value === code);
-  //   return a ? `${a.city} (${a.value})` : code || "—";
-  // };
   const getCityName = (code) => {
     const a = airports.find((x) => x.value === code);
     return a ? a.city : code || "—";
@@ -263,6 +433,15 @@ const BookingDetail = () => {
     if (i > 0) parts.push(`${i} Infant${i > 1 ? "s" : ""}`);
     return parts.join(", ");
   };
+  
+  
+  const pax = useMemo(() => {
+    const a = Number(adults || 1);
+    const c = Number(children || 0);
+    // const i = Number(infants || 0);
+    const parts = a + c;
+    return parts;
+  }, [adults, children]);
 
   /* ---------- fetch precise pricing & match flights (bugfix) ---------- */
   useEffect(() => {
@@ -292,7 +471,7 @@ const BookingDetail = () => {
           idx++;
         }
 
-        // Derive origin/destination from first journey (bug: these were undefined before)
+        // Derive origin/destination from first journey
         const derivedOrigin = journeysFromUrl[0]?.origin || sp.get("origin") || "";
         const derivedDestination = journeysFromUrl[0]?.destination || sp.get("destination") || "";
 
@@ -321,8 +500,8 @@ const BookingDetail = () => {
           returnDate,
           solutionId,
           solutionKey,
-          origin: derivedOrigin,        // <-- fix
-          destination: derivedDestination, // <-- fix
+          origin: derivedOrigin,
+          destination: derivedDestination,
           currency,
         };
 
@@ -330,12 +509,11 @@ const BookingDetail = () => {
         const priceResp = await flygasal.precisePricing(params);
         const outboundFlights = flygasal.transformPreciseData(priceResp.data) || [];
 
-        // 2) If roundtrip and we need return pricing, do a scoped call (some APIs require mirrored search)
+        // 2) Return pricing if needed
         let returnFlights = [];
         if (tripType === "return" && returnDate) {
           const returnParams = {
             ...params,
-            // Some providers expect reversed legs explicitly
             journeys: [
               {
                 airline: journeysFromUrl[0]?.airline,
@@ -358,11 +536,11 @@ const BookingDetail = () => {
         const allFlights = [...outboundFlights, ...returnFlights];
         setAvailableFlights(allFlights);
 
-        // Build fast indices for matching
+        // Indices for matching
         const byId = new Map(allFlights.filter((f) => f?.id).map((f) => [String(f.id), f]));
         const byKey = new Map(allFlights.map((f) => [keyOf(f), f]));
 
-        // Find selected flights
+        // Selected flights
         const selectedOutbound =
           (flightId && byId.get(String(flightId))) ||
           byKey.get(
@@ -375,13 +553,12 @@ const BookingDetail = () => {
               destination: derivedDestination,
             })
           ) ||
-          outboundFlights[0]; // graceful fallback
+          outboundFlights[0];
 
         let selectedReturn = null;
         if (tripType === "return" && returnDate) {
           selectedReturn =
             (returnFlightId && byId.get(String(returnFlightId))) ||
-            // fallback: first return that goes destination -> origin on return date
             returnFlights.find(
               (f) =>
                 f.origin === derivedDestination &&
@@ -392,17 +569,23 @@ const BookingDetail = () => {
             null;
         }
 
+        // Friendly user-facing errors (no internal IDs shown)
         if (!selectedOutbound) {
-          setError(`Outbound flight not found (ID: ${flightId || "n/a"}). Try reselecting your flight.`);
+          setError(
+            "We couldn’t confirm your selected outbound flight. It may have changed or sold out. Choose another flight or tap Reprice to refresh availability."
+          );
           return;
         }
         if (tripType === "return" && !selectedReturn) {
-          setError(`Return flight not found (ID: ${returnFlightId || "n/a"}). Try reselecting your flight.`);
+          setError(
+            "We couldn’t confirm your selected return flight. It may have changed or sold out. Choose another flight or tap Reprice to refresh availability."
+          );
           return;
         }
 
+
         const totalPrice =
-          Number(selectedOutbound?.price || 0) + Number(selectedReturn?.price || 0);
+          (Number(selectedOutbound?.price || 0) + Number(selectedReturn?.price || 0)) * pax;
 
         setTripDetails({
           tripType,
@@ -410,7 +593,7 @@ const BookingDetail = () => {
           destination: params.destination,
           departDate: params.departureDate,
           returnDate: params.returnDate,
-          fareSourceCode: params.flightId, // keep for compat if used elsewhere
+          fareSourceCode: params.flightId,
           solutionId: params.solutionId,
           adults: adultsQ,
           children: childrenQ,
@@ -423,29 +606,31 @@ const BookingDetail = () => {
             "Non-refundable after 24 hours. Cancellations within 24 hours of booking are refundable with a $50 fee.",
         });
 
-        // Surface meaningful backend errors (after we try to set a workable state)
+        // Backend surfaced errors (mapped to friendly copy)
         const errorCode = priceResp?.data?.errorCode;
         const errorMsg = priceResp?.data?.errorMsg;
         if (errorCode) {
-          if (errorCode === "B021") setError("The selected fare is no longer available. Please choose another flight.");
-          else if (errorCode === "B020") setError("Cannot find any price for this flight.");
-          else setError(errorMsg || "Failed to load booking details.");
+          if (errorCode === "B021") {
+            setError("The selected fare is no longer available. Please choose another flight or tap Reprice.");
+          } else if (errorCode === "B020") {
+            setError("We couldn’t find pricing for this itinerary. Try different dates or refresh with Reprice.");
+          } else {
+            setError(errorMsg || "Failed to load booking details. Please try again.");
+          }
         }
       } catch (e) {
         console.error("Error loading confirmation:", e);
-        setError("Failed to load booking details.");
+        setError("Failed to load booking details. Please try again.");
       } finally {
         setLoading(false);
       }
     };
     run();
-    // include repriceTrigger so "Reprice" can refresh pricing without changing the URL
   }, [location.search, repriceTrigger]);
 
-  /* ---------- NEW: start & tick the 10-minute hold once trip is ready ---------- */
+  /* ---------- start & tick the 10-minute hold ---------- */
   useEffect(() => {
     if (!tripDetails) return;
-    // restore existing hold for this flight selection (per-tab)
     let stored = Number(sessionStorage.getItem(searchKey) || 0);
     const tooOld = !stored || stored - Date.now() <= 0 || stored - Date.now() > 15 * 60 * 1000;
     if (tooOld) {
@@ -534,11 +719,9 @@ const BookingDetail = () => {
 
   const typeMap = { adult: "ADT", child: "CHD", infant: "INF" };
 
-
   const handlePayment = async () => {
-    // NEW: block if hold expired
     if (holdExpired) {
-      setError("Your fare hold has expired. Click Reprice to refresh availability and pricing.");
+      setError("Your fare hold has expired. Tap Reprice to refresh availability and pricing.");
       return;
     }
     if (!isFormValid || !tripDetails) return;
@@ -546,18 +729,18 @@ const BookingDetail = () => {
     setIsProcessing(true);
     try {
       const { outbound, return: rtn, totalPrice, currency } = tripDetails;
-      
+
       const priceBreakdown = (totalPrice) => {
         const base = Number(totalPrice) || 0;
         const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
         const total = +(base + markup).toFixed(2);
         return { base, markup, total };
       };
-      
+
       const { base, markup, total } = priceBreakdown(totalPrice);
 
       const bookingDetails = {
-        selectedFlight: outbound, // keep compatibility with your backend
+        selectedFlight: outbound,
         selectedReturnFlight: rtn || undefined,
         solutionId: tripDetails.solutionId || null,
         passengers: formData.travelers.map((t) => ({
@@ -598,7 +781,7 @@ const BookingDetail = () => {
       }
     } catch (err) {
       console.error("Flight booking error:", err);
-      setError(err?.message || "We couldn’t complete your booking.");
+      setError(err?.message || "We couldn’t complete your booking. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -606,46 +789,20 @@ const BookingDetail = () => {
 
   /* ---------- loading & error UI ---------- */
   if (error) {
+    const backUrl = buildAvailabilitySearch(location.search);
     return (
-      <div className="container mx-auto px-4 py-14 mt-5">
-        <div className="mx-auto max-w-2xl rounded-xl border border-rose-200 bg-rose-50 p-6 text-rose-800">
-          <div className="text-xl font-semibold">We hit a snag</div>
-          <p className="mt-1 text-sm">{error}</p>
-          <div className="mt-4 flex gap-2">
-            <button
-              className="rounded-lg bg-blue-700 px-4 py-2 text-white hover:bg-blue-800"
-              onClick={() => navigate("/flight/availability")}
-            >
-              Back to Flight Search
-            </button>
-            <button
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-slate-700 hover:bg-slate-50"
-              onClick={() => window.location.reload()}
-            >
-              Try again
-            </button>
-          </div>
-        </div>
-      </div>
+      <ErrorState
+        message={error}
+        onBack={() => navigate(backUrl)}
+        onRetry={() => window.location.reload()}
+        onReprice={reprice}
+        location={location}
+      />
     );
   }
 
   if (loading || !tripDetails?.outbound) {
-    return (
-      <div className="container mx-auto px-4 py-10">
-        {/* simple skeletons */}
-        <div className="mb-4 h-40 w-full animate-pulse rounded-2xl bg-slate-100" />
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          <div className="md:col-span-2 space-y-3">
-            <div className="h-28 w-full animate-pulse rounded-xl bg-slate-100" />
-            <div className="h-96 w-full animate-pulse rounded-xl bg-slate-100" />
-          </div>
-          <div className="space-y-3">
-            <div className="h-56 w-full animate-pulse rounded-xl bg-slate-100" />
-          </div>
-        </div>
-      </div>
-    );
+    return <AirLoading location={location} />;
   }
 
   /* ---------- render ---------- */
@@ -655,7 +812,11 @@ const BookingDetail = () => {
   return (
     <div className="min-h-screen bg-slate-50 bg-[#F6F6F7]">
       {/* Header */}
-      <BookingHeader 
+      <BookingHeader
+        searchParams={new URLSearchParams(location.search)}
+        adults={adults}
+        children={children}
+        infants={infants}
         outbound={outbound}
         returnFlight={returnFlight}
         tripType={tripType}
@@ -664,157 +825,170 @@ const BookingDetail = () => {
         formatDate={formatDate}
       />
 
-
       {/* Main Content */}
       <div className="container px-0 lg:px-0 py-3" style={{ maxWidth: "785px" }}>
-        
-          <form onSubmit={handleSubmit} className="">
-            {/* Left Column: Booking Form */}
-            <BookingForm
-              searchParams={new URLSearchParams(location.search)}
-              formData={formData}
-              setFormData={setFormData}
-              handleFormChange={handleFormChange}
-              isSubmitting={isSubmitting}
-              cancellation_policy={cancellation_policy}
-              setCancellationPolicy={() => {}}
-              showReadMore={showReadMore}
-              setShowReadMore={setShowReadMore}
-              adults={adults}
-              children={children}
-              infants={infants}
-              setAdults={setAdults}
-              setChildren={setChildren}
-              setInfants={setInfants}
-              addTraveler={addTraveler}
-              removeTraveler={removeTraveler}
-              countries={countries}
-              months={months}
-              days={days}
-              dobYears={dobYears}
-              issuanceYears={issuanceYears}
-              expiryYears={expiryYears}
-              showCancellation={showCancellation}
-              setShowCancellation={setShowCancellation}
-              getPassengerSummary={getPassengerSummary}
-              tripType={tripType}
-              outbound={outbound}
-              formatDate={formatDate}
-              formatDateMonth={formatDateMonth}
-              formatTime={formatTime}
-              getAirportName={getAirportName}
-              getCityName={getCityName}
-              getAirlineName={getAirlineName}
-              getAirlineLogo={getAirlineLogo}
-              returnFlight={returnFlight}
-              calculateDuration={calculateDuration}
-              isFormValid={isFormValid}
-              isProcessing={isProcessing}
-              setIsProcessing={setIsProcessing}
-              totalPrice={totalPrice}
-              finalPrice={finalPrice}
-              setAgentFee={setAgentFee}
-              agentFee={agentFee}
-              isAgent={isAgent}
-              agentMarkupPercent={agentMarkupPercent}
-              currency={currency}
-              handlePayment={handlePayment}
-              holdExpired={holdExpired}
-              timeLeftLabel={timeLeftLabel}
-            />
+        <form onSubmit={handleSubmit}>
+          <BookingForm
+            searchParams={new URLSearchParams(location.search)}
+            formData={formData}
+            setFormData={setFormData}
+            handleFormChange={handleFormChange}
+            isSubmitting={isSubmitting}
+            cancellation_policy={cancellation_policy}
+            setCancellationPolicy={() => {}}
+            showReadMore={showReadMore}
+            setShowReadMore={setShowReadMore}
+            adults={adults}
+            children={children}
+            infants={infants}
+            setAdults={setAdults}
+            setChildren={setChildren}
+            setInfants={setInfants}
+            addTraveler={addTraveler}
+            removeTraveler={removeTraveler}
+            countries={countries}
+            months={months}
+            days={days}
+            dobYears={dobYears}
+            issuanceYears={issuanceYears}
+            expiryYears={expiryYears}
+            showCancellation={showCancellation}
+            setShowCancellation={setShowCancellation}
+            getPassengerSummary={getPassengerSummary}
+            tripType={tripType}
+            outbound={outbound}
+            formatDate={formatDate}
+            formatDateMonth={formatDateMonth}
+            formatTime={formatTime}
+            getAirportName={getAirportName}
+            getCityName={getCityName}
+            getAirlineName={getAirlineName}
+            getAirlineLogo={getAirlineLogo}
+            returnFlight={returnFlight}
+            calculateDuration={calculateDuration}
+            isFormValid={isFormValid}
+            isProcessing={isProcessing}
+            setIsProcessing={setIsProcessing}
+            totalPrice={totalPrice}
+            finalPrice={finalPrice}
+            setAgentFee={setAgentFee}
+            agentFee={agentFee}
+            isAgent={isAgent}
+            agentMarkupPercent={agentMarkupPercent}
+            currency={currency}
+            handlePayment={handlePayment}
+            holdExpired={holdExpired}
+            timeLeftLabel={timeLeftLabel}
+          />
 
-            {/* Right Column: Flight Details */}
-            {/* <FlightDetails
-              getPassengerSummary={getPassengerSummary}
-              totalPrice={totalPrice}
-              finalPrice={finalPrice}
-              agentMarkupPercent={agentMarkupPercent}
-              setAgentFee={setAgentFee}
-              agentFee={agentFee}
-              isAgent={isAgent}
-              infants={infants}
-              children={children}
-              adults={adults}
-              tripType={tripType}
-              outbound={outbound}
-              formatDate={formatDate}
-              formatTime={formatTime}
-              getAirportName={getAirportName}
-              getCityName={getCityName}
-              getAirlineName={getAirlineName}
-              getAirlineLogo={getAirlineLogo}
-              returnFlight={returnFlight}
-              tripDetails={tripDetails}
-              calculateDuration={calculateDuration}
-              isFormValid={isFormValid}
-              formData={formData}
-              handlePayment={handlePayment}
-              isProcessing={isProcessing}
-              holdExpired={holdExpired}
-              timeLeftLabel={timeLeftLabel}
-              currency={currency}
-            /> */}
-
-            {/* Hidden Inputs */}
-            <input type="hidden" name="booking_data" value={btoa(JSON.stringify({ cancellation_policy, adults, children, infants }))} />
-            <input
-              type="hidden"
-              name="routes"
-              value={btoa(
-                JSON.stringify({
-                  segments: [
-                    [
-                      {
-                        ...outbound,
-                        departure_code: outbound.origin,
-                        arrival_code: outbound.destination,
-                        departure_time: formatTime(outbound.departureTime),
-                        arrival_time: formatTime(outbound.arrivalTime),
-                        flight_no: outbound.flightNumber,
-                        class: outbound.cabin || 'Economy',
-                        img: getAirlineLogo(outbound.airline),
-                        currency: 'USD',
-                        price: outbound.price,
-                      },
-                    ],
-                    tripType === 'return' && returnFlight
-                      ? [
-                          {
-                            ...returnFlight,
-                            departure_code: returnFlight.origin,
-                            arrival_code: returnFlight.destination,
-                            departure_time: formatTime(returnFlight.departureTime),
-                            arrival_time: formatTime(returnFlight.arrivalTime),
-                            flight_no: returnFlight.flightNumber,
-                            class: returnFlight.cabin || 'Economy',
-                            img: getAirlineLogo(returnFlight.airline),
-                            currency: 'USD',
-                            price: returnFlight.price,
-                          },
-                        ]
-                      : [],
+          {/* Hidden Inputs */}
+          <input
+            type="hidden"
+            name="booking_data"
+            value={btoa(JSON.stringify({ cancellation_policy, adults, children, infants }))}
+          />
+          <input
+            type="hidden"
+            name="routes"
+            value={btoa(
+              JSON.stringify({
+                segments: [
+                  [
+                    {
+                      ...outbound,
+                      departure_code: outbound.origin,
+                      arrival_code: outbound.destination,
+                      departure_time: formatTime(outbound.departureTime),
+                      arrival_time: formatTime(outbound.arrivalTime),
+                      flight_no: outbound.flightNumber,
+                      class: outbound.cabin || "Economy",
+                      img: getAirlineLogo(outbound.airline),
+                      currency: "USD",
+                      price: outbound.price,
+                    },
                   ],
-                })
-              )}
-            />
-            <input type="hidden" name="travellers" value={btoa(JSON.stringify(formData.travelers))} />
-          </form>
+                  tripType === "return" && returnFlight
+                    ? [
+                        {
+                          ...returnFlight,
+                          departure_code: returnFlight.origin,
+                          arrival_code: returnFlight.destination,
+                          departure_time: formatTime(returnFlight.departureTime),
+                          arrival_time: formatTime(returnFlight.arrivalTime),
+                          flight_no: returnFlight.flightNumber,
+                          class: returnFlight.cabin || "Economy",
+                          img: getAirlineLogo(returnFlight.airline),
+                          currency: "USD",
+                          price: returnFlight.price,
+                        },
+                      ]
+                    : [],
+                ],
+              })
+            )}
+          />
+          <input type="hidden" name="travellers" value={btoa(JSON.stringify(formData.travelers))} />
+        </form>
       </div>
 
-      {/* Fullscreen spinner during mock submit */}
+      {/* Fullscreen overlay during submit */}
       <AnimatePresence>
         {isSubmitting && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-gray-100/80"
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            role="dialog"
+            aria-label="Processing payment"
+            aria-live="assertive"
           >
+            {/* circular flight path */}
+            <div className="relative h-24 w-24" aria-hidden="true">
+              <svg viewBox="0 0 100 100" className="absolute inset-0">
+                <circle cx="50" cy="50" r="40" stroke="#e5e7eb" strokeWidth="8" fill="none" />
+              </svg>
+              <motion.svg viewBox="0 0 100 100" className="absolute inset-0" initial={false}>
+                <motion.circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  stroke="#0ea5e9"
+                  strokeWidth="8"
+                  strokeDasharray="251.2"
+                  strokeLinecap="round"
+                  fill="none"
+                  animate={{ strokeDashoffset: [251.2, 0, 125, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                />
+              </motion.svg>
+              {/* plane rotating */}
+              <motion.div
+                className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 text-slate-800"
+                style={{ transformOrigin: "50px 50px" }}
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M2 16l20-8-9 9-2 5-3-4-6-2z" strokeWidth="1.2" />
+                </svg>
+              </motion.div>
+            </div>
+
             <motion.div
-              className="h-12 w-12 rounded-full border-4 border-blue-700 border-t-transparent"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            />
+              className="mt-4 text-sm font-medium text-slate-800"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              Processing payment…
+            </motion.div>
+            <div className="mt-2 h-1.5 w-48 overflow-hidden rounded-full bg-slate-200" aria-hidden="true">
+              <motion.div
+                className="h-full w-1/3 rounded-full bg-slate-800"
+                animate={{ x: ["-30%", "130%"] }}
+                transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+              />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
