@@ -147,8 +147,8 @@ export default function Header({
   };
 
   const notifications = [
-    { id: "1", title: "New booking", note: "Ref #FG-2391", time: "2m" },
-    { id: "2", title: "Payment received", note: "USD 420.00", time: "1h" },
+    // { id: "1", title: "New booking", note: "Ref #FG-2391", time: "2m" },
+    // { id: "2", title: "Payment received", note: "USD 420.00", time: "1h" },
   ];
 
   return (
