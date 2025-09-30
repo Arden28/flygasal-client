@@ -1218,7 +1218,6 @@ export default function Users() {
                 value={editUser.walletBalance}
                 // onChange={(e) => setEditUser({ ...editUser, walletBalance: parseFloat(e.target.value) || 0 })}
                 className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
-                required
               />
             </div>
           </form>
