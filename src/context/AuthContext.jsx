@@ -90,8 +90,24 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const refreshUser = async ({ silent = true } = {}) => {
+        if (!silent) setLoading(true);
+        try {
+            const token = apiService.getToken?.();
+            if (!token) { setUser(null); return null; }
+            const fresh = await auth.fetchUser();
+            setUser(fresh);
+            return fresh;
+        } catch (e) {
+            console.error("refreshUser failed:", e);
+            return null;
+        } finally {
+            if (!silent) setLoading(false);
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, login, logout, register, loading }}>
+        <AuthContext.Provider value={{ user, login, logout, register, loading, refreshUser }}>
             {children}
         </AuthContext.Provider>
     );
