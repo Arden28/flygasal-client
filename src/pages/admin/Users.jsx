@@ -17,6 +17,7 @@ import * as XLSX from "xlsx";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import apiService from "../../api/apiService";
+import TopUpWalletModal from "../../components/admin/Account/TopUpWalletModal";
 
 /* ----------------------------- small helpers ----------------------------- */
 const cx = (...c) => c.filter(Boolean).join(" ");
@@ -135,6 +136,9 @@ export default function Users() {
   const [showDeclineModal, setShowDeclineModal] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
+
+  // top up wallet
+  const [topUpFor, setTopUpFor] = useState(null); // { id, name } | null
 
   // ui states
   const [loading, setLoading] = useState(true);
@@ -650,6 +654,13 @@ export default function Users() {
                         </button>
                       )}
                       <button
+                        onClick={() => setTopUpFor({ id: u.id, name: u.name })}
+                        className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                        aria-label={`Top up ${u.name}`}
+                      >
+                        + Top up
+                      </button>
+                      <button
                         onClick={() => setShowDeleteModal(u.id)}
                         className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
                         aria-label={`Delete ${u.name}`}
@@ -755,6 +766,13 @@ export default function Users() {
                     Approve
                   </button>
                 )}
+                <button
+                  onClick={() => setTopUpFor({ id: u.id, name: u.name })}
+                  className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                  aria-label={`Top up ${u.name}`}
+                >
+                  + Top up
+                </button>
                 <button
                   onClick={() => setShowDeleteModal(u.id)}
                   className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
@@ -1280,6 +1298,27 @@ export default function Users() {
       >
         <p className="text-sm text-gray-700">This action cannot be undone. Delete this user?</p>
       </Modal>
+
+      <TopUpWalletModal
+        open={!!topUpFor}
+        onClose={() => setTopUpFor(null)}
+        userId={topUpFor?.id}
+        userName={topUpFor?.name}
+        onSuccess={({ userId, amount, balanceAfter, currency, trx }) => {
+          // optimistic UI: update the table balance
+          setUsers((list) =>
+            list.map((x) => (x.id === userId ? { ...x, walletBalance: Number(balanceAfter ?? x.walletBalance) } : x))
+          );
+          // audit trail
+          setAuditLog((log) => [
+            ...log,
+            {
+              action: `Admin top-up ${amount} ${currency} for user ${userId} (trx: ${trx || "n/a"})`,
+              timestamp: new Date().toISOString(),
+            },
+          ]);
+        }}
+      />
 
       <ToastContainer position="top-right" autoClose={3000} />
     </div>
