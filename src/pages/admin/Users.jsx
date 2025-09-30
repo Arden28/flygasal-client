@@ -341,7 +341,7 @@ export default function Users() {
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     const u = editUser;
-    if (!u?.name || !u?.email || !u?.type || !u?.status || Number(u?.walletBalance) < 0) {
+    if (!u?.name || !u?.email || !u?.type || !u?.status) {
       toast.error("Please fill all fields correctly.");
       return;
     }
@@ -1212,10 +1212,11 @@ export default function Users() {
               <label className="block text-xs font-medium text-gray-700">Wallet Balance</label>
               <input
                 type="number"
+                disabled
                 step="0.01"
                 min="0"
                 value={editUser.walletBalance}
-                onChange={(e) => setEditUser({ ...editUser, walletBalance: parseFloat(e.target.value) || 0 })}
+                // onChange={(e) => setEditUser({ ...editUser, walletBalance: parseFloat(e.target.value) || 0 })}
                 className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
                 required
               />
