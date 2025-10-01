@@ -506,6 +506,7 @@ const BookingDetail = () => {
         };
 
         // 1) Price outbound
+        console.info("Pricing with params", params);
         const priceResp = await flygasal.precisePricing(params);
         const outboundFlights = flygasal.transformPreciseData(priceResp.data) || [];
 
