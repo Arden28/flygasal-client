@@ -488,15 +488,19 @@ useEffect(() => {
 
       // Build criteria:
       const criteria = {
-        adults: adultsQ,
-        children: childrenQ,
-        infants: infantsQ,
-        cabinType,
-        solutionId,
-        solutionKey,
-        // Only pass journeys if we don't have solutionId/solutionKey
-        journeys: (!solutionId && !solutionKey) ? journeysFromUrl : [],
-        tag: sp.get("tag") || null,
+          journeys: journeysFromUrl,
+          tripType,
+          cabinType,
+          adults: adultsQ,
+          children: childrenQ,
+          infants: infantsQ,
+          departureDate,
+          returnDate,
+          solutionId,
+          solutionKey,
+          origin: derivedOrigin,
+          destination: derivedDestination,
+          currency,
       };
 
       // 1) Ask PKFare ONCE for the whole solution
