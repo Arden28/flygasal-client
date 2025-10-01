@@ -177,7 +177,8 @@ const flygasal = {
     */
     precisePricing: async (criteria) => {
         try {
-        const response = await apiService.post('/flights/precise-pricing', criteria);
+            const response = await apiService.post('/flights/precise-pricing', criteria);
+            console.log('Precise pricing response:', response.data);
             return response.data;
         } catch (error) {
             console.error('Precise pricing failed:', error);
