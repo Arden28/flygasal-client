@@ -234,149 +234,227 @@ const FlightPage = () => {
   };
 
   // ---------- Fetch flights ----------
-  useEffect(() => {
-    let abort = new AbortController();
+useEffect(() => {
+  let abort = new AbortController();
 
-    async function fetchFlights() {
-      setLoading(true);
-      setError("");
-      setIsExpired(false);
+  async function fetchFlights() {
+    setLoading(true);
+    setError("");
+    setIsExpired(false);
 
-      try {
-        const qp = new URLSearchParams(location.search);
+    try {
+      const qp = new URLSearchParams(location.search);
 
-        // Legs
-        const legs = [];
-        let i = 0;
-        while (qp.has(`flights[${i}][origin]`)) {
-          legs.push({
-            origin: qp.get(`flights[${i}][origin]`),
-            destination: qp.get(`flights[${i}][destination]`),
-            depart: qp.get(`flights[${i}][depart]`),
-          });
-          i++;
-        }
-
-        const fallbackFirst = { origin: "HKG", destination: "BKK", depart: "2024-12-15" };
-        const first = legs[0] || fallbackFirst;
-
-        const rawTrip = (qp.get("tripType") || "oneway").toLowerCase();
-        const tripType = rawTrip === "return" ? "return" : "oneway";
-        const flightType = qp.get("flightType") || "Economy";
-
-        const params = {
-          flights: legs.length ? legs : [first],
-          tripType,
-          cabinType: flightType,
-          origin: first.origin,
-          destination: first.destination,
-          departureDate: first.depart,
-          returnDate: qp.get("returnDate") || null,
-          adults: parseInt(qp.get("adults") || "1", 10),
-          children: parseInt(qp.get("children") || "0", 10),
-          infants: parseInt(qp.get("infants") || "0", 10),
-        };
-        setSearchParams(params);
-
-        // Outbound request
-        const res = await flygasal.searchFlights(params, { signal: abort.signal });
-
-        console.info("Flight search response:", res.offers);
-        let outbound = [];
-        let displayCurrency = "USD";
-
-        if (Array.isArray(res.offers)) {
-          outbound = res.offers;
-          displayCurrency = outbound[0]?.priceBreakdown?.currency || "USD";
-          if (res.searchKey) {
-            qp.set("searchKey", res.searchKey);
-            const newUrl = `${window.location.pathname}?${qp.toString()}`;
-            window.history.replaceState(null, "", newUrl);
-            setSearchKey(res.searchKey);
-          }
-        } else {
-          // Backend returned raw PKFare data; normalize on client
-          const data = res.data;
-          const newKey = data?.searchKey || null;
-          outbound = flygasal.transformPKFareData(data) || [];
-          displayCurrency = outbound[0]?.priceBreakdown?.currency || "USD";
-          if (newKey) {
-            qp.set("searchKey", newKey);
-            const newUrl = `${window.location.pathname}?${qp.toString()}`;
-            window.history.replaceState(null, "", newUrl);
-            setSearchKey(newKey);
-          }
-        }
-
-        // Return leg (if needed)
-        let rtn = [];
-        if (tripType === "return" && params.returnDate) {
-          const returnParams = {
-            ...params,
-            flights: [{ origin: params.destination, destination: params.origin, depart: params.returnDate }],
-          };
-          const r = await flygasal.searchFlights(returnParams, { signal: abort.signal });
-          if (Array.isArray(r.offers)) {
-            rtn = r.offers;
-          } else {
-            rtn = flygasal.transformPKFareData(r.data) || [];
-          }
-          // currency: keep the outbound currency as the page display
-        }
-
-        // Sort by total price asc (deterministic)
-        const sortByTotal = (a, b) => {
-          const ta = a?.priceBreakdown?.total ?? Number.MAX_SAFE_INTEGER;
-          const tb = b?.priceBreakdown?.total ?? Number.MAX_SAFE_INTEGER;
-          if (ta !== tb) return ta - tb;
-          const da = a?.journeyTime ?? ((new Date(a.arrivalTime) - new Date(a.departureTime)) / 60000);
-          const db = b?.journeyTime ?? ((new Date(b.arrivalTime) - new Date(b.departureTime)) / 60000);
-          return da - db;
-        };
-
-        outbound.sort(sortByTotal);
-        rtn.sort(sortByTotal);
-
-        setAvailableFlights(outbound);
-        setReturnFlights(rtn);
-        setCurrency(displayCurrency);
-
-        // Dynamic price bounds (from normalized totals)
-        const allPrices = [...outbound, ...rtn]
-          .map(f => f?.priceBreakdown?.total)
-          .filter(p => typeof p === "number" && !Number.isNaN(p));
-
-        if (allPrices.length) {
-          const absMin = Math.floor(Math.min(...allPrices));
-          const absMax = Math.ceil(Math.max(...allPrices));
-          setPriceBounds([absMin, absMax]);
-          setMinPrice(absMin);
-          setMaxPrice(absMax);
-        } else {
-          setPriceBounds([0, 0]);
-          setMinPrice(0);
-          setMaxPrice(0);
-        }
-
-        // startTimer(); // optional
-      } catch (err) {
-        if (err?.name === "AbortError") return;
-        console.error("Failed to fetch flights:", err);
-        setError("We couldn’t load flights for your search. Please try again.");
-        setAvailableFlights([]);
-        setReturnFlights([]);
-      } finally {
-        setLoading(false);
+      // ---- Parse incoming query params into a normalized "params" ----
+      const legs = [];
+      let i = 0;
+      while (qp.has(`flights[${i}][origin]`)) {
+        legs.push({
+          origin: qp.get(`flights[${i}][origin]`),
+          destination: qp.get(`flights[${i}][destination]`),
+          depart: qp.get(`flights[${i}][depart]`),
+        });
+        i++;
       }
+
+      const fallbackFirst = { origin: "HKG", destination: "BKK", depart: "2024-12-15" };
+      const first = legs[0] || fallbackFirst;
+
+      const rawTrip = (qp.get("tripType") || "oneway").toLowerCase();
+      const tripType = rawTrip === "return" ? "return" : "oneway";
+      const flightType = qp.get("flightType") || "Economy";
+
+      const params = {
+        flights: legs.length ? legs : [first],
+        tripType,
+        cabinType: flightType,
+        origin: first.origin,
+        destination: first.destination,
+        departureDate: first.depart,
+        returnDate: qp.get("returnDate") || null,
+        adults: parseInt(qp.get("adults") || "1", 10),
+        children: parseInt(qp.get("children") || "0", 10),
+        infants: parseInt(qp.get("infants") || "0", 10),
+      };
+      setSearchParams(params);
+
+      // ---- Call backend once; many suppliers return BOTH legs in one offer for round-trips ----
+      const res = await flygasal.searchFlights(params, { signal: abort.signal });
+
+      console.info("Flight search response:", res?.offers);
+      let offers = [];
+      let displayCurrency = "USD";
+
+      if (Array.isArray(res?.offers)) {
+        offers = res.offers;
+        displayCurrency = offers[0]?.priceBreakdown?.currency || "USD";
+        if (res.searchKey) {
+          qp.set("searchKey", res.searchKey);
+          const newUrl = `${window.location.pathname}?${qp.toString()}`;
+          window.history.replaceState(null, "", newUrl);
+          setSearchKey(res.searchKey);
+        }
+      } else {
+        // Backend returned raw PKFare; normalize client-side
+        const data = res?.data;
+        const newKey = data?.searchKey || null;
+        offers = flygasal.transformPKFareData(data) || [];
+        displayCurrency = offers[0]?.priceBreakdown?.currency || "USD";
+        if (newKey) {
+          qp.set("searchKey", newKey);
+          const newUrl = `${window.location.pathname}?${qp.toString()}`;
+          window.history.replaceState(null, "", newUrl);
+          setSearchKey(newKey);
+        }
+      }
+
+      // ---- Helper: recompute leg fields from a segment array ----
+      const buildLegFromSegments = (baseOffer, segs, suffix) => {
+        const firstSeg = segs[0];
+        const lastSeg  = segs[segs.length - 1];
+
+        // Derive a sensible total if not present
+        const originalTotal =
+          baseOffer?.priceBreakdown?.total ??
+          ((baseOffer?.priceBreakdown?.base || 0) +
+            (baseOffer?.priceBreakdown?.taxes || 0) +
+            (baseOffer?.priceBreakdown?.qCharge || 0) +
+            (baseOffer?.priceBreakdown?.tktFee || 0));
+
+        // Split the grand total across the two legs so out+ret ~= original total.
+        const perLegTotal = Math.round((originalTotal / 2) * 100) / 100;
+
+        return {
+          // keep a stable id but ensure uniqueness between legs
+          id: `${baseOffer.id}-${suffix}`,
+          solutionId: baseOffer.solutionId,
+          marketingCarriers: baseOffer.marketingCarriers || [],
+          operatingCarriers: baseOffer.operatingCarriers || [],
+          platingCarrier: baseOffer.platingCarrier,
+          isVI: !!baseOffer.isVI,
+          cabin: baseOffer.cabin,
+          bookingCode: baseOffer.bookingCode,
+
+          // recomputed leg fields
+          origin: firstSeg?.departure || baseOffer.origin,
+          destination: lastSeg?.arrival || baseOffer.destination,
+          departureTime: firstSeg?.departureDate || baseOffer.departureTime,
+          arrivalTime: lastSeg?.arrivalDate || baseOffer.arrivalTime,
+          segments: segs.slice(),
+          equipment: baseOffer.equipment,
+
+          // stops = connections within this leg (segments - 1), bounded at 0
+          stops: Math.max(0, (segs?.length || 1) - 1),
+          transferCount: baseOffer.transferCount,
+
+          // price: copy pb & inject a per-leg total
+          priceBreakdown: {
+            ...baseOffer.priceBreakdown,
+            total: perLegTotal,
+          },
+
+          // pass through convenience fields when present
+          rules: baseOffer.rules,
+          availabilityCount: baseOffer.availabilityCount,
+          expired: baseOffer.expired,
+          flightNumber: baseOffer.flightNumber,
+          journeyTime: baseOffer.journeyTime, // optional; your UI can recompute if you prefer
+        };
+      };
+
+      // ---- If one-way: keep as-is. If return: split each offer by flightIds into 2 legs ----
+      let outbounds = [];
+      let returns = [];
+
+      if (tripType === "return") {
+        for (const offer of offers) {
+          const fids = Array.isArray(offer?.flightIds) ? offer.flightIds.filter(Boolean) : [];
+          const segs = Array.isArray(offer?.segments) ? offer.segments : [];
+
+          if (fids.length >= 2) {
+            // Outbound = segments belonging to first flightId; Return = second flightId
+            const segsOut = segs.filter(s => s.flightId === fids[0]);
+            const segsRet = segs.filter(s => s.flightId === fids[1]);
+
+            // Fallbacks: if filtering yields nothing (some suppliers omit flightId on segs),
+            // we fallback to chronological split: first half vs second half.
+            const half = Math.floor(segs.length / 2) || 1;
+            const finalOutSegs = segsOut.length ? segsOut : segs.slice(0, half);
+            const finalRetSegs = segsRet.length ? segsRet : segs.slice(half);
+
+            outbounds.push(buildLegFromSegments(offer, finalOutSegs, "OUT"));
+            returns.push(buildLegFromSegments(offer, finalRetSegs, "RET"));
+          } else {
+            // No distinct flightIds: best-effort chronological split for a return trip
+            const half = Math.floor((offer?.segments?.length || 2) / 2) || 1;
+            const finalOutSegs = segs.slice(0, half);
+            const finalRetSegs = segs.slice(half);
+
+            outbounds.push(buildLegFromSegments(offer, finalOutSegs, "OUT"));
+            returns.push(buildLegFromSegments(offer, finalRetSegs, "RET"));
+          }
+        }
+      } else {
+        // oneway
+        outbounds = offers.slice();
+        returns = [];
+      }
+
+      // ---- Sort by price then duration for deterministic UI ----
+      const sortByTotal = (a, b) => {
+        const ta = a?.priceBreakdown?.total ?? Number.MAX_SAFE_INTEGER;
+        const tb = b?.priceBreakdown?.total ?? Number.MAX_SAFE_INTEGER;
+        if (ta !== tb) return ta - tb;
+        const da = a?.journeyTime ?? ((new Date(a.arrivalTime) - new Date(a.departureTime)) / 60000);
+        const db = b?.journeyTime ?? ((new Date(b.arrivalTime) - new Date(b.departureTime)) / 60000);
+        return da - db;
+      };
+
+      outbounds.sort(sortByTotal);
+      returns.sort(sortByTotal);
+
+      // ---- Push into state expected by the rest of your page ----
+      setAvailableFlights(outbounds);
+      setReturnFlights(returns);
+      setCurrency(displayCurrency);
+
+      // ---- Dynamic price slider bounds (across both arrays) ----
+      const allPrices = [...outbounds, ...returns]
+        .map(f => f?.priceBreakdown?.total)
+        .filter(p => typeof p === "number" && !Number.isNaN(p));
+
+      if (allPrices.length) {
+        const absMin = Math.floor(Math.min(...allPrices));
+        const absMax = Math.ceil(Math.max(...allPrices));
+        setPriceBounds([absMin, absMax]);
+        setMinPrice(absMin);
+        setMaxPrice(absMax);
+      } else {
+        setPriceBounds([0, 0]);
+        setMinPrice(0);
+        setMaxPrice(0);
+      }
+
+      // startTimer(); // optional
+    } catch (err) {
+      if (err?.name === "AbortError") return;
+      console.error("Failed to fetch flights:", err);
+      setError("We couldn’t load flights for your search. Please try again.");
+      setAvailableFlights([]);
+      setReturnFlights([]);
+    } finally {
+      setLoading(false);
     }
+  }
 
-    fetchFlights();
+  fetchFlights();
 
-    return () => {
-      abort.abort();
-      // stopTimer();
-    };
-  }, [location.search]);
+  return () => {
+    abort.abort();
+    // stopTimer();
+  };
+}, [location.search]);
+
 
   // ---------- Derive display helpers ----------
   // Simple baggage label for the list pills
