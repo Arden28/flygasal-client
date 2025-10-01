@@ -507,6 +507,7 @@ useEffect(() => {
       const priceResp = await flygasal.precisePricing(criteria);
       const pk = priceResp?.data;
       console.info("Precise pricing result:", pk);
+      
       if (!pk || !pk.solution) {
         setError("We couldn’t confirm this fare right now. Tap Reprice or pick a different option.");
         setLoading(false);
