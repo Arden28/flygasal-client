@@ -354,7 +354,7 @@ const ItineraryList = ({
                       <Pill tone={itinerary.refundable ? "green" : "red"}>
                         {itinerary.refundable ? "Refundable" : "Non-refundable"}
                       </Pill>
-                      {itinerary.solutionKey}
+                      {itinerary.outbound.solutionKey ?? 'Solution key'}
                     </div>
                   </div>
 
