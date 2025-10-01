@@ -444,52 +444,52 @@ const BookingDetail = () => {
   }, [adults, children]);
 
   /* ---------- fetch precise pricing & match flights (bugfix) ---------- */
-useEffect(() => {
-  const run = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const sp = new URLSearchParams(location.search);
+  useEffect(() => {
+    const run = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const sp = new URLSearchParams(location.search);
 
-      // Extract journeys from URL (fallback only; primary is solutionId/solutionKey)
-      const journeysFromUrl = [];
-      let idx = 0;
-      while (sp.has(`flights[${idx}][origin]`)) {
-        journeysFromUrl.push({
-          airline:        sp.get(`flights[${idx}][airline]`) || '',
-          flightNum:      sp.get(`flights[${idx}][flightNum]`) || '',
-          arrival:        sp.get(`flights[${idx}][arrival]`) || '',
-          arrivalDate:    sp.get(`flights[${idx}][arrivalDate]`) || '',
-          arrivalTime:    sp.get(`flights[${idx}][arrivalTime]`) || '',
-          departure:      sp.get(`flights[${idx}][departure]`) || '',
-          departureDate:  sp.get(`flights[${idx}][departureDate]`) || '',
-          departureTime:  sp.get(`flights[${idx}][departureTime]`) || '',
-          bookingCode:    sp.get(`flights[${idx}][bookingCode]`) || '',
-          destination:    sp.get(`flights[${idx}][arrival]`) || '',
-          origin:         sp.get(`flights[${idx}][departure]`) || '',
-        });
-        idx++;
-      }
+        // Read journeys array from URL
+        const journeysFromUrl = [];
+        let idx = 0;
+        while (sp.has(`flights[${idx}][origin]`)) {
+          journeysFromUrl.push({
+            airline: sp.get(`flights[${idx}][airline]`),
+            flightNum: sp.get(`flights[${idx}][flightNum]`),
+            arrival: sp.get(`flights[${idx}][arrival]`),
+            arrivalDate: sp.get(`flights[${idx}][arrivalDate]`),
+            arrivalTime: sp.get(`flights[${idx}][arrivalTime]`),
+            departure: sp.get(`flights[${idx}][departure]`),
+            departureDate: sp.get(`flights[${idx}][departureDate]`),
+            departureTime: sp.get(`flights[${idx}][departureTime]`),
+            bookingCode: sp.get(`flights[${idx}][bookingCode]`),
+            destination: sp.get(`flights[${idx}][arrival]`),
+            origin: sp.get(`flights[${idx}][departure]`),
+          });
+          idx++;
+        }
 
-      const derivedOrigin      = journeysFromUrl[0]?.origin      || sp.get("origin")      || "";
-      const derivedDestination = journeysFromUrl[0]?.destination || sp.get("destination") || "";
-      const tripType   = (sp.get("tripType") || "oneway").toLowerCase();
-      const cabinType  = sp.get("flightType") || sp.get("cabin") || "Economy";
-      const adultsQ    = parseInt(sp.get("adults"))   || 1;
-      const childrenQ  = parseInt(sp.get("children")) || 0;
-      const infantsQ   = parseInt(sp.get("infants"))  || 0;
-      const departureDate = sp.get("depart") || journeysFromUrl[0]?.departureDate || null;
-      const returnDate    = sp.get("returnDate") || null;
+        // Derive origin/destination from first journey
+        const derivedOrigin = journeysFromUrl[0]?.origin || sp.get("origin") || "";
+        const derivedDestination = journeysFromUrl[0]?.destination || sp.get("destination") || "";
 
-      // Prefer these for precise pricing
-      const solutionId  = sp.get("solutionId")  || null;
-      const solutionKey = sp.get("solutionKey") || null;
-      const currency    = sp.get("currency")    || "USD";
+        const tripType = sp.get("tripType") || "oneway";
+        const cabinType = sp.get("flightType") || sp.get("cabin") || "Economy";
+        const adultsQ = parseInt(sp.get("adults")) || 1;
+        const childrenQ = parseInt(sp.get("children")) || 0;
+        const infantsQ = parseInt(sp.get("infants")) || 0;
+        const departureDate = sp.get("depart") || journeysFromUrl[0]?.departureDate || null;
+        const returnDate = sp.get("returnDate") || null;
 
-      
+        const solutionId = sp.get("solutionId") || null;
+        const solutionKey = sp.get("solutionKey") || null;
+        const flightId = sp.get("flightId") || null;
+        const returnFlightId = sp.get("returnFlightId") || null;
+        const currency = sp.get("currency") || "USD";
 
-      // Build criteria:
-      const criteria = {
+        const params = {
           journeys: journeysFromUrl,
           tripType,
           cabinType,
@@ -503,106 +503,130 @@ useEffect(() => {
           origin: derivedOrigin,
           destination: derivedDestination,
           currency,
-      };
+        };
 
-      // 1) Ask PKFare ONCE for the whole solution
-      const priceResp = await flygasal.precisePricing(criteria);
-      const pk = priceResp?.data;
+        // 1) Price outbound
+        const priceResp = await flygasal.precisePricing(params);
+        const outboundFlights = flygasal.transformPreciseData(priceResp.data) || [];
 
-      console.info("Precise pricing result:", pk);
-      
-      if (!pk || !pk.solution) {
-        setError("We couldn’t confirm this fare right now. Tap Reprice or pick a different option.");
-        setLoading(false);
-        return;
-      }
-
-      // 2) Split the precise-priced solution into legs
-      const legs = flygasal.splitPreciseIntoLegs(pk); // [{legIndex:0,...},{legIndex:1,...}] for returns
-      const outboundFlights = legs.filter(l => l.legIndex === 0);
-      const returnFlights   = legs.filter(l => l.legIndex === 1);
-
-      // Use both in UI if needed (your UI can still show lists)
-      const allFlights = [...outboundFlights, ...returnFlights];
-      setAvailableFlights(allFlights);
-
-      // --- Pick selected legs ---
-      const toYMD = (d) => (typeof d === 'string' ? d.split('T')[0] : new Date(d).toISOString().slice(0,10));
-      const pax = adultsQ + childrenQ + infantsQ;
-
-      const selectedOutbound =
-        outboundFlights.find(f =>
-          f.origin === derivedOrigin &&
-          f.destination === derivedDestination &&
-          (!departureDate || toYMD(f.departureTime) === toYMD(departureDate))
-        ) || outboundFlights[0];
-
-      let selectedReturn = null;
-      if (tripType === "return" && returnDate) {
-        selectedReturn =
-          returnFlights.find(f =>
-            f.origin === derivedDestination &&
-            f.destination === derivedOrigin &&
-            toYMD(f.departureTime) === toYMD(returnDate)
-          ) || returnFlights[0] || null;
-      }
-
-      if (!selectedOutbound) {
-        setError("We couldn’t confirm your selected outbound flight. Choose another flight or tap Reprice.");
-        setLoading(false);
-        return;
-      }
-      if (tripType === "return" && !selectedReturn) {
-        setError("We couldn’t confirm your selected return flight. Choose another flight or tap Reprice.");
-        setLoading(false);
-        return;
-      }
-
-      const totalPrice =
-        (Number(selectedOutbound?.price || 0) + Number(selectedReturn?.price || 0)) * pax;
-
-      setTripDetails({
-        tripType,
-        origin: derivedOrigin,
-        destination: derivedDestination,
-        departDate: departureDate,
-        returnDate,
-        solutionId: pk.solution.solutionId,
-        solutionKey: pk.solution.solutionKey,
-        adults: adultsQ,
-        children: childrenQ,
-        infants: infantsQ,
-        currency,
-        outbound: selectedOutbound,
-        return: selectedReturn,
-        totalPrice,
-        cancellation_policy:
-          "Non-refundable after 24 hours. Cancellations within 24 hours of booking are refundable with a $50 fee.",
-      });
-
-      // Surface PK errors nicely
-      const errorCode = priceResp?.errorCode;
-      const errorMsg  = priceResp?.errorMsg;
-      if (errorCode && errorCode !== "0") {
-        if (errorCode === "B021") {
-          setError("The selected fare is no longer available. Please choose another flight or tap Reprice.");
-        } else if (errorCode === "B020") {
-          setError("We couldn’t find pricing for this itinerary. Try different dates or refresh with Reprice.");
-        } else {
-          setError(errorMsg || "Failed to load booking details. Please try again.");
+        // 2) Return pricing if needed
+        let returnFlights = [];
+        if (tripType === "return" && returnDate) {
+          const returnParams = {
+            ...params,
+            journeys: [
+              {
+                airline: journeysFromUrl[0]?.airline,
+                flightNum: journeysFromUrl[0]?.flightNum,
+                origin: params.destination,
+                destination: params.origin,
+                departureDate: returnDate,
+                departureTime: "",
+                arrivalDate: "",
+                arrivalTime: "",
+                bookingCode: journeysFromUrl[0]?.bookingCode,
+              },
+            ],
+            departureDate: returnDate,
+          };
+          const retResp = await flygasal.precisePricing(returnParams);
+          returnFlights = flygasal.transformPreciseData(retResp.data) || [];
         }
+
+        const allFlights = [...outboundFlights, ...returnFlights];
+        setAvailableFlights(allFlights);
+
+        // Indices for matching
+        const byId = new Map(allFlights.filter((f) => f?.id).map((f) => [String(f.id), f]));
+        const byKey = new Map(allFlights.map((f) => [keyOf(f), f]));
+
+        // Selected flights
+        const selectedOutbound =
+          (flightId && byId.get(String(flightId))) ||
+          byKey.get(
+            keyOf({
+              airline: journeysFromUrl[0]?.airline,
+              flightNumber: journeysFromUrl[0]?.flightNum,
+              departureTime: `${journeysFromUrl[0]?.departureDate}T${journeysFromUrl[0]?.departureTime || "00:00"}`,
+              arrivalTime: `${journeysFromUrl[0]?.arrivalDate}T${journeysFromUrl[0]?.arrivalTime || "00:00"}`,
+              origin: derivedOrigin,
+              destination: derivedDestination,
+            })
+          ) ||
+          outboundFlights[0];
+
+        let selectedReturn = null;
+        if (tripType === "return" && returnDate) {
+          selectedReturn =
+            (returnFlightId && byId.get(String(returnFlightId))) ||
+            returnFlights.find(
+              (f) =>
+                f.origin === derivedDestination &&
+                f.destination === derivedOrigin &&
+                toYMD(f.departureTime) === toYMD(returnDate)
+            ) ||
+            returnFlights[0] ||
+            null;
+        }
+
+        // Friendly user-facing errors (no internal IDs shown)
+        if (!selectedOutbound) {
+          setError(
+            "We couldn’t confirm your selected outbound flight. It may have changed or sold out. Choose another flight or tap Reprice to refresh availability."
+          );
+          return;
+        }
+        if (tripType === "return" && !selectedReturn) {
+          setError(
+            "We couldn’t confirm your selected return flight. It may have changed or sold out. Choose another flight or tap Reprice to refresh availability."
+          );
+          return;
+        }
+
+
+        const totalPrice =
+          (Number(selectedOutbound?.price || 0) + Number(selectedReturn?.price || 0)) * pax;
+
+        setTripDetails({
+          tripType,
+          origin: params.origin,
+          destination: params.destination,
+          departDate: params.departureDate,
+          returnDate: params.returnDate,
+          fareSourceCode: params.flightId,
+          solutionId: params.solutionId,
+          adults: adultsQ,
+          children: childrenQ,
+          infants: infantsQ,
+          currency,
+          outbound: selectedOutbound,
+          return: selectedReturn,
+          totalPrice,
+          cancellation_policy:
+            "Non-refundable after 24 hours. Cancellations within 24 hours of booking are refundable with a $50 fee.",
+        });
+
+        // Backend surfaced errors (mapped to friendly copy)
+        const errorCode = priceResp?.data?.errorCode;
+        const errorMsg = priceResp?.data?.errorMsg;
+        if (errorCode) {
+          if (errorCode === "B021") {
+            setError("The selected fare is no longer available. Please choose another flight or tap Reprice.");
+          } else if (errorCode === "B020") {
+            setError("We couldn’t find pricing for this itinerary. Try different dates or refresh with Reprice.");
+          } else {
+            setError(errorMsg || "Failed to load booking details. Please try again.");
+          }
+        }
+      } catch (e) {
+        console.error("Error loading confirmation:", e);
+        setError("Failed to load booking details. Please try again.");
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      console.error("Error loading confirmation:", e);
-      setError("Failed to load booking details. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  run();
-}, [location.search, repriceTrigger]);
-
+    };
+    run();
+  }, [location.search, repriceTrigger]);
 
   /* ---------- start & tick the 10-minute hold ---------- */
   useEffect(() => {
