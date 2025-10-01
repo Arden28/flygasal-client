@@ -486,6 +486,8 @@ useEffect(() => {
       const solutionKey = sp.get("solutionKey") || null;
       const currency    = sp.get("currency")    || "USD";
 
+      
+
       // Build criteria:
       const criteria = {
           journeys: journeysFromUrl,
@@ -506,6 +508,7 @@ useEffect(() => {
       // 1) Ask PKFare ONCE for the whole solution
       const priceResp = await flygasal.precisePricing(criteria);
       const pk = priceResp?.data;
+
       console.info("Precise pricing result:", pk);
       
       if (!pk || !pk.solution) {
