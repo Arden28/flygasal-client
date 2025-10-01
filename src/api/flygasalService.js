@@ -177,8 +177,7 @@ const flygasal = {
     */
     precisePricing: async (criteria) => {
         try {
-            const response = await apiService.post('/flights/precise-pricing', criteria);
-            console.log('Precise pricing response:', response.data);
+        const response = await apiService.post('/flights/precise-pricing', criteria);
             return response.data;
         } catch (error) {
             console.error('Precise pricing failed:', error);
@@ -265,93 +264,6 @@ const flygasal = {
                 ancillary: ancillaryInfo,     // Array of ancillary options per flight
             };
         }).filter(Boolean);
-    },
-
-    splitPreciseIntoLegs : (pkData) => {
-        if (!pkData || !pkData.solution) return [];
-
-        const solution = pkData.solution;
-        const flights = pkData.flights || [];
-        const segments = pkData.segments || [];
-
-        const segmentMap = Object.fromEntries(segments.map(s => [s.segmentId, s]));
-        const flightMap  = Object.fromEntries(flights.map(f => [f.flightId, f]));
-
-        // Journey order → array of flightIds per journey
-        const journeyKeys = Object.keys(solution.journeys || {}).sort(); // journey_0, journey_1...
-        const legFlightIds = journeyKeys.map(k => (solution.journeys[k] || []).filter(Boolean));
-
-        // Flatten to one ordered list of legs
-        const legs = legFlightIds.map((flightIds, legIdx) => {
-            // concat segments in the order of the flights listed in this leg
-            const segIds = flightIds
-            .map(fid => (flightMap[fid]?.segmentIds || []))
-            .flat();
-
-            const segs = segIds.map(id => segmentMap[id]).filter(Boolean);
-            const first = segs[0];
-            const last  = segs[segs.length - 1];
-
-            // Derive per-leg price (split equally across legs)
-            const total = Number(solution.adtFare || 0) + Number(solution.adtTax || 0);
-            const perLeg = Math.round((total / Math.max(1, legFlightIds.length)) * 100) / 100;
-
-            // journeyTime/transferCount can be per-flight; try summing/deriving
-            const perLegFlights = flightIds.map(fid => flightMap[fid]).filter(Boolean);
-            const journeyMinutes = perLegFlights.reduce((acc, f) => acc + (Number(f?.journeyTime || 0)), 0);
-            const transferCount  = perLegFlights.reduce((acc, f) => acc + (Number(f?.transferCount || 0)), 0);
-
-            return {
-            id: `${solution.solutionId || 'SOL'}-${legIdx}`,
-            legIndex: legIdx,
-            legType: legIdx === 0 ? 'Outbound' : 'Return',
-
-            solutionId: solution.solutionId,
-            solutionKey: solution.solutionKey,
-
-            fareType: solution.fareType,
-            currency: solution.currency || 'USD',
-
-            adtFare: solution.adtFare,
-            adtTax: solution.adtTax,
-            chdFare: solution.chdFare,
-            chdTax: solution.chdTax,
-            tktFee: solution.tktFee,
-            platformServiceFee: solution.platformServiceFee,
-
-            origin: first?.departure || '',
-            destination: last?.arrival || '',
-            departureTime: first ? new Date(first.departureDate) : null,
-            arrivalTime: last ? new Date(last.arrivalDate) : null,
-            journeyTime: journeyMinutes || null,
-            transferCount: transferCount || 0,
-
-            stops: Math.max(0, segs.length - 1),
-            segments: segs,
-            flightIds,
-
-            // keep a single bookingCode/cabin from first seg (UI can show per-seg details)
-            airline: first?.airline || '',
-            flightNumber: first?.flightNum || '',
-            cabin: first?.cabinClass || '',
-            bookingCode: first?.bookingCode || '',
-            tickets: first?.availabilityCount ?? null,
-
-            price: perLeg, // <- per-leg total
-            priceBreakdown: {
-                currency: solution.currency || 'USD',
-                base: Number(solution.adtFare || 0), // note: total base/tax are for whole solution; per-leg split is above
-                taxes: Number(solution.adtTax || 0),
-                total: perLeg,
-            },
-
-            lastTktTime: solution.lastTktTime ? new Date(solution.lastTktTime) : null,
-            expired: solution.lastTktTime ? new Date(solution.lastTktTime) < new Date() : false,
-            platingCarrier: solution.platingCarrier || null,
-            };
-        });
-
-        return legs;
     },
 
     /**
