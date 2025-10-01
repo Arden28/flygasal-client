@@ -177,8 +177,8 @@ const ItineraryList = ({
     const out = itinerary.outbound || {};
     const firstAirline = out.marketingCarriers?.[0] || out.segments?.[0]?.airline || "";
     const params = new URLSearchParams({
-      solutionId: out.solutionId || "",
       solutionKey: out.solutionKey || "",
+      solutionId: out.solutionId || "",
       tripType: itinerary.return ? "return" : "oneway",
       "flights[0][origin]": out.origin,
       "flights[0][destination]": out.destination,
@@ -354,7 +354,7 @@ const ItineraryList = ({
                       <Pill tone={itinerary.refundable ? "green" : "red"}>
                         {itinerary.refundable ? "Refundable" : "Non-refundable"}
                       </Pill>
-                      {itinerary.outbound.solutionKey ?? 'Solution key'}
+                      {/* {itinerary.outbound.solutionKey ?? 'Solution key'} */}
                     </div>
                   </div>
 
