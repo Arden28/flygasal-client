@@ -1,7 +1,8 @@
-import React, { useMemo } from "react";
+import React, { useContext, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import FlightSegment from "./FlightSegment";
+import { AuthContext } from "../../../context/AuthContext";
 
 const money = (n, currency = "USD") =>
   (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
@@ -21,17 +22,18 @@ const Pill = ({ children, tone = "slate" }) => {
   );
 };
 
+/** Build a collision-proof key per itinerary (works for OW + RT) */
 const computeItinKey = (it) => {
   const out = it.outbound || {};
   const ret = it.return || {};
   const outKey =
     out.id ||
     out.solutionId ||
-    `${(out.marketingCarriers?.[0] || out.segments?.[0]?.airline || "")}-${out.flightNumber || ""}-${out.departureTime || ""}-${out.arrivalTime || ""}`;
+    `${out.airline || ""}-${out.flightNumber || ""}-${out.departureTime || ""}-${out.arrivalTime || ""}`;
   const retKey = it.return
     ? ret.id ||
       ret.solutionId ||
-      `${(ret.marketingCarriers?.[0] || ret.segments?.[0]?.airline || "")}-${ret.flightNumber || ""}-${ret.departureTime || ""}-${ret.arrivalTime || ""}`
+      `${ret.airline || ""}-${ret.flightNumber || ""}-${ret.departureTime || ""}-${ret.arrivalTime || ""}`
     : "OW";
   return `${outKey}|${retKey}|${it.totalPrice}`;
 };
@@ -174,29 +176,27 @@ const ItineraryList = ({
   }, [totalCount, currentPage, pageSize]);
 
   const selectItinerary = (itinerary) => {
-    const out = itinerary.outbound || {};
-    const firstAirline = out.marketingCarriers?.[0] || out.segments?.[0]?.airline || "";
     const params = new URLSearchParams({
-      solutionId: out.solutionId || "",
+      solutionId: itinerary.outbound.solutionId || "",
       tripType: itinerary.return ? "return" : "oneway",
-      "flights[0][origin]": out.origin,
-      "flights[0][destination]": out.destination,
-      "flights[0][depart]": formatToYMD(out.departureTime),
-      "flights[0][airline]": firstAirline,
-      "flights[0][flightNum]": out.flightNumber || "",
-      "flights[0][arrival]": out.destination,
-      "flights[0][arrivalDate]": formatToYMD(out.arrivalTime),
-      "flights[0][arrivalTime]": formatTimeOnly(out.arrivalTime),
-      "flights[0][departure]": out.origin,
-      "flights[0][departureDate]": formatToYMD(out.departureTime),
-      "flights[0][departureTime]": formatTimeOnly(out.departureTime),
-      "flights[0][bookingCode]": out.bookingCode || "",
+      "flights[0][origin]": itinerary.outbound.origin,
+      "flights[0][destination]": itinerary.outbound.destination,
+      "flights[0][depart]": formatToYMD(itinerary.outbound.departureTime),
+      "flights[0][airline]": itinerary.outbound.airline,
+      "flights[0][flightNum]": itinerary.outbound.flightNumber,
+      "flights[0][arrival]": itinerary.outbound.destination,
+      "flights[0][arrivalDate]": formatToYMD(itinerary.outbound.arrivalTime),
+      "flights[0][arrivalTime]": formatTimeOnly(itinerary.outbound.arrivalTime),
+      "flights[0][departure]": itinerary.outbound.origin,
+      "flights[0][departureDate]": formatToYMD(itinerary.outbound.departureTime),
+      "flights[0][departureTime]": formatTimeOnly(itinerary.outbound.departureTime),
+      "flights[0][bookingCode]": itinerary.outbound.bookingCode || "",
       returnDate: itinerary.return ? formatToYMD(itinerary.return.departureTime) : "",
       adults: `${searchParams?.adults || 1}`,
       children: `${searchParams?.children || 0}`,
       infants: `${searchParams?.infants || 0}`,
-      cabin: out.cabin || "Economy",
-      flightId: out.id,
+      cabin: itinerary.outbound.cabin || "Economy",
+      flightId: itinerary.outbound.id,
       returnFlightId: itinerary.return ? itinerary.return.id : "",
     });
 
@@ -212,6 +212,7 @@ const ItineraryList = ({
     navigate(`/flight/booking/details?${params.toString()}`);
   };
 
+  // Pax math: paying travelers = adults + children (infants often priced differently / lap fares)
   const pax = useMemo(() => {
     const a = Number(searchParams?.adults || 1);
     const c = Number(searchParams?.children || 0);
@@ -222,9 +223,10 @@ const ItineraryList = ({
   }, [searchParams?.adults, searchParams?.children, searchParams?.infants]);
 
   const priceBreakdown = (it) => {
-    const base = Number(it.totalPrice) || 0;
+    const base = Number(it.totalPrice) || 0; // itinerary total (provider)
     const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
     const total = +(base + markup).toFixed(2);
+    // Per-paying-traveler breakdown (excludes infants from divisor)
     const perBase = +(base / pax.paying).toFixed(2);
     const perMarkup = +(markup / pax.paying).toFixed(2);
     const perTotal = +(total / pax.paying).toFixed(2);
@@ -252,6 +254,7 @@ const ItineraryList = ({
         </div>
       )}
 
+      {/* Layout animations on the list root; items animate position only */}
       <motion.ul layout className="mt-2 space-y-3">
         <AnimatePresence mode="sync" initial={false}>
           {paginatedItineraries.map((itinerary) => {
@@ -260,8 +263,9 @@ const ItineraryList = ({
             const direct = itinerary.totalStops === 0;
             const airlines = itinerary.airlines || [];
             const isRoundTrip = !!itinerary.return;
-
-            const durText = isRoundTrip
+            const durText = itinerary.journeyTime
+              ? `${Math.floor(itinerary.journeyTime / 60)}h ${itinerary.journeyTime % 60}m`
+              : isRoundTrip
               ? `${calculateDuration(itinerary.outbound.departureTime, itinerary.return?.arrivalTime)}`
               : `${calculateDuration(itinerary.outbound.departureTime, itinerary.outbound.arrivalTime)}`;
 
@@ -419,7 +423,7 @@ const ItineraryList = ({
                   </div>
                 </div>
 
-                {/* Fare details */}
+                {/* Fare details (iconic, minimalist, well-structured) */}
                 <AnimatePresence initial={false}>
                   {open && (
                     <motion.div
@@ -433,9 +437,15 @@ const ItineraryList = ({
                       className="border-t border-slate-200 bg-white"
                     >
                       <div className="p-3 md:p-4">
+
+                        {/* Three minimalist tiles */}
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                           {/* Fare breakdown */}
-                          <Tile icon="price" title="Fare breakdown" hint="Taxes & fees included">
+                          <Tile
+                            icon="price"
+                            title="Fare breakdown"
+                            hint="Taxes & fees included"
+                          >
                             {pax.total > 1 && (
                               <>
                                 <Row

@@ -13,10 +13,12 @@ import { AuthContext } from "../../../context/AuthContext";
 
 const flightsPerPage = 25;
 const MAX_RETURNS_PER_OUTBOUND = 6;
-const MAX_RESULTS = 500;
+const MAX_RESULTS = 500; // 100 results max
 
 const FlightPage = () => {
   const { user } = useContext(AuthContext);
+  // console.info('Agent: ', user);
+  
   const location = useLocation();
 
   // Core search state
@@ -24,9 +26,6 @@ const FlightPage = () => {
   const [searchKey, setSearchKey] = useState(null);
   const [availableFlights, setAvailableFlights] = useState([]);
   const [returnFlights, setReturnFlights] = useState([]);
-
-  // Currency to display (from offers)
-  const [currency, setCurrency] = useState("USD");
 
   // Filters / sorting / pagination
   const [minPrice, setMinPrice] = useState(0);
@@ -56,6 +55,7 @@ const FlightPage = () => {
 
   // Markup
   const agentMarkupPercent = user?.agency_markup || 0;
+  // console.info('Agent markup: ', agentMarkupPercent);
 
   // ---------- Helpers ----------
   const formatTimer = (s) => {
@@ -92,25 +92,17 @@ const FlightPage = () => {
 
   // Advanced filters helpers
   const getHour = (dt) => (dt ? new Date(dt).getHours() : 0);
-
-  // Baggage: the normalized offer has per-segment baggage maps. We convert to a simple truthy flag.
-  const hasBaggage = (offer) => {
-    const seg0 = offer?.segments?.[0]?.segmentId;
-    const carry = offer?.baggage?.adt?.carryOnBySegment?.[seg0];
-    const checked = offer?.baggage?.adt?.checkedBySegment?.[seg0];
-    return Boolean(
-      (carry && ((carry.amount ?? 0) > 0 || (carry.weight ?? 0) > 0)) ||
-      (checked && ((checked.amount ?? 0) > 0 || (checked.weight ?? 0) > 0))
-    );
+  const hasBaggage = (obj) => {
+    const b = obj?.baggage || obj?.segments?.[0]?.baggage || "";
+    return typeof b === "string" ? /([1-9]PC|KG)/i.test(b) : !!b;
   };
-
   const totalDurationMins = (outbound, ret) => {
-    const dep1 = new Date(outbound?.segments?.[0]?.departureDate || outbound?.departureTime);
-    const arr1 = new Date(outbound?.segments?.slice(-1)?.[0]?.arrivalDate || outbound?.arrivalTime);
+    const dep1 = new Date(outbound?.segments?.[0]?.departureTime || outbound?.departureTime);
+    const arr1 = new Date(outbound?.segments?.slice(-1)?.[0]?.arrivalTime || outbound?.arrivalTime);
     let mins = Math.max(0, (arr1 - dep1) / 60000);
     if (ret) {
-      const dep2 = new Date(ret?.segments?.[0]?.departureDate || ret?.departureTime);
-      const arr2 = new Date(ret?.segments?.slice(-1)?.[0]?.arrivalDate || ret?.arrivalTime);
+      const dep2 = new Date(ret?.segments?.[0]?.departureTime || ret?.departureTime);
+      const arr2 = new Date(ret?.segments?.slice(-1)?.[0]?.arrivalTime || ret?.arrivalTime);
       mins += Math.max(0, (arr2 - dep2) / 60000);
     }
     return Math.round(mins);
@@ -143,12 +135,10 @@ const FlightPage = () => {
   // ---------- Fetch flights ----------
   useEffect(() => {
     let abort = new AbortController();
-
-    async function fetchFlights() {
+    const fetchFlights = async () => {
       setLoading(true);
       setError("");
       setIsExpired(false);
-
       try {
         const qp = new URLSearchParams(location.search);
 
@@ -164,9 +154,7 @@ const FlightPage = () => {
           i++;
         }
 
-        const fallbackFirst = { origin: "HKG", destination: "BKK", depart: "2024-12-15" };
-        const first = legs[0] || fallbackFirst;
-
+        const first = legs[0] || { origin: "HKG", destination: "BKK", depart: "2024-12-15" };
         const rawTrip = (qp.get("tripType") || "oneway").toLowerCase();
         const tripType = rawTrip === "return" ? "return" : "oneway";
         const flightType = qp.get("flightType") || "Economy";
@@ -183,38 +171,16 @@ const FlightPage = () => {
           children: parseInt(qp.get("children") || "0", 10),
           infants: parseInt(qp.get("infants") || "0", 10),
         };
+
         setSearchParams(params);
 
-        // Outbound request
+        // Outbound
         const res = await flygasal.searchFlights(params, { signal: abort.signal });
+        const data = res.data;
+        const newKey = data?.searchKey || null;
+        const outbound = flygasal.transformPKFareData(data) || [];
 
-        let outbound = [];
-        let displayCurrency = "USD";
-
-        if (Array.isArray(res.offers)) {
-          outbound = res.offers;
-          displayCurrency = outbound[0]?.priceBreakdown?.currency || "USD";
-          if (res.searchKey) {
-            qp.set("searchKey", res.searchKey);
-            const newUrl = `${window.location.pathname}?${qp.toString()}`;
-            window.history.replaceState(null, "", newUrl);
-            setSearchKey(res.searchKey);
-          }
-        } else {
-          // Backend returned raw PKFare data; normalize on client
-          const data = res.data;
-          const newKey = data?.searchKey || null;
-          outbound = flygasal.transformPKFareData(data) || [];
-          displayCurrency = outbound[0]?.priceBreakdown?.currency || "USD";
-          if (newKey) {
-            qp.set("searchKey", newKey);
-            const newUrl = `${window.location.pathname}?${qp.toString()}`;
-            window.history.replaceState(null, "", newUrl);
-            setSearchKey(newKey);
-          }
-        }
-
-        // Return leg (if needed)
+        // Return
         let rtn = [];
         if (tripType === "return" && params.returnDate) {
           const returnParams = {
@@ -222,36 +188,14 @@ const FlightPage = () => {
             flights: [{ origin: params.destination, destination: params.origin, depart: params.returnDate }],
           };
           const r = await flygasal.searchFlights(returnParams, { signal: abort.signal });
-          if (Array.isArray(r.offers)) {
-            rtn = r.offers;
-          } else {
-            rtn = flygasal.transformPKFareData(r.data) || [];
-          }
-          // currency: keep the outbound currency as the page display
+          rtn = flygasal.transformPKFareData(r.data) || [];
         }
-
-        // Sort by total price asc (deterministic)
-        const sortByTotal = (a, b) => {
-          const ta = a?.priceBreakdown?.total ?? Number.MAX_SAFE_INTEGER;
-          const tb = b?.priceBreakdown?.total ?? Number.MAX_SAFE_INTEGER;
-          if (ta !== tb) return ta - tb;
-          const da = a?.journeyTime ?? ((new Date(a.arrivalTime) - new Date(a.departureTime)) / 60000);
-          const db = b?.journeyTime ?? ((new Date(b.arrivalTime) - new Date(b.departureTime)) / 60000);
-          return da - db;
-        };
-
-        outbound.sort(sortByTotal);
-        rtn.sort(sortByTotal);
 
         setAvailableFlights(outbound);
         setReturnFlights(rtn);
-        setCurrency(displayCurrency);
 
-        // Dynamic price bounds (from normalized totals)
-        const allPrices = [...outbound, ...rtn]
-          .map(f => f?.priceBreakdown?.total)
-          .filter(p => typeof p === "number" && !Number.isNaN(p));
-
+        // Dynamic price bounds
+        const allPrices = [...outbound, ...rtn].map((f) => f.price).filter((p) => typeof p === "number");
         if (allPrices.length) {
           const absMin = Math.floor(Math.min(...allPrices));
           const absMax = Math.ceil(Math.max(...allPrices));
@@ -259,12 +203,20 @@ const FlightPage = () => {
           setMinPrice(absMin);
           setMaxPrice(absMax);
         } else {
-          setPriceBounds([0, 0]);
+          setPriceBounds([100, 4000]);
           setMinPrice(0);
-          setMaxPrice(0);
+          setMaxPrice(10000);
         }
 
-        // startTimer(); // optional
+        // searchKey
+        if (newKey) {
+          setSearchKey(newKey);
+          qp.set("searchKey", newKey);
+          const newUrl = `${window.location.pathname}?${qp.toString()}`;
+          window.history.replaceState(null, "", newUrl);
+        }
+
+        startTimer();
       } catch (err) {
         if (err?.name === "AbortError") return;
         console.error("Failed to fetch flights:", err);
@@ -274,50 +226,25 @@ const FlightPage = () => {
       } finally {
         setLoading(false);
       }
-    }
+    };
 
     fetchFlights();
-
     return () => {
       abort.abort();
-      // stopTimer();
+      stopTimer();
     };
   }, [location.search]);
 
-  // ---------- Derive display helpers ----------
-  // Simple baggage label for the list pills
-  const makeBaggageLabel = (offer) => {
-    const seg0 = offer?.segments?.[0]?.segmentId;
-    const carry = offer?.baggage?.adt?.carryOnBySegment?.[seg0];
-    const checked = offer?.baggage?.adt?.checkedBySegment?.[seg0];
-    const carryTxt =
-      carry && ((carry.amount ?? 0) > 0 || (carry.weight ?? 0) > 0)
-        ? `${carry.amount ?? ""}${carry.amount ? "PC" : ""}${carry.weight ? ` ${carry.weight}KG` : ""} carry-on`
-        : "";
-    const checkedTxt =
-      checked && ((checked.amount ?? 0) > 0 || (checked.weight ?? 0) > 0)
-        ? `${checked.amount ?? ""}${checked.amount ? "PC" : ""}${checked.weight ? ` ${checked.weight}KG` : ""} checked`
-        : "";
-    const both = [carryTxt, checkedTxt].filter(Boolean).join(" + ");
-    return both || null;
-  };
-
-  // ---------- Build itineraries from normalized offers ----------
+  // ---------- Derived lists ----------
   const itineraries = useMemo(() => {
     if (!searchParams) return [];
 
-    // little helpers
-    const price = (o) => Number(o?.priceBreakdown?.total || 0);
-    const carriers = (o) =>
-      Array.from(new Set(
-        (o?.marketingCarriers || [])
-          .concat(o?.operatingCarriers || [])
-          .concat(o?.segments?.map(s => s?.airline).filter(Boolean) || [])
-      )).filter(Boolean);
-
     if (searchParams.tripType === "return") {
       const items = [];
-      const sortedReturns = [...returnFlights].sort((a, b) => price(a) - price(b));
+      // sort returns once (cheapest first) and reuse for all outbounds
+      const sortedReturns = [...returnFlights].sort(
+        (a, b) => (a.price || 0) - (b.price || 0)
+      );
 
       for (const out of availableFlights) {
         const topReturns = sortedReturns.slice(0, MAX_RETURNS_PER_OUTBOUND);
@@ -326,16 +253,16 @@ const FlightPage = () => {
             id: `${out.id}-${ret.id}`,
             outbound: out,
             return: ret,
-            totalPrice: price(out) + price(ret),
+            totalPrice: (out.price || 0) + (ret.price || 0),
             totalStops: (out.stops || 0) + (ret.stops || 0),
-            airlines: Array.from(new Set([...carriers(out), ...carriers(ret)])),
-            cabin: out.cabin || out.segments?.[0]?.cabinClass || "Economy",
-            baggage: makeBaggageLabel(out),
-            refundable: false, // can be toggled later from rules if you wish
+            airlines: [...new Set([out.airline, ret.airline])],
+            cabin: out.segments?.[0]?.cabinClass || "Economy",
+            baggage: out.segments?.[0]?.baggage || "1PC 7KG carry-on",
+            refundable: false,
           });
-          if (items.length >= MAX_RESULTS) break;
+          // if (items.length >= MAX_RESULTS) break;
         }
-        if (items.length >= MAX_RESULTS) break;
+        // if (items.length >= MAX_RESULTS) break;
       }
       return items;
     }
@@ -345,11 +272,11 @@ const FlightPage = () => {
       id: f.id,
       outbound: f,
       return: null,
-      totalPrice: Number(f?.priceBreakdown?.total || 0),
+      totalPrice: f.price || 0,
       totalStops: f.stops || 0,
-      airlines: carriers(f),
-      cabin: f.cabin || f.segments?.[0]?.cabinClass || "Economy",
-      baggage: makeBaggageLabel(f),
+      airlines: [f.airline],
+      cabin: f.segments?.[0]?.cabinClass || "Economy",
+      baggage: f.segments?.[0]?.baggage || "1PC 7KG carry-on",
       refundable: false,
     }));
   }, [searchParams, availableFlights, returnFlights]);
@@ -366,8 +293,8 @@ const FlightPage = () => {
         const stopsOk = currentStop === "mix" || currentStop === stopClass;
 
         // outbound vs return airline filters
-        const obCode = it.outbound?.marketingCarriers?.[0] || it.outbound?.segments?.[0]?.airline || "";
-        const rtCode = it.return?.marketingCarriers?.[0] || it.return?.segments?.[0]?.airline || "";
+        const obCode = it.outbound?.airline || "";
+        const rtCode = it.return?.airline || "";
 
         const owOk =
           checkedOnewayValue.length === 0 || (obCode && checkedOnewayValue.includes(`oneway_${obCode}`));
@@ -377,14 +304,13 @@ const FlightPage = () => {
           checkedReturnValue.length === 0 ||
           (rtCode && checkedReturnValue.includes(`return_${rtCode}`));
 
-        // time windows (use normalized top-level or first segment)
-        const owDep =
-          getHour(it.outbound?.segments?.[0]?.departureDate || it.outbound?.departureTime);
+        // time windows
+        const owDep = getHour(it.outbound?.segments?.[0]?.departureTime || it.outbound?.departureTime);
         const owTimeOk = owDep >= depTimeRange[0] && owDep <= depTimeRange[1];
 
         let rtTimeOk = true;
         if (it.return) {
-          const rtDep = getHour(it.return?.segments?.[0]?.departureDate || it.return?.departureTime);
+          const rtDep = getHour(it.return?.segments?.[0]?.departureTime || it.return?.departureTime);
           rtTimeOk = rtDep >= retTimeRange[0] && rtDep <= retTimeRange[1];
         }
 
@@ -410,24 +336,27 @@ const FlightPage = () => {
     sortOrder,
   ]);
 
-  // ---------- Pagination guards ----------
+  // ---------- Pagination guards (fix blank on return) ----------
   const totalPages = useMemo(
     () => Math.ceil(filteredItineraries.length / flightsPerPage),
     [filteredItineraries]
   );
 
+  // clamp the page the UI will actually use
   const safePage = useMemo(
     () => Math.min(Math.max(currentPage, 1), totalPages || 1),
     [currentPage, totalPages]
   );
 
+  // keep state in sync if it drifted out of range (esp. after filters/sort)
   useEffect(() => {
     if (currentPage !== safePage) {
       setCurrentPage(safePage);
-      setOpenDetailsId(null);
+      setOpenDetailsId(null); // also collapse any open drawer on correction
     }
   }, [safePage]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // slice once based on the clamped page
   const pageItems = useMemo(
     () =>
       filteredItineraries.slice(
@@ -437,6 +366,7 @@ const FlightPage = () => {
     [filteredItineraries, safePage]
   );
 
+  // (optional) keep your listKey but use the clamped page
   const listKey = useMemo(
     () =>
       JSON.stringify({
@@ -444,7 +374,7 @@ const FlightPage = () => {
         checkedOnewayValue, checkedReturnValue,
         depTimeRange, retTimeRange,
         maxDurationHours, baggageOnly, sortOrder,
-        page: safePage,
+        page: safePage,            // <-- was currentPage
       }),
     [minPrice,maxPrice,currentStop,checkedOnewayValue,checkedReturnValue,depTimeRange,retTimeRange,maxDurationHours,baggageOnly,sortOrder,safePage]
   );
@@ -489,17 +419,11 @@ const FlightPage = () => {
     resetToTop();
   };
 
-  // Unique airline codes from normalized carriers
-  const uniqueAirlines = useMemo(() => {
-    const all = [...availableFlights, ...returnFlights]
-      .flatMap(f =>
-        (f?.marketingCarriers || [])
-          .concat(f?.operatingCarriers || [])
-          .concat(f?.segments?.map(s => s?.airline).filter(Boolean) || [])
-      )
-      .filter(Boolean);
-    return Array.from(new Set(all));
-  }, [availableFlights, returnFlights]);
+  const uniqueAirlines = useMemo(
+    () =>
+      [...new Set([...availableFlights, ...returnFlights].map((f) => f?.airline).filter(Boolean))],
+    [availableFlights, returnFlights]
+  );
 
   // ---------- UI Skeletons ----------
   const HeaderSkeleton = () => (
@@ -656,7 +580,7 @@ const FlightPage = () => {
                   ) : filteredItineraries.length ? (
                     <ItineraryList
                       key={listKey}
-                      paginatedItineraries={pageItems}
+                      paginatedItineraries={pageItems}             
                       searchParams={searchParams}
                       openDetailsId={openDetailsId}
                       setOpenDetailsId={setOpenDetailsId}
@@ -669,9 +593,9 @@ const FlightPage = () => {
                       calculateDuration={calculateDuration}
                       getAirportName={getAirportName}
                       agentMarkupPercent={agentMarkupPercent}
-                      currency={currency}                 //{/* <-- now passed */}
+                      // currency={currency}
                       totalCount={filteredItineraries.length}
-                      currentPage={safePage}
+                      currentPage={safePage}                        
                       pageSize={flightsPerPage}
                     />
                   ) : (
@@ -682,7 +606,7 @@ const FlightPage = () => {
 
                   {/* Pagination */}
                   <Pagination
-                    currentPage={safePage}
+                    currentPage={safePage}                           
                     totalPages={totalPages}
                     handlePageChange={handlePageChange}
                   />

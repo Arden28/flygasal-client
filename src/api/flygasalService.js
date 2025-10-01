@@ -1,23 +1,35 @@
 // src/services/flygasal.js
 
 import apiService from '../api/apiService';
+import { transformPKFareData } from '../lib/transformPKFareData';
 
 // This module abstracts flight-related API calls to your Laravel backend (which proxies PKfare)
 
 const flygasal = {
+
     /**
-    * Search for flights via Laravel (which uses PKfareService@searchFlights)
-    * @param {Object} criteria - Search criteria (origin, destination, dates, etc.)
-    * @returns {Promise<Object>} - Flight search results
+    * Search flights via Laravel backend
+    * @param {Object} criteria
+    * @param {AbortSignal?} opts.signal
+    * @returns {Promise<Object>} raw backend response
     */
-    searchFlights: async (criteria) => {
+    searchFlights: async (criteria, opts = {}) => {
         try {
-        const response = await apiService.post('/flights/search', criteria);
-        return response.data;
+            const res = await apiService.post("/flights/search", criteria, { signal: opts.signal });
+            return res.data; // { message, errorMsg, errorCode, data | offers }
         } catch (error) {
-        console.error('Flight search failed:', error);
-        throw error;
+            console.error('Flight search failed:', error);
+            throw error;
         }
+    },
+
+    /**
+    * Normalize PKFare data (frontend path).
+    * If backend already normalizes, skip this and read `offers` directly.
+    * @param {object} pkData
+    */
+    transformPKFareData(pkData) {
+        return transformPKFareData(pkData);
     },
 
     /**
@@ -87,75 +99,75 @@ const flygasal = {
     },
 
   
-    transformPKFareData: (pkData) => {
-        const segmentMap = Object.fromEntries(
-            (pkData.segments || []).map((seg) => [seg.segmentId, seg])
-        );
+    // transformPKFareData: (pkData) => {
+    //     const segmentMap = Object.fromEntries(
+    //         (pkData.segments || []).map((seg) => [seg.segmentId, seg])
+    //     );
 
-        const flightMap = Object.fromEntries(
-            (pkData.flights || []).map((flight) => [flight.flightId, flight])
-        );
+    //     const flightMap = Object.fromEntries(
+    //         (pkData.flights || []).map((flight) => [flight.flightId, flight])
+    //     );
 
-        const solutions = pkData.solutions || [];
+    //     const solutions = pkData.solutions || [];
 
-        return solutions.map((solution) => {
-            const journeyKeys = Object.keys(solution.journeys || {});
-            const flightIds = journeyKeys
-            .map((key) => solution.journeys[key])
-            .flat();
+    //     return solutions.map((solution) => {
+    //         const journeyKeys = Object.keys(solution.journeys || {});
+    //         const flightIds = journeyKeys
+    //         .map((key) => solution.journeys[key])
+    //         .flat();
 
-            const allSegmentIds = flightIds
-            .map((flightId) => flightMap[flightId]?.segmengtIds || [])
-            .flat();
-            const tripSegments = allSegmentIds
-            .map((segmentId) => segmentMap[segmentId])
-            .filter(Boolean);
+    //         const allSegmentIds = flightIds
+    //         .map((flightId) => flightMap[flightId]?.segmengtIds || [])
+    //         .flat();
+    //         const tripSegments = allSegmentIds
+    //         .map((segmentId) => segmentMap[segmentId])
+    //         .filter(Boolean);
 
-            const outbound = tripSegments[0];
-            const finalSegment = tripSegments[tripSegments.length - 1];
+    //         const outbound = tripSegments[0];
+    //         const finalSegment = tripSegments[tripSegments.length - 1];
 
-            if (!outbound || !finalSegment) return null;
+    //         if (!outbound || !finalSegment) return null;
 
-            const firstFlight = flightMap[flightIds[0]];
+    //         const firstFlight = flightMap[flightIds[0]];
 
-            return {
-                id: outbound.segmentId,
-                solutionKey: solution.solutionKey,
-                solutionId: solution.solutionId,
-                shoppingKey: pkData.shoppingKey,
-                // Fares
-                fareType: solution.fareType,
-                adtFare: solution.adtFare,
-                adtTax: solution.adtTax,
-                chdFare: solution.chdFare,
-                chdTax: solution.chdTax,
-                qCharge: solution.qCharge,
-                tktFee: solution.tktFee,
-                platformServiceFee: solution.platformServiceFee,
+    //         return {
+    //             id: outbound.segmentId,
+    //             solutionKey: solution.solutionKey,
+    //             solutionId: solution.solutionId,
+    //             shoppingKey: pkData.shoppingKey,
+    //             // Fares
+    //             fareType: solution.fareType,
+    //             adtFare: solution.adtFare,
+    //             adtTax: solution.adtTax,
+    //             chdFare: solution.chdFare,
+    //             chdTax: solution.chdTax,
+    //             qCharge: solution.qCharge,
+    //             tktFee: solution.tktFee,
+    //             platformServiceFee: solution.platformServiceFee,
 
-                airline: outbound.airline,
-                plane: outbound.equipment,
-                cabin: outbound.cabinClass,
-                flightNumber: outbound.flightNum,
-                tickets: outbound.availabilityCount,
-                origin: outbound.departure,
-                availabilityCount: outbound.availabilityCount,
-                destination: finalSegment.arrival,
-                departureTime: new Date(outbound.departureDate),
-                arrivalTime: new Date(outbound.arrivalDate),
-                journeyTime: firstFlight?.journeyTime ?? null,
-                transferCount: firstFlight?.transferCount ?? null,
-                // lastTktTime: firstFlight?.lastTktTime ?? null,
-                lastTktTime: solution.lastTktTime ? new Date(solution.lastTktTime) : null,
-                expired: solution.lastTktTime ? new Date(solution.lastTktTime) < new Date() : false,
-                stops: tripSegments.length - 1,
-                segments: tripSegments,
-                price: solution.adtFare + solution.adtTax,
-                flightIds: flightIds,
-                bookingCode: outbound.bookingCode,
-            };
-        }).filter(Boolean);
-    },
+    //             airline: outbound.airline,
+    //             plane: outbound.equipment,
+    //             cabin: outbound.cabinClass,
+    //             flightNumber: outbound.flightNum,
+    //             tickets: outbound.availabilityCount,
+    //             origin: outbound.departure,
+    //             availabilityCount: outbound.availabilityCount,
+    //             destination: finalSegment.arrival,
+    //             departureTime: new Date(outbound.departureDate),
+    //             arrivalTime: new Date(outbound.arrivalDate),
+    //             journeyTime: firstFlight?.journeyTime ?? null,
+    //             transferCount: firstFlight?.transferCount ?? null,
+    //             // lastTktTime: firstFlight?.lastTktTime ?? null,
+    //             lastTktTime: solution.lastTktTime ? new Date(solution.lastTktTime) : null,
+    //             expired: solution.lastTktTime ? new Date(solution.lastTktTime) < new Date() : false,
+    //             stops: tripSegments.length - 1,
+    //             segments: tripSegments,
+    //             price: solution.adtFare + solution.adtTax,
+    //             flightIds: flightIds,
+    //             bookingCode: outbound.bookingCode,
+    //         };
+    //     }).filter(Boolean);
+    // },
 
     /**
     * Precise price will be shown with specific flight details, including booking code and seat availability. 
