@@ -188,6 +188,7 @@ const FlightPage = () => {
         // Outbound request
         const res = await flygasal.searchFlights(params, { signal: abort.signal });
 
+        console.info("Flight search response:", res.offers);
         let outbound = [];
         let displayCurrency = "USD";
 
