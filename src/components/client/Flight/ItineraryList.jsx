@@ -178,6 +178,7 @@ const ItineraryList = ({
     const firstAirline = out.marketingCarriers?.[0] || out.segments?.[0]?.airline || "";
     const params = new URLSearchParams({
       solutionId: out.solutionId || "",
+      solutionKey: out.solutionKey || "",
       tripType: itinerary.return ? "return" : "oneway",
       "flights[0][origin]": out.origin,
       "flights[0][destination]": out.destination,
@@ -304,7 +305,6 @@ const ItineraryList = ({
                     </div>
 
                     <FlightSegment
-                      itinerary={itinerary}
                       flight={itinerary.outbound}
                       segmentType="Outbound"
                       formatDate={formatDate}
@@ -320,7 +320,6 @@ const ItineraryList = ({
                     {isRoundTrip && (
                       <div className="mt-2 border-t border-dashed border-slate-200 pt-2">
                         <FlightSegment
-                          itinerary={itinerary}
                           flight={itinerary.return}
                           segmentType="Return"
                           formatDate={formatDate}

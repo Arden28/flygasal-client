@@ -117,7 +117,6 @@ const guessFirstChain = (segs) => {
    -------------------------------------------------------- */
 
 const FlightSegment = ({
-  itinerary,
   flight,
   segmentType, // "Outbound" | "Return"
 
@@ -192,7 +191,7 @@ const FlightSegment = ({
       {/* Leg type chip (Outbound / Return) */}
       <div className="d-flex justify-content-end pt-2 pe-2">
         <span className="badge text-dark border rounded-pill px-3" style={{ background: "#EEF4FB" }}>
-          {segmentType || "Segment"} {itinerary.solutionKey}
+          {segmentType || "Segment"}
         </span>
       </div>
 
