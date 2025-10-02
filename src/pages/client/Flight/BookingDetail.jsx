@@ -543,16 +543,17 @@ const BookingDetail = () => {
         console.info("Pricing with params", params);
         const priceResp = await flygasal.precisePricing(params);
         console.info("Pricing Resp: ", priceResp);
-
-        // transformPreciseData returns [offer] when response contains `offer`
-        const resp = flygasal.transformPreciseData(priceResp.data) || [];
-        const offer = resp.offer;
-
-        if (resp.errorCode !== "0" || resp.errorMsg !== "ok") {
-          const msg = resp.errorMsg || "We couldn’t confirm pricing for this itinerary.";
+        
+        if (priceResp.errorCode !== "0" || priceResp.errorMsg !== "ok") {
+          const msg = priceResp.errorMsg || "We couldn’t confirm pricing for this itinerary.";
           setError(msg);
           return;
         }
+
+        // transformPreciseData returns [offer] when response contains `offer`
+        const offers = flygasal.transformPreciseData(priceResp.offer) || [];
+        const offer = offers[0];
+
 
         // Prefer passenger counts from the offer
         if (offer.passengers) {
