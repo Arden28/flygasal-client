@@ -57,8 +57,7 @@ export default function FlightDetailsCard({
             <div className="text-xs text-slate-600 mt-0.5">
                 {formatDate(outbound.departureTime)} •{" "}
                 {outbound.segments.length > 1
-                    ? (outbound.stopoverAirportCodes?.join(", ") ||
-                    `${outbound.origin} ${outbound.destination}`)
+                    ? `${outbound.segments.length - 1} stop${outbound.segments.length - 1 > 1 ? "s" : ""}`
                     : "Nonstop"}{" "}
                 •{" "}
                 {outbound.journeyTime != null
@@ -79,9 +78,8 @@ export default function FlightDetailsCard({
       </div>
       <div className="text-xs text-slate-600">
         {returnFlight.segments.length > 1
-          ? (returnFlight.stopoverAirportCodes?.join(" ") ||
-             `${returnFlight.origin} ${returnFlight.destination}`)
-          : "Nonstop"}{" "}
+            ? `${returnFlight.segments.length - 1} stop${returnFlight.segments.length - 1 > 1 ? "s" : ""}`
+            : "Nonstop"}{" "}
         • {calculateDuration?.(returnFlight.departureTime, returnFlight.arrivalTime)}
       </div>
     </>
