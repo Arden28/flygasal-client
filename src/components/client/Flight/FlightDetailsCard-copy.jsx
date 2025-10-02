@@ -125,73 +125,109 @@ export default function FlightDetailsCard({
             </button>
 
             <div id={outId} className={openSections.outbound ? "block" : "hidden"}>
-{/* Timeline for outbound segments */}
-<div className="relative pl-6">
-  {outbound.segments.map((seg, i) => (
-    <div key={i} className="mb-6 relative">
-      {/* Departure dot */}
-      <div className="absolute -left-[11px] top-1 h-5 w-5 rounded-full border-2 border-brand bg-white"></div>
+            <div className="px-4 pb-5 pt-4">
+                {/* Timeline */}
+                <div className="relative border-l-2 border-slate-200 pl-5">
+                {/* Departure */}
+                <div className="mb-6">
+                    <div className="absolute -left-[11px] top-1 h-5 w-5 rounded-full border-2 border-brand bg-white"></div>
+                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-base font-semibold text-slate-900">
+                        {formatTime(outbound.departureTime)}
+                        </span>
+                        <span className="text-xs text-slate-500">
+                        {formatDate(outbound.departureTime)}
+                        </span>
+                    </div>
 
-      {/* Departure Info */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col min-w-0">
-          <span className="text-base font-semibold text-slate-900">
-            {formatTime(seg.departureTime)}
-          </span>
-          <span className="text-xs text-slate-500">
-            {formatDate(seg.departureTime)}
-          </span>
-        </div>
+                    <div className="font-medium">
+                        <div className="text-sm font-medium text-slate-700">
+                        {getCityName(outbound.origin)}
+                        </div>
+                        <div className="text-xs font-semibold text-slate-500">
+                        {getAirportName(outbound.origin)}
+                        </div>
+                    </div>
 
-        <div className="font-medium">
-          <div className="text-sm font-medium text-slate-700">
-            {getCityName(seg.departure)}
-          </div>
-          <div className="text-xs font-semibold text-slate-500">
-            {getAirportName(seg.departure)}
-          </div>
-        </div>
+                    <div className="text-right ml-3 flex-shrink-0">
+                        <div className="text-sm font-medium text-slate-700 border p-2 rounded-full">
+                        {outbound.origin}
+                        </div>
+                    </div>
+                    </div>
+                </div>
 
-        <div className="text-right ml-3 flex-shrink-0">
-          <div className="text-sm font-medium text-slate-700 border p-2 rounded-full">
-            {seg.departure}
-          </div>
-        </div>
-      </div>
+                {/* Arrival */}
+                <div>
+                    <div className="absolute -left-[11px] bottom-1 h-5 w-5 rounded-full border-2 border-brand bg-white"></div>
+                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-base font-semibold text-slate-900">
+                        {formatTime(outbound.arrivalTime)}
+                        </span>
+                        <span className="text-xs text-slate-500">
+                        {formatDate(outbound.arrivalTime)}
+                        </span>
+                    </div>
 
-      {/* Arrival dot */}
-      <div className="absolute -left-[11px] bottom-1 h-5 w-5 rounded-full border-2 border-brand bg-white"></div>
+                    <div className="font-medium">
+                        <div className="text-sm font-medium text-slate-700">
+                        {getCityName(outbound.destination)}
+                        </div>
+                        <div className="text-xs font-semibold text-slate-500">
+                        {getAirportName(outbound.destination)}
+                        </div>
+                    </div>
 
-      {/* Arrival Info */}
-      <div className="flex items-start justify-between gap-3 mt-2">
-        <div className="flex flex-col min-w-0">
-          <span className="text-base font-semibold text-slate-900">
-            {formatTime(seg.arrivalTime)}
-          </span>
-          <span className="text-xs text-slate-500">
-            {formatDate(seg.arrivalTime)}
-          </span>
-        </div>
+                    <div className="text-right ml-3 flex-shrink-0">
+                        <div className="text-sm font-medium text-slate-700 border p-2 rounded-full">
+                        {outbound.destination}
+                        </div>
+                    </div>
+                    </div>
+                </div>
+                </div>
 
-        <div className="font-medium">
-          <div className="text-sm font-medium text-slate-700">
-            {getCityName(seg.arrival)}
-          </div>
-          <div className="text-xs font-semibold text-slate-500">
-            {getAirportName(seg.arrival)}
-          </div>
-        </div>
-
-        <div className="text-right ml-3 flex-shrink-0">
-          <div className="text-sm font-medium text-slate-700 border p-2 rounded-full">
-            {seg.arrival}
-          </div>
-        </div>
-      </div>
-    </div>
-  ))}
-</div>
-
+                {/* Flight extras */}
+                <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                <div className="flex flex-col">
+                    <span className="text-slate-500">Airline</span>
+                    <span className="flex items-center gap-2 font-medium">
+                    {getAirlineLogo(outbound.airline) && (
+                        <img
+                        src={getAirlineLogo(outbound.airline)}
+                        alt={getAirlineName(outbound.airline)}
+                        className="h-5 w-5 object-contain"
+                        />
+                    )}
+                    {getAirlineName(outbound.airline) || "N/A"}
+                    </span>
+                </div>
+                <div>
+                    <span className="text-slate-500">Flight no.</span>
+                    <span className="block font-medium">
+                    {outbound.flightNumber || "N/A"}
+                    </span>
+                </div>
+                <div>
+                    <span className="text-slate-500">Plane</span>
+                    <span className="block font-medium">{outbound.plane || "N/A"}</span>
+                </div>
+                <div>
+                    <span className="text-slate-500">Class</span>
+                    <span className="block font-medium">{outbound.cabin || "Economy"}</span>
+                </div>
+                <div>
+                    <span className="text-slate-500">Baggage</span>
+                    <span className="block font-medium">{outbound.baggage || "N/A"}</span>
+                </div>
+                <div>
+                    <span className="text-slate-500">Cabin baggage</span>
+                    <span className="block font-medium">{outbound.cabin_baggage || "N/A"}</span>
+                </div>
+                </div>
+            </div>
             </div>
         </section>
 
