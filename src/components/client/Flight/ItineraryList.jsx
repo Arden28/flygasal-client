@@ -302,8 +302,8 @@ const ItineraryList = ({
                           <span className="text-[10px] text-slate-500">{code}</span>
                         </div>
                       ))}
-                      {/* Test */}
-                      {itinerary.segments}
+
+                      {itinerary}
                     </div>
 
                     <FlightSegment
