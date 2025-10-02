@@ -546,7 +546,6 @@ const FlightPage = () => {
       }
       return items;
     }
-    console.info('Itineraries offers:', itineraries);
 
     // ONE WAY
     return (availableFlights || []).map((f) => ({
@@ -562,6 +561,7 @@ const FlightPage = () => {
     }));
   }, [searchParams, availableFlights, returnFlights]);
 
+    console.info('Itineraries offers:', itineraries);
   // Filter + sort
   const filteredItineraries = useMemo(() => {
     return itineraries
