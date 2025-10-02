@@ -282,7 +282,7 @@ const FlightPage = () => {
         const res = await flygasal.searchFlights(params, { signal: abort.signal });
 
         console.info("Flight search response:", res?.offers);
-        
+
         let offers = [];
         let displayCurrency = "USD";
 
@@ -546,6 +546,7 @@ const FlightPage = () => {
       }
       return items;
     }
+    console.info('Itineraries offers:', itineraries);
 
     // ONE WAY
     return (availableFlights || []).map((f) => ({
