@@ -612,9 +612,9 @@ export default function FlightSearchInlineBar({
                           onChange={(e) => setFlightType(e.target.value)}
                         >
                           <option value="Economy">Economy</option>
-                          <option value="PREMIUM ECONOMY">Premium Economy</option>
-                          <option value="business">Business</option>
-                          <option value="first">First</option>
+                          <option value="PREMIUM_ECONOMY">Premium Economy</option>
+                          <option value="BUSINESS">Business</option>
+                          <option value="FIRST">First</option>
                         </select>
                       </div>
                     </div>
