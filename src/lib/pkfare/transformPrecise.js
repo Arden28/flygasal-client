@@ -18,6 +18,12 @@ export function transformPreciseData(pkData) {
   const ancillaries = data?.ancillaryAvailability ?? {};
 
   if (!solution) return [];
+  const passengers = {
+    adults:   Number(solution?.adults ?? 0),
+    children: Number(solution?.children ?? 0),
+    infants:  Number(solution?.infants ?? 0),
+  };
+  passengers.total = passengers.adults + passengers.children + passengers.infants;
 
   const flightsById = Object.fromEntries(flightsArr.map((f) => [f.flightId, f]));
   const segmentsById = Object.fromEntries(segmentsArr.map((s) => [s.segmentId, s]));
@@ -120,6 +126,8 @@ export function transformPreciseData(pkData) {
     destination: lastSeg.arrival,
     departureTime: dt(firstSeg.departureDate),
     arrivalTime: dt(lastSeg.arrivalDate),
+
+    passengers,
 
     journeyTime: firstFlight?.journeyTime ?? null,
     transferCount: firstFlight?.transferCount ?? null,
