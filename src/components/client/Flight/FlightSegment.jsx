@@ -207,7 +207,7 @@ const FlightSegment = ({
             <div className="text-start w-100 w-md-25">
               <div className="fw-semibold text-dark text-xl">{safeDate(firstSegment?.departureAt)}</div>
               <div className="text-muted small">
-                Departure Time: <b>{safeTime(firstSegment?.departureAt)}</b>
+                Departure Time: <b>{firstSegment?.departureTimeAt}</b>
               </div>
               <div className="text-muted small">
                 From: <b>{getAirportName(firstSegment?.departure || headerOrigin)}</b>
@@ -229,7 +229,7 @@ const FlightSegment = ({
             <div className="text-end w-100 w-md-25">
               <div className="fw-semibold text-dark text-xl">{safeDate(lastSegment?.arrivalAt)}</div>
               <div className="text-muted small">
-                Arrival Time: <b>{safeTime(lastSegment?.arrivalAt)}</b>
+                Arrival Time: <b>{lastSegment?.arrivalTimeAt}</b>
               </div>
               <div className="text-muted small">
                 To: <b>{getAirportName(lastSegment?.arrival || headerDest)}</b>
