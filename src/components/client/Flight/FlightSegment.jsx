@@ -298,7 +298,7 @@ const FlightSegment = ({
               {/* Departure */}
               <div className="text-center">
                 <div className="text-md font-semibold text-gray-800">
-                  {safeDate(segment.departureAt)} {safeTime(segment.departureAt)}
+                  {safeDate(segment.departureAt)} {segment.departureTimeAt}
                 </div>
                 <div className="text-xs text-gray-500">{getAirportName(segment.departure || "")}</div>
               </div>
@@ -315,7 +315,7 @@ const FlightSegment = ({
               {/* Arrival */}
               <div className="text-center">
                 <div className="text-md font-semibold text-gray-800">
-                  {safeDate(segment.arrivalAt)} {safeTime(segment.arrivalAt)}
+                  {safeDate(segment.arrivalAt)} {segment.arrivalTimeAt}
                 </div>
                 <div className="text-xs text-gray-500">{getAirportName(segment.arrival || "")}</div>
               </div>
