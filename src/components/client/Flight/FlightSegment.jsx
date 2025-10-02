@@ -140,7 +140,7 @@ const FlightSegment = ({
   const toggleDetails = (index) => setOpenIndex((v) => (v === index ? null : index));
 
   /* ---------------- Normalization & anchors ---------------- */
-  const allSegs = useMemo(() => normalizeSegments(flight), [flight]);
+  const allSegs = useMemo(() => normalizeSegments(flight.segments), [flight]); // all segments
   const guess = useMemo(() => guessFirstChain(allSegs), [allSegs]);
 
   // Outbound anchors
