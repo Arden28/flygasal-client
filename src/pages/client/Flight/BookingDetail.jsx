@@ -454,22 +454,22 @@ const BookingDetail = () => {
         // Read journeys array from URL
         const journeysFromUrl = [];
         let idx = 0;
-        journeysFromUrl.push({
-          airline: sp.get(`flights[0][airline]`),
-          flightNum: sp.get(`flights[0][flightNum]`),
-          arrival: sp.get(`flights[0][arrival]`),
-          arrivalDate: sp.get(`flights[0][arrivalDate]`),
-          arrivalTime: sp.get(`flights[0][arrivalTime]`),
-          departure: sp.get(`flights[0][departure]`),
-          departureDate: sp.get(`flights[0][departureDate]`),
-          departureTime: sp.get(`flights[0][departureTime]`),
-          bookingCode: sp.get(`flights[0][bookingCode]`),
-          destination: sp.get(`flights[0][arrival]`),
-          origin: sp.get(`flights[0][departure]`),
-        });
-        // while (sp.has(`flights[0][origin]`)) {
-        //   idx++;
-        // }
+        while (sp.has(`flights[${idx}][origin]`)) {
+          journeysFromUrl.push({
+            airline: sp.get(`flights[${idx}][airline]`),
+            flightNum: sp.get(`flights[${idx}][flightNum]`),
+            arrival: sp.get(`flights[${idx}][arrival]`),
+            arrivalDate: sp.get(`flights[${idx}][arrivalDate]`),
+            arrivalTime: sp.get(`flights[${idx}][arrivalTime]`),
+            departure: sp.get(`flights[${idx}][departure]`),
+            departureDate: sp.get(`flights[${idx}][departureDate]`),
+            departureTime: sp.get(`flights[${idx}][departureTime]`),
+            bookingCode: sp.get(`flights[${idx}][bookingCode]`),
+            destination: sp.get(`flights[${idx}][arrival]`),
+            origin: sp.get(`flights[${idx}][departure]`),
+          });
+          idx++;
+        }
 
         // Derive origin/destination from first journey
         const derivedOrigin = journeysFromUrl[0]?.origin || sp.get("origin") || "";

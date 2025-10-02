@@ -302,6 +302,14 @@ const ItineraryList = ({
                           <span className="text-[10px] text-slate-500">{code}</span>
                         </div>
                       ))}
+                      {/* Test */}
+                      {itinerary.segments.map((segment, index) => (
+                        <div key={index}>
+                          <p>{segment.airline} {segment.flightNum}</p>
+                          <p>{segment.departure} → {segment.arrival}</p>
+                          <p>{segment.departureDate} {segment.departureTime}</p>
+                        </div>
+                      ))}
                     </div>
 
                     <FlightSegment
