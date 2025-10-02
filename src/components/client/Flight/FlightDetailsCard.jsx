@@ -196,7 +196,7 @@ export default function FlightDetailsCard({
         {/* Optional layover info */}
         {i < outbound.segments.length - 1 && (
           <div className="ml-6 mt-3 mb-2 text-xs text-slate-500 italic">
-            Layover in {getCityName(seg.arrival)} – {calculateLayover(seg.arrivalTime, outbound.segments[i+1].departureTime)}
+            Layover in {getCityName(seg.arrival)} – 
           </div>
         )}
       </div>
