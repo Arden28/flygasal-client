@@ -239,7 +239,7 @@ const ErrorState = ({ message, onBack, onRetry, onReprice, location }) => {
 };
 
 /* ======================================================
-   Helpers to build legs from a single precise-pricing offer
+   Helpers: build legs by flightId groups (ordered by offer.flightIds)
    ====================================================== */
 function buildLegFromSegments(offer, segs) {
   if (!segs?.length) return null;
@@ -262,39 +262,46 @@ function buildLegFromSegments(offer, segs) {
       to: last?.arrivalTerminal ?? null,
     },
     segments: segs,
-    // propagate common fields for UI convenience
-    priceBreakdown: offer?.priceBreakdown ?? null,
+    priceBreakdown: offer?.priceBreakdown ?? null, // single total still lives on the offer
     marketingCarriers: offer?.marketingCarriers ?? [],
     operatingCarriers: offer?.operatingCarriers ?? [],
     lastTktTime: offer?.lastTktTime ? new Date(offer.lastTktTime) : null,
   };
 }
 
-/**
- * Split a single-offer itinerary into legs based on tripType.
- * For "return": outbound is from offer.origin to offer.destination (inclusive),
- *               return is the remaining segments (if any).
- * For "oneway": single leg using all segments.
- */
-function splitOfferIntoLegs(offer, tripType = "oneway") {
+function groupOfferByFlights(offer) {
   const segs = offer?.segments || [];
-  if (!segs.length) return { outbound: null, returnFlight: null };
+  if (!segs.length) return [];
 
-  if (tripType !== "return") {
-    return { outbound: buildLegFromSegments(offer, segs), returnFlight: null };
-  }
+  // If we have flightIds, preserve their order. Otherwise, single leg of all segs.
+  const fids = Array.isArray(offer?.flightIds) && offer.flightIds.length ? offer.flightIds : [null];
 
-  // Find the first index that reaches the final destination (end of outbound)
-  const finalDest = offer?.destination;
-  let splitIdx = segs.findIndex((s) => s?.arrival === finalDest);
-  if (splitIdx === -1) splitIdx = segs.length - 1;
+  // Build mapping flightId -> segments (preserve sequence in offer.segments)
+  const buckets = new Map(fids.map((fid) => [fid, []]));
+  segs.forEach((s) => {
+    const fid = s?.flightId ?? null;
+    if (!buckets.has(fid)) buckets.set(fid, []);
+    buckets.get(fid).push(s);
+  });
 
-  const outSegs = segs.slice(0, splitIdx + 1);
-  const retSegs = segs.slice(splitIdx + 1);
+  // Produce legs in flightIds order (fallback: any remaining buckets in insertion order)
+  const legs = [];
+  const seen = new Set();
+  fids.forEach((fid) => {
+    const segList = buckets.get(fid) || [];
+    if (segList.length) {
+      legs.push(buildLegFromSegments(offer, segList));
+      seen.add(fid);
+    }
+  });
+  // Include any buckets not in fids (robustness)
+  buckets.forEach((segList, fid) => {
+    if (!seen.has(fid) && segList.length) {
+      legs.push(buildLegFromSegments(offer, segList));
+    }
+  });
 
-  const outbound = buildLegFromSegments(offer, outSegs);
-  const returnFlight = retSegs.length ? buildLegFromSegments(offer, retSegs) : null;
-  return { outbound, returnFlight };
+  return legs.filter(Boolean);
 }
 
 /* ======================================================
@@ -324,6 +331,7 @@ const BookingDetail = () => {
   const [isFormValid, setIsFormValid] = useState(false);
 
   // --- 10-minute hold timer state ---
+  the:
   const [holdUntil, setHoldUntil] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [repriceTrigger, setRepriceTrigger] = useState(0);
@@ -489,8 +497,7 @@ const BookingDetail = () => {
       try {
         const sp = new URLSearchParams(location.search);
 
-        // Build request criteria from URL (only for the API call)
-        // After we get the response, we rely on the offer itself.
+        // Build request criteria from URL for the API call (source of truth becomes the offer)
         const journeysFromUrl = [];
         let idx = 0;
         while (sp.has(`flights[${idx}][origin]`)) {
@@ -538,14 +545,12 @@ const BookingDetail = () => {
         const priceResp = await flygasal.precisePricing(params);
         console.info("Pricing Resp: ", priceResp);
 
-        // Your endpoint now returns: { offer: MapPrecisePricing::normalize(...) }
-        // Our helper gracefully returns [offer] if pkData.offer exists.
-        const offers = flygasal.transformPreciseData(priceResp.data) || [];
-        const offer = offers[0];
+        // transformPreciseData returns [offer] when response contains `offer`
+        const resp = flygasal.transformPreciseData(priceResp.data) || [];
+        const offer = resp.offer;
 
-        // Friendly checks
-        if (!offer) {
-          const msg = priceResp?.data?.errorMsg || "We couldn’t confirm pricing for this itinerary.";
+        if (resp.errorCode !== "0" || resp.errorMsg !== "ok") {
+          const msg = resp.errorMsg || "We couldn’t confirm pricing for this itinerary.";
           setError(msg);
           return;
         }
@@ -557,21 +562,22 @@ const BookingDetail = () => {
           setInfants(Number(offer.passengers.infants ?? infantsQ));
         }
 
-        // Split into legs based on tripType, *using offer.segments only*
-        const { outbound, returnFlight } = splitOfferIntoLegs(offer, tripType);
-
-        if (!outbound) {
-          setError(
-            "We couldn’t confirm your selected flight. It may have changed or sold out. Choose another flight or tap Reprice to refresh availability."
-          );
+        // Group into legs by flightId (ordered by offer.flightIds)
+        const legs = groupOfferByFlights(offer);
+        if (!legs.length) {
+          setError("We couldn’t confirm your selected flight. Please try again.");
           return;
         }
+
+        // Derive outbound/return by leg index (future-safe for multi-city)
+        const outbound = legs[0] || null;
+        const returnFlight = tripType === "return" ? (legs[1] || null) : null;
 
         // Compute totals from single-offer price breakdown
         const currencyFromOffer = offer?.priceBreakdown?.currency || params.currency || "USD";
         const totalPrice = Number(offer?.priceBreakdown?.grandTotal || 0);
 
-        // Build tripDetails from the offer (stop relying on URL)
+        // Build tripDetails from the offer (stop relying on URL past this point)
         setTripDetails({
           tripType,
           origin: offer.origin,
@@ -581,15 +587,15 @@ const BookingDetail = () => {
           fareSourceCode: offer?.solutionId || null,
           solutionId: offer?.solutionId || null,
 
-          // Passenger counts
           adults: offer?.passengers?.adults ?? adultsQ,
           children: offer?.passengers?.children ?? childrenQ,
           infants: offer?.passengers?.infants ?? infantsQ,
 
           currency: currencyFromOffer,
           outbound,
-          return: returnFlight || null,
+          return: returnFlight,
           totalPrice,
+          legs, // keep all legs for future multi-city UI
           cancellation_policy:
             "Non-refundable after 24 hours. Cancellations within 24 hours of booking are refundable with a $50 fee.",
         });
@@ -720,6 +726,7 @@ const BookingDetail = () => {
 
       const priceBreakdown = (totalPrice) => {
         const base = Number(totalPrice) || 0;
+        the:
         const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
         const total = +(base + markup).toFixed(2);
         return { base, markup, total };
