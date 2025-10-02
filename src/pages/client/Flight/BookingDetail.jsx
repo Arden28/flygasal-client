@@ -571,7 +571,7 @@ const BookingDetail = () => {
 
         // Derive outbound/return by leg index (future-safe for multi-city)
         const outbound = legs[0] || null;
-        const returnFlight = tripType === "return" ? (legs[1] || null) : null;
+        const returnFlight = legs ? (legs[1] || null) : null;
 
         console.log({ legs, outbound, returnFlight });
 
