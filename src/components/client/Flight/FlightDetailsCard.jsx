@@ -2,6 +2,8 @@ import { motion } from "framer-motion";
 // If you're using lucide or another icon set, you can swap the inline SVGs.
 
 export default function FlightDetailsCard({
+  flight,
+  tripDetails,
   outbound,
   returnFlight,
   tripType,
@@ -54,7 +56,7 @@ export default function FlightDetailsCard({
             {/* Date + Stops + Duration */}
             <div className="text-xs text-slate-600 mt-0.5">
                 {formatDate(outbound.departureTime)} •{" "}
-                {outbound.stops > 0
+                {outbound.segments.length > 1
                     ? (outbound.stopoverAirportCodes?.join(", ") ||
                     `${outbound.origin} ${outbound.destination}`)
                     : "Nonstop"}{" "}
@@ -76,7 +78,7 @@ export default function FlightDetailsCard({
         <span className="ml-2 text-slate-600">{formatDate(returnFlight.departureTime)}</span>
       </div>
       <div className="text-xs text-slate-600">
-        {returnFlight.stops > 0
+        {returnFlight.segments.length > 1
           ? (returnFlight.stopoverAirportCodes?.join(" ") ||
              `${returnFlight.origin} ${returnFlight.destination}`)
           : "Nonstop"}{" "}

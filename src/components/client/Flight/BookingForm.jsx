@@ -8,6 +8,8 @@ import PaymentSelectionCard from './PaymentSelectionCard';
 import PriceBreakdownCard from './PriceBreakdownCard';
 
 const BookingForm = ({
+  flight,
+  tripDetails,
   searchParams,
   formData,
   setFormData,
@@ -132,6 +134,9 @@ const BookingForm = ({
     <div className="justify-center px-2 sm:px-4">
       {/* Flight Detail */}
       <FlightDetailsCard
+        flight={flight}
+        tripDetails={tripDetails}
+        // shareNative={shareNative}
         outbound={outbound}
         returnFlight={returnFlight}
         tripType={tripType}

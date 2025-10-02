@@ -314,6 +314,7 @@ const BookingDetail = () => {
   const navigate = useNavigate();
 
   const [tripDetails, setTripDetails] = useState(null);
+  const [flight, setFlight] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -540,7 +541,7 @@ const BookingDetail = () => {
           currency: sp.get("currency") || "USD",
         };
 
-        console.info("Pricing with params", params);
+        // console.info("Pricing with params", params);
         const priceResp = await flygasal.precisePricing(params);
         console.info("Pricing Resp: ", priceResp);
         
@@ -553,6 +554,11 @@ const BookingDetail = () => {
         // transformPreciseData returns [offer] when response contains `offer`
         const offers = flygasal.transformPreciseData(priceResp.offer) || [];
         const offer = offers[0];
+        setFlight(offer || null);
+        if (!offer) {
+          setError("We couldn’t confirm your selected flight. Please try again.");
+          return;
+        }
 
 
         // Prefer passenger counts from the offer
@@ -571,9 +577,9 @@ const BookingDetail = () => {
 
         // Derive outbound/return by leg index (future-safe for multi-city)
         const outbound = legs[0] || null;
-        const returnFlight = legs ? (legs[1] || null) : null;
+        const returnFlight = tripType === "return" ? (legs[1] || null) : null;
 
-        console.log({ legs, outbound, returnFlight });
+        // console.log({ legs, outbound, returnFlight });
 
         // Compute totals from single-offer price breakdown
         const currencyFromOffer = offer?.priceBreakdown?.currency || params.currency || "USD";
@@ -825,6 +831,8 @@ const BookingDetail = () => {
       <div className="container px-0 lg:px-0 py-3" style={{ maxWidth: "785px" }}>
         <form onSubmit={handleSubmit}>
           <BookingForm
+            flight={flight}
+            tripDetails={tripDetails}
             searchParams={new URLSearchParams(location.search)}
             formData={formData}
             setFormData={setFormData}
