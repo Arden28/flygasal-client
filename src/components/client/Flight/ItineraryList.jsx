@@ -180,26 +180,48 @@ const ItineraryList = ({
       solutionKey: out.solutionKey || "",
       solutionId: out.solutionId || "",
       tripType: itinerary.return ? "return" : "oneway",
-      "flights[0][origin]": itinerary.outbound.origin,
-      "flights[0][destination]": itinerary.outbound.destination,
-      "flights[0][depart]": formatToYMD(itinerary.outbound.departureTime),
-      "flights[0][airline]": firstAirline,
-      "flights[0][flightNum]": itinerary.outbound.flightNumber,
-      "flights[0][arrival]": itinerary.outbound.destination,
-      "flights[0][arrivalDate]": formatToYMD(itinerary.outbound.arrivalTime),
-      "flights[0][arrivalTime]": formatTimeOnly(itinerary.outbound.arrivalTime),
-      "flights[0][departure]": itinerary.outbound.origin,
-      "flights[0][departureDate]": formatToYMD(itinerary.outbound.departureTime),
-      "flights[0][departureTime]": formatTimeOnly(itinerary.outbound.departureTime),
-      "flights[0][bookingCode]": itinerary.outbound.bookingCode || "",
-      returnDate: itinerary.return ? formatToYMD(itinerary.return.departureTime) : "",
+      returnDate: itinerary.return ? formatToYMD(itinerary.return.segments[0]?.departureTime) : "",
       adults: `${searchParams?.adults || 1}`,
       children: `${searchParams?.children || 0}`,
       infants: `${searchParams?.infants || 0}`,
       cabin: itinerary.outbound.cabin || "Economy",
       flightId: itinerary.outbound.id,
       returnFlightId: itinerary.return ? itinerary.return.id : "",
+      flightNumber: itinerary.outbound.flightNumber || "",
     });
+
+    // Outbound segments
+    itinerary.outbound.segments.forEach((seg, i) => {
+      params.set(`flights[${i}][origin]`, seg.departure);
+      params.set(`flights[${i}][destination]`, seg.arrival);
+      params.set(`flights[${i}][airline]`, seg.airline);
+      params.set(`flights[${i}][flightNum]`, seg.flightNum);
+      params.set(`flights[${i}][arrival]`, seg.arrival);
+      params.set(`flights[${i}][arrivalDate]`, seg.strArrivalDate);
+      params.set(`flights[${i}][arrivalTime]`, seg.strArrivalTime);
+      params.set(`flights[${i}][departure]`, seg.departure);
+      params.set(`flights[${i}][departureDate]`, seg.strDepartureDate);
+      params.set(`flights[${i}][departureTime]`, seg.strDepartureTime);
+      params.set(`flights[${i}][bookingCode]`, seg.bookingCode || "");
+    });
+
+    // Return segments (if present)
+    if (itinerary.return?.segments?.length) {
+      itinerary.return.segments.forEach((seg, j) => {
+        const i = itinerary.outbound.segments.length + j; // continue index after outbound
+        params.set(`flights[${i}][origin]`, seg.departure);
+        params.set(`flights[${i}][destination]`, seg.arrival);
+        params.set(`flights[${i}][airline]`, seg.airline);
+        params.set(`flights[${i}][flightNum]`, seg.flightNum);
+        params.set(`flights[${i}][arrival]`, seg.arrival);
+        params.set(`flights[${i}][arrivalDate]`, seg.strArrivalDate);
+        params.set(`flights[${i}][arrivalTime]`, seg.strArrivalTime);
+        params.set(`flights[${i}][departure]`, seg.departure);
+        params.set(`flights[${i}][departureDate]`, seg.strDepartureDate);
+        params.set(`flights[${i}][departureTime]`, seg.strDepartureTime);
+      });
+    }
+
 
     const base = Number(itinerary.totalPrice) || 0;
     const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
