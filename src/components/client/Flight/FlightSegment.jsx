@@ -145,8 +145,8 @@ const FlightSegment = ({
 
   // Outbound anchors
   const OUT_O =
-    expectedOutboundOrigin || guess?.origin || allSegs[0]?.departure || flight?.origin || "";
-  const OUT_D = expectedOutboundDestination || guess?.destination || flight?.destination || "";
+    flight?.origin || "";
+  const OUT_D = flight?.destination || "";
 
   // Outbound chain
   const outboundSegs = useMemo(() => {
@@ -203,7 +203,7 @@ const FlightSegment = ({
             <div className="text-start w-100 w-md-25">
               <div className="fw-semibold text-dark text-xl">{safeDate(firstSegment?.departureAt)}</div>
               <div className="text-muted small">
-                Departure Time: <b>{safeTime(firstSegment?.departureAt)}</b>
+                Departure Time: <b>{safeTime(firstSegment?.departureDate)}</b>
               </div>
               <div className="text-muted small">
                 From: <b>{getAirportName(firstSegment?.departure || headerOrigin)}</b>
