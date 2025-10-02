@@ -63,6 +63,17 @@ const toYMD = (dt) => {
 const money = (n = 0, currency = "USD") =>
   (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
 
+/** Strong, stable identifier to recover flights even when IDs shift between search & pricing */
+const keyOf = (f) =>
+  [
+    f?.airline || "",
+    f?.flightNumber || "",
+    new Date(f?.departureTime || 0).toISOString(),
+    new Date(f?.arrivalTime || 0).toISOString(),
+    f?.origin || "",
+    f?.destination || "",
+  ].join("|");
+
 /** Build a "back to search" URL that keeps user inputs but strips selection-only params */
 const buildAvailabilitySearch = (search) => {
   const keep = new URLSearchParams(search);
@@ -239,65 +250,6 @@ const ErrorState = ({ message, onBack, onRetry, onReprice, location }) => {
 };
 
 /* ======================================================
-   Helpers to build legs from a single precise-pricing offer
-   ====================================================== */
-function buildLegFromSegments(offer, segs) {
-  if (!segs?.length) return null;
-  const first = segs[0];
-  const last = segs[segs.length - 1];
-  return {
-    id: first?.segmentId || offer?.id || null,
-    airline: first?.airline || null,
-    flightNumber: `${first?.airline ?? ""}${first?.flightNum ?? ""}`,
-    origin: first?.departure ?? offer?.origin ?? null,
-    destination: last?.arrival ?? offer?.destination ?? null,
-    departureTime: first?.departureDate ? new Date(first.departureDate) : offer?.departureTime,
-    arrivalTime: last?.arrivalDate ? new Date(last.arrivalDate) : offer?.arrivalTime,
-    cabin: first?.cabinClass ?? offer?.cabin ?? null,
-    bookingCode: first?.bookingCode ?? offer?.bookingCode ?? null,
-    availabilityCount: first?.availabilityCount ?? 0,
-    equipment: first?.equipment ?? null,
-    terminals: {
-      from: first?.departureTerminal ?? null,
-      to: last?.arrivalTerminal ?? null,
-    },
-    segments: segs,
-    // propagate common fields for UI convenience
-    priceBreakdown: offer?.priceBreakdown ?? null,
-    marketingCarriers: offer?.marketingCarriers ?? [],
-    operatingCarriers: offer?.operatingCarriers ?? [],
-    lastTktTime: offer?.lastTktTime ? new Date(offer.lastTktTime) : null,
-  };
-}
-
-/**
- * Split a single-offer itinerary into legs based on tripType.
- * For "return": outbound is from offer.origin to offer.destination (inclusive),
- *               return is the remaining segments (if any).
- * For "oneway": single leg using all segments.
- */
-function splitOfferIntoLegs(offer, tripType = "oneway") {
-  const segs = offer?.segments || [];
-  if (!segs.length) return { outbound: null, returnFlight: null };
-
-  if (tripType !== "return") {
-    return { outbound: buildLegFromSegments(offer, segs), returnFlight: null };
-  }
-
-  // Find the first index that reaches the final destination (end of outbound)
-  const finalDest = offer?.destination;
-  let splitIdx = segs.findIndex((s) => s?.arrival === finalDest);
-  if (splitIdx === -1) splitIdx = segs.length - 1;
-
-  const outSegs = segs.slice(0, splitIdx + 1);
-  const retSegs = segs.slice(splitIdx + 1);
-
-  const outbound = buildLegFromSegments(offer, outSegs);
-  const returnFlight = retSegs.length ? buildLegFromSegments(offer, retSegs) : null;
-  return { outbound, returnFlight };
-}
-
-/* ======================================================
    Booking Detail
    ====================================================== */
 const BookingDetail = () => {
@@ -307,6 +259,7 @@ const BookingDetail = () => {
   const navigate = useNavigate();
 
   const [tripDetails, setTripDetails] = useState(null);
+  const [availableFlights, setAvailableFlights] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -359,7 +312,7 @@ const BookingDetail = () => {
     setIsAgent(user?.role === "agent");
   }, [user]);
 
-  /* ---------- parse counts & seed travelers (initial only from URL) ---------- */
+  /* ---------- parse counts & seed travelers ---------- */
   useEffect(() => {
     const sp = new URLSearchParams(location.search);
     const adultsCount = parseInt(sp.get("adults")) || 2;
@@ -480,8 +433,17 @@ const BookingDetail = () => {
     if (i > 0) parts.push(`${i} Infant${i > 1 ? "s" : ""}`);
     return parts.join(", ");
   };
+  
+  
+  const pax = useMemo(() => {
+    const a = Number(adults || 1);
+    const c = Number(children || 0);
+    // const i = Number(infants || 0);
+    const parts = a + c;
+    return parts;
+  }, [adults, children]);
 
-  /* ---------- fetch precise pricing (single offer) ---------- */
+  /* ---------- fetch precise pricing & match flights (bugfix) ---------- */
   useEffect(() => {
     const run = async () => {
       setLoading(true);
@@ -489,8 +451,7 @@ const BookingDetail = () => {
       try {
         const sp = new URLSearchParams(location.search);
 
-        // Build request criteria from URL (only for the API call)
-        // After we get the response, we rely on the offer itself.
+        // Read journeys array from URL
         const journeysFromUrl = [];
         let idx = 0;
         while (sp.has(`flights[${idx}][origin]`)) {
@@ -510,13 +471,23 @@ const BookingDetail = () => {
           idx++;
         }
 
+        // Derive origin/destination from first journey
+        const derivedOrigin = journeysFromUrl[0]?.origin || sp.get("origin") || "";
+        const derivedDestination = journeysFromUrl[0]?.destination || sp.get("destination") || "";
+
         const tripType = sp.get("tripType") || "oneway";
         const cabinType = sp.get("flightType") || sp.get("cabin") || "Economy";
         const adultsQ = parseInt(sp.get("adults")) || 1;
         const childrenQ = parseInt(sp.get("children")) || 0;
         const infantsQ = parseInt(sp.get("infants")) || 0;
-        const departureDateQ = sp.get("depart") || journeysFromUrl[0]?.departureDate || null;
-        const returnDateQ = sp.get("returnDate") || null;
+        const departureDate = sp.get("depart") || journeysFromUrl[0]?.departureDate || null;
+        const returnDate = sp.get("returnDate") || null;
+
+        const solutionId = sp.get("solutionId") || null;
+        const solutionKey = sp.get("solutionKey") || null;
+        const flightId = sp.get("flightId") || null;
+        const returnFlightId = sp.get("returnFlightId") || null;
+        const currency = sp.get("currency") || "USD";
 
         const params = {
           journeys: journeysFromUrl,
@@ -525,70 +496,113 @@ const BookingDetail = () => {
           adults: adultsQ,
           children: childrenQ,
           infants: infantsQ,
-          departureDate: departureDateQ,
-          returnDate: returnDateQ,
-          solutionId: sp.get("solutionId") || null,
-          solutionKey: sp.get("solutionKey") || null,
-          origin: sp.get("origin") || journeysFromUrl[0]?.origin || "",
-          destination: sp.get("destination") || journeysFromUrl[0]?.destination || "",
-          currency: sp.get("currency") || "USD",
+          departureDate,
+          returnDate,
+          solutionId,
+          solutionKey,
+          origin: derivedOrigin,
+          destination: derivedDestination,
+          currency,
         };
 
+        // 1) Price outbound
         console.info("Pricing with params", params);
         const priceResp = await flygasal.precisePricing(params);
         console.info("Pricing Resp: ", priceResp);
+        const outboundFlights = flygasal.transformPreciseData(priceResp.data) || [];
 
-        // Your endpoint now returns: { offer: MapPrecisePricing::normalize(...) }
-        // Our helper gracefully returns [offer] if pkData.offer exists.
-        const offers = flygasal.transformPreciseData(priceResp.data) || [];
-        const offer = offers[0];
+        // 2) Return pricing if needed
+        let returnFlights = [];
+        if (tripType === "return" && returnDate) {
+          const returnParams = {
+            ...params,
+            journeys: [
+              {
+                airline: journeysFromUrl[0]?.airline,
+                flightNum: journeysFromUrl[0]?.flightNum,
+                origin: params.destination,
+                destination: params.origin,
+                departureDate: returnDate,
+                departureTime: "",
+                arrivalDate: "",
+                arrivalTime: "",
+                bookingCode: journeysFromUrl[0]?.bookingCode,
+              },
+            ],
+            departureDate: returnDate,
+          };
+          const retResp = await flygasal.precisePricing(returnParams);
+          returnFlights = flygasal.transformPreciseData(retResp.data) || [];
+        }
 
-        // Friendly checks
-        if (!offer) {
-          const msg = priceResp?.data?.errorMsg || "We couldn’t confirm pricing for this itinerary.";
-          setError(msg);
+        const allFlights = [...outboundFlights, ...returnFlights];
+        setAvailableFlights(allFlights);
+
+        // Indices for matching
+        const byId = new Map(allFlights.filter((f) => f?.id).map((f) => [String(f.id), f]));
+        const byKey = new Map(allFlights.map((f) => [keyOf(f), f]));
+
+        // Selected flights
+        const selectedOutbound =
+          (flightId && byId.get(String(flightId))) ||
+          byKey.get(
+            keyOf({
+              airline: journeysFromUrl[0]?.airline,
+              flightNumber: journeysFromUrl[0]?.flightNum,
+              departureTime: `${journeysFromUrl[0]?.departureDate}T${journeysFromUrl[0]?.departureTime || "00:00"}`,
+              arrivalTime: `${journeysFromUrl[0]?.arrivalDate}T${journeysFromUrl[0]?.arrivalTime || "00:00"}`,
+              origin: derivedOrigin,
+              destination: derivedDestination,
+            })
+          ) ||
+          outboundFlights[0];
+
+        let selectedReturn = null;
+        if (tripType === "return" && returnDate) {
+          selectedReturn =
+            (returnFlightId && byId.get(String(returnFlightId))) ||
+            returnFlights.find(
+              (f) =>
+                f.origin === derivedDestination &&
+                f.destination === derivedOrigin &&
+                toYMD(f.departureTime) === toYMD(returnDate)
+            ) ||
+            returnFlights[0] ||
+            null;
+        }
+
+        // Friendly user-facing errors (no internal IDs shown)
+        if (!selectedOutbound) {
+          setError(
+            "We couldn’t confirm your selected outbound flight. It may have changed or sold out. Choose another flight or tap Reprice to refresh availability."
+          );
           return;
         }
-
-        // Prefer passenger counts from the offer
-        if (offer.passengers) {
-          setAdults(Number(offer.passengers.adults ?? adultsQ));
-          setChildren(Number(offer.passengers.children ?? childrenQ));
-          setInfants(Number(offer.passengers.infants ?? infantsQ));
-        }
-
-        // Split into legs based on tripType, *using offer.segments only*
-        const { outbound, returnFlight } = splitOfferIntoLegs(offer, tripType);
-
-        if (!outbound) {
+        if (tripType === "return" && !selectedReturn) {
           setError(
-            "We couldn’t confirm your selected flight. It may have changed or sold out. Choose another flight or tap Reprice to refresh availability."
+            "We couldn’t confirm your selected return flight. It may have changed or sold out. Choose another flight or tap Reprice to refresh availability."
           );
           return;
         }
 
-        // Compute totals from single-offer price breakdown
-        const currencyFromOffer = offer?.priceBreakdown?.currency || params.currency || "USD";
-        const totalPrice = Number(offer?.priceBreakdown?.grandTotal || 0);
 
-        // Build tripDetails from the offer (stop relying on URL)
+        const totalPrice =
+          (Number(selectedOutbound?.price || 0) + Number(selectedReturn?.price || 0)) * pax;
+
         setTripDetails({
           tripType,
-          origin: offer.origin,
-          destination: offer.destination,
-          departDate: outbound?.departureTime ? toYMD(outbound.departureTime) : null,
-          returnDate: returnFlight?.departureTime ? toYMD(returnFlight.departureTime) : null,
-          fareSourceCode: offer?.solutionId || null,
-          solutionId: offer?.solutionId || null,
-
-          // Passenger counts
-          adults: offer?.passengers?.adults ?? adultsQ,
-          children: offer?.passengers?.children ?? childrenQ,
-          infants: offer?.passengers?.infants ?? infantsQ,
-
-          currency: currencyFromOffer,
-          outbound,
-          return: returnFlight || null,
+          origin: params.origin,
+          destination: params.destination,
+          departDate: params.departureDate,
+          returnDate: params.returnDate,
+          fareSourceCode: params.flightId,
+          solutionId: params.solutionId,
+          adults: adultsQ,
+          children: childrenQ,
+          infants: infantsQ,
+          currency,
+          outbound: selectedOutbound,
+          return: selectedReturn,
           totalPrice,
           cancellation_policy:
             "Non-refundable after 24 hours. Cancellations within 24 hours of booking are refundable with a $50 fee.",
@@ -888,14 +902,11 @@ const BookingDetail = () => {
                       arrival_code: outbound.destination,
                       departure_time: formatTime(outbound.departureTime),
                       arrival_time: formatTime(outbound.arrivalTime),
-                      flight_no: `${outbound?.segments?.[0]?.airline ?? outbound?.airline ?? ""}${
-                        outbound?.segments?.[0]?.flightNum ?? outbound?.flightNumber ?? ""
-                      }`,
+                      flight_no: outbound.flightNumber,
                       class: outbound.cabin || "Economy",
                       img: getAirlineLogo(outbound.airline),
-                      currency: outbound?.priceBreakdown?.currency || currency || "USD",
-                      // Only one grandTotal overall; put it on outbound and 0 on return for display
-                      price: outbound?.priceBreakdown?.grandTotal,
+                      currency: "USD",
+                      price: outbound.price,
                     },
                   ],
                   tripType === "return" && returnFlight
@@ -906,13 +917,11 @@ const BookingDetail = () => {
                           arrival_code: returnFlight.destination,
                           departure_time: formatTime(returnFlight.departureTime),
                           arrival_time: formatTime(returnFlight.arrivalTime),
-                          flight_no: `${returnFlight?.segments?.[0]?.airline ?? returnFlight?.airline ?? ""}${
-                            returnFlight?.segments?.[0]?.flightNum ?? returnFlight?.flightNumber ?? ""
-                          }`,
+                          flight_no: returnFlight.flightNumber,
                           class: returnFlight.cabin || "Economy",
                           img: getAirlineLogo(returnFlight.airline),
-                          currency: returnFlight?.priceBreakdown?.currency || currency || "USD",
-                          price: 0, // single grandTotal already captured on outbound
+                          currency: "USD",
+                          price: returnFlight.price,
                         },
                       ]
                     : [],
