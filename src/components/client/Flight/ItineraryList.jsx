@@ -255,12 +255,14 @@ const ItineraryList = ({
 
       <motion.ul layout className="mt-2 space-y-3">
         <AnimatePresence mode="sync" initial={false}>
-          {paginatedItineraries.map((itinerary) => {
+          {paginatedItineraries.map((itinerary) => {$
             const key = computeItinKey(itinerary);
             const { base, markup, total, perBase, perMarkup, perTotal } = priceBreakdown(itinerary);
             const direct = itinerary.totalStops === 0;
             const airlines = itinerary.airlines || [];
             const isRoundTrip = !!itinerary.return;
+            
+            console.info("Itinerary:", itinerary);
 
             const durText = isRoundTrip
               ? `${calculateDuration(itinerary.outbound.departureTime, itinerary.return?.arrivalTime)}`
@@ -303,7 +305,6 @@ const ItineraryList = ({
                         </div>
                       ))}
 
-                      {itinerary}
                     </div>
 
                     <FlightSegment
