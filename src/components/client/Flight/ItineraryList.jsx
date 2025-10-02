@@ -219,6 +219,7 @@ const ItineraryList = ({
         params.set(`flights[${i}][departure]`, seg.departure);
         params.set(`flights[${i}][departureDate]`, seg.strDepartureDate);
         params.set(`flights[${i}][departureTime]`, seg.strDepartureTime);
+        params.set(`flights[${i}][bookingCode]`, seg.bookingCode || "");
       });
     }
 
