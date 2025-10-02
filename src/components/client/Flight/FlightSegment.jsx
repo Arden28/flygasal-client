@@ -33,8 +33,10 @@ const normalizeSegments = (flightLike) => {
       flightNo: s.flightNum ?? s.flightNumber ?? "",
       departure: s.departure ?? s.origin ?? s.departureAirport ?? "",
       arrival: s.arrival ?? s.destination ?? s.arrivalAirport ?? "",
-      departureAt: s.departureDate ?? s.departureTime ?? s.depTime ?? "",
-      arrivalAt: s.arrivalDate ?? s.arrivalTime ?? s.arrTime ?? "",
+      departureAt: s.strDepartureDate ?? "",
+      departureTimeAt: s.strDepartureTime ?? s.depTime ?? "",
+      arrivalAt: s.strArrivalDate ?? s.arrivalTime ?? s.arrTime ?? "",
+      arrivalTimeAt: s.strArrivalTime ?? s.arrTime ?? "",
       refundable: !!s.refundable,
       bookingCode: s.bookingCode ?? s.bookingClass ?? "",
     }))
