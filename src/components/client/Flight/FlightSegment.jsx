@@ -140,13 +140,13 @@ const FlightSegment = ({
   const toggleDetails = (index) => setOpenIndex((v) => (v === index ? null : index));
 
   /* ---------------- Normalization & anchors ---------------- */
-  const allSegs = useMemo(() => normalizeSegments(flight.segments), [flight]); // all segments
+  const allSegs = useMemo(() => normalizeSegments(flight), [flight]);
   const guess = useMemo(() => guessFirstChain(allSegs), [allSegs]);
 
   // Outbound anchors
   const OUT_O =
-    flight?.origin || "";
-  const OUT_D = flight?.destination || "";
+    expectedOutboundOrigin || guess?.origin || allSegs[0]?.departure || flight?.origin || "";
+  const OUT_D = expectedOutboundDestination || guess?.destination || flight?.destination || "";
 
   // Outbound chain
   const outboundSegs = useMemo(() => {
@@ -203,7 +203,7 @@ const FlightSegment = ({
             <div className="text-start w-100 w-md-25">
               <div className="fw-semibold text-dark text-xl">{safeDate(firstSegment?.departureAt)}</div>
               <div className="text-muted small">
-                Departure Time: <b>{safeTime(firstSegment?.departureDate)}</b>
+                Departure Time: <b>{safeTime(firstSegment?.departureAt)}</b>
               </div>
               <div className="text-muted small">
                 From: <b>{getAirportName(firstSegment?.departure || headerOrigin)}</b>
