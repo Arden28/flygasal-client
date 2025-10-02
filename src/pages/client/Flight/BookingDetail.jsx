@@ -573,6 +573,8 @@ const BookingDetail = () => {
         const outbound = legs[0] || null;
         const returnFlight = tripType === "return" ? (legs[1] || null) : null;
 
+        console.log({ legs, outbound, returnFlight });
+
         // Compute totals from single-offer price breakdown
         const currencyFromOffer = offer?.priceBreakdown?.currency || params.currency || "USD";
         const totalPrice = Number(offer?.priceBreakdown?.grandTotal || 0);
