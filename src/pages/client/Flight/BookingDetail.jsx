@@ -331,7 +331,6 @@ const BookingDetail = () => {
   const [isFormValid, setIsFormValid] = useState(false);
 
   // --- 10-minute hold timer state ---
-  the:
   const [holdUntil, setHoldUntil] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [repriceTrigger, setRepriceTrigger] = useState(0);
@@ -726,7 +725,6 @@ const BookingDetail = () => {
 
       const priceBreakdown = (totalPrice) => {
         const base = Number(totalPrice) || 0;
-        the:
         const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
         const total = +(base + markup).toFixed(2);
         return { base, markup, total };
