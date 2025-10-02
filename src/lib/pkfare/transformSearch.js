@@ -20,6 +20,14 @@ export function transformPKFareData(pkData) {
   const solutions = pkData.solutions || [];
 
   const offers = solutions.map(solution => {
+
+    const passengers = {
+      adults:   Number(solution?.adults ?? 0),
+      children: Number(solution?.children ?? 0),
+      infants:  Number(solution?.infants ?? 0),
+    };
+    passengers.total = passengers.adults + passengers.children + passengers.infants;
+
     // Collect flightIds in journey order
     const journeyKeys = Object.keys(solution.journeys || {});
     const flightIds = journeyKeys.map(k => solution.journeys[k]).flat();
@@ -99,6 +107,8 @@ export function transformPKFareData(pkData) {
       solutionKey: solution.solutionKey,
       solutionId: solution.solutionId,
       shoppingKey: pkData.shoppingKey ?? null,
+      
+      passengers,
 
       platingCarrier: solution.platingCarrier ?? null,
       marketingCarriers,
