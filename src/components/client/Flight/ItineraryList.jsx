@@ -262,7 +262,6 @@ const ItineraryList = ({
             const airlines = itinerary.airlines || [];
             const isRoundTrip = !!itinerary.return;
             
-            console.info("Itinerary:", itinerary);
 
             const durText = isRoundTrip
               ? `${calculateDuration(itinerary.outbound.departureTime, itinerary.return?.arrivalTime)}`
