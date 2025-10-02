@@ -185,6 +185,8 @@ const FlightSegment = ({
   const airlineLogo = typeof getAirlineLogo === "function" ? getAirlineLogo : utilsGetAirlineLogo;
   const airlineName = typeof getAirlineName === "function" ? getAirlineName : utilsGetAirlineName;
 
+  console.info("Flight:", flight);
+
   /* ---------------- Render ---------------- */
   return (
     <div className="mb-4 rounded-3 bg-white">
