@@ -81,7 +81,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
 
   // table state
   const [selected, setSelected] = useState(new Set());
-  const [sortBy, setSortBy] = useState("created_at"); // booking_id | client_name | price | created_at
+  const [sortBy, setSortBy] = useState("created_at"); // booking_id | contact_name | price | created_at
   const [sortDir, setSortDir] = useState("desc"); // asc | desc
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -148,7 +148,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
     const pass = (b) => {
       if (q) {
         const hay =
-          String(b.client_name || "").toLowerCase() +
+          String(b.contact_name || "").toLowerCase() +
           " " +
           String(b.booking_id || b.id || "").toLowerCase() +
           " " +
@@ -193,9 +193,9 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
       const by = sortBy;
       let av, bv;
       switch (by) {
-        case "client_name":
-          av = (a.client_name || "").toString().toLowerCase();
-          bv = (b.client_name || "").toString().toLowerCase();
+        case "contact_name":
+          av = (a.contact_name || "").toString().toLowerCase();
+          bv = (b.contact_name || "").toString().toLowerCase();
           break;
         case "price":
           av = Number(a.total_amount ?? a.amount ?? a.price_total) || 0;
@@ -281,7 +281,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
   const exportCSV = () => {
     const headers = ["Client", "Booking ID", "Order #", "PNR", "Type", "Price", "Currency", "Status", "Date"];
     const rows = filtered.map((b) => [
-      b.client_name ?? "",
+      b.contact_name ?? "",
       b.booking_id ?? b.id ?? "",
       b.order_num ?? "",
       b.pnr ?? "",
@@ -585,7 +585,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
                           onChange={(e) => toggleAll(e.target.checked)}
                         />
                       </th>
-                      <Th label={T.client_name || "Client Name"} sortKey="client_name" sortBy={sortBy} sortDir={sortDir} onSort={setSort} />
+                      <Th label={T.contact_name || "Client Name"} sortKey="contact_name" sortBy={sortBy} sortDir={sortDir} onSort={setSort} />
                       <Th label={T.booking_id || "Booking ID"} sortKey="booking_id" sortBy={sortBy} sortDir={sortDir} onSort={setSort} />
                       <th className="py-3 pr-3">Order #</th>
                       <th className="py-3 pr-3">PNR</th>
@@ -613,7 +613,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
                               onChange={() => toggleOne(id)}
                             />
                           </td>
-                          <td className="py-3 pr-3 font-medium text-gray-900">{b.client_name || "—"}</td>
+                          <td className="py-3 pr-3 font-medium text-gray-900">{b.contact_name || "—"}</td>
                           <td className="py-3 pr-3">{id || "—"}</td>
                           <td className="py-3 pr-3">{order || "—"}</td>
                           <td className="py-3 pr-3">{b.pnr || "—"}</td>
@@ -669,7 +669,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
                             onChange={() => toggleOne(id)}
                             aria-label={`Select booking ${id}`}
                           />
-                          <div className="font-medium">{b.client_name || "—"}</div>
+                          <div className="font-medium">{b.contact_name || "—"}</div>
                         </div>
                         <StatusChip value={b.status} />
                       </div>
