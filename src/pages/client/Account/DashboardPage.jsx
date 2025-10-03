@@ -190,6 +190,7 @@ const DashboardPage = ({ rootUrl = "/", apiUrl = "/api", apiKey = "mock_api_key"
         const okT = resTx && (resTx?.data?.status === "true" || resTx?.success || Array.isArray(resTx?.data?.data));
         const tData = okT ? (Array.isArray(resTx?.data?.data) ? resTx.data.data : []) : [];
 
+
         if (!cancelled) {
           // Merge summary with fallback
           // setSummary((prev) => ({
@@ -229,6 +230,15 @@ const DashboardPage = ({ rootUrl = "/", apiUrl = "/api", apiKey = "mock_api_key"
               reference: t.reference || t.ref || "—",
             }))
           );
+
+          // setSummary((prev) => ({
+          //   totalBookings: Number(sData?.totalBookings ?? prev.totalBookings),
+          //   pendingInvoices: Number(sData?.pendingInvoices ?? 0),
+          //   issued: Number(sData?.issued ?? 0),
+          //   toBePaid: Number(sData?.toBePaid ?? 0),
+          //   cancelled: Number(sData?.cancelled ?? 0),
+          //   trend: Array.isArray(sData?.trend) && sData.trend.length ? sData.trend : prev.trend.length ? prev.trend : [2, 4, 3, 6, 7, 6, 9],
+          // }));
 
           // console.info("Wallet transactions:", tData);
         }

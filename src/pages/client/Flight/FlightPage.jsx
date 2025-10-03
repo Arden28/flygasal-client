@@ -109,7 +109,7 @@ const FlightPage = () => {
     const checked = offer?.baggage?.adt?.checkedBySegment?.[seg0];
     return Boolean(
       (carry && ((carry.amount ?? 0) > 0 || (carry.weight ?? 0) > 0)) ||
-      (checked && ((checked.amount ?? 0) > 0 || (checked.weight ?? 0) > 0))
+        (checked && ((checked.amount ?? 0) > 0 || (checked.weight ?? 0) > 0))
     );
   };
 
@@ -154,9 +154,8 @@ const FlightPage = () => {
     String(s).trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3);
 
   const normalizeSegsForCarve = (flightLike) => {
-    const raw = Array.isArray(flightLike?.segments) && flightLike.segments.length
-      ? flightLike.segments
-      : [flightLike];
+    const raw =
+      Array.isArray(flightLike?.segments) && flightLike.segments.length ? flightLike.segments : [flightLike];
 
     return raw
       .filter(Boolean)
@@ -175,7 +174,8 @@ const FlightPage = () => {
   };
 
   const findContiguousChain = (segs, ORIGIN, DEST, { prefer = "earliest", notBefore } = {}) => {
-    const O = norm3(ORIGIN), D = norm3(DEST);
+    const O = norm3(ORIGIN),
+      D = norm3(DEST);
     if (!O || !D || !segs?.length) return null;
 
     const chains = [];
@@ -201,9 +201,9 @@ const FlightPage = () => {
     }
     if (!chains.length) return null;
     if (prefer === "latest") {
-      return chains.reduce((best, c) => new Date(c[0].departureAt) > new Date(best[0].departureAt) ? c : best);
+      return chains.reduce((best, c) => (new Date(c[0].departureAt) > new Date(best[0].departureAt) ? c : best));
     }
-    return chains.reduce((best, c) => new Date(c[0].departureAt) < new Date(best[0].departureAt) ? c : best);
+    return chains.reduce((best, c) => (new Date(c[0].departureAt) < new Date(best[0].departureAt) ? c : best));
   };
 
   const carveReturnFromSingleOffer = (offer, { origin, destination }) => {
@@ -219,10 +219,11 @@ const FlightPage = () => {
 
     const wrap = (chain) => {
       if (!chain.length) return null;
-      const first = chain[0], last = chain[chain.length - 1];
+      const first = chain[0],
+        last = chain[chain.length - 1];
       return {
         ...offer,
-        segments: chain.map(s => ({
+        segments: chain.map((s) => ({
           airline: s.airline,
           flightNum: s.flightNo,
           departure: s.departure,
@@ -321,21 +322,20 @@ const FlightPage = () => {
         // ---- Helper: recompute leg fields from a segment array ----
         const buildLegFromSegments = (baseOffer, segs, suffix) => {
           const firstSeg = segs[0];
-          const lastSeg  = segs[segs.length - 1];
+          const lastSeg = segs[segs.length - 1];
 
           // Derive a sensible total if not present
           const originalTotal =
             baseOffer?.priceBreakdown?.total ??
-            ((baseOffer?.priceBreakdown?.base || 0) +
+            (baseOffer?.priceBreakdown?.base || 0) +
               (baseOffer?.priceBreakdown?.taxes || 0) +
               (baseOffer?.priceBreakdown?.qCharge || 0) +
-              (baseOffer?.priceBreakdown?.tktFee || 0));
+              (baseOffer?.priceBreakdown?.tktFee || 0);
 
           // Split the grand total across the two legs so out+ret ~= original total.
           const perLegTotal = Math.round((originalTotal / 2) * 100) / 100;
 
           return {
-            // keep a stable id but ensure uniqueness between legs
             id: `${baseOffer.id}-${suffix}`,
             solutionId: baseOffer.solutionId,
             marketingCarriers: baseOffer.marketingCarriers || [],
@@ -345,7 +345,6 @@ const FlightPage = () => {
             cabin: baseOffer.cabin,
             bookingCode: baseOffer.bookingCode,
 
-            // recomputed leg fields
             origin: firstSeg?.departure || baseOffer.origin,
             destination: lastSeg?.arrival || baseOffer.destination,
             departureTime: firstSeg?.departureDate || baseOffer.departureTime,
@@ -353,22 +352,19 @@ const FlightPage = () => {
             segments: segs.slice(),
             equipment: baseOffer.equipment,
 
-            // stops = connections within this leg (segments - 1), bounded at 0
             stops: Math.max(0, (segs?.length || 1) - 1),
             transferCount: baseOffer.transferCount,
 
-            // price: copy pb & inject a per-leg total
             priceBreakdown: {
               ...baseOffer.priceBreakdown,
               total: perLegTotal,
             },
 
-            // pass through convenience fields when present
             rules: baseOffer.rules,
             availabilityCount: baseOffer.availabilityCount,
             expired: baseOffer.expired,
             flightNumber: baseOffer.flightNumber,
-            journeyTime: baseOffer.journeyTime, // optional; your UI can recompute if you prefer
+            journeyTime: baseOffer.journeyTime,
           };
         };
 
@@ -382,12 +378,9 @@ const FlightPage = () => {
             const segs = Array.isArray(offer?.segments) ? offer.segments : [];
 
             if (fids.length >= 2) {
-              // Outbound = segments belonging to first flightId; Return = second flightId
-              const segsOut = segs.filter(s => s.flightId === fids[0]);
-              const segsRet = segs.filter(s => s.flightId === fids[1]);
+              const segsOut = segs.filter((s) => s.flightId === fids[0]);
+              const segsRet = segs.filter((s) => s.flightId === fids[1]);
 
-              // Fallbacks: if filtering yields nothing (some suppliers omit flightId on segs),
-              // we fallback to chronological split: first half vs second half.
               const half = Math.floor(segs.length / 2) || 1;
               const finalOutSegs = segsOut.length ? segsOut : segs.slice(0, half);
               const finalRetSegs = segsRet.length ? segsRet : segs.slice(half);
@@ -395,7 +388,6 @@ const FlightPage = () => {
               outbounds.push(buildLegFromSegments(offer, finalOutSegs, "OUT"));
               returns.push(buildLegFromSegments(offer, finalRetSegs, "RET"));
             } else {
-              // No distinct flightIds: best-effort chronological split for a return trip
               const half = Math.floor((offer?.segments?.length || 2) / 2) || 1;
               const finalOutSegs = segs.slice(0, half);
               const finalRetSegs = segs.slice(half);
@@ -405,18 +397,16 @@ const FlightPage = () => {
             }
           }
         } else {
-          // oneway
           outbounds = offers.slice();
           returns = [];
         }
 
-        // ---- Sort by price then duration for deterministic UI ----
         const sortByTotal = (a, b) => {
           const ta = a?.priceBreakdown?.total ?? Number.MAX_SAFE_INTEGER;
           const tb = b?.priceBreakdown?.total ?? Number.MAX_SAFE_INTEGER;
           if (ta !== tb) return ta - tb;
-          const da = a?.journeyTime ?? ((new Date(a.arrivalTime) - new Date(a.departureTime)) / 60000);
-          const db = b?.journeyTime ?? ((new Date(b.arrivalTime) - new Date(b.departureTime)) / 60000);
+          const da = a?.journeyTime ?? (new Date(a.arrivalTime) - new Date(a.departureTime)) / 60000;
+          const db = b?.journeyTime ?? (new Date(b.arrivalTime) - new Date(b.departureTime)) / 60000;
           return da - db;
         };
 
@@ -428,24 +418,8 @@ const FlightPage = () => {
         setReturnFlights(returns);
         setCurrency(displayCurrency);
 
-        // ---- Dynamic price slider bounds (across both arrays) ----
-        const allPrices = [...outbounds, ...returns]
-          .map(f => f?.priceBreakdown?.total)
-          .filter(p => typeof p === "number" && !Number.isNaN(p));
-
-        if (allPrices.length) {
-          const absMin = Math.floor(Math.min(...allPrices));
-          const absMax = Math.ceil(Math.max(...allPrices));
-          setPriceBounds([absMin, absMax]);
-          setMinPrice(absMin);
-          setMaxPrice(absMax);
-        } else {
-          setPriceBounds([0, 0]);
-          setMinPrice(0);
-          setMaxPrice(0);
-        }
-
-        // startTimer(); // optional
+        // NOTE: We intentionally DO NOT set price bounds here.
+        // Bounds are recomputed from actual itineraries below to avoid false "no results".
       } catch (err) {
         if (err?.name === "AbortError") return;
         console.error("Failed to fetch flights:", err);
@@ -465,9 +439,7 @@ const FlightPage = () => {
     };
   }, [location.search]);
 
-
   // ---------- Derive display helpers ----------
-  // Simple baggage label for the list pills
   const makeBaggageLabel = (offer) => {
     const seg0 = offer?.segments?.[0]?.segmentId;
     const carry = offer?.baggage?.adt?.carryOnBySegment?.[seg0];
@@ -490,11 +462,13 @@ const FlightPage = () => {
 
     const price = (o) => Number(o?.priceBreakdown?.total || 0);
     const carriers = (o) =>
-      Array.from(new Set(
-        (o?.marketingCarriers || [])
-          .concat(o?.operatingCarriers || [])
-          .concat(o?.segments?.map(s => s?.airline).filter(Boolean) || [])
-      )).filter(Boolean);
+      Array.from(
+        new Set(
+          (o?.marketingCarriers || [])
+            .concat(o?.operatingCarriers || [])
+            .concat(o?.segments?.map((s) => s?.airline).filter(Boolean) || [])
+        )
+      ).filter(Boolean);
 
     // ROUND TRIP
     if (searchParams.tripType === "return") {
@@ -503,7 +477,7 @@ const FlightPage = () => {
       // A) Single-offer with both legs embedded (fallback carve)
       if (!hasSeparateReturnList) {
         const items = [];
-        for (const offer of (availableFlights || [])) {
+        for (const offer of availableFlights || []) {
           const { outbound, ret } = carveReturnFromSingleOffer(offer, {
             origin: searchParams.origin,
             destination: searchParams.destination,
@@ -515,9 +489,10 @@ const FlightPage = () => {
             id: `${offer.id || offer.solutionId || Math.random().toString(36).slice(2)}`,
             outbound,
             return: ret,
-            totalPrice: price(offer), // single-offer total includes both legs
+            totalPrice: price(offer),
             totalStops:
-              (outbound.stops || (Array.isArray(outbound.segments) ? Math.max(0, outbound.segments.length - 1) : 0)) +
+              (outbound.stops ||
+                (Array.isArray(outbound.segments) ? Math.max(0, outbound.segments.length - 1) : 0)) +
               (ret.stops || (Array.isArray(ret.segments) ? Math.max(0, ret.segments.length - 1) : 0)),
             airlines: Array.from(new Set([...carriers(outbound), ...carriers(ret)])),
             cabin: outbound.cabin || outbound.segments?.[0]?.cabinClass || "Economy",
@@ -570,12 +545,38 @@ const FlightPage = () => {
     }));
   }, [searchParams, availableFlights, returnFlights]);
 
-    console.info('Itineraries offers:', itineraries);
-  // Filter + sort
+  console.info("Itineraries offers:", itineraries);
+
+  // ======= NEW: Recompute price bounds from actual itineraries =======
+  useEffect(() => {
+    if (Array.isArray(itineraries) && itineraries.length) {
+      const prices = itineraries.map((it) => Number(it.totalPrice)).filter((p) => Number.isFinite(p));
+      if (prices.length) {
+        const absMin = Math.floor(Math.min(...prices));
+        const absMax = Math.ceil(Math.max(...prices));
+        setPriceBounds([absMin, absMax]);
+        setMinPrice(absMin);
+        setMaxPrice(absMax);
+        return;
+      }
+    }
+    // No itineraries or no numeric prices
+    setPriceBounds([0, 0]);
+    setMinPrice(0);
+    setMaxPrice(0);
+  }, [itineraries]);
+  // ================================================================
+
+  // Filter + sort (with small guard for price values)
   const filteredItineraries = useMemo(() => {
+    // Clamp current slider values to bounds defensively (doesn't change state)
+    const [absMin, absMax] = priceBounds;
+    const low = Math.max(absMin ?? 0, Math.min(minPrice, maxPrice));
+    const high = Math.min(absMax ?? Infinity, Math.max(minPrice, maxPrice));
+
     return itineraries
       .filter((it) => {
-        const priceOk = it.totalPrice >= minPrice && it.totalPrice <= maxPrice;
+        const priceOk = it.totalPrice >= low && it.totalPrice <= high;
 
         // normalize stops: 0 / 1 / 2+
         const stopsCount = Math.max(0, Number.isFinite(it.totalStops) ? it.totalStops : 0);
@@ -595,8 +596,7 @@ const FlightPage = () => {
           (rtCode && checkedReturnValue.includes(`return_${rtCode}`));
 
         // time windows (use normalized top-level or first segment)
-        const owDep =
-          getHour(it.outbound?.segments?.[0]?.departureDate || it.outbound?.departureTime);
+        const owDep = getHour(it.outbound?.segments?.[0]?.departureDate || it.outbound?.departureTime);
         const owTimeOk = owDep >= depTimeRange[0] && owDep <= depTimeRange[1];
 
         let rtTimeOk = true;
@@ -605,7 +605,7 @@ const FlightPage = () => {
           rtTimeOk = rtDep >= retTimeRange[0] && rtDep <= retTimeRange[1];
         }
 
-        // ---- CABIN FILTER (NEW) ----
+        // ---- CABIN FILTER ----
         const outCabinKey = normalizeCabinKey(
           it.cabin || it.outbound?.cabin || it.outbound?.segments?.[0]?.cabinClass
         );
@@ -615,9 +615,7 @@ const FlightPage = () => {
 
         const cabinOk =
           selectedCabins.length === 0 ||
-          (selectedCabins.includes(outCabinKey) &&
-            (!retCabinKey || selectedCabins.includes(retCabinKey)));
-
+          (selectedCabins.includes(outCabinKey) && (!retCabinKey || selectedCabins.includes(retCabinKey)));
 
         // duration + baggage
         const durHrs = totalDurationMins(it.outbound, it.return) / 60;
@@ -631,6 +629,7 @@ const FlightPage = () => {
     itineraries,
     minPrice,
     maxPrice,
+    priceBounds,
     currentStop,
     checkedOnewayValue,
     checkedReturnValue,
@@ -644,29 +643,20 @@ const FlightPage = () => {
 
   // Cabin handlers
   const toggleCabin = (key) => {
-    setSelectedCabins((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-    );
+    setSelectedCabins((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
     setCurrentPage(1);
     setOpenDetailsId(null);
   };
   const resetCabins = () => {
-    // Selecting all effectively means "no restriction" -> clear to []
     setSelectedCabins([]);
     setCurrentPage(1);
     setOpenDetailsId(null);
   };
 
   // ---------- Pagination guards ----------
-  const totalPages = useMemo(
-    () => Math.ceil(filteredItineraries.length / flightsPerPage),
-    [filteredItineraries]
-  );
+  const totalPages = useMemo(() => Math.ceil(filteredItineraries.length / flightsPerPage), [filteredItineraries]);
 
-  const safePage = useMemo(
-    () => Math.min(Math.max(currentPage, 1), totalPages || 1),
-    [currentPage, totalPages]
-  );
+  const safePage = useMemo(() => Math.min(Math.max(currentPage, 1), totalPages || 1), [currentPage, totalPages]);
 
   useEffect(() => {
     if (currentPage !== safePage) {
@@ -676,24 +666,38 @@ const FlightPage = () => {
   }, [safePage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pageItems = useMemo(
-    () =>
-      filteredItineraries.slice(
-        (safePage - 1) * flightsPerPage,
-        safePage * flightsPerPage
-      ),
+    () => filteredItineraries.slice((safePage - 1) * flightsPerPage, safePage * flightsPerPage),
     [filteredItineraries, safePage]
   );
 
   const listKey = useMemo(
     () =>
       JSON.stringify({
-        minPrice, maxPrice, currentStop,
-        checkedOnewayValue, checkedReturnValue,
-        depTimeRange, retTimeRange,
-        maxDurationHours, baggageOnly, sortOrder,
+        minPrice,
+        maxPrice,
+        currentStop,
+        checkedOnewayValue,
+        checkedReturnValue,
+        depTimeRange,
+        retTimeRange,
+        maxDurationHours,
+        baggageOnly,
+        sortOrder,
         page: safePage,
       }),
-    [minPrice,maxPrice,currentStop,checkedOnewayValue,checkedReturnValue,depTimeRange,retTimeRange,maxDurationHours,baggageOnly,sortOrder,safePage]
+    [
+      minPrice,
+      maxPrice,
+      currentStop,
+      checkedOnewayValue,
+      checkedReturnValue,
+      depTimeRange,
+      retTimeRange,
+      maxDurationHours,
+      baggageOnly,
+      sortOrder,
+      safePage,
+    ]
   );
 
   // ---------- Smooth scrolling + details reset ----------
@@ -739,10 +743,10 @@ const FlightPage = () => {
   // Unique airline codes from normalized carriers
   const uniqueAirlines = useMemo(() => {
     const all = [...availableFlights, ...returnFlights]
-      .flatMap(f =>
+      .flatMap((f) =>
         (f?.marketingCarriers || [])
           .concat(f?.operatingCarriers || [])
-          .concat(f?.segments?.map(s => s?.airline).filter(Boolean) || [])
+          .concat(f?.segments?.map((s) => s?.airline).filter(Boolean) || [])
       )
       .filter(Boolean);
     return Array.from(new Set(all));
@@ -928,11 +932,7 @@ const FlightPage = () => {
                   )}
 
                   {/* Pagination */}
-                  <Pagination
-                    currentPage={safePage}
-                    totalPages={totalPages}
-                    handlePageChange={handlePageChange}
-                  />
+                  <Pagination currentPage={safePage} totalPages={totalPages} handlePageChange={handlePageChange} />
                 </>
               )}
             </div>
@@ -965,11 +965,9 @@ const FlightPage = () => {
         baggageOnly={baggageOnly}
         onBaggageOnlyChange={setBaggageOnly}
         returnFlights={returnFlights}
-
         selectedCabins={selectedCabins}
         onToggleCabin={toggleCabin}
         onResetCabins={resetCabins}
-
         onClearAll={() => {
           setCurrentStop("mix");
           setMinPrice(priceBounds[0]);
