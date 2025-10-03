@@ -236,6 +236,7 @@ const ItineraryList = ({
     navigate(`/flight/booking/details?${params.toString()}`);
   };
 
+
   const pax = useMemo(() => {
     const a = Number(searchParams?.adults || 1);
     const c = Number(searchParams?.children || 0);
@@ -244,6 +245,9 @@ const ItineraryList = ({
     const total = a + c + i;
     return { adults: a, children: c, infants: i, paying, total };
   }, [searchParams?.adults, searchParams?.children, searchParams?.infants]);
+
+  
+  console.info("Rendering ItineraryList with itineraries:", paginatedItineraries);
 
   const priceBreakdown = (it) => {
     const base = Number(it.totalPrice) || 0;
