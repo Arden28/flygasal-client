@@ -220,7 +220,7 @@ const DashboardPage = ({ rootUrl = "/", apiUrl = "/api", apiKey = "mock_api_key"
 
           setWalletTx(
             tData.map((t) => ({
-              id: t.id || t.trx_id || t.reference || Math.random().toString(36).slice(2),
+              id: t.id || t.trx_id || t.reference || "—",
               type: t.type || t.tx_type || "—",
               amount: t.amount ?? 0,
               currency: t.currency || summary.currency || "USD",
