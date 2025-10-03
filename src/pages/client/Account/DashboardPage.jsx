@@ -194,8 +194,8 @@ const DashboardPage = ({ rootUrl = "/", apiUrl = "/api", apiKey = "mock_api_key"
 
           setRecentBookings(
             bData.map((b) => ({
-              id: b.booking_id || b.id,
-              customer: b.client_name || b.customer || "—",
+              id: b.booking_id || b.order_num,
+              customer: b.contact_name || b.customer || "—",
               pnr: b.pnr || "—",
               type: (b.type || "—").toString(),
               amount: b.total_amount ?? 0,
