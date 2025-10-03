@@ -6,6 +6,8 @@ import { formatDate, formatTime } from "../../../utils/dateFormatter";
 import { AuthContext } from "../../../context/AuthContext";
 import { Check } from "lucide-react";
 import jsPDF from "jspdf";
+import DepositModal from "../../../components/client/Account/DepositModal";
+import apiService from "../../../api/apiService";
 
 /* ---------------- Payment Gateways ---------------- */
 const paymentGateways = [
@@ -89,12 +91,23 @@ const BookingConfirmation = ({
   className = "",
 }) => {
   const { user } = useContext(AuthContext);
+  
+  const onDepositSuccess = async () => {
+    try {
+      const res = await apiService.get?.("/wallet/balance");
+      const ok = res && (res?.data?.status === "true" || res?.status === "true" || res?.data?.ok === true);
+    } catch {
+      // ignore; UI still fine
+    }
+  };
+
   const navigate = useNavigate();
   const { orderNumber } = useParams();
 
   const [bookingData, setBookingData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [bankTransfer, setBankTransfer] = useState(null);
 
   const [selectedGateway, setSelectedGateway] = useState("wallet");
   const [showGatewaySelection, setShowGatewaySelection] = useState(false);
@@ -141,6 +154,27 @@ const BookingConfirmation = ({
     setShowGatewaySelection(false);
     setSearchTerm("");
   };
+
+
+  /* ---------------- Fetch gateways (for DepositModal trigger) --------------- */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiService.post("/payment_gateways", { api_key: "none" });
+        const ok = res?.data?.status === "true" || res?.status === "true";
+        if (ok) {
+          const first = Array.isArray(res?.data?.data) ? res.data.data[0] : null;
+          if (!cancelled) setBankTransfer(first || null);
+        }
+      } catch (e) {
+        // Non-blocking
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /* ---------------- Fetch booking ---------------- */
   useEffect(() => {
@@ -1464,9 +1498,14 @@ const BookingConfirmation = ({
 
                   <div className="p-3 border-top d-flex gap-2 justify-content-end">
                     {(!wallet.loading && wallet.balance < amountDue) ? (
-                      <a href="/wallet/top-up" className="btn btn-outline-primary">
+                      <button
+                        type="button"
+                        className="btn btn-outline-primary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#depositModal"
+                      >
                         Top Up Wallet
-                      </a>
+                      </button>
                     ) : (
                       <button
                         className="btn btn-success"
@@ -1527,6 +1566,13 @@ const BookingConfirmation = ({
           )}
 
         </div>
+
+        {/* Modal mount */}
+        <DepositModal
+          user={user}
+          bankTransfer={bankTransfer}
+          onSuccess={onDepositSuccess}
+        />
       </div>
     </>
   );
