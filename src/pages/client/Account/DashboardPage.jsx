@@ -39,6 +39,17 @@ const T = {
   today: "Today",
 };
 
+const formatTransactionType = (type) => {
+  switch (type) {
+    case "wallet_topup":
+      return "Wallet Top-up";
+    case "booking_payment":
+      return "Booking Payment";
+    default:
+      return type;
+  }
+};
+
 /* -------------------------------------------------------------------------- */
 /* utils                                                                       */
 /* -------------------------------------------------------------------------- */
@@ -474,7 +485,7 @@ const DashboardPage = ({ rootUrl = "/", apiUrl = "/api", apiKey = "mock_api_key"
                   {walletTx.map((t) => (
                     <div key={t.id} className="flex items-center justify-between py-3">
                       <div className="min-w-0">
-                        <div className="font-medium text-gray-900 truncate">{t.type}</div>
+                        <div className="font-medium text-gray-900 truncate">{formatTransactionType(t.type)}</div>
                         <div className="text-xs text-gray-500">
                           {T.reference}: {t.reference} • {T.date}: {t.date ? t.date.toLocaleString() : "—"}
                         </div>
