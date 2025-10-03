@@ -56,9 +56,7 @@ const CabinCard = ({ active, label, sub, icon, onClick }) => (
     onClick={onClick}
     className={[
       "group flex w-full items-center gap-3 rounded-xl border p-3 text-left transition",
-      active
-        ? "border-blue-600 bg-blue-50 ring-2 ring-blue-200"
-        : "border-slate-200 hover:bg-slate-50",
+      active ? "border-blue-600 bg-blue-50 ring-2 ring-blue-200" : "border-slate-200 hover:bg-slate-50",
     ].join(" ")}
     aria-pressed={active}
   >
@@ -73,9 +71,7 @@ const CabinCard = ({ active, label, sub, icon, onClick }) => (
       <span
         className={[
           "inline-flex h-5 w-5 items-center justify-center rounded-full border text-xs",
-          active
-            ? "border-blue-600 bg-blue-600 text-white"
-            : "border-slate-300 text-transparent",
+          active ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 text-transparent",
         ].join(" ")}
       >
         ✓
@@ -115,9 +111,9 @@ const FilterModal = ({
   onBaggageOnlyChange,
 
   // Cabin (NEW)
-  selectedCabins,             // array of normalized keys, e.g. ["ECONOMY","BUSINESS"]
-  onToggleCabin,              // (key) => void
-  onResetCabins,              // () => void
+  selectedCabins,      // array of keys e.g. ["ECONOMY","BUSINESS"]
+  onToggleCabin,       // (key) => void
+  onResetCabins,       // () => void
 
   // Context & helpers
   returnFlights,
@@ -144,9 +140,7 @@ const FilterModal = ({
       name: (getAirlineName?.(code) || code).trim(),
       logo: getAirlineLogo?.(code),
     });
-    return [...new Set(uniqueAirlines || [])]
-      .map(toMeta)
-      .sort((a, b) => a.name.localeCompare(b.name));
+    return [...new Set(uniqueAirlines || [])].map(toMeta).sort((a, b) => a.name.localeCompare(b.name));
   }, [uniqueAirlines, getAirlineName, getAirlineLogo]);
 
   const filteredOnewayAirlines = useMemo(() => {
@@ -457,6 +451,7 @@ const FilterModal = ({
                     ))}
                   </div>
                 </Section>
+              )}
             </div>
 
             {/* Sticky footer actions */}

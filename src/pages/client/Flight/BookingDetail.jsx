@@ -771,11 +771,9 @@ const BookingDetail = () => {
         agent_fee: markup || 0,
         payment_method: formData.payment_method || "wallet",
       };
-
-      console.info("Booking details:", bookingDetails);
-
+      console.log("Booking with details:", bookingDetails);
+      
       const resp = await flygasal.createBooking(bookingDetails);
-      console.info("Booking response:", resp);
       const booking = resp?.data?.booking;
 
       if (booking?.order_num) {
