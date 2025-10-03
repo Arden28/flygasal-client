@@ -13,17 +13,32 @@ const Section = ({ title, children }) => (
   </section>
 );
 
-const AirlineRow = ({ code, checked, onChange, getAirlineName, getAirlineLogo }) => {
+const AirlineRow = ({
+  code,
+  checked,
+  onChange,
+  getAirlineName,
+  getAirlineLogo,
+  count,          // optional number of matching results
+  disabled,       // optional visual/interaction disable
+}) => {
   const name = getAirlineName?.(code) || code;
   const logo = getAirlineLogo?.(code);
 
   return (
-    <label className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-slate-50">
+    <label
+      className={[
+        "flex items-center gap-3 rounded-lg px-2 py-1.5",
+        disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-slate-50 cursor-pointer",
+      ].join(" ")}
+      title={disabled ? "No results for this airline with current filters" : name}
+    >
       <input
         type="checkbox"
         className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
         checked={checked}
         onChange={onChange}
+        disabled={disabled}
       />
       <img
         src={logo}
@@ -34,10 +49,22 @@ const AirlineRow = ({ code, checked, onChange, getAirlineName, getAirlineLogo })
           e.currentTarget.src = "/assets/img/airlines/placeholder.png";
         }}
       />
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="truncate text-sm text-slate-800">{name}</div>
         <div className="text-xs text-slate-500">{code}</div>
       </div>
+      {typeof count === "number" && (
+        <span
+          className={[
+            "ml-2 inline-flex items-center justify-center rounded-full border px-2 py-[1px] text-[11px]",
+            count > 0
+              ? "border-slate-300 text-slate-700 bg-slate-50"
+              : "border-slate-200 text-slate-400 bg-slate-100",
+          ].join(" ")}
+        >
+          {count}
+        </span>
+      )}
     </label>
   );
 };
@@ -93,27 +120,31 @@ const FilterModal = ({
   priceBounds,         // [absMin, absMax]
   handlePriceChange,
 
-  // Airlines
+  // Airlines (legacy input)
   uniqueAirlines,
+
+  // Airline selection state/handlers
   checkedOnewayValue,
   handleOnewayChange,
   checkedReturnValue,
   handleReturnChange,
 
-  // New filters
+  // Time windows
   depTimeRange,
   onDepTimeChange,
   retTimeRange,
   onRetTimeChange,
+
+  // Duration + baggage
   maxDurationHours,
   onMaxDurationChange,
   baggageOnly,
   onBaggageOnlyChange,
 
-  // Cabin (NEW)
-  selectedCabins,      // array of keys e.g. ["ECONOMY","BUSINESS"]
-  onToggleCabin,       // (key) => void
-  onResetCabins,       // () => void
+  // Cabin
+  selectedCabins,
+  onToggleCabin,
+  onResetCabins,
 
   // Context & helpers
   returnFlights,
@@ -122,6 +153,17 @@ const FilterModal = ({
 
   // Optional: global clear
   onClearAll,
+
+  /* ===== NEW (optional but recommended) =====
+     Exact airline code lists and counts built from the SAME logic you use in filtering:
+     - outbound: first marketing carrier (or your exact obCode)
+     - return:   first marketing carrier for return leg (rtCode)
+     Providing these eliminates “listed-but-no-results” airlines.
+  */
+  airlinesOutboundExact,                // string[] of outbound primary codes
+  airlinesReturnExact,                  // string[] of return primary codes
+  airlineCountsOutbound,                // Record<code, number>
+  airlineCountsReturn,                  // Record<code, number>
 }) => {
   const [absMin, absMax] = priceBounds || [100, 4000];
   const [currMin, currMax] = priceRange || [absMin, absMax];
@@ -130,31 +172,70 @@ const FilterModal = ({
     Math.max(absMin, Math.min(absMax, currMax)),
   ];
 
+  // Airline search boxes
   const [airlineSearchOW, setAirlineSearchOW] = useState("");
   const [airlineSearchRT, setAirlineSearchRT] = useState("");
 
-  // Build airline meta list once for consistent sorting/search
-  const airlineMeta = useMemo(() => {
-    const toMeta = (code) => ({
-      code,
-      name: (getAirlineName?.(code) || code).trim(),
-      logo: getAirlineLogo?.(code),
-    });
-    return [...new Set(uniqueAirlines || [])].map(toMeta).sort((a, b) => a.name.localeCompare(b.name));
-  }, [uniqueAirlines, getAirlineName, getAirlineLogo]);
+  // NEW: optional hide-zero toggle (effective only if counts provided)
+  const [hideZeroOutbound, setHideZeroOutbound] = useState(false);
+  const [hideZeroReturn, setHideZeroReturn] = useState(false);
 
+  // -- Build a meta object for name/logo given a code --
+  const toMeta = (code) => ({
+    code,
+    name: (getAirlineName?.(code) || code).trim(),
+    logo: getAirlineLogo?.(code),
+  });
+
+  // ===== Determine outbound/return lists to show =====
+  // Prefer exact lists if provided; otherwise fall back to legacy uniqueAirlines
+  const rawOutboundCodes = useMemo(() => {
+    if (Array.isArray(airlinesOutboundExact) && airlinesOutboundExact.length) return airlinesOutboundExact;
+    // Fallback: show all known codes; may include carriers that are not primary => can lead to 0 results on click
+    return Array.from(new Set(uniqueAirlines || [])).sort();
+  }, [airlinesOutboundExact, uniqueAirlines]);
+
+  const rawReturnCodes = useMemo(() => {
+    if (Array.isArray(airlinesReturnExact) && airlinesReturnExact.length) return airlinesReturnExact;
+    // If no separate list, reuse legacy set; UI will still render cleanly for oneway
+    return Array.from(new Set(uniqueAirlines || [])).sort();
+  }, [airlinesReturnExact, uniqueAirlines]);
+
+  // Meta lists with stable alpha sort by name
+  const airlineMetaOutbound = useMemo(() => {
+    return rawOutboundCodes.map(toMeta).sort((a, b) => a.name.localeCompare(b.name));
+  }, [rawOutboundCodes, getAirlineName, getAirlineLogo]);
+
+  const airlineMetaReturn = useMemo(() => {
+    return rawReturnCodes.map(toMeta).sort((a, b) => a.name.localeCompare(b.name));
+  }, [rawReturnCodes, getAirlineName, getAirlineLogo]);
+
+  // Search filtering
   const filteredOnewayAirlines = useMemo(() => {
     const q = airlineSearchOW.trim().toLowerCase();
-    if (!q) return airlineMeta;
-    return airlineMeta.filter(({ code, name }) => code.toLowerCase().includes(q) || name.toLowerCase().includes(q));
-  }, [airlineMeta, airlineSearchOW]);
+    let list = airlineMetaOutbound;
+    if (q) {
+      list = list.filter(({ code, name }) => code.toLowerCase().includes(q) || name.toLowerCase().includes(q));
+    }
+    if (hideZeroOutbound && airlineCountsOutbound) {
+      list = list.filter(({ code }) => (airlineCountsOutbound[code] || 0) > 0);
+    }
+    return list;
+  }, [airlineMetaOutbound, airlineSearchOW, hideZeroOutbound, airlineCountsOutbound]);
 
   const filteredReturnAirlines = useMemo(() => {
     const q = airlineSearchRT.trim().toLowerCase();
-    if (!q) return airlineMeta;
-    return airlineMeta.filter(({ code, name }) => code.toLowerCase().includes(q) || name.toLowerCase().includes(q));
-  }, [airlineMeta, airlineSearchRT]);
+    let list = airlineMetaReturn;
+    if (q) {
+      list = list.filter(({ code, name }) => code.toLowerCase().includes(q) || name.toLowerCase().includes(q));
+    }
+    if (hideZeroReturn && airlineCountsReturn) {
+      list = list.filter(({ code }) => (airlineCountsReturn[code] || 0) > 0);
+    }
+    return list;
+  }, [airlineMetaReturn, airlineSearchRT, hideZeroReturn, airlineCountsReturn]);
 
+  // Bulk select/clear on visible rows
   const bulkToggle = (type, list) => (selectAll) => {
     const evt = { target: { checked: selectAll } };
     const codes = list.map((m) => m.code);
@@ -174,9 +255,13 @@ const FilterModal = ({
     onMaxDurationChange?.(48);
     onBaggageOnlyChange?.(false);
     onResetCabins?.();
-    bulkToggle("oneway", airlineMeta)(false);
-    bulkToggle("return", airlineMeta)(false);
+    bulkToggle("oneway", airlineMetaOutbound)(false);
+    bulkToggle("return", airlineMetaReturn)(false);
   };
+
+  // Helper to compute disabled based on counts (if provided)
+  const getCountOW = (code) => (airlineCountsOutbound ? (airlineCountsOutbound[code] || 0) : undefined);
+  const getCountRT = (code) => (airlineCountsReturn ? (airlineCountsReturn[code] || 0) : undefined);
 
   return (
     <AnimatePresence>
@@ -212,7 +297,7 @@ const FilterModal = ({
 
             {/* Body */}
             <div className="max-h-[72vh] overflow-y-auto px-4 py-4 sm:px-5">
-              {/* Cabin (NEW) */}
+              {/* Cabin */}
               <Section title="Cabin class">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {CABIN_OPTIONS.map((c) => (
@@ -351,7 +436,9 @@ const FilterModal = ({
                   />
                   <span className="text-sm text-slate-600">hours</span>
                 </div>
-                <p className="mt-2 text-xs text-slate-500">From first departure to final arrival (round-trip sums both legs).</p>
+                <p className="mt-2 text-xs text-slate-500">
+                  From first departure to final arrival (round-trip sums both legs).
+                </p>
               </Section>
 
               {/* Baggage */}
@@ -377,17 +464,28 @@ const FilterModal = ({
                     onChange={(e) => setAirlineSearchOW(e.target.value)}
                     className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   />
-                  <div className="whitespace-nowrap text-xs">
+                  <div className="whitespace-nowrap text-xs flex items-center gap-2">
+                    {airlineCountsOutbound && (
+                      <label className="inline-flex items-center gap-1 text-slate-600">
+                        <input
+                          type="checkbox"
+                          className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          checked={hideZeroOutbound}
+                          onChange={(e) => setHideZeroOutbound(e.target.checked)}
+                        />
+                        Hide 0
+                      </label>
+                    )}
                     <button
                       type="button"
-                      className="ml-2 rounded-full border border-slate-300 px-3 py-1 hover:bg-slate-50"
+                      className="rounded-full border border-slate-300 px-3 py-1 hover:bg-slate-50"
                       onClick={() => bulkToggle("oneway", filteredOnewayAirlines)(true)}
                     >
                       Select visible
                     </button>
                     <button
                       type="button"
-                      className="ml-2 rounded-full border border-slate-300 px-3 py-1 hover:bg-slate-50"
+                      className="rounded-full border border-slate-300 px-3 py-1 hover:bg-slate-50"
                       onClick={() => bulkToggle("oneway", filteredOnewayAirlines)(false)}
                     >
                       Clear visible
@@ -396,16 +494,22 @@ const FilterModal = ({
                 </div>
 
                 <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
-                  {filteredOnewayAirlines.map(({ code }) => (
-                    <AirlineRow
-                      key={`ow_${code}`}
-                      code={code}
-                      checked={checkedOnewayValue.includes(`oneway_${code}`)}
-                      onChange={(e) => handleOnewayChange(e, code)}
-                      getAirlineName={getAirlineName}
-                      getAirlineLogo={getAirlineLogo}
-                    />
-                  ))}
+                  {filteredOnewayAirlines.map(({ code }) => {
+                    const count = getCountOW(code);
+                    const disabled = typeof count === "number" && count <= 0;
+                    return (
+                      <AirlineRow
+                        key={`ow_${code}`}
+                        code={code}
+                        checked={checkedOnewayValue.includes(`oneway_${code}`)}
+                        onChange={(e) => handleOnewayChange(e, code)}
+                        getAirlineName={getAirlineName}
+                        getAirlineLogo={getAirlineLogo}
+                        count={count}
+                        disabled={disabled}
+                      />
+                    );
+                  })}
                 </div>
               </Section>
 
@@ -420,17 +524,28 @@ const FilterModal = ({
                       onChange={(e) => setAirlineSearchRT(e.target.value)}
                       className="h-9 w-full rounded-lg border border-slate-300 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     />
-                    <div className="whitespace-nowrap text-xs">
+                    <div className="whitespace-nowrap text-xs flex items-center gap-2">
+                      {airlineCountsReturn && (
+                        <label className="inline-flex items-center gap-1 text-slate-600">
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            checked={hideZeroReturn}
+                            onChange={(e) => setHideZeroReturn(e.target.checked)}
+                          />
+                          Hide 0
+                        </label>
+                      )}
                       <button
                         type="button"
-                        className="ml-2 rounded-full border border-slate-300 px-3 py-1 hover:bg-slate-50"
+                        className="rounded-full border border-slate-300 px-3 py-1 hover:bg-slate-50"
                         onClick={() => bulkToggle("return", filteredReturnAirlines)(true)}
                       >
                         Select visible
                       </button>
                       <button
                         type="button"
-                        className="ml-2 rounded-full border border-slate-300 px-3 py-1 hover:bg-slate-50"
+                        className="rounded-full border border-slate-300 px-3 py-1 hover:bg-slate-50"
                         onClick={() => bulkToggle("return", filteredReturnAirlines)(false)}
                       >
                         Clear visible
@@ -439,16 +554,22 @@ const FilterModal = ({
                   </div>
 
                   <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
-                    {filteredReturnAirlines.map(({ code }) => (
-                      <AirlineRow
-                        key={`rt_${code}`}
-                        code={code}
-                        checked={checkedReturnValue.includes(`return_${code}`)}
-                        onChange={(e) => handleReturnChange(e, code)}
-                        getAirlineName={getAirlineName}
-                        getAirlineLogo={getAirlineLogo}
-                      />
-                    ))}
+                    {filteredReturnAirlines.map(({ code }) => {
+                      const count = getCountRT(code);
+                      const disabled = typeof count === "number" && count <= 0;
+                      return (
+                        <AirlineRow
+                          key={`rt_${code}`}
+                          code={code}
+                          checked={checkedReturnValue.includes(`return_${code}`)}
+                          onChange={(e) => handleReturnChange(e, code)}
+                          getAirlineName={getAirlineName}
+                          getAirlineLogo={getAirlineLogo}
+                          count={count}
+                          disabled={disabled}
+                        />
+                      );
+                    })}
                   </div>
                 </Section>
               )}

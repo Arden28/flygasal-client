@@ -641,6 +641,48 @@ const FlightPage = () => {
     selectedCabins,
   ]);
 
+  // Primary codes (exactly like your filter uses)
+const outboundPrimary = useMemo(() => {
+  const set = new Set();
+  itineraries.forEach(it => {
+    const code = (it.outbound?.marketingCarriers?.[0] || it.outbound?.segments?.[0]?.airline || "").toUpperCase();
+    if (code) set.add(code);
+  });
+  return Array.from(set).sort();
+}, [itineraries]);
+
+const returnPrimary = useMemo(() => {
+  const set = new Set();
+  itineraries.forEach(it => {
+    if (!it.return) return;
+    const code = (it.return?.marketingCarriers?.[0] || it.return?.segments?.[0]?.airline || "").toUpperCase();
+    if (code) set.add(code);
+  });
+  return Array.from(set).sort();
+}, [itineraries]);
+
+// Live counts (optional but enables “Hide 0” + disables non-matching)
+const airlineCountsOutbound = useMemo(() => {
+  const m = {};
+  itineraries.forEach(it => {
+    const code = (it.outbound?.marketingCarriers?.[0] || it.outbound?.segments?.[0]?.airline || "").toUpperCase();
+    if (!code) return;
+    m[code] = (m[code] || 0) + 1;
+  });
+  return m;
+}, [itineraries]);
+
+const airlineCountsReturn = useMemo(() => {
+  const m = {};
+  itineraries.forEach(it => {
+    if (!it.return) return;
+    const code = (it.return?.marketingCarriers?.[0] || it.return?.segments?.[0]?.airline || "").toUpperCase();
+    if (!code) return;
+    m[code] = (m[code] || 0) + 1;
+  });
+  return m;
+}, [itineraries]);
+
   // Cabin handlers
   const toggleCabin = (key) => {
     setSelectedCabins((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
@@ -968,6 +1010,10 @@ const FlightPage = () => {
         selectedCabins={selectedCabins}
         onToggleCabin={toggleCabin}
         onResetCabins={resetCabins}
+        airlinesOutboundExact={outboundPrimary}
+        airlinesReturnExact={returnPrimary}
+        airlineCountsOutbound={airlineCountsOutbound}
+        airlineCountsReturn={airlineCountsReturn}
         onClearAll={() => {
           setCurrentStop("mix");
           setMinPrice(priceBounds[0]);
