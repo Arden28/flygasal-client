@@ -487,7 +487,7 @@ const DashboardPage = ({ rootUrl = "/", apiUrl = "/api", apiKey = "mock_api_key"
                       <div className="min-w-0">
                         <div className="font-medium text-gray-900 truncate">{formatTransactionType(t.type)}</div>
                         <div className="text-xs text-gray-500">
-                          {T.reference}: {t.reference} • {T.date}: {t.date ? t.date.toLocaleString() : "—"}
+                          {T.reference}: {t.id} • {T.date}: {t.date ? t.date.toLocaleString() : "—"}
                         </div>
                       </div>
                       <div className="text-right">
