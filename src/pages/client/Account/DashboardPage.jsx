@@ -435,7 +435,7 @@ const DashboardPage = ({ rootUrl = "/", apiUrl = "/api", apiKey = "mock_api_key"
                     <div key={b.id} className="flex items-center justify-between py-3">
                       <div className="min-w-0">
                         <div className="font-medium text-gray-900 truncate">
-                          {b.customer} · {b.type.toUpperCase()}
+                          {b.customer} · {b.id}
                         </div>
                         <div className="text-xs text-gray-500">
                           {T.pnr}: {b.pnr} • {T.date}: {b.date ? b.date.toLocaleString() : "—"}
