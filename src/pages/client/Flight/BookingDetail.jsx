@@ -743,9 +743,10 @@ const BookingDetail = () => {
       const { base, markup, total } = priceBreakdown(totalPrice);
 
       const bookingDetails = {
-        selectedFlight: outbound,
-        selectedReturnFlight: rtn || undefined,
-        solutionId: tripDetails.solutionId || null,
+        selectedFlight: flight,
+        // selectedFlight: outbound,
+        // selectedReturnFlight: rtn || undefined,
+        solutionId: flight.solutionId || null,
         passengers: formData.travelers.map((t) => ({
           firstName: t.first_name,
           lastName: t.last_name,
@@ -772,7 +773,7 @@ const BookingDetail = () => {
         payment_method: formData.payment_method || "wallet",
       };
       console.log("Booking with details:", bookingDetails);
-      
+
       const resp = await flygasal.createBooking(bookingDetails);
       const booking = resp?.data?.booking;
 
