@@ -230,7 +230,7 @@ const DashboardPage = ({ rootUrl = "/", apiUrl = "/api", apiKey = "mock_api_key"
             }))
           );
 
-          console.info("Wallet transactions:", tData);
+          // console.info("Wallet transactions:", tData);
         }
       } catch (e) {
         console.error("Dashboard fetch error:", e);
