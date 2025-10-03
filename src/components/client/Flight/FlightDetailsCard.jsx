@@ -112,115 +112,233 @@ export default function FlightDetailsCard({
         </header>
         <div className="divide-y divide-slate-200">
         {/* Outbound */}
-        <section className="bg-white">
-            <h3 className="sr-only">Outbound flight</h3>
-            <button
-            type="button"
-            onClick={() => toggleAccordion("outbound")}
-            className="w-full px-4 py-3 flex items-center justify-between gap-3 text-left hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20 transition-colors"
-            aria-controls={outId}
-            aria-expanded={!!openSections.outbound}
-            >
-            <div className="min-w-0">{OutboundSummary}</div>
-            <Chevron isOpen={!!openSections.outbound} />
-            </button>
+<section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+  <h3 className="sr-only">Outbound flight</h3>
 
-            <div id={outId} className={openSections.outbound ? "block" : "hidden"}>
-<div className="px-4 pb-5 pt-4">
-  {/* Timeline */}
-<ol className="relative border-s border-gray-200 dark:border-gray-700">
-
-  {outbound.segments.map((seg, i) => (
-    <li key={i} className="mb-10 ms-4">
-      {/* Timeline dot */}
-      <div className="absolute w-3 h-3 bg-white rounded-full mt-1.5 -start-1.5 border border-brand"></div>
-
-      {/* Departure */}
-      <time className="mb-1 text-sm font-normal leading-none text-gray-400">
-        {formatDate(seg.departureTime)} — {formatTime(seg.departureTime)}
-      </time>
-      <h3 className="text-lg font-semibold text-gray-900">
-        {getCityName(seg.departure)} ({seg.departure})
-      </h3>
-      <p className="text-sm text-gray-500">
-        {getAirportName(seg.departure)}
-      </p>
-
-      {/* Flight Details */}
-      <div className="mt-2 text-sm text-gray-700 flex flex-wrap gap-4">
-        <span>✈️ {getAirlineName(seg.airline)} ({seg.airline})</span>
-        <span>Flight {seg.flightNum}</span>
-        <span>Class: {seg.bookingCode || "Economy"}</span>
-      </div>
-
-      {/* Layover info (if not last segment) */}
-      {i < outbound.segments.length - 1 && (
-        <div className="mt-3 text-xs font-medium text-orange-600">
-          ⏱ {calculateLayover(seg.arrivalTime, outbound.segments[i + 1].departureTime)}
-        </div>
-      )}
-    </li>
-  ))}
-
-  {/* Final Arrival */}
-  <li className="ms-4">
-    <div className="absolute w-3 h-3 bg-white rounded-full mt-1.5 -start-1.5 border border-brand"></div>
-    <time className="mb-1 text-sm font-normal leading-none text-gray-400">
-      {formatDate(outbound.segments[outbound.segments.length - 1].arrivalTime)} — {formatTime(outbound.segments[outbound.segments.length - 1].arrivalTime)}
-    </time>
-    <h3 className="text-lg font-semibold text-gray-900">
-      {getCityName(outbound.segments[outbound.segments.length - 1].arrival)} ({outbound.segments[outbound.segments.length - 1].arrival})
-    </h3>
-    <p className="text-sm text-gray-500">
-      {getAirportName(outbound.segments[outbound.segments.length - 1].arrival)}
-    </p>
-  </li>
-
-</ol>
-
-
-  {/* Flight Extras */}
-  <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-    <div className="flex flex-col">
-      <span className="text-slate-500">Airline</span>
-      <span className="flex items-center gap-2 font-medium">
-        {getAirlineLogo(outbound.airline) && (
-          <img
-            src={getAirlineLogo(outbound.airline)}
-            alt={getAirlineName(outbound.airline)}
-            className="h-5 w-5 object-contain"
-          />
-        )}
-        {getAirlineName(outbound.airline) || "N/A"}
-      </span>
+  {/* Accordion header */}
+  <button
+    type="button"
+    onClick={() => toggleAccordion("outbound")}
+    className="w-full px-4 py-3 flex items-center justify-between gap-3 text-left hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/20"
+    aria-controls={outId}
+    aria-expanded={!!openSections.outbound}
+  >
+    <div className="min-w-0 flex-1">
+      {OutboundSummary}
     </div>
-    <div>
-      <span className="text-slate-500">Flight no.</span>
-      <span className="block font-medium">
-        {outbound.flightNumber || "N/A"}
-      </span>
-    </div>
-    <div>
-      <span className="text-slate-500">Plane</span>
-      <span className="block font-medium">{outbound.plane || "N/A"}</span>
-    </div>
-    <div>
-      <span className="text-slate-500">Class</span>
-      <span className="block font-medium">{outbound.cabin || "Economy"}</span>
-    </div>
-    <div>
-      <span className="text-slate-500">Baggage</span>
-      <span className="block font-medium">{outbound.baggage || "N/A"}</span>
-    </div>
-    <div>
-      <span className="text-slate-500">Cabin baggage</span>
-      <span className="block font-medium">{outbound.cabin_baggage || "N/A"}</span>
-    </div>
-  </div>
-</div>
+    <Chevron isOpen={!!openSections.outbound} />
+  </button>
 
+  {/* Accordion content */}
+  <AnimatePresence initial={false}>
+    {openSections.outbound && (
+      <motion.div
+        id={outId}
+        key="outbound-panel"
+        initial={{ height: 0, opacity: 0 }}
+        animate={{ height: "auto", opacity: 1 }}
+        exit={{ height: 0, opacity: 0 }}
+        transition={{ duration: 0.24, ease: [0.22, 0.61, 0.36, 1] }}
+        className="will-change-auto"
+      >
+        <div className="px-4 pb-5 pt-4">
+
+          {/* Timeline */}
+          <ol className="relative ms-4 border-s border-slate-200">
+            {outbound.segments.map((seg, i) => {
+              const depAt = new Date(seg.departureDate || seg.departureTime);
+              const arrAt = new Date(seg.arrivalDate || seg.arrivalTime);
+              const next = outbound.segments[i + 1];
+              const hasNext = Boolean(next);
+              const layoverMins = hasNext
+                ? Math.max(0, (new Date(next.departureDate || next.departureTime) - arrAt) / 60000)
+                : 0;
+
+              const isOvernight = depAt.getDate() !== arrAt.getDate();
+              const shortLayover = hasNext && layoverMins > 0 && layoverMins < 50;
+              const longLayover = hasNext && layoverMins >= 240;
+
+              return (
+                <li key={i} className="mb-8 ms-6">
+                  {/* node */}
+                  <span
+                    className={[
+                      "absolute -start-1.5 mt-1.5 h-3 w-3 rounded-full border",
+                      "bg-white border-sky-500"
+                    ].join(" ")}
+                    aria-hidden="true"
+                  />
+
+                  {/* hop header */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <time className="block text-xs text-slate-500">
+                        {formatDate(depAt)} • {formatTime(depAt)}
+                      </time>
+                      <h4 className="text-base font-semibold text-slate-900">
+                        {getCityName(seg.departure)} ({seg.departure})
+                      </h4>
+                      <p className="text-sm text-slate-600">{getAirportName(seg.departure)}</p>
+                    </div>
+
+                    {/* badges */}
+                    <div className="flex shrink-0 items-center gap-2">
+                      {isOvernight && (
+                        <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                          Overnight
+                        </span>
+                      )}
+                      {seg.bookingCode && (
+                        <span className="inline-flex items-center rounded-full bg-sky-50 px-2 py-1 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-200">
+                          {seg.bookingCode}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* flight row */}
+                  <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-700">
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={getAirlineLogo(seg.airline)}
+                          alt={getAirlineName(seg.airline)}
+                          className="h-5 w-5 object-contain"
+                        />
+                        <span className="font-medium">{getAirlineName(seg.airline)}</span>
+                        <span className="text-slate-500">({seg.airline})</span>
+                      </div>
+
+                      <div className="h-4 w-px bg-slate-300 hidden sm:block" aria-hidden="true" />
+
+                      <div className="font-medium">Flight {seg.flightNum}</div>
+
+                      <div className="h-4 w-px bg-slate-300 hidden sm:block" aria-hidden="true" />
+
+                      <div>
+                        <span className="text-slate-500">Duration:</span>{" "}
+                        <span className="font-medium">
+                          {calculateDuration(depAt, arrAt)}
+                        </span>
+                      </div>
+
+                      {seg.cabinClass && (
+                        <>
+                          <div className="h-4 w-px bg-slate-300 hidden sm:block" aria-hidden="true" />
+                          <div>
+                            <span className="text-slate-500">Class:</span>{" "}
+                            <span className="font-medium">{seg.cabinClass}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* segment route mini-timeline */}
+                    <div className="mt-3 grid grid-cols-[auto,1fr,auto] items-center gap-2">
+                      <div className="text-sm font-semibold text-slate-900">{formatTime(depAt)}</div>
+                      <div className="relative h-1 rounded-full bg-slate-200">
+                        <div className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-sky-600" aria-hidden="true" />
+                      </div>
+                      <div className="text-sm font-semibold text-slate-900">{formatTime(arrAt)}</div>
+
+                      <div className="col-span-3 -mt-1 text-xs text-slate-500">
+                        {seg.departure} • {seg.arrival}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* layover */}
+                  {hasNext && (
+                    <div
+                      className={[
+                        "mt-3 rounded-lg border px-3 py-2 text-xs",
+                        shortLayover
+                          ? "border-rose-200 bg-rose-50 text-rose-700"
+                          : longLayover
+                          ? "border-amber-200 bg-amber-50 text-amber-700"
+                          : "border-slate-200 bg-white text-slate-700",
+                      ].join(" ")}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold">
+                          Layover {shortLayover ? "(short)" : longLayover ? "(long)" : ""}
+                        </span>
+                        <span className="font-mono">
+                          {Math.floor(layoverMins / 60)}h {Math.round(layoverMins % 60)}m
+                        </span>
+                      </div>
+                      <div className="mt-0.5">
+                        Change at <span className="font-medium">{getCityName(seg.arrival)}</span>{" "}
+                        ({seg.arrival}) • {getAirportName(seg.arrival)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* destination (for this segment) */}
+                  <div className="mt-4">
+                    <time className="block text-xs text-slate-500">
+                      {formatDate(arrAt)} • {formatTime(arrAt)}
+                    </time>
+                    <h5 className="text-base font-semibold text-slate-900">
+                      {getCityName(seg.arrival)} ({seg.arrival})
+                    </h5>
+                    <p className="text-sm text-slate-600">{getAirportName(seg.arrival)}</p>
+                  </div>
+                </li>
+              );
+            })}
+
+            {/* Final dot */}
+            <li className="ms-6">
+              <span
+                className="absolute -start-1.5 mt-1.5 h-3 w-3 rounded-full border bg-white border-sky-500"
+                aria-hidden="true"
+              />
+            </li>
+          </ol>
+
+          {/* Flight extras (denser, consistent) */}
+          <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+            <div className="flex flex-col">
+              <span className="text-slate-500">Airline</span>
+              <span className="mt-0.5 flex items-center gap-2 font-medium">
+                {getAirlineLogo(outbound.airline) && (
+                  <img
+                    src={getAirlineLogo(outbound.airline)}
+                    alt={getAirlineName(outbound.airline)}
+                    className="h-5 w-5 object-contain"
+                  />
+                )}
+                {getAirlineName(outbound.airline) || "N/A"}
+              </span>
             </div>
-        </section>
+            <div className="flex flex-col">
+              <span className="text-slate-500">Flight no.</span>
+              <span className="mt-0.5 font-medium">{outbound.flightNumber || "N/A"}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-slate-500">Plane</span>
+              <span className="mt-0.5 font-medium">{outbound.plane || "N/A"}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-slate-500">Class</span>
+              <span className="mt-0.5 font-medium">{outbound.cabin || "Economy"}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-slate-500">Baggage</span>
+              <span className="mt-0.5 font-medium">{outbound.baggage || "N/A"}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-slate-500">Cabin baggage</span>
+              <span className="mt-0.5 font-medium">{outbound.cabin_baggage || "N/A"}</span>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+</section>
+
 
         {/* Return */}
         {tripType === "return" && returnFlight && (
