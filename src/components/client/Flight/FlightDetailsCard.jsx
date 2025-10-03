@@ -184,7 +184,7 @@ function FlightLegAccordion({
                   const depAt = new Date(seg.strDepartureDate || seg.departureTime);
                   const depTimeAt = seg.strDepartureTime || seg.departureTime;
                   const arrAt = new Date(seg.strArrivalDate || seg.arrivalTime);
-                  const arrTimeAt = seg.strDepartureTime || seg.arrivalTime;
+                  const arrTimeAt = seg.strArrivalTime || seg.arrivalTime;
                   const next = leg.segments[i + 1];
                   const hasNext = Boolean(next);
                   const layoverMins = hasNext
