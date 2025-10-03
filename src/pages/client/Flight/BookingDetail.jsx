@@ -745,7 +745,7 @@ const BookingDetail = () => {
       const bookingDetails = {
         selectedFlight: flight,
         // selectedFlight: outbound,
-        // selectedReturnFlight: rtn || undefined,
+        selectedReturnFlight: rtn || undefined,
         solutionId: flight.solutionId || null,
         passengers: formData.travelers.map((t) => ({
           firstName: t.first_name,
