@@ -252,10 +252,10 @@ const ItineraryList = ({
   const priceBreakdown = (it) => {
     const base = Number(it.totalPrice) || 0;
     const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
-    const total = +(base + markup).toFixed(2);
+    const total = +(base + markup * pax.paying).toFixed(2);
     const perBase = +(base / pax.paying).toFixed(2);
     const perMarkup = +(markup / pax.paying).toFixed(2);
-    const perTotal = +(total / pax.paying).toFixed(2);
+    const perTotal = +(base).toFixed(2);
     return { base, markup, total, perBase, perMarkup, perTotal };
   };
 
@@ -393,10 +393,10 @@ const ItineraryList = ({
                     {pax.total > 1 ? (
                       <>
                         <div className="text-[12px] text-[#9aa3b2]">Per traveler{pax.infants > 0 ? " *" : ""}</div>
-                        <div className="mt-1 text-2xl font-bold leading-none">{money(total, currency)}</div>
+                        <div className="mt-1 text-2xl font-bold leading-none">{money(perTotal, currency)}</div>
 
                         <div className="mt-2 space-y-1 text-xs text-slate-600">
-                          <Row label="Est. total (travellers)" value={`${pax.paying} × ${money(total, currency)}`} subtle />
+                          <Row label="Est. total (travellers)" value={`${pax.paying} × ${money(perTotal, currency)}`} subtle />
                           <Row label="Subtotal" value={money(total, currency)} bold />
                         </div>
 
