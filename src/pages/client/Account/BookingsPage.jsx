@@ -586,7 +586,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
                         />
                       </th>
                       <Th label={T.contact_name || "Client Name"} sortKey="contact_name" sortBy={sortBy} sortDir={sortDir} onSort={setSort} />
-                      <Th label={T.booking_id || "Booking ID"} sortKey="booking_id" sortBy={sortBy} sortDir={sortDir} onSort={setSort} />
+                      {/* <Th label={T.booking_id || "Booking ID"} sortKey="booking_id" sortBy={sortBy} sortDir={sortDir} onSort={setSort} /> */}
                       <th className="py-3 pr-3">Order #</th>
                       <th className="py-3 pr-3">PNR</th>
                       <th className="py-3 pr-3">{T.type || "Type"}</th>
@@ -614,7 +614,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
                             />
                           </td>
                           <td className="py-3 pr-3 font-medium text-gray-900">{b.contact_name || "—"}</td>
-                          <td className="py-3 pr-3">{id || "—"}</td>
+                          {/* <td className="py-3 pr-3">{id || "—"}</td> */}
                           <td className="py-3 pr-3">{order || "—"}</td>
                           <td className="py-3 pr-3">{b.pnr || "—"}</td>
                           <td className="py-3 pr-3 capitalize">{b.type || "—"}</td>
