@@ -205,6 +205,8 @@ const DashboardPage = ({ rootUrl = "/", apiUrl = "/api", apiKey = "mock_api_key"
             }))
           );
 
+          console.info("Fetched wallet transactions:", recentBookings);
+
           setWalletTx(
             tData.map((t) => ({
               id: t.id || t.tx_id || t.reference || Math.random().toString(36).slice(2),
