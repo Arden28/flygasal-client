@@ -250,12 +250,12 @@ const ItineraryList = ({
   console.info("Rendering ItineraryList with itineraries:", paginatedItineraries);
 
   const priceBreakdown = (it) => {
-    const base = Number(it.totalPrice) || 0;
+    const base = isNaN(Number(it.totalPrice)) ? 0 : Number(it.totalPrice) * pax.paying;
     const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
-    const total = +(base + markup * pax.paying).toFixed(2);
+    const total = +(base + markup).toFixed(2);
     const perBase = +(base / pax.paying).toFixed(2);
     const perMarkup = +(markup / pax.paying).toFixed(2);
-    const perTotal = +(base).toFixed(2);
+    const perTotal = +(base / pax.paying).toFixed(2);
     return { base, markup, total, perBase, perMarkup, perTotal };
   };
 
