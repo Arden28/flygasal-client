@@ -42,6 +42,48 @@ const AirlineRow = ({ code, checked, onChange, getAirlineName, getAirlineLogo })
   );
 };
 
+/* --------- Cabin cards --------- */
+const CABIN_OPTIONS = [
+  { key: "ECONOMY", label: "Economy", sub: "Standard seats", icon: "💺" },
+  { key: "PREMIUM_ECONOMY", label: "Premium", sub: "Extra legroom", icon: "🧘" },
+  { key: "BUSINESS", label: "Business", sub: "Lie-flat options", icon: "🛏️" },
+  { key: "FIRST", label: "First", sub: "Top perks", icon: "⭐" },
+];
+
+const CabinCard = ({ active, label, sub, icon, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={[
+      "group flex w-full items-center gap-3 rounded-xl border p-3 text-left transition",
+      active
+        ? "border-blue-600 bg-blue-50 ring-2 ring-blue-200"
+        : "border-slate-200 hover:bg-slate-50",
+    ].join(" ")}
+    aria-pressed={active}
+  >
+    <span className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-base">
+      {icon}
+    </span>
+    <div className="min-w-0">
+      <div className="text-sm font-semibold text-slate-900">{label}</div>
+      <div className="text-xs text-slate-500">{sub}</div>
+    </div>
+    <div className="ml-auto">
+      <span
+        className={[
+          "inline-flex h-5 w-5 items-center justify-center rounded-full border text-xs",
+          active
+            ? "border-blue-600 bg-blue-600 text-white"
+            : "border-slate-300 text-transparent",
+        ].join(" ")}
+      >
+        ✓
+      </span>
+    </div>
+  </button>
+);
+
 const FilterModal = ({
   isOpen,
   onClose,
@@ -56,7 +98,7 @@ const FilterModal = ({
   handlePriceChange,
 
   // Airlines
-  uniqueAirlines,      // array of airline codes (e.g., ["AA","BA"])
+  uniqueAirlines,
   checkedOnewayValue,
   handleOnewayChange,
   checkedReturnValue,
@@ -72,10 +114,15 @@ const FilterModal = ({
   baggageOnly,
   onBaggageOnlyChange,
 
+  // Cabin (NEW)
+  selectedCabins,             // array of normalized keys, e.g. ["ECONOMY","BUSINESS"]
+  onToggleCabin,              // (key) => void
+  onResetCabins,              // () => void
+
   // Context & helpers
   returnFlights,
-  getAirlineName,      // <-- NEW (threaded from FlightPage)
-  getAirlineLogo,      // <-- NEW (threaded from FlightPage)
+  getAirlineName,
+  getAirlineLogo,
 
   // Optional: global clear
   onClearAll,
@@ -97,7 +144,6 @@ const FilterModal = ({
       name: (getAirlineName?.(code) || code).trim(),
       logo: getAirlineLogo?.(code),
     });
-    // dedupe + sort by name
     return [...new Set(uniqueAirlines || [])]
       .map(toMeta)
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -133,6 +179,7 @@ const FilterModal = ({
     onRetTimeChange?.([0, 24]);
     onMaxDurationChange?.(48);
     onBaggageOnlyChange?.(false);
+    onResetCabins?.();
     bulkToggle("oneway", airlineMeta)(false);
     bulkToggle("return", airlineMeta)(false);
   };
@@ -171,6 +218,34 @@ const FilterModal = ({
 
             {/* Body */}
             <div className="max-h-[72vh] overflow-y-auto px-4 py-4 sm:px-5">
+              {/* Cabin (NEW) */}
+              <Section title="Cabin class">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {CABIN_OPTIONS.map((c) => (
+                    <CabinCard
+                      key={c.key}
+                      active={selectedCabins.includes(c.key)}
+                      label={c.label}
+                      sub={c.sub}
+                      icon={c.icon}
+                      onClick={() => onToggleCabin?.(c.key)}
+                    />
+                  ))}
+                </div>
+                <div className="mt-3 flex items-center gap-2 text-xs">
+                  <button
+                    type="button"
+                    className="rounded-full border border-slate-300 px-3 py-1 hover:bg-slate-50"
+                    onClick={onResetCabins}
+                  >
+                    Select all
+                  </button>
+                  {selectedCabins.length > 0 && (
+                    <span className="text-slate-500">Selected: {selectedCabins.length}</span>
+                  )}
+                </div>
+              </Section>
+
               {/* Stops */}
               <Section title="Stops">
                 <div className="flex flex-wrap gap-2">
@@ -382,7 +457,6 @@ const FilterModal = ({
                     ))}
                   </div>
                 </Section>
-              )}
             </div>
 
             {/* Sticky footer actions */}
