@@ -3,17 +3,13 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 import logo from "/assets/img/logo/flygasal.png";
 import usFlag from "/assets/img/flags/us.svg";
-import arFlag from "/assets/img/flags/ar.svg";
-import frFlag from "/assets/img/flags/fr.svg";
-import euFlag from "/assets/img/flags/eu.svg";
-import keFlag from "/assets/img/flags/ke.svg";
 
 /**
- * Navbar (Mobile language+account outside hamburger)
- * - Mobile: language & account dropdowns are visible in the top bar (not inside hamburger)
- * - Desktop: language/currency/account on the right, primary nav center/left
- * - Accessible, controlled dropdowns, outside-click/ESC close
- * - Persists language/currency to localStorage
+ * Navbar
+ * - Language fixed to English, currency fixed to USD (no dropdowns)
+ * - Crisp, compact, accessible, with improved focus/hover states
+ * - Account dropdown + mobile hamburger remain interactive
+ * - Closes menus on route change / outside click / ESC
  */
 export default function Navbar() {
   const { user, logout, loading } = useContext(AuthContext);
@@ -22,11 +18,7 @@ export default function Navbar() {
 
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [openDropdown, setOpenDropdown] = useState(null); // "lang" | "curr" | "acct" | null
-
-  // simple prefs
-  const [lang, setLang] = useState("en");
-  const [curr, setCurr] = useState("USD");
+  const [acctOpen, setAcctOpen] = useState(false);
 
   const navLinks = useMemo(
     () => [
@@ -35,19 +27,6 @@ export default function Navbar() {
     ],
     []
   );
-
-  const languageOptions = [
-    { label: "English", flag: usFlag, value: "en" },
-    { label: "Arabic", flag: arFlag, value: "ar" },
-    { label: "Français", flag: frFlag, value: "fr" },
-  ];
-  const currencyOptions = [
-    { code: "USD", name: "United States Dollar", flag: usFlag, symbol: "$" },
-    { code: "EUR", name: "Euro", flag: euFlag, symbol: "€" },
-    { code: "KES", name: "Kenyan Shilling", flag: keFlag, symbol: "KES" },
-  ];
-  const currentLang = languageOptions.find((l) => l.value === lang) || languageOptions[0];
-  const currentCurr = currencyOptions.find((c) => c.code === curr) || currencyOptions[0];
 
   const accountOptions = user
     ? [
@@ -62,32 +41,18 @@ export default function Navbar() {
 
   const userDisplayName = user?.name || user?.email || "Account";
 
-  // hydrate prefs
-  useEffect(() => {
-    const L = localStorage.getItem("pref_lang");
-    const C = localStorage.getItem("pref_currency");
-    if (L) setLang(L);
-    if (C) setCurr(C);
-  }, []);
-  useEffect(() => {
-    localStorage.setItem("pref_lang", lang);
-  }, [lang]);
-  useEffect(() => {
-    localStorage.setItem("pref_currency", curr);
-  }, [curr]);
-
-  // Close mobile + dropdowns on route change
+  // Close menus on route change
   useEffect(() => {
     setMobileOpen(false);
-    setOpenDropdown(null);
+    setAcctOpen(false);
   }, [location.pathname]);
 
-  // Close on ESC
+  // ESC key closes menus
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === "Escape") {
-        setOpenDropdown(null);
         setMobileOpen(false);
+        setAcctOpen(false);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -100,21 +65,19 @@ export default function Navbar() {
     const handleClick = (e) => {
       if (!rootRef.current) return;
       if (!rootRef.current.contains(e.target)) {
-        setOpenDropdown(null);
+        setAcctOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const toggleDropdown = (key) => setOpenDropdown((prev) => (prev === key ? null : key));
-
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
       await logout();
       navigate("/login");
-    } catch (err) {
+    } catch {
       alert("Failed to log out. Please try again.");
     } finally {
       setIsLoggingOut(false);
@@ -123,26 +86,20 @@ export default function Navbar() {
 
   const isActive = (to) => location.pathname === to || location.pathname.startsWith(`${to}/`);
 
-  const pickLang = (val) => {
-    setLang(val);
-    setOpenDropdown(null);
-  };
-  const pickCurr = (code) => {
-    setCurr(code);
-    setOpenDropdown(null);
-  };
-
   return (
-    <header ref={rootRef} 
-      className="sticky top-0 z-[250] bg-white/60 backdrop-blur-md border-b border-white/20 shadow-sm">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <header
+      ref={rootRef}
+      className="sticky top-0 z-[250] border-b border-slate-200/60 bg-white/70 backdrop-blur-md"
+    >
+      {/* Top bar */}
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
         <div className="flex h-14 items-center justify-between">
           {/* Brand */}
           <Link
             to="/"
-            className="flex items-center gap-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+            className="group flex items-center gap-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
           >
-            <img src={logo} alt="FlyGasal" className="h-8 w-auto" />
+            <img src={logo} alt="FlyGasal" className="h-8 w-auto transition-transform group-hover:scale-[1.02]" />
           </Link>
 
           {/* Desktop nav */}
@@ -153,7 +110,9 @@ export default function Navbar() {
                   <Link
                     to={it.to}
                     className={`rounded-xl px-3 py-2 text-sm transition ${
-                      isActive(it.to) ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-50"
+                      isActive(it.to)
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                     }`}
                   >
                     {it.label}
@@ -164,104 +123,60 @@ export default function Navbar() {
           </nav>
 
           {/* Right controls (desktop) */}
-          <div className="hidden lg:flex items-center gap-2">
-            {/* Language */}
-            <div className="relative">
-              <button
-                onClick={() => toggleDropdown("lang")}
-                aria-haspopup="menu"
-                aria-expanded={openDropdown === "lang"}
-                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-800 hover:bg-gray-50"
-              >
-                <img src={currentLang.flag} alt="Language" className="h-4 w-4" />
-                <span>{currentLang.label}</span>
-                <Caret />
-              </button>
-              {openDropdown === "lang" && (
-                <ul
-                  role="menu"
-                  className="absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg"
-                >
-                  {languageOptions.map((opt) => (
-                    <li key={opt.value}>
-                      <button
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
-                        onClick={() => pickLang(opt.value)}
-                      >
-                        <img src={opt.flag} alt="" className="h-4 w-4" />
-                        <span className="flex-1">{opt.label}</span>
-                        {opt.value === lang ? <Dot /> : null}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+          <div className="hidden items-center gap-2 lg:flex">
+            {/* Fixed language (English) */}
+            <div
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-800"
+              title="Language"
+              aria-label="Language"
+            >
+              <img src={usFlag} alt="" className="h-4 w-4 rounded-sm" />
+              <span className="font-medium">English</span>
             </div>
 
-            {/* Currency */}
-            <div className="relative">
-              <button
-                onClick={() => toggleDropdown("curr")}
-                aria-haspopup="menu"
-                aria-expanded={openDropdown === "curr"}
-                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-800 hover:bg-gray-50"
-              >
-                <strong>{currentCurr.code} {currentCurr.symbol === "KES" ? "" : currentCurr.symbol}</strong>
-                <Caret />
-              </button>
-              {openDropdown === "curr" && (
-                <ul
-                  role="menu"
-                  className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg"
-                >
-                  {currencyOptions.map((opt) => (
-                    <li key={opt.code}>
-                      <button
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
-                        onClick={() => pickCurr(opt.code)}
-                      >
-                        <img src={opt.flag} alt="" className="h-4 w-4" />
-                        <span className="font-medium">{opt.code}</span>
-                        <span className="mx-1">–</span>
-                        <span className="text-gray-600">{opt.name}</span>
-                        <span className="ml-auto text-gray-500">{opt.symbol}</span>
-                        {opt.code === curr ? <Dot /> : null}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+            {/* Fixed currency (USD) */}
+            <div
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-800"
+              title="Currency"
+              aria-label="Currency"
+            >
+              <span className="font-semibold">$ USD</span>
             </div>
 
             {/* Account */}
             <div className="relative">
               <button
-                onClick={() => toggleDropdown("acct")}
+                onClick={() => setAcctOpen((v) => !v)}
                 aria-haspopup="menu"
-                aria-expanded={openDropdown === "acct"}
-                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-1.5 text-sm text-gray-800 hover:bg-gray-50"
+                aria-expanded={acctOpen}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-800 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
               >
                 <img
                   src={
                     user?.avatar_url ||
-                    `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user?.name || "U")}`
+                    `https://api.dicebear.com/7.x/initials/svg?radius=50&seed=${encodeURIComponent(
+                      user?.name || "U"
+                    )}`
                   }
                   alt="Avatar"
-                  className="h-8 w-8 rounded-full border border-gray-200 object-cover"
+                  className="h-8 w-8 rounded-full border border-slate-200 object-cover"
                 />
-                <span className="max-w-[12rem] truncate">
-                  {isLoggingOut ? "Logging out..." : userDisplayName}
-                </span>
+                <span className="max-w-[12rem] truncate">{isLoggingOut ? "Logging out..." : userDisplayName}</span>
                 <Caret />
               </button>
-              {openDropdown === "acct" && (
+
+              {acctOpen && (
                 <ul
                   role="menu"
-                  className="absolute right-0 z-50 mt-2 min-w-[10rem] overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg"
+                  className="absolute right-0 z-50 mt-2 min-w-[12rem] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
                 >
                   {accountOptions.map((opt) => (
                     <li key={opt.label}>
-                      <Link to={opt.to} className="block px-3 py-2 text-sm hover:bg-gray-50">
+                      <Link
+                        to={opt.to}
+                        className="block px-3 py-2 text-sm text-slate-800 hover:bg-slate-50"
+                        onClick={() => setAcctOpen(false)}
+                      >
                         {opt.label}
                       </Link>
                     </li>
@@ -270,7 +185,7 @@ export default function Navbar() {
                     <li>
                       <button
                         onClick={handleLogout}
-                        className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                        className="block w-full px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
                       >
                         {isLoggingOut ? "Logging out..." : "Logout"}
                       </button>
@@ -281,67 +196,53 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* Mobile controls: language + account outside hamburger */}
+          {/* Mobile controls */}
           <div className="flex items-center gap-1 sm:gap-2 lg:hidden">
-            {/* Language (icon-only label visible to SR) */}
-            <div className="relative">
-              <button
-                onClick={() => toggleDropdown("lang")}
-                aria-label="Change language"
-                aria-haspopup="menu"
-                aria-expanded={openDropdown === "lang"}
-                className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-800 hover:bg-gray-50"
-              >
-                <img src={currentLang.flag} alt="" className="h-4 w-4" />
-                <span className="sr-only">{currentLang.label}</span>
-              </button>
-              {openDropdown === "lang" && (
-                <ul
-                  role="menu"
-                  className="absolute right-0 z-50 mt-2 w-40 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg"
-                >
-                  {languageOptions.map((opt) => (
-                    <li key={opt.value}>
-                      <button
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
-                        onClick={() => pickLang(opt.value)}
-                      >
-                        <img src={opt.flag} alt="" className="h-4 w-4" />
-                        <span className="flex-1">{opt.label}</span>
-                        {opt.value === lang ? <Dot /> : null}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+            {/* Fixed language & currency compact badges */}
+            <div
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-800"
+              title="English · USD"
+              aria-label="English · USD"
+            >
+              <img src={usFlag} alt="" className="h-3.5 w-3.5 rounded-sm" />
+              <span>EN</span>
+              <span className="mx-1 h-3 w-px bg-slate-300" />
+              <span>$</span>
             </div>
 
             {/* Account avatar */}
             <div className="relative">
               <button
-                onClick={() => toggleDropdown("acct")}
+                onClick={() => setAcctOpen((v) => !v)}
                 aria-label="Account menu"
                 aria-haspopup="menu"
-                aria-expanded={openDropdown === "acct"}
-                className="inline-flex items-center rounded-full border border-gray-200 p-0.5 hover:bg-gray-50"
+                aria-expanded={acctOpen}
+                className="inline-flex items-center rounded-full border border-slate-200 bg-white p-0.5 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
               >
                 <img
                   src={
                     user?.avatar_url ||
-                    `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user?.name || "U")}`
+                    `https://api.dicebear.com/7.x/initials/svg?radius=50&seed=${encodeURIComponent(
+                      user?.name || "U"
+                    )}`
                   }
                   alt="Account"
                   className="h-8 w-8 rounded-full object-cover"
                 />
               </button>
-              {openDropdown === "acct" && (
+
+              {acctOpen && (
                 <ul
                   role="menu"
-                  className="absolute right-0 z-50 mt-2 min-w-[10rem] overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg"
+                  className="absolute right-0 z-50 mt-2 min-w-[12rem] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
                 >
                   {accountOptions.map((opt) => (
                     <li key={opt.label}>
-                      <Link to={opt.to} className="block px-3 py-2 text-sm hover:bg-gray-50">
+                      <Link
+                        to={opt.to}
+                        className="block px-3 py-2 text-sm text-slate-800 hover:bg-slate-50"
+                        onClick={() => setAcctOpen(false)}
+                      >
                         {opt.label}
                       </Link>
                     </li>
@@ -350,7 +251,7 @@ export default function Navbar() {
                     <li>
                       <button
                         onClick={handleLogout}
-                        className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                        className="block w-full px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
                       >
                         {isLoggingOut ? "Logging out..." : "Logout"}
                       </button>
@@ -362,7 +263,7 @@ export default function Navbar() {
 
             {/* Hamburger */}
             <button
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-700"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
               onClick={() => setMobileOpen((v) => !v)}
               aria-expanded={mobileOpen}
               aria-controls="mobile-menu"
@@ -381,9 +282,9 @@ export default function Navbar() {
       {/* Mobile menu */}
       <div
         id="mobile-menu"
-        className={`${mobileOpen ? "block" : "hidden"} lg:hidden border-t border-gray-100 bg-white shadow-sm`}
+        className={`${mobileOpen ? "block" : "hidden"} lg:hidden border-t border-slate-200 bg-white shadow-sm`}
       >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-2">
+        <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 py-2">
           {/* Primary links */}
           <ul className="flex flex-col gap-1 py-2">
             {navLinks.map((it) => (
@@ -391,7 +292,7 @@ export default function Navbar() {
                 <Link
                   to={it.to}
                   className={`block rounded-xl px-3 py-2 text-sm ${
-                    isActive(it.to) ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-50"
+                    isActive(it.to) ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"
                   }`}
                 >
                   {it.label}
@@ -400,39 +301,16 @@ export default function Navbar() {
             ))}
           </ul>
 
-          {/* Keep currency in hamburger (language/account are outside) */}
-          <div className="py-1">
-            <button
-              onClick={() => toggleDropdown("curr")}
-              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-gray-800 hover:bg-gray-50"
-            >
-              <span className="flex items-center gap-2">
-                <img src={currentCurr.flag} alt="" className="h-4 w-4" />
-                <strong>
-                  {currentCurr.code} {currentCurr.symbol === "KES" ? "" : currentCurr.symbol}
-                </strong>
-              </span>
-              <Caret />
-            </button>
-            {openDropdown === "curr" && (
-              <ul className="mt-1 overflow-hidden rounded-xl border border-gray-100">
-                {currencyOptions.map((opt) => (
-                  <li key={opt.code}>
-                    <button
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
-                      onClick={() => pickCurr(opt.code)}
-                    >
-                      <img src={opt.flag} alt="" className="h-4 w-4" />
-                      <span className="font-medium">{opt.code}</span>
-                      <span className="mx-1">–</span>
-                      <span className="text-gray-600">{opt.name}</span>
-                      <span className="ml-auto text-gray-500">{opt.symbol}</span>
-                      {opt.code === curr ? <Dot /> : null}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+          {/* Fixed language & currency row (non-interactive) */}
+          <div className="mt-1 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+            <span className="inline-flex items-center gap-2">
+              <img src={usFlag} alt="" className="h-4 w-4 rounded-sm" />
+              <span>English</span>
+            </span>
+            <span className="mx-2 h-4 w-px bg-slate-200" />
+            <span className="inline-flex items-center gap-2">
+              <span className="font-semibold">$ USD</span>
+            </span>
           </div>
         </div>
       </div>
@@ -441,13 +319,7 @@ export default function Navbar() {
 }
 
 const Caret = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
     <path d="M6 9l6 6 6-6" />
-  </svg>
-);
-
-const Dot = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <circle cx="12" cy="12" r="3" />
   </svg>
 );
