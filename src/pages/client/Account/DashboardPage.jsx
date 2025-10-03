@@ -168,7 +168,7 @@ const DashboardPage = ({ rootUrl = "/", apiUrl = "/api", apiKey = "mock_api_key"
 
         // Try recent bookings
         const resBookings = await apiService.get("/bookings");
-        console.log("Bookings response:", resBookings);
+        // console.log("Bookings response:", resBookings);
         const okB = resBookings?.data?.status === "true" || resBookings?.success === true;
         const bData = resBookings?.data?.data.data;
         // const okB = resBookings && (resBookings?.success || Array.isArray(resBookings?.data?.data.data));
@@ -205,7 +205,7 @@ const DashboardPage = ({ rootUrl = "/", apiUrl = "/api", apiKey = "mock_api_key"
             }))
           );
 
-          console.info("Fetched wallet transactions:", bData);
+          // console.info("Fetched wallet transactions:", bData);
 
           setWalletTx(
             tData.map((t) => ({
@@ -218,6 +218,8 @@ const DashboardPage = ({ rootUrl = "/", apiUrl = "/api", apiKey = "mock_api_key"
               reference: t.reference || t.ref || "—",
             }))
           );
+
+          console.info("Wallet transactions:", tData);
         }
       } catch (e) {
         console.error("Dashboard fetch error:", e);
