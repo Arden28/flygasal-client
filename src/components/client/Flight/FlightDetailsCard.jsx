@@ -127,14 +127,16 @@ export default function FlightDetailsCard({
             <div id={outId} className={openSections.outbound ? "block" : "hidden"}>
 <div className="px-4 pb-5 pt-4">
   {/* Timeline */}
-  <div className="relative border-l-2 border-slate-200 pl-5">
+  <div className="relative border-l-2 border-slate-200 pl-8">
     {outbound.segments.map((seg, i) => (
-      <div key={i} className="mb-6 last:mb-0 relative">
-        {/* Dot */}
-        <div className="absolute -left-[11px] top-1 h-5 w-5 rounded-full border-2 border-brand bg-white"></div>
+      <div key={i} className="mb-10 last:mb-0 relative">
+        {/* Departure Bubble */}
+        <div className="absolute left-0 top-1 flex items-center justify-center">
+          <div className="h-5 w-5 rounded-full border-2 border-brand bg-white"></div>
+        </div>
 
-        {/* Segment Info */}
-        <div className="flex items-start justify-between gap-3">
+        {/* Departure Info */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           {/* Time & Date */}
           <div className="flex flex-col min-w-0">
             <span className="text-base font-semibold text-slate-900">
@@ -146,7 +148,7 @@ export default function FlightDetailsCard({
           </div>
 
           {/* City & Airport */}
-          <div className="font-medium flex-1">
+          <div className="flex-1">
             <div className="text-sm font-medium text-slate-700">
               {getCityName(seg.departure)}
             </div>
@@ -156,17 +158,20 @@ export default function FlightDetailsCard({
           </div>
 
           {/* Code */}
-          <div className="text-right ml-3 flex-shrink-0">
-            <div className="text-sm font-medium text-slate-700 border p-2 rounded-full">
+          <div className="text-right ml-auto">
+            <div className="text-sm font-medium text-slate-700 border px-3 py-1 rounded-full">
               {seg.departure}
             </div>
           </div>
         </div>
 
-        {/* Arrival block inside same segment */}
-        <div className="mt-4">
-          <div className="absolute -left-[11px] bottom-1 h-5 w-5 rounded-full border-2 border-brand bg-white"></div>
-          <div className="flex items-start justify-between gap-3">
+        {/* Arrival */}
+        <div className="mt-6 relative">
+          <div className="absolute left-0 top-1 flex items-center justify-center">
+            <div className="h-5 w-5 rounded-full border-2 border-brand bg-white"></div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div className="flex flex-col min-w-0">
               <span className="text-base font-semibold text-slate-900">
                 {formatTime(seg.arrivalTime)}
@@ -176,7 +181,7 @@ export default function FlightDetailsCard({
               </span>
             </div>
 
-            <div className="font-medium flex-1">
+            <div className="flex-1">
               <div className="text-sm font-medium text-slate-700">
                 {getCityName(seg.arrival)}
               </div>
@@ -185,26 +190,27 @@ export default function FlightDetailsCard({
               </div>
             </div>
 
-            <div className="text-right ml-3 flex-shrink-0">
-              <div className="text-sm font-medium text-slate-700 border p-2 rounded-full">
+            <div className="text-right ml-auto">
+              <div className="text-sm font-medium text-slate-700 border px-3 py-1 rounded-full">
                 {seg.arrival}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Optional layover info */}
+        {/* Layover Info */}
         {i < outbound.segments.length - 1 && (
-          <div className="ml-6 mt-3 mb-2 text-xs text-slate-500 italic">
-            Layover in {getCityName(seg.arrival)} – 
+          <div className="ml-8 mt-4 text-xs text-slate-500 italic">
+            Layover in {getCityName(seg.arrival)} –{" "}
+            {calculateLayover(seg.arrivalTime, outbound.segments[i + 1].departureTime)}
           </div>
         )}
       </div>
     ))}
   </div>
 
-  {/* Flight extras */}
-  <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+  {/* Flight Extras */}
+  <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
     <div className="flex flex-col">
       <span className="text-slate-500">Airline</span>
       <span className="flex items-center gap-2 font-medium">
