@@ -182,9 +182,9 @@ function FlightLegAccordion({
               <ol className="relative ms-4 border-s border-slate-200">
                 {leg.segments.map((seg, i) => {
                   const depAt = new Date(seg.strDepartureDate || seg.departureTime);
-                  const depTimeAt = new Date(seg.strDepartureTime || seg.departureTime);
+                  const depTimeAt = seg.strDepartureTime || seg.departureTime;
                   const arrAt = new Date(seg.strArrivalDate || seg.arrivalTime);
-                  const arrTimeAt = new Date(seg.strDepartureTime || seg.arrivalTime);
+                  const arrTimeAt = seg.strDepartureTime || seg.arrivalTime;
                   const next = leg.segments[i + 1];
                   const hasNext = Boolean(next);
                   const layoverMins = hasNext
