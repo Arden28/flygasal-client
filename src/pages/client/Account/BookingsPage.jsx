@@ -589,7 +589,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
                       {/* <Th label={T.booking_id || "Booking ID"} sortKey="booking_id" sortBy={sortBy} sortDir={sortDir} onSort={setSort} /> */}
                       <th className="py-3 pr-3">Order #</th>
                       <th className="py-3 pr-3">PNR</th>
-                      <th className="py-3 pr-3">{T.type || "Type"}</th>
+                      {/* <th className="py-3 pr-3">{T.type || "Type"}</th> */}
                       <Th label={T.price || "Price"} sortKey="price" sortBy={sortBy} sortDir={sortDir} onSort={setSort} />
                       <Th label={T.status || "Status"} />
                       <Th label={T.date || "Date"} sortKey="created_at" sortBy={sortBy} sortDir={sortDir} onSort={setSort} />
@@ -617,7 +617,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
                           {/* <td className="py-3 pr-3">{id || "—"}</td> */}
                           <td className="py-3 pr-3">{order || "—"}</td>
                           <td className="py-3 pr-3">{b.pnr || "—"}</td>
-                          <td className="py-3 pr-3 capitalize">{b.type || "—"}</td>
+                          {/* <td className="py-3 pr-3 capitalize">{b.type || "—"}</td> */}
                           <td className="py-3 pr-3">{currency(b.total_amount ?? b.amount ?? b.price_total, b.currency || "USD")}</td>
                           <td className="py-3 pr-3"><StatusChip value={b.status} /></td>
                           <td className="py-3 pr-3">{getDateField(b) ? new Date(getDateField(b)).toLocaleString() : "—"}</td>
