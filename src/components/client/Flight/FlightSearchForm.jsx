@@ -55,11 +55,11 @@ const toCabinCode = (raw) => {
   if (s.includes("PREMIUM") && s.includes("ECONOMY")) return "PREMIUM_ECONOMY";
   if (s.startsWith("BUSI")) return "BUSINESS";
   if (s.startsWith("FIR")) return "FIRST";
-  return "ECONOMY";
+  return "Economy";
 };
 
 const CABIN_OPTIONS = [
-  { value: "ECONOMY", label: "Economy" },
+  { value: "Economy", label: "ECONOMY" },
   { value: "PREMIUM_ECONOMY", label: "Premium Economy" },
   { value: "BUSINESS", label: "Business" },
   { value: "FIRST", label: "First" },
@@ -268,7 +268,7 @@ export default function FlightSearchInlineBar({
       params = {
         tripType: (queryParams.get("tripType") || "oneway").toLowerCase() === "return" ? "return" : "oneway",
         // Normalize any incoming value to canonical code
-        flightType: toCabinCode(queryParams.get("flightType") || "ECONOMY"),
+        flightType: toCabinCode(queryParams.get("flightType") || "Economy"),
         flights: flightsFromUrl.length
           ? flightsFromUrl
           : [
