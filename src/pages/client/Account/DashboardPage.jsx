@@ -205,7 +205,7 @@ const DashboardPage = ({ rootUrl = "/", apiUrl = "/api", apiKey = "mock_api_key"
             }))
           );
 
-          console.info("Fetched wallet transactions:", recentBookings);
+          console.info("Fetched wallet transactions:", bData);
 
           setWalletTx(
             tData.map((t) => ({
