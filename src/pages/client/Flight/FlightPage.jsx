@@ -15,6 +15,14 @@ const flightsPerPage = 25;
 const MAX_RETURNS_PER_OUTBOUND = 6;
 const MAX_RESULTS = 500;
 
+const normalizeCabinKey = (raw = "") => {
+  const s = String(raw).toUpperCase();
+  if (/(^|[^A-Z])W($|[^A-Z])|PREM/.test(s)) return "PREMIUM_ECONOMY";
+  if (/BUSI|(^|[^A-Z])[CJ]($|[^A-Z])/.test(s)) return "BUSINESS";
+  if (/FIRST|(^|[^A-Z])F($|[^A-Z])/.test(s)) return "FIRST";
+  return "ECONOMY";
+};
+
 const FlightPage = () => {
   const { user } = useContext(AuthContext);
   const location = useLocation();
@@ -24,6 +32,7 @@ const FlightPage = () => {
   const [searchKey, setSearchKey] = useState(null);
   const [availableFlights, setAvailableFlights] = useState([]);
   const [returnFlights, setReturnFlights] = useState([]);
+  const [selectedCabins, setSelectedCabins] = useState([]); // empty = all
 
   // Currency to display (from offers)
   const [currency, setCurrency] = useState("USD");
@@ -596,12 +605,26 @@ const FlightPage = () => {
           rtTimeOk = rtDep >= retTimeRange[0] && rtDep <= retTimeRange[1];
         }
 
+        // ---- CABIN FILTER (NEW) ----
+        const outCabinKey = normalizeCabinKey(
+          it.cabin || it.outbound?.cabin || it.outbound?.segments?.[0]?.cabinClass
+        );
+        const retCabinKey = it.return
+          ? normalizeCabinKey(it.return?.cabin || it.return?.segments?.[0]?.cabinClass)
+          : null;
+
+        const cabinOk =
+          selectedCabins.length === 0 ||
+          (selectedCabins.includes(outCabinKey) &&
+            (!retCabinKey || selectedCabins.includes(retCabinKey)));
+
+
         // duration + baggage
         const durHrs = totalDurationMins(it.outbound, it.return) / 60;
         const durationOk = durHrs <= maxDurationHours;
         const bagOk = !baggageOnly || hasBaggage(it.outbound) || (it.return && hasBaggage(it.return));
 
-        return priceOk && stopsOk && owOk && rtOk && owTimeOk && rtTimeOk && durationOk && bagOk;
+        return priceOk && stopsOk && owOk && rtOk && owTimeOk && rtTimeOk && durationOk && bagOk && cabinOk;
       })
       .sort((a, b) => (sortOrder === "asc" ? a.totalPrice - b.totalPrice : b.totalPrice - a.totalPrice));
   }, [
@@ -616,7 +639,23 @@ const FlightPage = () => {
     maxDurationHours,
     baggageOnly,
     sortOrder,
+    selectedCabins,
   ]);
+
+  // Cabin handlers
+  const toggleCabin = (key) => {
+    setSelectedCabins((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+    setCurrentPage(1);
+    setOpenDetailsId(null);
+  };
+  const resetCabins = () => {
+    // Selecting all effectively means "no restriction" -> clear to []
+    setSelectedCabins([]);
+    setCurrentPage(1);
+    setOpenDetailsId(null);
+  };
 
   // ---------- Pagination guards ----------
   const totalPages = useMemo(
@@ -926,6 +965,11 @@ const FlightPage = () => {
         baggageOnly={baggageOnly}
         onBaggageOnlyChange={setBaggageOnly}
         returnFlights={returnFlights}
+
+        selectedCabins={selectedCabins}
+        onToggleCabin={toggleCabin}
+        onResetCabins={resetCabins}
+
         onClearAll={() => {
           setCurrentStop("mix");
           setMinPrice(priceBounds[0]);
@@ -936,6 +980,7 @@ const FlightPage = () => {
           setBaggageOnly(false);
           setCheckedOnewayValue([]);
           setCheckedReturnValue([]);
+          setSelectedCabins([]);
           resetToTop();
         }}
       />
