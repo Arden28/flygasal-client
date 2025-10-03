@@ -128,87 +128,56 @@ export default function FlightDetailsCard({
             <div id={outId} className={openSections.outbound ? "block" : "hidden"}>
 <div className="px-4 pb-5 pt-4">
   {/* Timeline */}
-  <div className="relative border-l-2 border-slate-200 pl-8">
-    {outbound.segments.map((seg, i) => (
-      <div key={i} className="mb-10 last:mb-0 relative">
-        {/* Departure Bubble */}
-        <div className="absolute left-0 top-1 flex items-center justify-center">
-          <div className="h-5 w-5 rounded-full border-2 border-brand bg-white"></div>
-        </div>
+<ol className="relative border-s border-gray-200 dark:border-gray-700">
 
-        {/* Departure Info */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-          {/* Time & Date */}
-          <div className="flex flex-col min-w-0">
-            <span className="text-base font-semibold text-slate-900">
-              {formatTime(seg.departureTime)}
-            </span>
-            <span className="text-xs text-slate-500">
-              {formatDate(seg.departureTime)}
-            </span>
-          </div>
+  {outbound.segments.map((seg, i) => (
+    <li key={i} className="mb-10 ms-4">
+      {/* Timeline dot */}
+      <div className="absolute w-3 h-3 bg-white rounded-full mt-1.5 -start-1.5 border border-brand"></div>
 
-          {/* City & Airport */}
-          <div className="flex-1">
-            <div className="text-sm font-medium text-slate-700">
-              {getCityName(seg.departure)}
-            </div>
-            <div className="text-xs font-semibold text-slate-500">
-              {getAirportName(seg.departure)}
-            </div>
-          </div>
+      {/* Departure */}
+      <time className="mb-1 text-sm font-normal leading-none text-gray-400">
+        {formatDate(seg.departureTime)} — {formatTime(seg.departureTime)}
+      </time>
+      <h3 className="text-lg font-semibold text-gray-900">
+        {getCityName(seg.departure)} ({seg.departure})
+      </h3>
+      <p className="text-sm text-gray-500">
+        {getAirportName(seg.departure)}
+      </p>
 
-          {/* Code */}
-          <div className="text-right ml-auto">
-            <div className="text-sm font-medium text-slate-700 border px-3 py-1 rounded-full">
-              {seg.departure}
-            </div>
-          </div>
-        </div>
-
-        {/* Arrival */}
-        <div className="mt-6 relative">
-          <div className="absolute left-0 top-1 flex items-center justify-center">
-            <div className="h-5 w-5 rounded-full border-2 border-brand bg-white"></div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-            <div className="flex flex-col min-w-0">
-              <span className="text-base font-semibold text-slate-900">
-                {formatTime(seg.arrivalTime)}
-              </span>
-              <span className="text-xs text-slate-500">
-                {formatDate(seg.arrivalTime)}
-              </span>
-            </div>
-
-            <div className="flex-1">
-              <div className="text-sm font-medium text-slate-700">
-                {getCityName(seg.arrival)}
-              </div>
-              <div className="text-xs font-semibold text-slate-500">
-                {getAirportName(seg.arrival)}
-              </div>
-            </div>
-
-            <div className="text-right ml-auto">
-              <div className="text-sm font-medium text-slate-700 border px-3 py-1 rounded-full">
-                {seg.arrival}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Layover Info */}
-        {i < outbound.segments.length - 1 && (
-          <div className="ml-8 mt-4 text-xs text-slate-500 italic">
-            Layover in {getCityName(seg.arrival)} –{" "}
-            {calculateLayover(seg.arrivalTime, outbound.segments[i + 1].departureTime)}
-          </div>
-        )}
+      {/* Flight Details */}
+      <div className="mt-2 text-sm text-gray-700 flex flex-wrap gap-4">
+        <span>✈️ {getAirlineName(seg.airline)} ({seg.airline})</span>
+        <span>Flight {seg.flightNum}</span>
+        <span>Class: {seg.bookingCode || "Economy"}</span>
       </div>
-    ))}
-  </div>
+
+      {/* Layover info (if not last segment) */}
+      {i < outbound.segments.length - 1 && (
+        <div className="mt-3 text-xs font-medium text-orange-600">
+          ⏱ {calculateLayover(seg.arrivalTime, outbound.segments[i + 1].departureTime)}
+        </div>
+      )}
+    </li>
+  ))}
+
+  {/* Final Arrival */}
+  <li className="ms-4">
+    <div className="absolute w-3 h-3 bg-white rounded-full mt-1.5 -start-1.5 border border-brand"></div>
+    <time className="mb-1 text-sm font-normal leading-none text-gray-400">
+      {formatDate(outbound.segments[outbound.segments.length - 1].arrivalTime)} — {formatTime(outbound.segments[outbound.segments.length - 1].arrivalTime)}
+    </time>
+    <h3 className="text-lg font-semibold text-gray-900">
+      {getCityName(outbound.segments[outbound.segments.length - 1].arrival)} ({outbound.segments[outbound.segments.length - 1].arrival})
+    </h3>
+    <p className="text-sm text-gray-500">
+      {getAirportName(outbound.segments[outbound.segments.length - 1].arrival)}
+    </p>
+  </li>
+
+</ol>
+
 
   {/* Flight Extras */}
   <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">

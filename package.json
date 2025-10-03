@@ -20,6 +20,7 @@
     "bootstrap": "^5.3.7",
     "chart.js": "^4.5.0",
     "date-fns": "^4.1.0",
+    "flowbite": "^3.1.2",
     "framer-motion": "^12.23.3",
     "html2canvas": "^1.4.1",
     "ion-rangeslider": "^2.3.1",
