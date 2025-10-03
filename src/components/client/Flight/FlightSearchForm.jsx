@@ -37,17 +37,33 @@ function useAnchorRect(ref) {
   return rect;
 }
 
-/**
- * World-class (non-flashy) inline flight bar
- * — Airy spacing, legible typography, big touch targets
- * — Airport option: name, city, country + IATA pill
- * — Refined calendar with quick presets
- * — Full-screen travellers & calendar on mobile
- */
-
+/* --------------------- utils --------------------- */
 const MAX_TRAVELLERS = 9;
 const DEFAULT_MENU_COUNT = 30;
 const SEARCH_LIMIT = 120;
+
+const today = startOfToday();
+const safeParseDate = (value, fallback = today) => {
+  const d = value ? new Date(value) : null;
+  return d && isValid(d) ? d : fallback;
+};
+const clampToToday = (d) => (d < today ? today : d);
+
+/** Canonicalize any cabin string to the API’s expected codes */
+const toCabinCode = (raw) => {
+  const s = String(raw || "").trim().toUpperCase().replace(/\s+/g, "_");
+  if (s.includes("PREMIUM") && s.includes("ECONOMY")) return "PREMIUM_ECONOMY";
+  if (s.startsWith("BUSI")) return "BUSINESS";
+  if (s.startsWith("FIR")) return "FIRST";
+  return "ECONOMY";
+};
+
+const CABIN_OPTIONS = [
+  { value: "ECONOMY", label: "Economy" },
+  { value: "PREMIUM_ECONOMY", label: "Premium Economy" },
+  { value: "BUSINESS", label: "Business" },
+  { value: "FIRST", label: "First" },
+];
 
 const useMedia = (query) => {
   const get = () =>
@@ -74,13 +90,6 @@ const useMedia = (query) => {
   }, [query]);
   return matches;
 };
-
-const today = startOfToday();
-const safeParseDate = (value, fallback = today) => {
-  const d = value ? new Date(value) : null;
-  return d && isValid(d) ? d : fallback;
-};
-const clampToToday = (d) => (d < today ? today : d);
 
 const useAirportIndex = () =>
   useMemo(
@@ -122,38 +131,31 @@ function searchAirports(index, rawQuery, limit = SEARCH_LIMIT) {
   return scored.slice(0, limit).map((t) => t[1]);
 }
 
+/* --------------------- small UI bits --------------------- */
 const IATAPill = ({ code }) => (
   <span className="ml-auto inline-flex items-center rounded-full border border-slate-300 px-2 py-[2px] text-[11px] font-medium text-slate-700">
     {code}
   </span>
 );
 
-// Only show when NOT typing; otherwise let the input text be the only thing visible.
 const AirportSingleValue = (props) => {
   const { selectProps } = props;
-  if (selectProps.inputValue) return null; // hide while typing
-
+  if (selectProps.inputValue) return null;
   const a = props.data;
-  const isDestination = selectProps.name === "destination"; // ← check which field
+  const isDestination = selectProps.name === "destination";
   const hint = isDestination ? "Where to" : "Where from";
-
   return (
     <RS.SingleValue {...props}>
       <div className="flex min-w-0 items-center gap-2">
         <div className="min-w-0">
-          <div className="mb-0 text-[11px] tracking-wide text-slate-500">
-            {hint}
-          </div>
-          <div className="truncate text-[15px] font-medium text-slate-900">
-            {a.label}
-          </div>
+          <div className="mb-0 text-[11px] tracking-wide text-slate-500">{hint}</div>
+          <div className="truncate text-[15px] font-medium text-slate-900">{a.label}</div>
         </div>
         <IATAPill code={a.value} />
       </div>
     </RS.SingleValue>
   );
 };
-
 
 const AirportOption = (props) => {
   const a = props.data;
@@ -192,6 +194,7 @@ const ValueContainer = ({ children, ...props }) => {
   );
 };
 
+/* ===================== Component ===================== */
 export default function FlightSearchInlineBar({
   searchParams,
   setAvailableFlights,
@@ -226,7 +229,8 @@ export default function FlightSearchInlineBar({
     };
 
   const [tripType, setTripType] = useState("oneway");
-  const [flightType, setFlightType] = useState("Economy");
+  // Store cabin as canonical code
+  const [flightType, setFlightType] = useState("ECONOMY");
   const [flightsState, setFlightsState] = useState([
     {
       origin: null,
@@ -246,6 +250,7 @@ export default function FlightSearchInlineBar({
   const [openDatePickerIdx, setOpenDatePickerIdx] = useState(null);
   const [errors, setErrors] = useState([]);
 
+  /* -------- hydrate from URL or props -------- */
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     let params = searchParams;
@@ -261,8 +266,9 @@ export default function FlightSearchInlineBar({
         i++;
       }
       params = {
-        tripType: queryParams.get("tripType") || "oneway",
-        flightType: queryParams.get("flightType") || "Economy",
+        tripType: (queryParams.get("tripType") || "oneway").toLowerCase() === "return" ? "return" : "oneway",
+        // Normalize any incoming value to canonical code
+        flightType: toCabinCode(queryParams.get("flightType") || "ECONOMY"),
         flights: flightsFromUrl.length
           ? flightsFromUrl
           : [
@@ -279,12 +285,14 @@ export default function FlightSearchInlineBar({
       };
     }
     setTripType(params.tripType);
-    setFlightType(params.flightType || "ECONOMY");
+    setFlightType(toCabinCode(params.flightType || "ECONOMY"));
+
     const normSegments = params.flights.map((f, i) => {
       let start = clampToToday(safeParseDate(f.depart));
-      let end = params.tripType === "return"
-        ? clampToToday(safeParseDate(params.returnDate, addDays(start, 5)))
-        : start;
+      let end =
+        params.tripType === "return"
+          ? clampToToday(safeParseDate(params.returnDate, addDays(start, 5)))
+          : start;
       if (end < start) end = start;
       const originObj = airports.find((a) => a.value === f.origin) || null;
       const destObj = airports.find((a) => a.value === f.destination) || null;
@@ -377,9 +385,11 @@ export default function FlightSearchInlineBar({
     setErrors([]);
     setIsLoading(true);
 
+    const cabinCode = toCabinCode(flightType);
+
     const queryParams = new URLSearchParams();
     queryParams.set("tripType", tripType);
-    queryParams.set("flightType", flightType);
+    queryParams.set("flightType", cabinCode); // <<<<<<<<<<<<<< canonical code
     flightsState.forEach((f, idx) => {
       queryParams.set(`flights[${idx}][origin]`, f.origin?.value || "");
       queryParams.set(`flights[${idx}][destination]`, f.destination?.value || "");
@@ -394,6 +404,7 @@ export default function FlightSearchInlineBar({
     queryParams.set("children", String(children));
     queryParams.set("infants", String(infants));
 
+    // Optional local fake data prefill (UI feedback before navigation)
     const outbound = flights.filter((fl) =>
       flightsState.some(
         (f) =>
@@ -609,12 +620,13 @@ export default function FlightSearchInlineBar({
                           id="flight_type"
                           className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
                           value={flightType}
-                          onChange={(e) => setFlightType(e.target.value)}
+                          onChange={(e) => setFlightType(toCabinCode(e.target.value))}
                         >
-                          <option value="Economy">Economy</option>
-                          <option value="PREMIUMECONOMY">Premium Economy</option>
-                          <option value="BUSINESS">Business</option>
-                          <option value="FIRST">First</option>
+                          {CABIN_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
                         </select>
                       </div>
                     </div>
@@ -683,12 +695,13 @@ export default function FlightSearchInlineBar({
                               id="flight_type"
                               className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
                               value={flightType}
-                              onChange={(e) => setFlightType(e.target.value)}
+                              onChange={(e) => setFlightType(toCabinCode(e.target.value))}
                             >
-                              <option value="Economy">Economy</option>
-                              <option value="PREMIUM ECONOMY">Premium Economy</option>
-                              <option value="business">Business</option>
-                              <option value="first">First</option>
+                              {CABIN_OPTIONS.map((o) => (
+                                <option key={o.value} value={o.value}>
+                                  {o.label}
+                                </option>
+                              ))}
                             </select>
                           </div>
                           <div className="">
@@ -801,10 +814,7 @@ export default function FlightSearchInlineBar({
               aria-expanded={openDatePickerIdx === 0}
             >
               <div className="min-w-0 truncate">
-                <div className="text-[11px] tracking-wide text-slate-500">
-                  {/* {tripType === "return" ? "Depart – Return" : "Depart"} */}
-                  Date
-                </div>
+                <div className="text-[11px] tracking-wide text-slate-500">Date</div>
                 <div className="truncate">
                   {tripType === "return"
                     ? `${format(flightsState[0].dateRange.startDate, "EEE d MMM")} – ${format(
@@ -873,7 +883,6 @@ export default function FlightSearchInlineBar({
                           left: Math.max(
                             16,
                             Math.min(
-                              // try to right-align panel with trigger
                               datesRect.right - Math.min(window.innerWidth * 0.96, 740),
                               window.innerWidth - 16 - Math.min(window.innerWidth * 0.96, 740)
                             )
