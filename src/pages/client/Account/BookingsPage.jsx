@@ -111,6 +111,7 @@ const BookingsPage = ({ rootUrl = "/", initialBookings = [] }) => {
       setError("");
       try {
         const res = await apiService.get("/bookings");
+        console.info("Fetch bookings response:", res);
         const ok = res?.data?.status === "true" || res?.success === true || res?.data?.success === true;
         const rows =
           res?.data?.data?.data ??
