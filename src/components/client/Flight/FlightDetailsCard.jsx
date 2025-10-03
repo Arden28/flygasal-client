@@ -307,11 +307,11 @@ function FlightLegAccordion({
               </ol>
 
               {/* Flight extras */}
-              <ExtrasGrid
+              {/* <ExtrasGrid
                 leg={leg}
                 getAirlineName={getAirlineName}
                 getAirlineLogo={getAirlineLogo}
-              />
+              /> */}
             </div>
           </motion.div>
         )}
