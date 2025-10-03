@@ -279,7 +279,7 @@ export default function FlightSearchInlineBar({
       };
     }
     setTripType(params.tripType);
-    setFlightType(params.flightType || "Economy");
+    setFlightType(params.flightType || "ECONOMY");
     const normSegments = params.flights.map((f, i) => {
       let start = clampToToday(safeParseDate(f.depart));
       let end = params.tripType === "return"
@@ -612,7 +612,7 @@ export default function FlightSearchInlineBar({
                           onChange={(e) => setFlightType(e.target.value)}
                         >
                           <option value="Economy">Economy</option>
-                          <option value="PREMIUM_ECONOMY">Premium Economy</option>
+                          <option value="PREMIUMECONOMY">Premium Economy</option>
                           <option value="BUSINESS">Business</option>
                           <option value="FIRST">First</option>
                         </select>

@@ -262,7 +262,7 @@ const FlightPage = () => {
 
         const rawTrip = (qp.get("tripType") || "oneway").toLowerCase();
         const tripType = rawTrip === "return" ? "return" : "oneway";
-        const flightType = qp.get("flightType") || "Economy";
+        const flightType = qp.get("flightType") || "";
 
         const params = {
           flights: legs.length ? legs : [first],
@@ -536,7 +536,7 @@ const FlightPage = () => {
             totalPrice: price(out) + price(ret),
             totalStops: (out.stops || 0) + (ret.stops || 0),
             airlines: Array.from(new Set([...carriers(out), ...carriers(ret)])),
-            cabin: out.cabin || out.segments?.[0]?.cabinClass || "Economy",
+            cabin: out.cabin || out.segments?.[0]?.cabinClass || "",
             baggage: makeBaggageLabel(out),
             refundable: false,
           });
@@ -555,7 +555,7 @@ const FlightPage = () => {
       totalPrice: Number(f?.priceBreakdown?.total || 0),
       totalStops: f.stops || 0,
       airlines: carriers(f),
-      cabin: f.cabin || f.segments?.[0]?.cabinClass || "Economy",
+      cabin: f.cabin || f.segments?.[0]?.cabinClass || "",
       baggage: makeBaggageLabel(f),
       refundable: false,
     }));
