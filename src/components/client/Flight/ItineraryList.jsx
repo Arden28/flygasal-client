@@ -247,7 +247,7 @@ const ItineraryList = ({
   }, [searchParams?.adults, searchParams?.children, searchParams?.infants]);
 
   
-  console.info("Rendering ItineraryList with itineraries:", paginatedItineraries);
+  // console.info("Rendering ItineraryList with itineraries:", paginatedItineraries);
 
   const priceBreakdown = (it) => {
     const base = isNaN(Number(it.totalPrice)) ? 0 : Number(it.totalPrice) * pax.paying;
