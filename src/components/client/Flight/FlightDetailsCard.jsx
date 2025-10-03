@@ -209,7 +209,7 @@ function FlightLegAccordion({
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <time className="block text-xs text-slate-500">
-                            {formatDate(depAt)} • {formatTime(depTimeAt)}
+                            {formatDate(depAt)} • {depTimeAt}
                           </time>
                           <h4 className="text-base font-semibold text-slate-900">
                             {getCityName(seg.departure)} ({seg.departure})
@@ -262,11 +262,11 @@ function FlightLegAccordion({
 
                         {/* segment route mini-timeline */}
                         <div className="mt-3 grid grid-cols-[auto,1fr,auto] items-center gap-2">
-                          <div className="text-sm font-semibold text-slate-900">{formatTime(depTimeAt)}</div>
+                          <div className="text-sm font-semibold text-slate-900">{depTimeAt}</div>
                           <div className="relative h-1 rounded-full bg-slate-200">
                             <div className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-sky-600" aria-hidden="true" />
                           </div>
-                          <div className="text-sm font-semibold text-slate-900">{formatTime(arrTimeAt)}</div>
+                          <div className="text-sm font-semibold text-slate-900">{arrTimeAt}</div>
 
                           <div className="col-span-3 -mt-1 text-xs text-slate-500">
                             {seg.departure} • {seg.arrival}
@@ -288,7 +288,7 @@ function FlightLegAccordion({
                       {/* destination (for this segment) */}
                       <div className="mt-4">
                         <time className="block text-xs text-slate-500">
-                          {formatDate(arrAt)} • {formatTime(arrTimeAt)}
+                          {formatDate(arrAt)} • {arrTimeAt}
                         </time>
                         <h5 className="text-base font-semibold text-slate-900">
                           {getCityName(seg.arrival)} ({seg.arrival})
