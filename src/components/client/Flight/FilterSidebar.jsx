@@ -2,49 +2,27 @@ import React, { useMemo, useState } from "react";
 import Slider from "rc-slider";
 import "rc-slider/assets/index.css";
 
-/* ---------------- Helpers ---------------- */
 const hh = (n) => `${String(n).padStart(2, "0")}:00`;
-
-/** Vintage time buckets (you can tweak ranges) */
-const TIME_BUCKETS = [
-  { key: "early", label: "Early", sub: "00–06", range: [0, 6] },
-  { key: "morning", label: "Morning", sub: "06–12", range: [6, 12] },
-  { key: "afternoon", label: "Afternoon", sub: "12–18", range: [12, 18] },
-  { key: "evening", label: "Evening", sub: "18–24", range: [18, 24] },
-  { key: "custom", label: "Custom", sub: "Pick hours", range: null },
-];
+const timeMarks = { 0: "00", 6: "06", 12: "12", 18: "18", 24: "24" };
 
 /* ---------- Section (collapsible) ---------- */
 const Section = ({ title, children, defaultOpen = true }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <section
-      className={[
-        "overflow-hidden rounded-[10px]",
-        "bg-[#f9f5ec] shadow-sm",
-        "border border-[#d6c9a5]",
-      ].join(" ")}
-      style={{
-        boxShadow:
-          "0 1px 0 rgba(70,50,35,.05), inset 0 1px 0 rgba(255,255,255,.6)",
-      }}
-    >
+    <section className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/70 overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center justify-between gap-3 px-3.5 py-3 lg:px-4 lg:py-3.5 text-left"
         aria-expanded={open}
       >
-        <span
-          className="min-w-0 flex-1 truncate text-[13px] font-semibold tracking-[.06em] text-[#3a2f2a]"
-          style={{ fontVariant: "small-caps" }}
-        >
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold tracking-wide text-slate-800">
           {title}
         </span>
         <span
           className={[
-            "shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-md",
-            "border border-[#d6c9a5] bg-[#f3e9d6]",
+            "shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-lg ring-1 ring-slate-200",
+            open ? "bg-slate-50" : "bg-white",
           ].join(" ")}
           aria-hidden="true"
         >
@@ -53,7 +31,7 @@ const Section = ({ title, children, defaultOpen = true }) => {
             height="14"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#3a2f2a"
+            stroke="currentColor"
             strokeWidth="2"
             className={open ? "rotate-180 transition-transform" : "transition-transform"}
           >
@@ -83,17 +61,15 @@ const AirlineRow = ({
   return (
     <label
       className={[
-        "flex items-center gap-3 rounded-md px-2.5 py-2",
+        "flex items-center gap-3 rounded-lg px-2.5 py-2",
         "transition-colors",
-        disabled
-          ? "opacity-50 cursor-not-allowed"
-          : "cursor-pointer hover:bg-[#f1e7d4]",
+        disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-slate-50 cursor-pointer",
       ].join(" ")}
       title={disabled ? "No results for this airline with current filters" : name}
     >
       <input
         type="checkbox"
-        className="h-4 w-4 rounded border-[#c9b990] text-[#7a583d] focus:ring-[#a17653]"
+        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
         checked={checked}
         onChange={onChange}
         disabled={disabled}
@@ -108,16 +84,16 @@ const AirlineRow = ({
         }}
       />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[13px] text-[#2f2621]">{name}</div>
-        <div className="truncate text-[11px] text-[#6b5a51]">{code}</div>
+        <div className="truncate text-sm text-slate-800">{name}</div>
+        <div className="truncate text-xs text-slate-500">{code}</div>
       </div>
       {typeof count === "number" && (
         <span
           className={[
             "ml-2 shrink-0 inline-flex items-center justify-center rounded-full border px-2 py-[1px] text-[11px]",
             count > 0
-              ? "border-[#c9b990] text-[#3a2f2a] bg-[#f4ead7]"
-              : "border-[#d8ccb0] text-[#9b8e7f] bg-[#f6efe2]",
+              ? "border-slate-300 text-slate-700 bg-slate-50"
+              : "border-slate-200 text-slate-400 bg-slate-100",
           ].join(" ")}
         >
           {count}
@@ -127,11 +103,11 @@ const AirlineRow = ({
   );
 };
 
-/* ---------- Cabin cards (vintage) ---------- */
+/* ---------- Cabin cards ---------- */
 const CABIN_OPTIONS = [
-  { key: "ECONOMY", label: "Economy", sub: "Standard seats", icon: "✈️" },
-  { key: "PREMIUM_ECONOMY", label: "Premium", sub: "Extra legroom", icon: "🧳" },
-  { key: "BUSINESS", label: "Business", sub: "Lie-flat options", icon: "🛏" },
+  { key: "ECONOMY", label: "Economy", sub: "Standard seats", icon: "💺" },
+  { key: "PREMIUM_ECONOMY", label: "Premium", sub: "Extra legroom", icon: "🧘" },
+  { key: "BUSINESS", label: "Business", sub: "Lie-flat options", icon: "🛏️" },
   { key: "FIRST", label: "First", sub: "Top perks", icon: "⭐" },
 ];
 
@@ -140,25 +116,22 @@ const CabinCard = ({ active, label, sub, icon, onClick }) => (
     type="button"
     onClick={onClick}
     className={[
-      "group flex w-full items-center gap-3 rounded-md border p-3 text-left transition",
-      "border-[#d6c9a5] bg-[#fffdf7] hover:bg-[#f6efe2]",
-      active ? "outline outline-2 outline-[#a17653]" : "",
+      "group flex w-full items-center gap-3 rounded-xl border p-3 text-left transition",
+      "ring-1 ring-slate-200/70",
+      active ? "border-blue-600 bg-blue-50 ring-blue-200" : "border-slate-200 hover:bg-slate-50 bg-white",
     ].join(" ")}
     aria-pressed={active}
-    style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,.7)" }}
   >
-    <span className="grid h-9 w-9 place-items-center rounded-full bg-[#efe3cd] text-[15px]">
-      {icon}
-    </span>
+    <span className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-base">{icon}</span>
     <div className="min-w-0">
-      <div className="truncate text-[13px] font-semibold text-[#2d241f]">{label}</div>
-      <div className="truncate text-[11px] text-[#7a6a60]">{sub}</div>
+      <div className="truncate text-sm font-semibold text-slate-900">{label}</div>
+      <div className="truncate text-xs text-slate-500">{sub}</div>
     </div>
     <div className="ml-auto">
       <span
         className={[
           "inline-flex h-5 w-5 items-center justify-center rounded-full border text-xs",
-          active ? "border-[#7a583d] bg-[#7a583d] text-white" : "border-[#c9b990] text-transparent",
+          active ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 text-transparent",
         ].join(" ")}
       >
         ✓
@@ -166,145 +139,6 @@ const CabinCard = ({ active, label, sub, icon, onClick }) => (
     </div>
   </button>
 );
-
-/* ---------- Vintage chips for stops ---------- */
-const VintageChip = ({ active, children, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={[
-      "rounded-full px-3 py-1.5 text-[12px] tracking-wide border",
-      active
-        ? "border-[#7a583d] bg-[#efe3cd] text-[#3a2f2a]"
-        : "border-[#d6c9a5] bg-[#fffdf7] text-[#5e4e45] hover:bg-[#f6efe2]",
-    ].join(" ")}
-    style={{ fontVariant: "small-caps" }}
-  >
-    {children}
-  </button>
-);
-
-/* ---------- Time bucket selector (no sliders) ---------- */
-function TimeWindow({
-  title,
-  value, // [startHour, endHour]
-  onChange, // (range) => void
-}) {
-  const [mode, setMode] = useState(() => {
-    const match = TIME_BUCKETS.find(
-      (b) => b.range && b.range[0] === value[0] && b.range[1] === value[1]
-    );
-    return match ? match.key : "custom";
-  });
-  const [custom, setCustom] = useState(() => ({
-    start: value[0],
-    end: value[1],
-  }));
-
-  const hours = Array.from({ length: 25 }, (_, i) => i);
-
-  const applyBucket = (key) => {
-    setMode(key);
-    const bucket = TIME_BUCKETS.find((b) => b.key === key);
-    if (bucket?.range) {
-      onChange(bucket.range);
-    }
-  };
-
-  const applyCustom = (field, v) => {
-    const next = { ...custom, [field]: v };
-    // keep it sane
-    if (next.end < next.start) next.end = next.start;
-    if (next.start > next.end) next.start = next.end;
-    setCustom(next);
-    setMode("custom");
-    onChange([next.start, next.end]);
-  };
-
-  return (
-    <div className="space-y-3">
-      <div
-        className="text-[12px] font-semibold tracking-[.06em] text-[#3a2f2a]"
-        style={{ fontVariant: "small-caps" }}
-      >
-        {title}
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {TIME_BUCKETS.map((b) => {
-          const active =
-            mode === b.key ||
-            (b.range &&
-              value[0] === b.range[0] &&
-              value[1] === b.range[1] &&
-              mode !== "custom");
-          return (
-            <button
-              key={b.key}
-              type="button"
-              onClick={() => applyBucket(b.key)}
-              className={[
-                "rounded-md border px-3 py-2 text-left",
-                "border-[#d6c9a5]",
-                active ? "bg-[#efe3cd]" : "bg-[#fffdf7] hover:bg-[#f6efe2]",
-              ].join(" ")}
-            >
-              <div className="text-[12px] font-semibold text-[#2f2621]">{b.label}</div>
-              <div className="text-[11px] text-[#7a6a60]">{b.sub}</div>
-            </button>
-          );
-        })}
-      </div>
-
-      {mode === "custom" && (
-        <div className="mt-2 grid grid-cols-2 gap-3">
-          <div>
-            <label
-              className="block text-[11px] text-[#6b5a51] mb-1"
-              style={{ fontVariant: "small-caps" }}
-            >
-              From
-            </label>
-            <select
-              value={custom.start}
-              onChange={(e) => applyCustom("start", Number(e.target.value))}
-              className="h-10 w-full rounded-md border border-[#d6c9a5] bg-[#fffdf7] px-2 text-[13px] text-[#2f2621] focus:outline-none focus:ring-2 focus:ring-[#c9b990]"
-            >
-              {hours.slice(0, 24).map((h) => (
-                <option key={h} value={h}>
-                  {hh(h)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label
-              className="block text-[11px] text-[#6b5a51] mb-1"
-              style={{ fontVariant: "small-caps" }}
-            >
-              To
-            </label>
-            <select
-              value={custom.end}
-              onChange={(e) => applyCustom("end", Number(e.target.value))}
-              className="h-10 w-full rounded-md border border-[#d6c9a5] bg-[#fffdf7] px-2 text-[13px] text-[#2f2621] focus:outline-none focus:ring-2 focus:ring-[#c9b990]"
-            >
-              {hours.slice(1).map((h) => (
-                <option key={h} value={h}>
-                  {hh(h)}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      )}
-
-      <div className="text-[12px] text-[#3a2f2a]">
-        Selected: <span className="font-medium">{hh(value[0])} – {hh(value[1])}</span>
-      </div>
-    </div>
-  );
-}
 
 /* ================================================================== */
 /*                              SIDEBAR                               */
@@ -416,28 +250,18 @@ export default function FilterSidebar({
   return (
     <aside
       className={[
-        "w-full rounded-[14px]",
+        "w-full rounded-3xl bg-slate-50/70 backdrop-blur",
         "p-3 lg:p-4 xl:p-5",
         "space-y-3 lg:space-y-4",
-        "bg-[#fbf7ee]",
-        "border border-[#d6c9a5]",
+        "ring-1 ring-slate-200/60 shadow-sm",
       ].join(" ")}
-      style={{
-        backgroundImage:
-          "repeating-linear-gradient(0deg, rgba(0,0,0,.03), rgba(0,0,0,.03) 1px, transparent 1px, transparent 3px)",
-      }}
     >
       {/* Header (mobile) */}
       <div className="flex items-center justify-between mb-1 lg:mb-0 lg:hidden">
-        <h2
-          className="text-[15px] font-semibold text-[#2f2621] tracking-[.06em]"
-          style={{ fontVariant: "small-caps" }}
-        >
-          Filters
-        </h2>
+        <h2 className="text-base font-semibold text-slate-900">Filters</h2>
         {onCloseMobile && (
           <button
-            className="inline-flex h-9 items-center justify-center rounded-md border border-[#c9b990] bg-[#fffdf7] px-3 text-[12px] hover:bg-[#f6efe2]"
+            className="inline-flex h-9 items-center justify-center rounded-lg ring-1 ring-slate-300 px-3 text-sm hover:bg-white"
             onClick={onCloseMobile}
           >
             Close
@@ -459,17 +283,16 @@ export default function FilterSidebar({
             />
           ))}
         </div>
-        <div className="mt-3 flex items-center justify-between text-[11px] text-[#6b5a51]">
+        <div className="mt-3 flex items-center justify-between text-xs">
           <button
             type="button"
-            className="rounded-full border border-[#c9b990] bg-[#fffdf7] px-3 py-1 hover:bg-[#f6efe2]"
+            className="rounded-full ring-1 ring-slate-300 px-3 py-1 hover:bg-slate-50"
             onClick={onResetCabins}
-            style={{ fontVariant: "small-caps" }}
           >
             Select all
           </button>
           {selectedCabins.length > 0 && (
-            <span>Selected: {selectedCabins.length}</span>
+            <span className="text-slate-500">Selected: {selectedCabins.length}</span>
           )}
         </div>
       </Section>
@@ -483,19 +306,26 @@ export default function FilterSidebar({
             { value: "oneway_1", label: "1 stop" },
             { value: "oneway_2", label: "2+ stops" },
           ].map(({ value, label }) => (
-            <VintageChip
+            <button
               key={value}
-              active={currentStop === value}
+              type="button"
               onClick={() => handleStopChange(value)}
+              className={[
+                "rounded-full px-3 py-1.5 text-sm ring-1",
+                currentStop === value
+                  ? "ring-blue-600 bg-blue-50 text-blue-700"
+                  : "ring-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+              ].join(" ")}
+              aria-pressed={currentStop === value}
             >
               {label}
-            </VintageChip>
+            </button>
           ))}
         </div>
       </Section>
 
-      {/* Price (kept slider) */}
-      <Section title={`Price (${"USD"})`} defaultOpen>
+      {/* Price */}
+      <Section title={`Price (${/* currency visual only, logic uses USD */ "USD"})`} defaultOpen>
         <div className="px-0.5">
           <Slider
             range
@@ -503,37 +333,57 @@ export default function FilterSidebar({
             max={absMax}
             value={clamped}
             onChange={handlePriceChange}
-            trackStyle={[{ height: 6, backgroundColor: "#a17653" }]}
-            railStyle={{ height: 6, backgroundColor: "#e6dcc9" }}
-            handleStyle={[
-              { width: 18, height: 18, marginTop: -6, borderColor: "#a17653", backgroundColor: "#fffdf7" },
-              { width: 18, height: 18, marginTop: -6, borderColor: "#a17653", backgroundColor: "#fffdf7" },
-            ]}
+            trackStyle={[{ height: 6 }]}
+            railStyle={{ height: 6 }}
+            handleStyle={[{ width: 18, height: 18, marginTop: -6 }, { width: 18, height: 18, marginTop: -6 }]}
           />
-          <div className="mt-2 flex items-center justify-between gap-2 text-[12px] text-[#3a2f2a]">
+          <div className="mt-2 flex items-center justify-between gap-2 text-sm text-slate-700">
             <span className="truncate">${clamped[0]}</span>
             <span className="truncate">${clamped[1]}</span>
           </div>
         </div>
       </Section>
 
-      {/* Time windows — OUTBOUND (no slider) */}
+      {/* Time windows */}
       <Section title="Departure time (outbound)" defaultOpen={false}>
-        <TimeWindow
-          title="Outbound window"
-          value={depTimeRange}
-          onChange={onDepTimeChange}
-        />
+        <div className="px-0.5">
+          <Slider
+            range
+            min={0}
+            max={24}
+            marks={timeMarks}
+            step={1}
+            value={depTimeRange}
+            onChange={onDepTimeChange}
+            trackStyle={[{ height: 6 }]}
+            railStyle={{ height: 6 }}
+            handleStyle={[{ width: 18, height: 18, marginTop: -6 }, { width: 18, height: 18, marginTop: -6 }]}
+          />
+          <div className="mt-2 text-sm text-slate-700">
+            {hh(depTimeRange[0])} – {hh(depTimeRange[1])}
+          </div>
+        </div>
       </Section>
 
-      {/* Time windows — RETURN (no slider) */}
       {returnFlights?.length > 0 && (
         <Section title="Departure time (return)" defaultOpen={false}>
-          <TimeWindow
-            title="Return window"
-            value={retTimeRange}
-            onChange={onRetTimeChange}
-          />
+          <div className="px-0.5">
+            <Slider
+              range
+              min={0}
+              max={24}
+              marks={timeMarks}
+              step={1}
+              value={retTimeRange}
+              onChange={onRetTimeChange}
+              trackStyle={[{ height: 6 }]}
+              railStyle={{ height: 6 }}
+              handleStyle={[{ width: 18, height: 18, marginTop: -6 }, { width: 18, height: 18, marginTop: -6 }]}
+            />
+            <div className="mt-2 text-sm text-slate-700">
+              {hh(retTimeRange[0])} – {hh(retTimeRange[1])}
+            </div>
+          </div>
         </Section>
       )}
 
@@ -546,21 +396,21 @@ export default function FilterSidebar({
             max={72}
             value={maxDurationHours}
             onChange={(e) => onMaxDurationChange(Number(e.target.value || 0))}
-            className="h-10 w-28 rounded-md border border-[#d6c9a5] bg-[#fffdf7] px-3 text-[13px] text-[#2f2621] focus:outline-none focus:ring-2 focus:ring-[#c9b990]"
+            className="h-10 w-28 rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
           />
-          <span className="text-[12px] text-[#6b5a51]">hours</span>
+          <span className="text-sm text-slate-600">hours</span>
         </div>
-        <p className="mt-2 text-[11px] text-[#7a6a60]">
+        <p className="mt-2 text-xs text-slate-500">
           From first departure to final arrival (round-trip sums both legs).
         </p>
       </Section>
 
       {/* Baggage */}
       <Section title="Baggage" defaultOpen={false}>
-        <label className="inline-flex items-center gap-2 text-[13px] text-[#3a2f2a]">
+        <label className="inline-flex items-center gap-2 text-sm text-slate-700">
           <input
             type="checkbox"
-            className="h-4 w-4 rounded border-[#c9b990] text-[#7a583d] focus:ring-[#a17653]"
+            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
             checked={!!baggageOnly}
             onChange={(e) => onBaggageOnlyChange(e.target.checked)}
           />
@@ -571,34 +421,43 @@ export default function FilterSidebar({
       {/* Airlines — outbound */}
       <Section title="Airlines (outbound)" defaultOpen>
         <div className="mb-2 flex items-center justify-between gap-2">
-          {/* If you want an old-paper input, uncomment: */}
           {/* <input
             type="text"
-            placeholder="Find airline…"
+            placeholder="Search airline name or code…"
             value={airlineSearchOW}
             onChange={(e) => setAirlineSearchOW(e.target.value)}
-            className="h-9 w-full rounded-md border border-[#d6c9a5] bg-[#fffdf7] px-3 text-[13px] text-[#2f2621] placeholder-[#9b8e7f] focus:outline-none focus:ring-2 focus:ring-[#c9b990]"
+            className="h-9 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
           /> */}
-          <div className="whitespace-nowrap text-[11px] flex items-center gap-2">
+          <div className="whitespace-nowrap text-xs flex items-center gap-2">
+            {/* {airlineCountsOutbound && (
+              <label className="inline-flex items-center gap-1 text-slate-600">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  checked={hideZeroOutbound}
+                  onChange={(e) => setHideZeroOutbound(e.target.checked)}
+                />
+                Hide 0
+              </label>
+            )} */}
             <button
               type="button"
-              className="rounded-full border border-[#c9b990] bg-[#fffdf7] px-3 py-1 hover:bg-[#f6efe2]"
+              className="rounded-full ring-1 ring-slate-300 px-3 py-1 hover:bg-slate-50"
               onClick={() => bulkToggle("oneway", filteredOnewayAirlines)(true)}
-              style={{ fontVariant: "small-caps" }}
             >
               Select visible
             </button>
             <button
               type="button"
-              className="rounded-full border border-[#c9b990] bg-[#fffdf7] px-3 py-1 hover:bg-[#f6efe2]"
+              className="rounded-full ring-1 ring-slate-300 px-3 py-1 hover:bg-slate-50"
               onClick={() => bulkToggle("oneway", filteredOnewayAirlines)(false)}
-              style={{ fontVariant: "small-caps" }}
             >
               Clear visible
             </button>
           </div>
         </div>
 
+        {/* Scroll area (responsive height, no overflow outside) */}
         <div
           className={[
             "space-y-1 pr-1",
@@ -631,17 +490,17 @@ export default function FilterSidebar({
           <div className="mb-2 flex items-center justify-between gap-2">
             <input
               type="text"
-              placeholder="Find airline…"
+              placeholder="Search airline name or code…"
               value={airlineSearchRT}
               onChange={(e) => setAirlineSearchRT(e.target.value)}
-              className="h-9 w-full rounded-md border border-[#d6c9a5] bg-[#fffdf7] px-3 text-[13px] text-[#2f2621] placeholder-[#9b8e7f] focus:outline-none focus:ring-2 focus:ring-[#c9b990]"
+              className="h-9 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
             />
-            <div className="whitespace-nowrap text-[11px] flex items-center gap-2">
+            <div className="whitespace-nowrap text-xs flex items-center gap-2">
               {airlineCountsReturn && (
-                <label className="inline-flex items-center gap-1 text-[#6b5a51]">
+                <label className="inline-flex items-center gap-1 text-slate-600">
                   <input
                     type="checkbox"
-                    className="h-3.5 w-3.5 rounded border-[#c9b990] text-[#7a583d] focus:ring-[#a17653]"
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                     checked={hideZeroReturn}
                     onChange={(e) => setHideZeroReturn(e.target.checked)}
                   />
@@ -650,17 +509,15 @@ export default function FilterSidebar({
               )}
               <button
                 type="button"
-                className="rounded-full border border-[#c9b990] bg-[#fffdf7] px-3 py-1 hover:bg-[#f6efe2]"
+                className="rounded-full ring-1 ring-slate-300 px-3 py-1 hover:bg-slate-50"
                 onClick={() => bulkToggle("return", filteredReturnAirlines)(true)}
-                style={{ fontVariant: "small-caps" }}
               >
                 Select visible
               </button>
               <button
                 type="button"
-                className="rounded-full border border-[#c9b990] bg-[#fffdf7] px-3 py-1 hover:bg-[#f6efe2]"
+                className="rounded-full ring-1 ring-slate-300 px-3 py-1 hover:bg-slate-50"
                 onClick={() => bulkToggle("return", filteredReturnAirlines)(false)}
-                style={{ fontVariant: "small-caps" }}
               >
                 Clear visible
               </button>
@@ -694,24 +551,22 @@ export default function FilterSidebar({
         </Section>
       )}
 
-      {/* Footer actions */}
+      {/* Footer actions (sticky on mobile so actions are always reachable) */}
       <div className="lg:pt-1">
         <div className="lg:static sticky bottom-2 left-0 right-0">
           <div className="flex items-center justify-between gap-3 bg-transparent">
             <button
               type="button"
-              className="rounded-md border border-[#c9b990] bg-[#fffdf7] px-4 py-2 text-[12px] font-medium text-[#3a2f2a] hover:bg-[#f6efe2]"
+              className="rounded-xl ring-1 ring-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-white"
               onClick={handleClear}
-              style={{ fontVariant: "small-caps" }}
             >
               Clear all
             </button>
             {onCloseMobile && (
               <button
                 type="button"
-                className="rounded-md bg-[#7a583d] px-4 py-2 text-[12px] font-semibold text-white shadow-sm hover:bg-[#694b33]"
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 lg:hidden"
                 onClick={onCloseMobile}
-                style={{ fontVariant: "small-caps" }}
               >
                 Apply
               </button>
