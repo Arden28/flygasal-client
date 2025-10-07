@@ -251,7 +251,7 @@ export default function FilterSidebar({
     <aside
       className={[
         "w-full rounded-3xl bg-slate-50/70 backdrop-blur",
-        "p-3 lg:p-4 xl:p-5",
+        "p-0 lg:p-4 xl:p-5",
         "space-y-3 lg:space-y-4",
         "ring-1 ring-slate-200/60 shadow-sm",
       ].join(" ")}
