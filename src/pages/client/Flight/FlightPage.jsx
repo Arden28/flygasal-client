@@ -307,6 +307,7 @@ const FlightPage = () => {
           const data = res?.data;
           const newKey = data?.searchKey || null;
           offers = flygasal.transformPKFareData(data) || [];
+          console.info('Normalized offers:', offers);
           displayCurrency = offers[0]?.priceBreakdown?.currency || "USD";
           if (newKey) {
             qp.set("searchKey", newKey);
