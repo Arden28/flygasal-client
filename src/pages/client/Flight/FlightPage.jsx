@@ -868,7 +868,7 @@ const FlightPage = () => {
 
           <div className="row g-3">
             {/* LEFT: Filters */}
-            <div className="col-12 col-lg-4 col-xl-3">
+            <div className="col-12 col-lg-5 col-xl-3">
               {/* Mobile collapse */}
               <AnimatePresence initial={false}>
                 {filtersOpenMobile && (
@@ -981,7 +981,7 @@ const FlightPage = () => {
             </div>
 
             {/* RIGHT: Results */}
-            <div className="col-12 col-lg-8 col-xl-9">
+            <div className="col-12 col-lg-7 col-xl-9">
               {/* Error / Expired */}
               {error && (
                 <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">
