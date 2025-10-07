@@ -103,7 +103,7 @@ const CabinCard = ({ active, label, sub, icon, onClick }) => (
   </button>
 );
 
-function FilterSidebar({
+export default function FilterSidebar({
   currentStop,
   handleStopChange,
   priceRange,
@@ -144,7 +144,6 @@ function FilterSidebar({
 
   const [airlineSearchOW, setAirlineSearchOW] = useState("");
   const [airlineSearchRT, setAirlineSearchRT] = useState("");
-
   const [hideZeroOutbound, setHideZeroOutbound] = useState(false);
   const [hideZeroReturn, setHideZeroReturn] = useState(false);
 
@@ -168,7 +167,6 @@ function FilterSidebar({
     () => rawOutboundCodes.map(toMeta).sort((a, b) => a.name.localeCompare(b.name)),
     [rawOutboundCodes, getAirlineName, getAirlineLogo]
   );
-
   const airlineMetaReturn = useMemo(
     () => rawReturnCodes.map(toMeta).sort((a, b) => a.name.localeCompare(b.name)),
     [rawReturnCodes, getAirlineName, getAirlineLogo]
@@ -177,7 +175,9 @@ function FilterSidebar({
   const filteredOnewayAirlines = useMemo(() => {
     const q = airlineSearchOW.trim().toLowerCase();
     let list = airlineMetaOutbound;
-    if (q) list = list.filter(({ code, name }) => code.toLowerCase().includes(q) || name.toLowerCase().includes(q));
+    if (q) {
+      list = list.filter(({ code, name }) => code.toLowerCase().includes(q) || name.toLowerCase().includes(q));
+    }
     if (hideZeroOutbound && airlineCountsOutbound) {
       list = list.filter(({ code }) => (airlineCountsOutbound[code] || 0) > 0);
     }
@@ -187,7 +187,9 @@ function FilterSidebar({
   const filteredReturnAirlines = useMemo(() => {
     const q = airlineSearchRT.trim().toLowerCase();
     let list = airlineMetaReturn;
-    if (q) list = list.filter(({ code, name }) => code.toLowerCase().includes(q) || name.toLowerCase().includes(q));
+    if (q) {
+      list = list.filter(({ code, name }) => code.toLowerCase().includes(q) || name.toLowerCase().includes(q));
+    }
     if (hideZeroReturn && airlineCountsReturn) {
       list = list.filter(({ code }) => (airlineCountsReturn[code] || 0) > 0);
     }
@@ -348,7 +350,9 @@ function FilterSidebar({
           />
           <span className="text-sm text-slate-600">hours</span>
         </div>
-        <p className="mt-2 text-xs text-slate-500">From first departure to final arrival (round-trip sums both legs).</p>
+        <p className="mt-2 text-xs text-slate-500">
+          From first departure to final arrival (round-trip sums both legs).
+        </p>
       </Section>
 
       {/* Baggage */}
@@ -463,25 +467,25 @@ function FilterSidebar({
             </div>
           </div>
 
-        <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
-          {filteredReturnAirlines.map(({ code }) => {
-            const count = getCountRT(code);
-            const disabled = typeof count === "number" && count <= 0;
-            return (
-              <AirlineRow
-                key={`rt_${code}`}
-                code={code}
-                checked={checkedReturnValue.includes(`return_${code}`)}
-                onChange={(e) => handleReturnChange(e, code)}
-                getAirlineName={getAirlineName}
-                getAirlineLogo={getAirlineLogo}
-                count={count}
-                disabled={disabled}
-              />
-            );
-          })}
-        </div>
-      </Section>
+          <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
+            {filteredReturnAirlines.map(({ code }) => {
+              const count = getCountRT(code);
+              const disabled = typeof count === "number" && count <= 0;
+              return (
+                <AirlineRow
+                  key={`rt_${code}`}
+                  code={code}
+                  checked={checkedReturnValue.includes(`return_${code}`)}
+                  onChange={(e) => handleReturnChange(e, code)}
+                  getAirlineName={getAirlineName}
+                  getAirlineLogo={getAirlineLogo}
+                  count={count}
+                  disabled={disabled}
+                />
+              );
+            })}
+          </div>
+        </Section>
       )}
 
       {/* Footer actions */}
@@ -506,5 +510,3 @@ function FilterSidebar({
     </aside>
   );
 }
-
-export default FilterSidebar;

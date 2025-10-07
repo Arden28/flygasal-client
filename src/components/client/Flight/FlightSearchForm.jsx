@@ -2,13 +2,12 @@ import React, { useEffect, useMemo, useRef, useState, useLayoutEffect } from "re
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import Select, { components as RS } from "react-select";
-// Two compact calendars instead of a range picker
-import { Calendar } from "react-date-range";
+import { DateRange } from "react-date-range";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 import { airports, flights } from "../../../data/fakeData";
 import { motion, AnimatePresence } from "framer-motion";
-import { format, addDays, startOfToday, isValid, addWeeks, max as maxDate } from "date-fns";
+import { format, addDays, startOfToday, isValid, addWeeks } from "date-fns";
 
 /* --------------------- portal + anchor rect helpers --------------------- */
 function Portal({ children }) {
@@ -230,6 +229,7 @@ export default function FlightSearchInlineBar({
     };
 
   const [tripType, setTripType] = useState("oneway");
+  // Store cabin as canonical code
   const [flightType, setFlightType] = useState("ECONOMY");
   const [flightsState, setFlightsState] = useState([
     {
@@ -267,6 +267,7 @@ export default function FlightSearchInlineBar({
       }
       params = {
         tripType: (queryParams.get("tripType") || "oneway").toLowerCase() === "return" ? "return" : "oneway",
+        // Normalize any incoming value to canonical code
         flightType: toCabinCode(queryParams.get("flightType") || "Economy"),
         flights: flightsFromUrl.length
           ? flightsFromUrl
@@ -278,9 +279,9 @@ export default function FlightSearchInlineBar({
               },
             ],
         returnDate: queryParams.get("returnDate") || format(addDays(today, 5), "yyyy-MM-dd"),
-        adults: parseInt(queryParams.get("adults") || "1") || 1,
-        children: parseInt(queryParams.get("children") || "0") || 0,
-        infants: parseInt(queryParams.get("infants") || "0") || 0,
+        adults: parseInt(queryParams.get("adults")) || 1,
+        children: parseInt(queryParams.get("children")) || 0,
+        infants: parseInt(queryParams.get("infants")) || 0,
       };
     }
     setTripType(params.tripType);
@@ -337,8 +338,6 @@ export default function FlightSearchInlineBar({
 
   const handleFlightChange = (idx, field, value) =>
     setFlightsState((prev) => prev.map((f, i) => (i === idx ? { ...f, [field]: value } : f)));
-
-  // Keeps support for preset chips (range-like)
   const handleDateRangeChange = (idx, ranges) => {
     const selection = ranges.selection;
     let start = clampToToday(selection.startDate || today);
@@ -348,32 +347,6 @@ export default function FlightSearchInlineBar({
     setFlightsState((prev) => prev.map((f, i) => (i === idx ? { ...f, dateRange: next } : f)));
     if (tripType === "oneway") setOpenDatePickerIdx(null);
   };
-
-  // New: individual picks for the two small calendars
-  const handleStartPick = (idx, date) => {
-    const start = clampToToday(Array.isArray(date) ? date[0] : date);
-    setFlightsState((prev) =>
-      prev.map((f, i) => {
-        if (i !== idx) return f;
-        const end = tripType === "return" ? maxDate([start, f.dateRange.endDate || start]) : start;
-        return { ...f, dateRange: { ...f.dateRange, startDate: start, endDate: end } };
-      })
-    );
-    if (tripType === "oneway" && isMobile) setOpenDatePickerIdx(null);
-  };
-
-  const handleEndPick = (idx, date) => {
-    const d = clampToToday(Array.isArray(date) ? date[0] : date);
-    setFlightsState((prev) =>
-      prev.map((f, i) => {
-        if (i !== idx) return f;
-        const start = f.dateRange.startDate || today;
-        const end = d < start ? start : d;
-        return { ...f, dateRange: { ...f.dateRange, endDate: end } };
-      })
-    );
-  };
-
   const swapPlaces = (idx) =>
     setFlightsState((prev) =>
       prev.map((f, i) => (i === idx ? { ...f, origin: f.destination, destination: f.origin } : f))
@@ -416,7 +389,7 @@ export default function FlightSearchInlineBar({
 
     const queryParams = new URLSearchParams();
     queryParams.set("tripType", tripType);
-    queryParams.set("flightType", cabinCode);
+    queryParams.set("flightType", cabinCode); // <<<<<<<<<<<<<< canonical code
     flightsState.forEach((f, idx) => {
       queryParams.set(`flights[${idx}][origin]`, f.origin?.value || "");
       queryParams.set(`flights[${idx}][destination]`, f.destination?.value || "");
@@ -461,7 +434,7 @@ export default function FlightSearchInlineBar({
     }, 350);
   };
 
-  /* —— STYLE TWEAKS —— */
+  // —— STYLE TWEAKS ONLY (keeps inline layout) ——
   const selectStyles = {
     control: (base, state) => ({
       ...base,
@@ -532,7 +505,7 @@ export default function FlightSearchInlineBar({
     .rdrMonth{padding:4px}
     .rdrMonthAndYearWrapper{padding:.5rem .75rem;border-bottom:1px solid #e5e7eb}
     .rdrDay{font-size:.95rem;color:#0f172a}
-    .rdrSelected,.rdrStartEdge,.rdrEndEdge{background:#0284c7!important;color:#fff!important}
+    .rdrSelected,.rdrInRange,.rdrStartEdge,.rdrEndEdge{background:#0284c7!important;color:#fff!important}
     .rdrInRange{background:#bae6fd!important}
     .rdrDayToday .rdrDayNumber span:after{background:#0284c7}
   `;
@@ -591,7 +564,7 @@ export default function FlightSearchInlineBar({
               {travellerSummary}
             </button>
 
-            {/* Travellers popover (same behavior) */}
+            {/* Travellers: full-screen on mobile, portaled on desktop */}
             <AnimatePresence>
               {isTravellersOpen &&
                 (isMobile ? (
@@ -856,7 +829,7 @@ export default function FlightSearchInlineBar({
               </svg>
             </button>
 
-            {/* Calendars: mobile stacked, desktop side-by-side */}
+            {/* Calendar: full-screen on mobile, portaled on desktop */}
             <AnimatePresence>
               {openDatePickerIdx === 0 &&
                 (isMobile ? (
@@ -875,39 +848,22 @@ export default function FlightSearchInlineBar({
                         Close
                       </span>
                     </div>
-
-                    <div className="flex-1 overflow-auto p-3 space-y-3">
-                      <div className="rounded-xl border border-slate-200 bg-white p-2">
-                        <div className="mb-2 text-xs font-medium text-slate-600">Departure</div>
-                        <Calendar
-                          date={flightsState[0].dateRange.startDate}
-                          onChange={(d) => handleStartPick(0, d)}
-                          minDate={today}
-                          months={1}
-                          showMonthAndYearPickers
-                        />
-                      </div>
-
-                      {tripType === "return" && (
-                        <div className="rounded-xl border border-slate-200 bg-white p-2">
-                          <div className="mb-2 text-xs font-medium text-slate-600">Return</div>
-                          <Calendar
-                            date={flightsState[0].dateRange.endDate}
-                            onChange={(d) => handleEndPick(0, d)}
-                            minDate={flightsState[0].dateRange.startDate || today}
-                            months={1}
-                            showMonthAndYearPickers
-                          />
-                        </div>
-                      )}
+                    <div className="flex-1 overflow-auto p-2">
+                      <DateRange
+                        ranges={[flightsState[0].dateRange]}
+                        onChange={(r) => handleDateRangeChange(0, r)}
+                        minDate={today}
+                        months={1}
+                        direction="horizontal"
+                        showDateDisplay
+                        moveRangeOnFirstSelection={false}
+                        rangeColors={["#0284c7"]}
+                        className="w-full"
+                      />
                     </div>
-
                     {tripType === "return" && (
                       <div className="border-t border-slate-200 p-3">
-                        <button
-                          className="w-full rounded-lg bg-slate-900 py-2 text-sm text-white"
-                          onClick={() => setOpenDatePickerIdx(null)}
-                        >
+                        <button className="w-full rounded-lg bg-slate-900 py-2 text-sm text-white" onClick={() => setOpenDatePickerIdx(null)}>
                           Done
                         </button>
                       </div>
@@ -927,16 +883,15 @@ export default function FlightSearchInlineBar({
                           left: Math.max(
                             16,
                             Math.min(
-                              datesRect.right - Math.min(window.innerWidth * 0.96, 560),
-                              window.innerWidth - 16 - Math.min(window.innerWidth * 0.96, 560)
+                              datesRect.right - Math.min(window.innerWidth * 0.96, 740),
+                              window.innerWidth - 16 - Math.min(window.innerWidth * 0.96, 740)
                             )
                           ),
-                          width: "min(96vw, 560px)",
+                          width: "min(96vw, 740px)",
                           zIndex: 100000,
                         }}
                       >
                         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
-                          {/* Presets */}
                           <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 p-2">
                             {presetRanges.map((p) => (
                               <button
@@ -959,33 +914,19 @@ export default function FlightSearchInlineBar({
                               </button>
                             ))}
                           </div>
-
-                          {/* Two small calendars */}
-                          <div className="grid grid-cols-2 gap-2 p-2">
-                            <div className="rounded-xl border border-slate-200 bg-white p-2">
-                              <div className="mb-2 text-xs font-medium text-slate-600">Departure</div>
-                              <Calendar
-                                date={flightsState[0].dateRange.startDate}
-                                onChange={(d) => handleStartPick(0, d)}
-                                minDate={today}
-                                months={1}
-                                showMonthAndYearPickers
-                              />
-                            </div>
-                            {tripType === "return" && (
-                              <div className="rounded-xl border border-slate-200 bg-white p-2">
-                                <div className="mb-2 text-xs font-medium text-slate-600">Return</div>
-                                <Calendar
-                                  date={flightsState[0].dateRange.endDate}
-                                  onChange={(d) => handleEndPick(0, d)}
-                                  minDate={flightsState[0].dateRange.startDate || today}
-                                  months={1}
-                                  showMonthAndYearPickers
-                                />
-                              </div>
-                            )}
+                          <div className="p-2">
+                            <DateRange
+                              ranges={[flightsState[0].dateRange]}
+                              onChange={(r) => handleDateRangeChange(0, r)}
+                              minDate={today}
+                              months={isDesktop ? 2 : 1}
+                              direction="horizontal"
+                              showDateDisplay
+                              moveRangeOnFirstSelection={false}
+                              rangeColors={["#0284c7"]}
+                              className="w-full"
+                            />
                           </div>
-
                           {tripType === "return" && (
                             <div className="border-t border-slate-100 p-3">
                               <button
