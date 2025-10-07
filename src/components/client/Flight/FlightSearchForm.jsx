@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
-import Select, { components as RS } from "react-select";
+import Select from "react-select";
 import { Calendar } from "react-date-range";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
@@ -12,31 +12,22 @@ import { format, addDays, startOfToday, isValid, addWeeks } from "date-fns";
 /* --------------------- portal + anchor rect helpers --------------------- */
 function Portal({ children }) {
   const [ready, setReady] = useState(false);
-  const elRef = useRef(null);
-  useEffect(() => {
-    elRef.current = document.body;
-    setReady(true);
-  }, []);
-  return ready && elRef.current ? createPortal(children, elRef.current) : null;
+  useEffect(() => setReady(true), []);
+  return ready ? createPortal(children, document.body) : null;
 }
 
-/**
- * Stable, warning-free anchor rect hook.
- * - Re-measures when `watchKey` changes (e.g., when a popover opens).
- * - Uses ResizeObserver + window resize/scroll.
- * - Avoids `ref`/`ref.current` in deps to satisfy react-hooks/exhaustive-deps.
- */
-function useAnchorRect(ref, watchKey) {
+/** Stable anchor rect: measures on open/close + window changes (no ESLint warnings) */
+function useAnchorRect(ref, enabled) {
   const [rect, setRect] = useState(null);
 
   useLayoutEffect(() => {
-    if (!ref.current) return;
+    if (!enabled || !ref.current) return;
 
     const update = () => {
       if (ref.current) setRect(ref.current.getBoundingClientRect());
     };
 
-    // initial + next frame (catch late layout)
+    // initial + next frame to catch late layout
     update();
     const raf = requestAnimationFrame(update);
 
@@ -52,7 +43,7 @@ function useAnchorRect(ref, watchKey) {
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update);
     };
-  }, [watchKey]); // only depends on a primitive key we control
+  }, [enabled, ref]);
 
   return rect;
 }
@@ -147,46 +138,11 @@ const IATAPill = ({ code }) => (
   </span>
 );
 
-const AirportSingleValue = (props) => {
-  const { selectProps } = props;
-  if (selectProps.inputValue) return null;
-  const a = props.data;
-  const isDestination = selectProps.name === "destination";
-  const hint = isDestination ? "Where to" : "Where from";
-  return (
-    <RS.SingleValue {...props}>
-      <div className="flex min-w-0 items-center gap-2">
-        <div className="min-w-0">
-          <div className="mb-0 text-[11px] tracking-wide text-slate-500">{hint}</div>
-          <div className="truncate text-[15px] font-medium text-slate-900">{a.label}</div>
-        </div>
-        <IATAPill code={a.value} />
-      </div>
-    </RS.SingleValue>
-  );
-};
-
-const AirportOption = (props) => {
-  const a = props.data;
-  return (
-    <RS.Option {...props} className="!p-0">
-      <div className={`flex items-center gap-3 px-3 py-2.5 ${props.isFocused ? "bg-slate-50" : "bg-white"}`}>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[14px] font-medium text-slate-900">{a.label}</div>
-          <div className="truncate text-xs text-slate-500">
-            {a.city ? `${a.city}, ${a.country}` : a.country}
-          </div>
-        </div>
-        <IATAPill code={a.value} />
-      </div>
-    </RS.Option>
-  );
-};
-
-const ValueContainer = ({ children, ...props }) => {
+/** Custom value container; avoid relying on RS.ValueContainer shape */
+const AirportValueContainer = ({ children, ...props }) => {
   const a = props.getValue?.()[0];
   return (
-    <RS.ValueContainer {...props}>
+    <div className={props.className} {...props.innerProps} style={{ display: "flex", alignItems: "center", gap: 8 }}>
       {a ? (
         <div className="flex min-w-0 items-center gap-2">
           <div className="min-w-0">
@@ -199,7 +155,47 @@ const ValueContainer = ({ children, ...props }) => {
         </div>
       ) : null}
       {children}
-    </RS.ValueContainer>
+    </div>
+  );
+};
+
+const AirportSingleValue = (props) => {
+  const { selectProps } = props;
+  if (selectProps.inputValue) return null;
+  const a = props.data;
+  const isDestination = selectProps.name === "destination";
+  const hint = isDestination ? "Where to" : "Where from";
+  return (
+    <div className={props.className} {...props.innerProps}>
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="min-w-0">
+          <div className="mb-0 text-[11px] tracking-wide text-slate-500">{hint}</div>
+          <div className="truncate text-[15px] font-medium text-slate-900">{a.label}</div>
+        </div>
+        <IATAPill code={a.value} />
+      </div>
+    </div>
+  );
+};
+
+const AirportOption = (props) => {
+  const a = props.data;
+  return (
+    <div
+      {...props.innerProps}
+      className={`!p-0 ${props.isFocused ? "bg-slate-50" : "bg-white"}`}
+      style={{ padding: 0 }}
+    >
+      <div className="flex items-center gap-3 px-3 py-2.5">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[14px] font-medium text-slate-900">{a.label}</div>
+          <div className="truncate text-xs text-slate-500">
+            {a.city ? `${a.city}, ${a.country}` : a.country}
+          </div>
+        </div>
+        <IATAPill code={a.value} />
+      </div>
+    </div>
   );
 };
 
@@ -220,11 +216,13 @@ export default function FlightSearchInlineBar({
   const departBtnRef = useRef(null);
   const returnBtnRef = useRef(null);
 
-  // watch keys to trigger measuring when popovers open/close or tripType changes
-  const [openCal, setOpenCal] = useState(null); // 'depart' | 'return' | null
-  const travellersRect = useAnchorRect(travellersBtnRef, `${openCal}-trav-${Date.now() % 2}`); // tiny change to force update on open
-  const departRect = useAnchorRect(departBtnRef, openCal === "depart" ? "depart-open" : "depart-closed");
-  const returnRect = useAnchorRect(returnBtnRef, `${openCal === "return"}-${tripType}`);
+  // which calendar is open: 'depart' | 'return' | null
+  const [openCal, setOpenCal] = useState(null);
+
+  // measure only when that popover is enabled/open
+  const travellersRect = useAnchorRect(travellersBtnRef, true /* small popover; measure always ok */);
+  const departRect = useAnchorRect(departBtnRef, openCal === "depart");
+  const returnRect = useAnchorRect(returnBtnRef, openCal === "return");
 
   const [airportMenus, setAirportMenus] = useState({});
   const menuKey = (idx, field) => `${idx}:${field}`;
@@ -476,7 +474,7 @@ export default function FlightSearchInlineBar({
   const noOptionsMessage = ({ inputValue }) =>
     inputValue && inputValue.length > 1 ? "No airports match your search" : "Type to search airports";
 
-  // compact calendar visuals (no scale, tighter paddings)
+  // compact calendar visuals
   const datePickerStyles = `
     .rdrCalendarWrapper{background:#fff;border-radius:12px;border:1px solid #e5e7eb;padding:.2rem}
     .rdrMonth{padding:0}
@@ -645,7 +643,7 @@ export default function FlightSearchInlineBar({
               onChange={(v) => handleFlightChange(0, "origin", v)}
               onMenuOpen={() => handleMenuOpen(0, "origin")}
               onInputChange={handleInputChange(0, "origin")}
-              components={{ Option: AirportOption, ValueContainer: RS.ValueContainer, SingleValue: AirportSingleValue }}
+              components={{ Option: AirportOption, ValueContainer: AirportValueContainer, SingleValue: AirportSingleValue }}
               styles={selectStyles}
               placeholder="City or airport"
               isSearchable
@@ -685,7 +683,7 @@ export default function FlightSearchInlineBar({
               onChange={(v) => handleFlightChange(0, "destination", v)}
               onMenuOpen={() => handleMenuOpen(0, "destination")}
               onInputChange={handleInputChange(0, "destination")}
-              components={{ Option: AirportOption, ValueContainer: RS.ValueContainer, SingleValue: AirportSingleValue }}
+              components={{ Option: AirportOption, ValueContainer: AirportValueContainer, SingleValue: AirportSingleValue }}
               styles={selectStyles}
               placeholder="City or airport"
               isSearchable
@@ -705,7 +703,7 @@ export default function FlightSearchInlineBar({
               ref={departBtnRef}
               type="button"
               onClick={() => setOpenCal(openCal === "depart" ? null : "depart")}
-              className="flex h-[58px] w-full items-center justify-between rounded-3 border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none"
+              className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none"
               aria-expanded={openCal === "depart"}
             >
               <div className="min-w-0 truncate">
@@ -778,7 +776,7 @@ export default function FlightSearchInlineBar({
                 ref={returnBtnRef}
                 type="button"
                 onClick={() => setOpenCal(openCal === "return" ? null : "return")}
-                className="flex h-[58px] w-full items-center justify-between rounded-3 border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none"
+                className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none"
                 aria-expanded={openCal === "return"}
               >
                 <div className="min-w-0 truncate">
@@ -873,6 +871,7 @@ export default function FlightSearchInlineBar({
 
       {/* Make sure react-select menus are above everything */}
       <style>{`.react-select__menu-portal{z-index:100000}`}</style>
+      <style>{datePickerStyles}</style>
     </form>
   );
 }
