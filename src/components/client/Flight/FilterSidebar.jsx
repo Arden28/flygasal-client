@@ -421,13 +421,13 @@ export default function FilterSidebar({
       {/* Airlines — outbound */}
       <Section title="Airlines (outbound)" defaultOpen>
         <div className="mb-2 flex items-center justify-between gap-2">
-          <input
+          {/* <input
             type="text"
             placeholder="Search airline name or code…"
             value={airlineSearchOW}
             onChange={(e) => setAirlineSearchOW(e.target.value)}
             className="h-9 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
-          />
+          /> */}
           <div className="whitespace-nowrap text-xs flex items-center gap-2">
             {/* {airlineCountsOutbound && (
               <label className="inline-flex items-center gap-1 text-slate-600">
