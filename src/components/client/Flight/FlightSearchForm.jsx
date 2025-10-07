@@ -199,7 +199,6 @@ export default function FlightSearchInlineBar({
   const travellersBtnRef = useRef(null);
   const departBtnRef = useRef(null);
   const returnBtnRef = useRef(null);
-  
   const travellersRect = useAnchorRect(travellersBtnRef);
   const departRect = useAnchorRect(departBtnRef);
   const returnRect = useAnchorRect(returnBtnRef);
