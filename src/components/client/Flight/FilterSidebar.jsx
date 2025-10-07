@@ -251,7 +251,7 @@ export default function FilterSidebar({
     <aside
       className={[
         "w-full rounded-3xl bg-slate-50/70 backdrop-blur",
-        "p-0 lg:p-4 xl:p-5",
+        "p-3 lg:p-4 xl:p-5",
         "space-y-3 lg:space-y-4",
         "ring-1 ring-slate-200/60 shadow-sm",
       ].join(" ")}
@@ -271,7 +271,7 @@ export default function FilterSidebar({
 
       {/* Cabin */}
       <Section title="Cabin class" defaultOpen>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 gap-2.5">
           {CABIN_OPTIONS.map((c) => (
             <CabinCard
               key={c.key}
