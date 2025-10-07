@@ -20,35 +20,22 @@ function Portal({ children }) {
   return ready && elRef.current ? createPortal(children, elRef.current) : null;
 }
 
-  function useAnchorRect(ref, deps = []) {
-    const [rect, setRect] = useState(null);
-
-    useLayoutEffect(() => {
-      const el = ref.current;
-      if (!el) return;
-
-      const update = () => setRect(el.getBoundingClientRect());
-      update();
-
-      let ro;
-      if (window.ResizeObserver) {
-        ro = new ResizeObserver(update);
-        ro.observe(el);
-      }
-
-      window.addEventListener("resize", update, { passive: true });
-      window.addEventListener("scroll", update, { passive: true });
-
-      return () => {
-        if (ro) ro.disconnect();
-        window.removeEventListener("resize", update);
-        window.removeEventListener("scroll", update);
-      };
-    // re-run when deps change (e.g., when a popover opens)
-    }, [ref, ...deps]);
-
-    return rect;
-  }
+function useAnchorRect(ref) {
+  const [rect, setRect] = useState(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setRect(el.getBoundingClientRect());
+    update();
+    window.addEventListener("resize", update, { passive: true });
+    window.addEventListener("scroll", update, { passive: true });
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update);
+    };
+  }, [ref]);
+  return rect;
+}
 
 /* --------------------- utils --------------------- */
 const MAX_TRAVELLERS = 9;
@@ -486,17 +473,13 @@ export default function FlightSearchInlineBar({
 
   // Compact calendar visuals
   const datePickerStyles = `
-    .rdrCalendarWrapper{background:#fff;border-radius:12px;border:1px solid #e5e7eb;padding:.2rem;}
-    .rdrMonth{padding:0}
-    .rdrMonths{gap:.25rem}
+    .rdrCalendarWrapper{background:#fff;border-radius:12px;border:1px solid #e5e7eb;padding:.25rem;transform:scale(.94);transform-origin: top left;}
+    .rdrMonth{padding:2px}
     .rdrMonthAndYearWrapper{padding:.35rem .5rem;border-bottom:1px solid #e5e7eb}
-    .rdrWeekDays{margin:0 .25rem}
-    .rdrDays{margin:.15rem .25rem}
-    .rdrDay{font-size:.9rem}
-    .rdrDayNumber{margin:0}
-    .rdrDayToday .rdrDayNumber span:after{background:#0284c7}
+    .rdrDay{font-size:.9rem;color:#0f172a}
     .rdrSelected,.rdrStartEdge,.rdrEndEdge{background:#0284c7!important;color:#fff!important}
     .rdrInRange{background:#bae6fd!important}
+    .rdrDayToday .rdrDayNumber span:after{background:#0284c7}
   `;
 
   const departLabel = flightsState[0].dateRange.startDate
@@ -757,7 +740,7 @@ export default function FlightSearchInlineBar({
                           zIndex: 100000,
                         }}
                       >
-                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
+                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-2xl">
                           <div className="px-2 pt-1 pb-2 text-xs font-medium text-slate-600">Departure</div>
                           <Calendar
                             date={flightsState[0].dateRange.startDate}
@@ -830,7 +813,7 @@ export default function FlightSearchInlineBar({
                             zIndex: 100000,
                           }}
                         >
-                          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
+                          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-2xl">
                             <div className="px-2 pt-1 pb-2 text-xs font-medium text-slate-600">Return</div>
                             <Calendar
                               date={flightsState[0].dateRange.endDate}
