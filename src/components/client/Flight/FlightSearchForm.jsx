@@ -28,19 +28,19 @@ function useAnchorRect(ref, enabled) {
     };
 
     update();
-    const raf = requestAnimationFrame(update);
-
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
     if (ro && ref.current) ro.observe(ref.current);
 
-    window.addEventListener("resize", update, { passive: true });
-    window.addEventListener("scroll", update, { passive: true });
+    const onScroll = () => update();
+    const onResize = () => update();
+
+    window.addEventListener("resize", onResize, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
 
     return () => {
-      cancelAnimationFrame(raf);
       ro?.disconnect();
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onScroll);
     };
   }, [enabled, ref]);
 
@@ -391,6 +391,8 @@ export default function FlightSearchInlineBar({
       copy.splice(idx, 1);
       return copy;
     });
+    // close calendar if it belonged to removed row
+    setOpenCal((oc) => (oc && oc.idx === idx ? null : oc));
   };
 
   const validateForm = () => {
@@ -480,8 +482,12 @@ export default function FlightSearchInlineBar({
       paddingLeft: 12,
       paddingRight: 10,
       backgroundColor: "#fff",
+      color: "#0f172a",
       ":hover": { borderColor: "#94a3b8" },
     }),
+    singleValue: (b) => ({ ...b, color: "#0f172a" }),
+    input: (b) => ({ ...b, color: "#0f172a", margin: 0, padding: 0 }),
+    placeholder: (b) => ({ ...b, color: "#64748b" }),
     valueContainer: (b) => ({ ...b, padding: 0 }),
     indicatorsContainer: (b) => ({ ...b, gap: 6, paddingRight: 6 }),
     dropdownIndicator: (b) => ({ ...b, padding: 8 }),
@@ -501,8 +507,6 @@ export default function FlightSearchInlineBar({
       color: "#0f172a",
       padding: 0,
     }),
-    input: (b) => ({ ...b, margin: 0, padding: 0 }),
-    placeholder: (b) => ({ ...b, color: "#64748b" }),
   };
 
   const menuOptions = (idx, field) => ensureMenu(menuKey(idx, field)).options;
@@ -536,6 +540,10 @@ export default function FlightSearchInlineBar({
   const LegRow = ({ idx }) => {
     const leg = flightsState[idx];
 
+    // own ref + rect so the calendar anchors NEXT TO the clicked input
+    const legDepartBtnRef = useRef(null);
+    const legDepartRect = useAnchorRect(legDepartBtnRef, openCal?.type === "depart" && openCal.idx === idx);
+
     const dateLabel = leg?.dateRange?.startDate ? format(leg.dateRange.startDate, "EEE d MMM") : "Select date";
     return (
       <div className="grid gap-2 md:grid-cols-[1.2fr_auto_1.2fr_auto_auto] lg:grid-cols-[1.2fr_auto_1.2fr_auto_auto_auto] lg:items-center mb-2">
@@ -568,7 +576,7 @@ export default function FlightSearchInlineBar({
           <button
             type="button"
             onClick={() => swapPlaces(idx)}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-black hover:bg-slate-50"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
             aria-label="Swap origin and destination"
             title="Swap"
           >
@@ -606,30 +614,46 @@ export default function FlightSearchInlineBar({
         {/* Date (one per leg) */}
         <div className="relative">
           <button
+            ref={legDepartBtnRef}
             type="button"
-            onClick={() => setOpenCal(openCal && openCal.type === "depart" && openCal.idx === idx ? null : { type: "depart", idx })}
-            className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none"
+            onClick={() =>
+              setOpenCal((oc) =>
+                oc && oc.type === "depart" && oc.idx === idx ? null : { type: "depart", idx }
+              )
+            }
+            className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none text-slate-800"
             aria-expanded={openCal?.type === "depart" && openCal.idx === idx}
           >
             <div className="min-w-0 truncate">
               <div className="text-[11px] tracking-wide text-slate-500">Departure</div>
-              <div className="truncate">{dateLabel}</div>
+              <div className="truncate text-slate-800">{dateLabel}</div>
             </div>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
               <path d="M19 9l-7 7-7-7" />
             </svg>
           </button>
 
-          {/* Inline calendar (desktop) or full-screen (mobile) for multi */}
+          {/* Anchored calendar via Portal so it opens next to THIS input */}
           <AnimatePresence>
-            {openCal?.type === "depart" && openCal.idx === idx &&
-              (isMobile ? (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100000] flex flex-col bg-white">
-                  <div className="flex items-center justify-between border-b border-slate-200 p-3">
-                    <div className="text-sm font-medium">Select date (Leg {idx + 1})</div>
-                    <span className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-sm" onClick={() => setOpenCal(null)}>Close</span>
-                  </div>
-                  <div className="flex-1 overflow-auto p-3">
+            {openCal?.type === "depart" && openCal.idx === idx && legDepartRect && (
+              <Portal>
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.18 }}
+                  style={{
+                    position: "fixed",
+                    top: legDepartRect.bottom + 8,
+                    left: Math.max(16, Math.min(legDepartRect.left, window.innerWidth - 16 - 320)),
+                    width: 320,
+                    zIndex: 100000,
+                  }}
+                >
+                  <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-2xl">
+                    <div className="px-2 pt-1 pb-2 text-xs font-medium text-slate-600">
+                      Departure (Leg {idx + 1})
+                    </div>
                     <Calendar
                       date={leg.dateRange.startDate}
                       onChange={(d) => handleDepartPick(idx, d)}
@@ -637,31 +661,19 @@ export default function FlightSearchInlineBar({
                       months={1}
                       showMonthAndYearPickers
                     />
+                    <div className="p-2 pt-0 flex justify-end">
+                      <button
+                        type="button"
+                        className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-black"
+                        onClick={() => setOpenCal(null)}
+                      >
+                        Done
+                      </button>
+                    </div>
                   </div>
                 </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.18 }}
-                  className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-2xl"
-                >
-                  <div className="px-2 pt-1 pb-2 text-xs font-medium text-slate-600">Departure (Leg {idx + 1})</div>
-                  <Calendar
-                    date={leg.dateRange.startDate}
-                    onChange={(d) => handleDepartPick(idx, d)}
-                    minDate={today}
-                    months={1}
-                    showMonthAndYearPickers
-                  />
-                  <div className="p-2 pt-0 flex justify-end">
-                    <button type="button" className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-black" onClick={() => setOpenCal(null)}>
-                      Done
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
+              </Portal>
+            )}
           </AnimatePresence>
         </div>
 
@@ -672,7 +684,7 @@ export default function FlightSearchInlineBar({
               type="button"
               onClick={() => removeLeg(idx)}
               disabled={flightsState.length <= 1}
-              className="inline-flex h-10 items-center rounded-full border border-slate-200 bg-white px-3 text-sm hover:bg-slate-50 disabled:opacity-50"
+              className="inline-flex h-10 items-center rounded-full border border-slate-200 bg-white px-3 text-sm text-slate-800 hover:bg-slate-50 disabled:opacity-50"
               title="Remove leg"
             >
               Remove
@@ -701,7 +713,7 @@ export default function FlightSearchInlineBar({
           <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1">
             <button
               type="button"
-              className={`rounded-lg px-3 py-2 text-sm ${tripType === "oneway" ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-50"}`}
+              className={`rounded-lg px-3 py-2 text-sm ${tripType === "oneway" ? "bg-blue-600 text-white" : "text-gray-800 hover:bg-gray-50"}`}
               onClick={() => setTripType("oneway")}
               aria-pressed={tripType === "oneway"}
             >
@@ -709,7 +721,7 @@ export default function FlightSearchInlineBar({
             </button>
             <button
               type="button"
-              className={`rounded-lg px-3 py-2 text-sm ${tripType === "return" ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-50"}`}
+              className={`rounded-lg px-3 py-2 text-sm ${tripType === "return" ? "bg-blue-600 text-white" : "text-gray-800 hover:bg-gray-50"}`}
               onClick={() => setTripType("return")}
               aria-pressed={tripType === "return"}
             >
@@ -717,7 +729,7 @@ export default function FlightSearchInlineBar({
             </button>
             <button
               type="button"
-              className={`rounded-lg px-3 py-2 text-sm ${tripType === "multi" ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-50"}`}
+              className={`rounded-lg px-3 py-2 text-sm ${tripType === "multi" ? "bg-blue-600 text-white" : "text-gray-800 hover:bg-gray-50"}`}
               onClick={() => setTripType("multi")}
               aria-pressed={tripType === "multi"}
             >
@@ -734,13 +746,13 @@ export default function FlightSearchInlineBar({
               className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-800 hover:bg-gray-200"
               aria-expanded={isTravellersOpen}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-800">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                 <circle cx="9" cy="7" r="4" />
                 <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                 <path d="M16 3.13a4 4 0 0 1 0 7.75" />
               </svg>
-              {travellerSummary}
+              <span className="text-slate-800">{travellerSummary}</span>
             </button>
 
             {/* Travellers popover */}
@@ -749,8 +761,8 @@ export default function FlightSearchInlineBar({
                 (isMobile ? (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100000] flex flex-col bg-white">
                     <div className="flex items-center justify-between border-b border-slate-200 p-3">
-                      <div className="text-sm font-medium">Travellers & cabin</div>
-                      <span className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm cursor-pointer" onClick={() => setIsTravellersOpen(false)}>Close</span>
+                      <div className="text-sm font-medium text-slate-800">Travellers & cabin</div>
+                      <span className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800 cursor-pointer" onClick={() => setIsTravellersOpen(false)}>Close</span>
                     </div>
                     <div className="flex-1 overflow-auto p-4">
                       {[
@@ -764,9 +776,9 @@ export default function FlightSearchInlineBar({
                             <div className="text-xs text-slate-500">{row.sub}</div>
                           </div>
                           <div className="inline-flex items-center gap-3">
-                            <button type="button" className="h-10 w-10 rounded-full border border-slate-300" onClick={() => setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)}>–</button>
-                            <span className="w-8 text-center text-sm">{row.value}</span>
-                            <button type="button" className="h-10 w-10 rounded-full border border-slate-300" onClick={() => setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)}>+</button>
+                            <button type="button" className="h-10 w-10 rounded-full border border-slate-300 text-slate-800" onClick={() => setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)}>–</button>
+                            <span className="w-8 text-center text-sm text-slate-800">{row.value}</span>
+                            <button type="button" className="h-10 w-10 rounded-full border border-slate-300 text-slate-800" onClick={() => setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)}>+</button>
                           </div>
                         </div>
                       ))}
@@ -774,7 +786,7 @@ export default function FlightSearchInlineBar({
                         <label htmlFor="flight_type" className="mb-1 block text-sm text-slate-700">Cabin class</label>
                         <select
                           id="flight_type"
-                          className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                          className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
                           value={flightType}
                           onChange={(e) => setFlightType(toCabinCode(e.target.value))}
                         >
@@ -805,15 +817,15 @@ export default function FlightSearchInlineBar({
                                 <div className="text-xs text-slate-500">{row.sub}</div>
                               </div>
                               <div className="inline-flex items-center gap-2">
-                                <button type="button" className="h-8 w-8 rounded-full border border-slate-300 hover:bg-slate-50" onClick={() => setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)}>–</button>
-                                <span className="w-8 text-center text-sm">{row.value}</span>
-                                <button type="button" className="h-8 w-8 rounded-full border border-slate-300 hover:bg-slate-50" onClick={() => setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)}>+</button>
+                                <button type="button" className="h-8 w-8 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-800" onClick={() => setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)}>–</button>
+                                <span className="w-8 text-center text-sm text-slate-800">{row.value}</span>
+                                <button type="button" className="h-8 w-8 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-800" onClick={() => setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)}>+</button>
                               </div>
                             </div>
                           ))}
                           <div className="mt-2 mb-2">
                             <label htmlFor="flight_type" className="sr-only">Cabin class</label>
-                            <select id="flight_type" className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-slate-500 focus:ring-2 focus:ring-slate-200" value={flightType} onChange={(e) => setFlightType(toCabinCode(e.target.value))}>
+                            <select id="flight_type" className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-slate-500 focus:ring-2 focus:ring-slate-200" value={flightType} onChange={(e) => setFlightType(toCabinCode(e.target.value))}>
                               {CABIN_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
                             </select>
                           </div>
@@ -860,7 +872,7 @@ export default function FlightSearchInlineBar({
                 <button
                   type="button"
                   onClick={() => swapPlaces(0)}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-black hover:bg-slate-50"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
                   aria-label="Swap origin and destination"
                   title="Swap"
                 >
@@ -901,14 +913,14 @@ export default function FlightSearchInlineBar({
                   ref={departBtnRef}
                   type="button"
                   onClick={() => setOpenCal(openCal && openCal.type === "depart" ? null : { type: "depart", idx: 0 })}
-                  className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none"
+                  className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none text-slate-800"
                   aria-expanded={openCal?.type === "depart"}
                 >
                   <div className="min-w-0 truncate">
                     <div className="text-[11px] tracking-wide text-slate-500">Departure</div>
-                    <div className="truncate">{departLabel0}</div>
+                    <div className="truncate text-slate-800">{departLabel0}</div>
                   </div>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
                     <path d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
@@ -919,8 +931,8 @@ export default function FlightSearchInlineBar({
                     (isMobile ? (
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100000] flex flex-col bg-white">
                         <div className="flex items-center justify-between border-b border-slate-200 p-3">
-                          <div className="text-sm font-medium">Select departure</div>
-                          <span className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-sm" onClick={() => setOpenCal(null)}>Close</span>
+                          <div className="text-sm font-medium text-slate-800">Select departure</div>
+                          <span className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800" onClick={() => setOpenCal(null)}>Close</span>
                         </div>
                         <div className="flex-1 overflow-auto p-3">
                           <Calendar
@@ -974,14 +986,14 @@ export default function FlightSearchInlineBar({
                     ref={returnBtnRef}
                     type="button"
                     onClick={() => setOpenCal(openCal && openCal.type === "return" ? null : { type: "return", idx: 0 })}
-                    className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none"
+                    className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none text-slate-800"
                     aria-expanded={openCal?.type === "return"}
                   >
                     <div className="min-w-0 truncate">
                       <div className="text-[11px] tracking-wide text-slate-500">Return</div>
-                      <div className="truncate">{returnLabel0}</div>
+                      <div className="truncate text-slate-800">{returnLabel0}</div>
                     </div>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
                       <path d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
@@ -992,8 +1004,8 @@ export default function FlightSearchInlineBar({
                       (isMobile ? (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100000] flex flex-col bg-white">
                           <div className="flex items-center justify-between border-b border-slate-200 p-3">
-                            <div className="text-sm font-medium">Select return</div>
-                            <span className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-sm" onClick={() => setOpenCal(null)}>Close</span>
+                            <div className="text-sm font-medium text-slate-800">Select return</div>
+                            <span className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800" onClick={() => setOpenCal(null)}>Close</span>
                           </div>
                           <div className="flex-1 overflow-auto p-3">
                             <Calendar
@@ -1077,7 +1089,7 @@ export default function FlightSearchInlineBar({
               <button
                 type="button"
                 onClick={addLeg}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50"
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 hover:bg-slate-50"
               >
                 + Add another flight
               </button>
