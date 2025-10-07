@@ -290,7 +290,7 @@ const FlightPage = () => {
 
         const res = await flygasal.searchFlights(params, { signal: abort.signal });
 
-        console.info('Search results:', res.data);
+        console.log('Search results:', res.data);
         let offers = [];
         let displayCurrency = "USD";
 
