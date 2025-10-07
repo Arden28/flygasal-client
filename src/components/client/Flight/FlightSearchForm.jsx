@@ -20,20 +20,40 @@ function Portal({ children }) {
   return ready && elRef.current ? createPortal(children, elRef.current) : null;
 }
 
-function useAnchorRect(ref) {
+/**
+ * Stable, warning-free anchor rect hook.
+ * - Re-measures when `watchKey` changes (e.g., when a popover opens).
+ * - Uses ResizeObserver + window resize/scroll.
+ * - Avoids `ref`/`ref.current` in deps to satisfy react-hooks/exhaustive-deps.
+ */
+function useAnchorRect(ref, watchKey) {
   const [rect, setRect] = useState(null);
+
   useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const update = () => setRect(el.getBoundingClientRect());
+    if (!ref.current) return;
+
+    const update = () => {
+      if (ref.current) setRect(ref.current.getBoundingClientRect());
+    };
+
+    // initial + next frame (catch late layout)
     update();
+    const raf = requestAnimationFrame(update);
+
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    if (ro && ref.current) ro.observe(ref.current);
+
     window.addEventListener("resize", update, { passive: true });
     window.addEventListener("scroll", update, { passive: true });
+
     return () => {
+      cancelAnimationFrame(raf);
+      ro?.disconnect();
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update);
     };
-  }, [ref]);
+  }, [watchKey]); // only depends on a primitive key we control
+
   return rect;
 }
 
@@ -199,9 +219,12 @@ export default function FlightSearchInlineBar({
   const travellersBtnRef = useRef(null);
   const departBtnRef = useRef(null);
   const returnBtnRef = useRef(null);
-  const travellersRect = useAnchorRect(travellersBtnRef);
-  const departRect = useAnchorRect(departBtnRef);
-  const returnRect = useAnchorRect(returnBtnRef);
+
+  // watch keys to trigger measuring when popovers open/close or tripType changes
+  const [openCal, setOpenCal] = useState(null); // 'depart' | 'return' | null
+  const travellersRect = useAnchorRect(travellersBtnRef, `${openCal}-trav-${Date.now() % 2}`); // tiny change to force update on open
+  const departRect = useAnchorRect(departBtnRef, openCal === "depart" ? "depart-open" : "depart-closed");
+  const returnRect = useAnchorRect(returnBtnRef, `${openCal === "return"}-${tripType}`);
 
   const [airportMenus, setAirportMenus] = useState({});
   const menuKey = (idx, field) => `${idx}:${field}`;
@@ -233,9 +256,6 @@ export default function FlightSearchInlineBar({
   const [infants, setInfants] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isTravellersOpen, setIsTravellersOpen] = useState(false);
-
-  // which calendar is open: 'depart' | 'return' | null
-  const [openCal, setOpenCal] = useState(null);
 
   const [errors, setErrors] = useState([]);
 
@@ -456,26 +476,16 @@ export default function FlightSearchInlineBar({
   const noOptionsMessage = ({ inputValue }) =>
     inputValue && inputValue.length > 1 ? "No airports match your search" : "Type to search airports";
 
-  // (Optional) quick presets: we apply them to both fields in one shot
-  const presetRanges = [
-    {
-      id: "weekend",
-      label: "This Weekend",
-      compute: () => ({
-        start: addDays(today, ((6 - today.getDay() + 7) % 7) || 5),
-        end: addDays(today, ((7 - today.getDay() + 7) % 7) || 7),
-      }),
-    },
-    { id: "nextweek", label: "Next Week", compute: () => ({ start: addWeeks(today, 1), end: addWeeks(today, 1) }) },
-    { id: "+3", label: "+3 days", compute: (current) => ({ start: current.startDate, end: addDays(current.startDate, 3) }) },
-  ];
-
-  // Compact calendar visuals
+  // compact calendar visuals (no scale, tighter paddings)
   const datePickerStyles = `
-    .rdrCalendarWrapper{background:#fff;border-radius:12px;border:1px solid #e5e7eb;padding:.25rem;transform:scale(.94);transform-origin: top left;}
-    .rdrMonth{padding:2px}
+    .rdrCalendarWrapper{background:#fff;border-radius:12px;border:1px solid #e5e7eb;padding:.2rem}
+    .rdrMonth{padding:0}
+    .rdrMonths{gap:.25rem}
     .rdrMonthAndYearWrapper{padding:.35rem .5rem;border-bottom:1px solid #e5e7eb}
+    .rdrWeekDays{margin:0 .25rem}
+    .rdrDays{margin:.15rem .25rem}
     .rdrDay{font-size:.9rem;color:#0f172a}
+    .rdrDayNumber{margin:0}
     .rdrSelected,.rdrStartEdge,.rdrEndEdge{background:#0284c7!important;color:#fff!important}
     .rdrInRange{background:#bae6fd!important}
     .rdrDayToday .rdrDayNumber span:after{background:#0284c7}
@@ -739,8 +749,8 @@ export default function FlightSearchInlineBar({
                           zIndex: 100000,
                         }}
                       >
-                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-2xl">
-                          <div className="px-2 pt-1 pb-2 text-xs font-medium text-slate-600">Departure</div>
+                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
+                          <div className="px-2 pt-1 pb-1 text-xs font-medium text-slate-600">Departure</div>
                           <Calendar
                             date={flightsState[0].dateRange.startDate}
                             onChange={(d) => handleDepartPick(0, d)}
@@ -748,7 +758,7 @@ export default function FlightSearchInlineBar({
                             months={1}
                             showMonthAndYearPickers
                           />
-                          <div className="p-2 pt-0 flex justify-end">
+                          <div className="p-2 pt-1 flex justify-end">
                             <button type="button" className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-black" onClick={() => setOpenCal(null)}>
                               Done
                             </button>
@@ -812,8 +822,8 @@ export default function FlightSearchInlineBar({
                             zIndex: 100000,
                           }}
                         >
-                          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-2xl">
-                            <div className="px-2 pt-1 pb-2 text-xs font-medium text-slate-600">Return</div>
+                          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
+                            <div className="px-2 pt-1 pb-1 text-xs font-medium text-slate-600">Return</div>
                             <Calendar
                               date={flightsState[0].dateRange.endDate}
                               onChange={(d) => handleReturnPick(0, d)}
@@ -821,7 +831,7 @@ export default function FlightSearchInlineBar({
                               months={1}
                               showMonthAndYearPickers
                             />
-                            <div className="p-2 pt-0 flex justify-end">
+                            <div className="p-2 pt-1 flex justify-end">
                               <button type="button" className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-black" onClick={() => setOpenCal(null)}>
                                 Done
                               </button>
