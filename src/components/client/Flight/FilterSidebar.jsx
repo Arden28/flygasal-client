@@ -270,7 +270,7 @@ export default function FilterSidebar({
       </div>
 
       {/* Cabin */}
-      <Section title="Cabin class" defaultOpen>
+      <Section title="Cabin class">
         <div className="grid grid-cols-1 gap-2.5">
           {CABIN_OPTIONS.map((c) => (
             <CabinCard
@@ -429,7 +429,7 @@ export default function FilterSidebar({
             className="h-9 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
           />
           <div className="whitespace-nowrap text-xs flex items-center gap-2">
-            {airlineCountsOutbound && (
+            {/* {airlineCountsOutbound && (
               <label className="inline-flex items-center gap-1 text-slate-600">
                 <input
                   type="checkbox"
@@ -439,7 +439,7 @@ export default function FilterSidebar({
                 />
                 Hide 0
               </label>
-            )}
+            )} */}
             <button
               type="button"
               className="rounded-full ring-1 ring-slate-300 px-3 py-1 hover:bg-slate-50"
