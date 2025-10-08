@@ -5,45 +5,16 @@ import "rc-slider/assets/index.css";
 const hh = (n) => `${String(n).padStart(2, "0")}:00`;
 const timeMarks = { 0: "00", 6: "06", 12: "12", 18: "18", 24: "24" };
 
-/* ---------- Section (collapsible) ---------- */
-const Section = ({ title, children, defaultOpen = true }) => {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <section className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/70 overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-3 px-3.5 py-3 lg:px-4 lg:py-3.5 text-left"
-        aria-expanded={open}
-      >
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold tracking-wide text-slate-800">
-          {title}
-        </span>
-        <span
-          className={[
-            "shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-lg ring-1 ring-slate-200",
-            open ? "bg-slate-50" : "bg-white",
-          ].join(" ")}
-          aria-hidden="true"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className={open ? "rotate-180 transition-transform" : "transition-transform"}
-          >
-            <path d="M6 9l6 6 6-6" />
-          </svg>
-        </span>
-      </button>
-
-      {open && <div className="px-3.5 pb-3 lg:px-4 lg:pb-4">{children}</div>}
-    </section>
-  );
-};
+/* ---------- Simple Section (no accordion, no shadow) ---------- */
+const Section = ({ title, helper, children }) => (
+  <section className="rounded-2xl ring-1 ring-slate-200 bg-white overflow-hidden">
+    <header className="px-3.5 py-3 lg:px-4 lg:py-3.5 border-b border-slate-200/70">
+      <h3 className="text-sm font-semibold tracking-wide text-slate-800">{title}</h3>
+      {helper ? <p className="mt-1 text-xs text-slate-500">{helper}</p> : null}
+    </header>
+    <div className="px-3.5 pb-3 lg:px-4 lg:pb-4">{children}</div>
+  </section>
+);
 
 /* ---------- Airline row (overflow-safe) ---------- */
 const AirlineRow = ({
@@ -62,8 +33,8 @@ const AirlineRow = ({
     <label
       className={[
         "flex items-center gap-3 rounded-lg px-2.5 py-2",
-        "transition-colors",
         disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-slate-50 cursor-pointer",
+        "transition-colors",
       ].join(" ")}
       title={disabled ? "No results for this airline with current filters" : name}
     >
@@ -140,6 +111,45 @@ const CabinCard = ({ active, label, sub, icon, onClick }) => (
   </button>
 );
 
+/* ---------- Time buckets ---------- */
+const TIME_BUCKETS = [
+  { key: "any", label: "Any time", range: [0, 24] },
+  { key: "early", label: "Early morning", range: [0, 6] },
+  { key: "morning", label: "Morning", range: [6, 12] },
+  { key: "afternoon", label: "Afternoon", range: [12, 18] },
+  { key: "evening", label: "Evening", range: [18, 24] },
+];
+
+const TimeBucketChips = ({ value, onChange }) => {
+  const activeKey =
+    TIME_BUCKETS.find((b) => b.range[0] === value[0] && b.range[1] === value[1])?.key || "custom";
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {TIME_BUCKETS.map((b) => {
+        const isActive = activeKey === b.key;
+        return (
+          <button
+            key={b.key}
+            type="button"
+            onClick={() => onChange(b.range)}
+            className={[
+              "rounded-full px-3 py-1.5 text-xs sm:text-sm ring-1",
+              isActive
+                ? "ring-blue-600 bg-blue-50 text-blue-700"
+                : "ring-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+            ].join(" ")}
+            aria-pressed={isActive}
+            title={`${b.label}: ${hh(b.range[0])}–${hh(b.range[1])}`}
+          >
+            {b.label}: {String(b.range[0]).padStart(2, "0")}-{String(b.range[1]).padStart(2, "0")}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 /* ================================================================== */
 /*                              SIDEBAR                               */
 /* ================================================================== */
@@ -174,6 +184,8 @@ export default function FilterSidebar({
   airlineCountsOutbound,
   airlineCountsReturn,
   onCloseMobile,
+  tripType = "oneway",
+  legsCount = 1,
 }) {
   const [absMin, absMax] = priceBounds || [100, 4000];
   const [currMin, currMax] = priceRange || [absMin, absMax];
@@ -247,13 +259,24 @@ export default function FilterSidebar({
   const getCountOW = (code) => (airlineCountsOutbound ? (airlineCountsOutbound[code] || 0) : undefined);
   const getCountRT = (code) => (airlineCountsReturn ? (airlineCountsReturn[code] || 0) : undefined);
 
+  /* ---------- Stops helper text ---------- */
+  const stopsContext = useMemo(() => {
+    if (tripType === "return") {
+      return { caption: "Direct = 0 stops per leg", segments: 2 };
+    }
+    if (tripType === "multi") {
+      return { caption: `Direct = 0 stops on each of ${legsCount} legs`, segments: legsCount };
+    }
+    return { caption: "Direct = 0 stops", segments: 1 };
+  }, [tripType, legsCount]);
+
   return (
     <aside
       className={[
         "w-full rounded-3xl bg-slate-50/70 backdrop-blur",
         "p-3 lg:p-4 xl:p-5",
         "space-y-3 lg:space-y-4",
-        "ring-1 ring-slate-200/60 shadow-sm",
+        "ring-1 ring-slate-200/60",
       ].join(" ")}
     >
       {/* Header (mobile) */}
@@ -298,8 +321,19 @@ export default function FilterSidebar({
       </Section>
 
       {/* Stops */}
-      <Section title="Stops" defaultOpen>
-        <div className="flex flex-wrap gap-2">
+      <Section
+        title="Stops"
+        helper={
+          <>
+            {stopsContext.caption}
+            {tripType !== "oneway" && (
+              <> ({stopsContext.segments} {stopsContext.segments === 1 ? "segment" : "segments"} total)</>
+            )}
+            . “1 stop” and “2+ stops” refer to layovers within a leg.
+          </>
+        }
+      >
+        <div className="flex flex-wrap items-center gap-2">
           {[
             { value: "mix", label: "All" },
             { value: "oneway_0", label: "Direct" },
@@ -321,11 +355,27 @@ export default function FilterSidebar({
               {label}
             </button>
           ))}
+
+          <span
+            className="ml-1 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-[2px] text-[10px] text-slate-700"
+            title={
+              tripType === "oneway"
+                ? "Direct means 1 flight segment total."
+                : tripType === "return"
+                ? "Direct means 0 stops on each leg (2 segments total)."
+                : `Direct means 0 stops on each of ${legsCount} legs (~${legsCount} segments total).`
+            }
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M12 2a10 10 0 1010 10A10.012 10.012 0 0012 2zm1 15h-2v-2h2zm0-4h-2V7h2z" />
+            </svg>
+            {stopsContext.segments} seg
+          </span>
         </div>
       </Section>
 
       {/* Price */}
-      <Section title={`Price (${/* currency visual only, logic uses USD */ "USD"})`} defaultOpen>
+      <Section title={`Price (${"USD"})`}>
         <div className="px-0.5">
           <Slider
             range
@@ -344,9 +394,10 @@ export default function FilterSidebar({
         </div>
       </Section>
 
-      {/* Time windows */}
-      <Section title="Departure time (outbound)" defaultOpen={false}>
-        <div className="px-0.5">
+      {/* Time windows — outbound */}
+      <Section title="Departure time (outbound)">
+        <TimeBucketChips value={depTimeRange} onChange={onDepTimeChange} />
+        <div className="mt-3 px-0.5">
           <Slider
             range
             min={0}
@@ -365,9 +416,11 @@ export default function FilterSidebar({
         </div>
       </Section>
 
+      {/* Time windows — return */}
       {returnFlights?.length > 0 && (
-        <Section title="Departure time (return)" defaultOpen={false}>
-          <div className="px-0.5">
+        <Section title="Departure time (return)">
+          <TimeBucketChips value={retTimeRange} onChange={onRetTimeChange} />
+          <div className="mt-3 px-0.5">
             <Slider
               range
               min={0}
@@ -388,7 +441,7 @@ export default function FilterSidebar({
       )}
 
       {/* Max duration */}
-      <Section title="Max total duration" defaultOpen={false}>
+      <Section title="Max total duration" helper="From first departure to final arrival (round-trip sums both legs).">
         <div className="flex items-center gap-3">
           <input
             type="number"
@@ -400,13 +453,10 @@ export default function FilterSidebar({
           />
           <span className="text-sm text-slate-600">hours</span>
         </div>
-        <p className="mt-2 text-xs text-slate-500">
-          From first departure to final arrival (round-trip sums both legs).
-        </p>
       </Section>
 
       {/* Baggage */}
-      <Section title="Baggage" defaultOpen={false}>
+      <Section title="Baggage">
         <label className="inline-flex items-center gap-2 text-sm text-slate-700">
           <input
             type="checkbox"
@@ -419,27 +469,9 @@ export default function FilterSidebar({
       </Section>
 
       {/* Airlines — outbound */}
-      <Section title="Airlines (outbound)" defaultOpen>
+      <Section title="Airlines (outbound)">
         <div className="mb-2 flex items-center justify-between gap-2">
-          {/* <input
-            type="text"
-            placeholder="Search airline name or code…"
-            value={airlineSearchOW}
-            onChange={(e) => setAirlineSearchOW(e.target.value)}
-            className="h-9 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
-          /> */}
           <div className="whitespace-nowrap text-xs flex items-center gap-2">
-            {/* {airlineCountsOutbound && (
-              <label className="inline-flex items-center gap-1 text-slate-600">
-                <input
-                  type="checkbox"
-                  className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                  checked={hideZeroOutbound}
-                  onChange={(e) => setHideZeroOutbound(e.target.checked)}
-                />
-                Hide 0
-              </label>
-            )} */}
             <button
               type="button"
               className="rounded-full ring-1 ring-slate-300 px-3 py-1 hover:bg-slate-50"
@@ -457,7 +489,6 @@ export default function FilterSidebar({
           </div>
         </div>
 
-        {/* Scroll area (responsive height, no overflow outside) */}
         <div
           className={[
             "space-y-1 pr-1",
@@ -486,7 +517,7 @@ export default function FilterSidebar({
 
       {/* Airlines — return */}
       {returnFlights?.length > 0 && (
-        <Section title="Airlines (return)" defaultOpen={false}>
+        <Section title="Airlines (return)">
           <div className="mb-2 flex items-center justify-between gap-2">
             <input
               type="text"
@@ -551,7 +582,7 @@ export default function FilterSidebar({
         </Section>
       )}
 
-      {/* Footer actions (sticky on mobile so actions are always reachable) */}
+      {/* Footer actions */}
       <div className="lg:pt-1">
         <div className="lg:static sticky bottom-2 left-0 right-0">
           <div className="flex items-center justify-between gap-3 bg-transparent">
@@ -565,7 +596,7 @@ export default function FilterSidebar({
             {onCloseMobile && (
               <button
                 type="button"
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 lg:hidden"
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 lg:hidden"
                 onClick={onCloseMobile}
               >
                 Apply

@@ -63,6 +63,11 @@ const FlightPage = () => {
   const [isExpired, setIsExpired] = useState(false);
   const timerRef = useRef(null);
 
+  const tripType = (searchParams?.tripType || "oneway");
+  const legsCount = tripType === "multi"
+    ? (searchParams?.flights?.length || 2)
+    : (tripType === "return" ? 2 : 1);
+
   // Markup
   const agentMarkupPercent = user?.agency_markup || 0;
 
@@ -253,7 +258,7 @@ const FlightPage = () => {
       setIsExpired(false);
 
       try {
-        
+
         const qp = new URLSearchParams(location.search);
 
         // Parse incoming query params into a normalized "params" (supports MULTI)
@@ -923,6 +928,9 @@ const FlightPage = () => {
                         airlinesReturnExact={returnPrimary}
                         airlineCountsOutbound={airlineCountsOutbound}
                         airlineCountsReturn={airlineCountsReturn}
+                        
+                        tripType={tripType}
+                        legsCount={legsCount}
                         onClearAll={() => {
                           setCurrentStop("mix");
                           setMinPrice(priceBounds[0]);
@@ -944,7 +952,7 @@ const FlightPage = () => {
               </AnimatePresence>
 
               {/* Desktop sticky sidebar */}
-              <div className="hidden lg:block lg:sticky lg:top-28">
+              <div className="hidden lg:block lg:top-28">
                 <div className="bg-white">
                   <FilterSidebar
                     currentStop={currentStop}
@@ -975,6 +983,8 @@ const FlightPage = () => {
                     airlinesReturnExact={returnPrimary}
                     airlineCountsOutbound={airlineCountsOutbound}
                     airlineCountsReturn={airlineCountsReturn}
+                    tripType={tripType}
+                    legsCount={legsCount}
                     onClearAll={() => {
                       setCurrentStop("mix");
                       setMinPrice(priceBounds[0]);
