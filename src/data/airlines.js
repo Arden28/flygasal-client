@@ -758,7 +758,7 @@ export const rawAirlines = [
   { code: '3O', name: 'Air Arabia Maroc', logo: '/assets/img/airlines/3O.png' },
   { code: '8A', name: 'Atlas Blue', logo: '/assets/img/airlines/8A.png' },
   { code: '8J', name: 'Jet4You', logo: '/assets/img/airlines/8J.png' },
-  { code: 'FN', name: 'Regional Airlines', logo: '/assets/img/airlines/FN.png' },
+  { code: 'FN', name: 'Fastjet', logo: '/assets/img/airlines/FN.png' },
   { code: 'AT', name: 'Royal Air Maroc', logo: '/assets/img/airlines/AT.png' },
 
   // -- Mozambique --
@@ -1239,7 +1239,7 @@ export const rawAirlines = [
   { code: 'MQ', name: 'American Eagle Airlines', logo: '/assets/img/airlines/MQ.png' },
   { code: 'ZM', name: 'Apache Air', logo: '/assets/img/airlines/ZM.png' },
   { code: 'JW', name: 'Arrow Air', logo: '/assets/img/airlines/JW.png' },
-  { code: 'A1', name: 'Atifly', logo: '/assets/img/airlines/A1.png' },
+  { code: 'AI', name: 'Atifly', logo: '/assets/img/airlines/aic.png' },
   { code: 'EV', name: 'Atlantic Southeast Airlines', logo: '/assets/img/airlines/EV.png' },
   { code: '5Y', name: 'Atlas Air', logo: '/assets/img/airlines/5Y.png' },
   { code: 'B0', name: 'Aws express', logo: '/assets/img/airlines/B0.png' },
