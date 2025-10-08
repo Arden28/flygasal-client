@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { airports, airlines } from "../../../data/fakeData";
-import FilterSidebar from "../../../components/client/Flight/FilterSidebar";
+import FilterModal from "../../../components/client/Modals/FilterModal";
 import FlightHeader from "../../../components/client/Flight/FlightHeader";
 import SortNavigation from "../../../components/client/Flight/SortNavigation";
 import ItineraryList from "../../../components/client/Flight/ItineraryList";
@@ -53,8 +53,8 @@ const FlightPage = () => {
 
   // UI
   const [openDetailsId, setOpenDetailsId] = useState(null);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isSearchFormVisible, setIsSearchFormVisible] = useState(false);
-  const [filtersOpenMobile, setFiltersOpenMobile] = useState(false); // NEW
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -255,7 +255,7 @@ const FlightPage = () => {
       try {
         const qp = new URLSearchParams(location.search);
 
-        // Parse incoming query params into a normalized "params"
+        // ---- Parse incoming query params into a normalized "params" ----
         const legs = [];
         let i = 0;
         while (qp.has(`flights[${i}][origin]`)) {
@@ -288,7 +288,10 @@ const FlightPage = () => {
         };
         setSearchParams(params);
 
+        // ---- Call backend once; many suppliers return BOTH legs in one offer for round-trips ----
         const res = await flygasal.searchFlights(params, { signal: abort.signal });
+
+        console.info("Flight search response:", res?.offers);
 
         let offers = [];
         let displayCurrency = "USD";
@@ -303,6 +306,7 @@ const FlightPage = () => {
             setSearchKey(res.searchKey);
           }
         } else {
+          // Backend returned raw PKFare; normalize client-side
           const data = res?.data;
           const newKey = data?.searchKey || null;
           offers = flygasal.transformPKFareData(data) || [];
@@ -315,10 +319,12 @@ const FlightPage = () => {
           }
         }
 
+        // ---- Helper: recompute leg fields from a segment array ----
         const buildLegFromSegments = (baseOffer, segs, suffix) => {
           const firstSeg = segs[0];
           const lastSeg = segs[segs.length - 1];
 
+          // Derive a sensible total if not present
           const originalTotal =
             baseOffer?.priceBreakdown?.total ??
             (baseOffer?.priceBreakdown?.base || 0) +
@@ -326,6 +332,7 @@ const FlightPage = () => {
               (baseOffer?.priceBreakdown?.qCharge || 0) +
               (baseOffer?.priceBreakdown?.tktFee || 0);
 
+          // Split the grand total across the two legs so out+ret ~= original total.
           const perLegTotal = Math.round((originalTotal / 2) * 100) / 100;
 
           return {
@@ -361,6 +368,7 @@ const FlightPage = () => {
           };
         };
 
+        // ---- If one-way: keep as-is. If return: split each offer by flightIds into 2 legs ----
         let outbounds = [];
         let returns = [];
 
@@ -405,9 +413,13 @@ const FlightPage = () => {
         outbounds.sort(sortByTotal);
         returns.sort(sortByTotal);
 
+        // ---- Push into state expected by the rest of your page ----
         setAvailableFlights(outbounds);
         setReturnFlights(returns);
         setCurrency(displayCurrency);
+
+        // NOTE: We intentionally DO NOT set price bounds here.
+        // Bounds are recomputed from actual itineraries below to avoid false "no results".
       } catch (err) {
         if (err?.name === "AbortError") return;
         console.error("Failed to fetch flights:", err);
@@ -420,6 +432,7 @@ const FlightPage = () => {
     }
 
     fetchFlights();
+
     return () => {
       abort.abort();
       // stopTimer();
@@ -457,9 +470,11 @@ const FlightPage = () => {
         )
       ).filter(Boolean);
 
+    // ROUND TRIP
     if (searchParams.tripType === "return") {
       const hasSeparateReturnList = Array.isArray(returnFlights) && returnFlights.length > 0;
 
+      // A) Single-offer with both legs embedded (fallback carve)
       if (!hasSeparateReturnList) {
         const items = [];
         for (const offer of availableFlights || []) {
@@ -491,6 +506,7 @@ const FlightPage = () => {
         return items;
       }
 
+      // B) Separate return list: pair the cheapest returns with each outbound
       const items = [];
       const sortedReturns = [...returnFlights].sort((a, b) => price(a) - price(b));
 
@@ -529,7 +545,9 @@ const FlightPage = () => {
     }));
   }, [searchParams, availableFlights, returnFlights]);
 
-  // ======= Recompute price bounds from actual itineraries =======
+  console.info("Itineraries offers:", itineraries);
+
+  // ======= NEW: Recompute price bounds from actual itineraries =======
   useEffect(() => {
     if (Array.isArray(itineraries) && itineraries.length) {
       const prices = itineraries.map((it) => Number(it.totalPrice)).filter((p) => Number.isFinite(p));
@@ -542,13 +560,16 @@ const FlightPage = () => {
         return;
       }
     }
+    // No itineraries or no numeric prices
     setPriceBounds([0, 0]);
     setMinPrice(0);
     setMaxPrice(0);
   }, [itineraries]);
+  // ================================================================
 
   // Filter + sort (with small guard for price values)
   const filteredItineraries = useMemo(() => {
+    // Clamp current slider values to bounds defensively (doesn't change state)
     const [absMin, absMax] = priceBounds;
     const low = Math.max(absMin ?? 0, Math.min(minPrice, maxPrice));
     const high = Math.min(absMax ?? Infinity, Math.max(minPrice, maxPrice));
@@ -574,7 +595,7 @@ const FlightPage = () => {
           checkedReturnValue.length === 0 ||
           (rtCode && checkedReturnValue.includes(`return_${rtCode}`));
 
-        // time windows
+        // time windows (use normalized top-level or first segment)
         const owDep = getHour(it.outbound?.segments?.[0]?.departureDate || it.outbound?.departureTime);
         const owTimeOk = owDep >= depTimeRange[0] && owDep <= depTimeRange[1];
 
@@ -584,7 +605,7 @@ const FlightPage = () => {
           rtTimeOk = rtDep >= retTimeRange[0] && rtDep <= retTimeRange[1];
         }
 
-        // CABIN FILTER
+        // ---- CABIN FILTER ----
         const outCabinKey = normalizeCabinKey(
           it.cabin || it.outbound?.cabin || it.outbound?.segments?.[0]?.cabinClass
         );
@@ -621,46 +642,46 @@ const FlightPage = () => {
   ]);
 
   // Primary codes (exactly like your filter uses)
-  const outboundPrimary = useMemo(() => {
-    const set = new Set();
-    itineraries.forEach((it) => {
-      const code = (it.outbound?.marketingCarriers?.[0] || it.outbound?.segments?.[0]?.airline || "").toUpperCase();
-      if (code) set.add(code);
-    });
-    return Array.from(set).sort();
-  }, [itineraries]);
+const outboundPrimary = useMemo(() => {
+  const set = new Set();
+  itineraries.forEach(it => {
+    const code = (it.outbound?.marketingCarriers?.[0] || it.outbound?.segments?.[0]?.airline || "").toUpperCase();
+    if (code) set.add(code);
+  });
+  return Array.from(set).sort();
+}, [itineraries]);
 
-  const returnPrimary = useMemo(() => {
-    const set = new Set();
-    itineraries.forEach((it) => {
-      if (!it.return) return;
-      const code = (it.return?.marketingCarriers?.[0] || it.return?.segments?.[0]?.airline || "").toUpperCase();
-      if (code) set.add(code);
-    });
-    return Array.from(set).sort();
-  }, [itineraries]);
+const returnPrimary = useMemo(() => {
+  const set = new Set();
+  itineraries.forEach(it => {
+    if (!it.return) return;
+    const code = (it.return?.marketingCarriers?.[0] || it.return?.segments?.[0]?.airline || "").toUpperCase();
+    if (code) set.add(code);
+  });
+  return Array.from(set).sort();
+}, [itineraries]);
 
-  // Live counts (optional but enables “Hide 0” + disables non-matching)
-  const airlineCountsOutbound = useMemo(() => {
-    const m = {};
-    itineraries.forEach((it) => {
-      const code = (it.outbound?.marketingCarriers?.[0] || it.outbound?.segments?.[0]?.airline || "").toUpperCase();
-      if (!code) return;
-      m[code] = (m[code] || 0) + 1;
-    });
-    return m;
-  }, [itineraries]);
+// Live counts (optional but enables “Hide 0” + disables non-matching)
+const airlineCountsOutbound = useMemo(() => {
+  const m = {};
+  itineraries.forEach(it => {
+    const code = (it.outbound?.marketingCarriers?.[0] || it.outbound?.segments?.[0]?.airline || "").toUpperCase();
+    if (!code) return;
+    m[code] = (m[code] || 0) + 1;
+  });
+  return m;
+}, [itineraries]);
 
-  const airlineCountsReturn = useMemo(() => {
-    const m = {};
-    itineraries.forEach((it) => {
-      if (!it.return) return;
-      const code = (it.return?.marketingCarriers?.[0] || it.return?.segments?.[0]?.airline || "").toUpperCase();
-      if (!code) return;
-      m[code] = (m[code] || 0) + 1;
-    });
-    return m;
-  }, [itineraries]);
+const airlineCountsReturn = useMemo(() => {
+  const m = {};
+  itineraries.forEach(it => {
+    if (!it.return) return;
+    const code = (it.return?.marketingCarriers?.[0] || it.return?.segments?.[0]?.airline || "").toUpperCase();
+    if (!code) return;
+    m[code] = (m[code] || 0) + 1;
+  });
+  return m;
+}, [itineraries]);
 
   // Cabin handlers
   const toggleCabin = (key) => {
@@ -853,135 +874,8 @@ const FlightPage = () => {
 
       <div className="position-relative container-fluid pt-4 pb-4">
         <div className="container">
-          {/* Mobile: filter toggle */}
-          <div className="mb-3 lg:hidden">
-            <button
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
-              onClick={() => setFiltersOpenMobile((v) => !v)}
-            >
-              {filtersOpenMobile ? "Hide filters" : "Show filters"}
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-          </div>
-
           <div className="row g-3">
-            {/* LEFT: Filters */}
-            <div className="col-12 col-lg-4 col-xl-3">
-              {/* Mobile collapse */}
-              <AnimatePresence initial={false}>
-                {filtersOpenMobile && (
-                  <motion.div
-                    key="filters-mobile"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className="lg:hidden"
-                  >
-                    <div className="rounded-2xl border border-gray-200 bg-white/60 backdrop-blur p-3">
-                      <FilterSidebar
-                        currentStop={currentStop}
-                        handleStopChange={handleStopChange}
-                        priceRange={[minPrice, maxPrice]}
-                        priceBounds={priceBounds}
-                        handlePriceChange={handlePriceChange}
-                        uniqueAirlines={uniqueAirlines}
-                        checkedOnewayValue={checkedOnewayValue}
-                        handleOnewayChange={handleOnewayChange}
-                        checkedReturnValue={checkedReturnValue}
-                        handleReturnChange={handleReturnChange}
-                        getAirlineName={getAirlineName}
-                        getAirlineLogo={getAirlineLogo}
-                        depTimeRange={depTimeRange}
-                        onDepTimeChange={setDepTimeRange}
-                        retTimeRange={retTimeRange}
-                        onRetTimeChange={setRetTimeRange}
-                        maxDurationHours={maxDurationHours}
-                        onMaxDurationChange={setMaxDurationHours}
-                        baggageOnly={baggageOnly}
-                        onBaggageOnlyChange={setBaggageOnly}
-                        returnFlights={returnFlights}
-                        selectedCabins={selectedCabins}
-                        onToggleCabin={toggleCabin}
-                        onResetCabins={resetCabins}
-                        airlinesOutboundExact={outboundPrimary}
-                        airlinesReturnExact={returnPrimary}
-                        airlineCountsOutbound={airlineCountsOutbound}
-                        airlineCountsReturn={airlineCountsReturn}
-                        onClearAll={() => {
-                          setCurrentStop("mix");
-                          setMinPrice(priceBounds[0]);
-                          setMaxPrice(priceBounds[1]);
-                          setDepTimeRange([0, 24]);
-                          setRetTimeRange([0, 24]);
-                          setMaxDurationHours(48);
-                          setBaggageOnly(false);
-                          setCheckedOnewayValue([]);
-                          setCheckedReturnValue([]);
-                          setSelectedCabins([]);
-                          resetToTop();
-                        }}
-                        onCloseMobile={() => setFiltersOpenMobile(false)}
-                      />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Desktop sticky sidebar */}
-              <div className="hidden lg:block lg:sticky lg:top-28">
-                <div className="rounded-2xl border border-gray-200 bg-white p-3">
-                  <FilterSidebar
-                    currentStop={currentStop}
-                    handleStopChange={handleStopChange}
-                    priceRange={[minPrice, maxPrice]}
-                    priceBounds={priceBounds}
-                    handlePriceChange={handlePriceChange}
-                    uniqueAirlines={uniqueAirlines}
-                    checkedOnewayValue={checkedOnewayValue}
-                    handleOnewayChange={handleOnewayChange}
-                    checkedReturnValue={checkedReturnValue}
-                    handleReturnChange={handleReturnChange}
-                    getAirlineName={getAirlineName}
-                    getAirlineLogo={getAirlineLogo}
-                    depTimeRange={depTimeRange}
-                    onDepTimeChange={setDepTimeRange}
-                    retTimeRange={retTimeRange}
-                    onRetTimeChange={setRetTimeRange}
-                    maxDurationHours={maxDurationHours}
-                    onMaxDurationChange={setMaxDurationHours}
-                    baggageOnly={baggageOnly}
-                    onBaggageOnlyChange={setBaggageOnly}
-                    returnFlights={returnFlights}
-                    selectedCabins={selectedCabins}
-                    onToggleCabin={toggleCabin}
-                    onResetCabins={resetCabins}
-                    airlinesOutboundExact={outboundPrimary}
-                    airlinesReturnExact={returnPrimary}
-                    airlineCountsOutbound={airlineCountsOutbound}
-                    airlineCountsReturn={airlineCountsReturn}
-                    onClearAll={() => {
-                      setCurrentStop("mix");
-                      setMinPrice(priceBounds[0]);
-                      setMaxPrice(priceBounds[1]);
-                      setDepTimeRange([0, 24]);
-                      setRetTimeRange([0, 24]);
-                      setMaxDurationHours(48);
-                      setBaggageOnly(false);
-                      setCheckedOnewayValue([]);
-                      setCheckedReturnValue([]);
-                      setSelectedCabins([]);
-                      resetToTop();
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* RIGHT: Results */}
-            <div className="col-12 col-lg- col-xl-9">
+            <div className="col-lg-12">
               {/* Error / Expired */}
               {error && (
                 <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">
@@ -1008,7 +902,7 @@ const FlightPage = () => {
                     <HeaderSkeleton />
                   ) : (
                     <FlightHeader
-                      onOpen={() => setFiltersOpenMobile(true)} // open sidebar on mobile
+                      onOpen={() => setIsFilterModalOpen(true)}
                       filteredItineraries={filteredItineraries}
                       searchParams={searchParams}
                       formatDate={formatDate}
@@ -1087,6 +981,53 @@ const FlightPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Filters Modal */}
+      <FilterModal
+        isOpen={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        currentStop={currentStop}
+        handleStopChange={handleStopChange}
+        priceRange={[minPrice, maxPrice]}
+        priceBounds={priceBounds}
+        handlePriceChange={handlePriceChange}
+        uniqueAirlines={uniqueAirlines}
+        checkedOnewayValue={checkedOnewayValue}
+        handleOnewayChange={handleOnewayChange}
+        checkedReturnValue={checkedReturnValue}
+        handleReturnChange={handleReturnChange}
+        getAirlineName={getAirlineName}
+        getAirlineLogo={getAirlineLogo}
+        depTimeRange={depTimeRange}
+        onDepTimeChange={setDepTimeRange}
+        retTimeRange={retTimeRange}
+        onRetTimeChange={setRetTimeRange}
+        maxDurationHours={maxDurationHours}
+        onMaxDurationChange={setMaxDurationHours}
+        baggageOnly={baggageOnly}
+        onBaggageOnlyChange={setBaggageOnly}
+        returnFlights={returnFlights}
+        selectedCabins={selectedCabins}
+        onToggleCabin={toggleCabin}
+        onResetCabins={resetCabins}
+        airlinesOutboundExact={outboundPrimary}
+        airlinesReturnExact={returnPrimary}
+        airlineCountsOutbound={airlineCountsOutbound}
+        airlineCountsReturn={airlineCountsReturn}
+        onClearAll={() => {
+          setCurrentStop("mix");
+          setMinPrice(priceBounds[0]);
+          setMaxPrice(priceBounds[1]);
+          setDepTimeRange([0, 24]);
+          setRetTimeRange([0, 24]);
+          setMaxDurationHours(48);
+          setBaggageOnly(false);
+          setCheckedOnewayValue([]);
+          setCheckedReturnValue([]);
+          setSelectedCabins([]);
+          resetToTop();
+        }}
+      />
     </div>
   );
 };
