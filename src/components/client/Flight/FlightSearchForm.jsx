@@ -498,6 +498,56 @@ useEffect(() => {
     }, 350);
   };
 
+    /* Plane icons */
+    const PlaneTakeoff = (props) => (
+    <svg aria-hidden {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <path d="M2 16l20-5-2-3-8 2-5-6-2 1 3 7-6 2z" />
+        <path d="M2 19h20" />
+    </svg>
+    );
+
+    const PlaneLanding = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" aria-hidden {...props} viewBox="0 0 640 640">
+        <path d="M418.6 257.1L297.9 67.7C293.1 60.1 285.3 54.9 276.5 53.4L233.4 45.8C222.6 43.9 213.2 53.1 214.8 63.9L238.8 225.5L133.8 207L100 145.2C96.5 138.7 90.2 134.2 83.1 133L66 130C56.2 128.3 47.2 135.9 47.2 145.8L47.8 252.1C48 283 70.2 309.4 100.7 314.8L114.2 317.2L114.2 317.2L531.8 390.8C562.3 396.2 591.3 375.8 596.7 345.4C602.1 315 581.7 285.9 551.3 280.5L418.6 257.1zM256 448C273.7 448 288 433.7 288 416C288 398.3 273.7 384 256 384C238.3 384 224 398.3 224 416C224 433.7 238.3 448 256 448zM387.2 432.7C387.2 415 372.9 400.7 355.2 400.7C337.5 400.7 323.2 415 323.2 432.7C323.2 450.4 337.5 464.7 355.2 464.7C372.9 464.7 387.2 450.4 387.2 432.7zM64 512C46.3 512 32 526.3 32 544C32 561.7 46.3 576 64 576L576 576C593.7 576 608 561.7 608 544C608 526.3 593.7 512 576 512L64 512z"/>
+    </svg>
+    );
+
+    /* Control with a left icon (takeoff/landing) */
+    const ControlWithIcon = (props) => {
+    const { children, innerProps, selectProps } = props;
+    const { iconType } = selectProps; // "from" | "to" | undefined
+
+    return (
+        <components.Control {...props}>
+        {/* left icon (absolute so it doesn't change layout) */}
+        {iconType && (
+            <span
+            style={{
+                position: "absolute",
+                left: 10,
+                top: "50%",
+                transform: "translateY(-50%)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 18,
+                height: 18,
+                color: "#64748b", // slate-500
+                pointerEvents: "none",
+            }}
+            >
+            {iconType === "from" ? (
+                <PlaneTakeoff width={18} height={18} />
+            ) : (
+                <PlaneLanding width={18} height={18} />
+            )}
+            </span>
+        )}
+        {children}
+        </components.Control>
+    );
+    };
+
   /* —— STYLE TWEAKS —— */
   const selectStyles = {
     control: (base, state) => ({
@@ -508,7 +558,8 @@ useEffect(() => {
       minHeight: 54,
       borderColor: state.isFocused ? "#94a3b8" : "#e5e7eb",
       boxShadow: state.isFocused ? "0 0 0 3px rgba(148,163,184,.25)" : "none",
-      paddingLeft: 12,
+      // add extra left padding ONLY when we render an icon
+      paddingLeft: state.selectProps?.iconType ? 42 : 12,
       paddingRight: 10,
       backgroundColor: "#fff",
       color: "#0f172a",
@@ -738,7 +789,7 @@ useEffect(() => {
                 onChange={(v) => handleFlightChange(0, "origin", v)}
                 onMenuOpen={() => handleMenuOpen(0, "origin")}
                 onInputChange={handleInputChange(0, "origin")}
-                components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
+                components={{ Control: ControlWithIcon, Option: AirportOption, SingleValue: AirportSingleValue }}
                 styles={selectStyles}
                 placeholder="City or airport"
                 isSearchable
@@ -749,6 +800,7 @@ useEffect(() => {
                 menuPlacement="auto"
                 getOptionValue={(opt) => opt.value}
                 noOptionsMessage={noOptionsMessage}
+                iconType="from"
               />
             </div>
 
@@ -777,7 +829,7 @@ useEffect(() => {
                 onChange={(v) => handleFlightChange(0, "destination", v)}
                 onMenuOpen={() => handleMenuOpen(0, "destination")}
                 onInputChange={handleInputChange(0, "destination")}
-                components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
+                components={{ Control: ControlWithIcon, Option: AirportOption, SingleValue: AirportSingleValue }}
                 styles={selectStyles}
                 placeholder="City or airport"
                 isSearchable
@@ -788,6 +840,7 @@ useEffect(() => {
                 menuPlacement="auto"
                 getOptionValue={(opt) => opt.value}
                 noOptionsMessage={noOptionsMessage}
+                iconType="to"
               />
             </div>
 
@@ -950,7 +1003,7 @@ useEffect(() => {
                       onChange={(v) => handleFlightChange(idx, "origin", v)}
                       onMenuOpen={() => handleMenuOpen(idx, "origin")}
                       onInputChange={handleInputChange(idx, "origin")}
-                      components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
+                      components={{ Control: ControlWithIcon, Option: AirportOption, SingleValue: AirportSingleValue }}
                       styles={selectStyles}
                       placeholder="City or airport"
                       isSearchable
@@ -961,6 +1014,7 @@ useEffect(() => {
                       menuPlacement="auto"
                       getOptionValue={(opt) => opt.value}
                       noOptionsMessage={noOptionsMessage}
+                      iconType="from"
                     />
                   </div>
 
@@ -989,7 +1043,7 @@ useEffect(() => {
                       onChange={(v) => handleFlightChange(idx, "destination", v)}
                       onMenuOpen={() => handleMenuOpen(idx, "destination")}
                       onInputChange={handleInputChange(idx, "destination")}
-                      components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
+                      components={{ Control: ControlWithIcon, Option: AirportOption, SingleValue: AirportSingleValue }}
                       styles={selectStyles}
                       placeholder="City or airport"
                       isSearchable
@@ -1000,6 +1054,7 @@ useEffect(() => {
                       menuPlacement="auto"
                       getOptionValue={(opt) => opt.value}
                       noOptionsMessage={noOptionsMessage}
+                      iconType="to"
                     />
                   </div>
 
