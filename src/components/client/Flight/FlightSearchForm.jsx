@@ -605,7 +605,7 @@ const makeSelectProps = (idx, field, value, onChange) => {
         </div>
 
         {/* Swap */}
-        <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100000 }}>
+        <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100 }}>
           <button
             type="button"
             onClick={() => swapPlaces(idx)}
@@ -716,7 +716,7 @@ const makeSelectProps = (idx, field, value, onChange) => {
         </div>
 
         {/* Swap */}
-        <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100000 }}>
+        <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100 }}>
           <button
             type="button"
             onClick={() => swapPlaces(0)}
@@ -958,7 +958,7 @@ const makeSelectProps = (idx, field, value, onChange) => {
       </div>
 
       {/* Keep react-select menus above everything */}
-      <style>{`.react-select__menu-portal{z-index:2147483647 }`}</style>
+      <style>{`.react-select__menu-portal{z-index:100000}`}</style>
     </form>
   );
 }
