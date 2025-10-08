@@ -8,62 +8,62 @@ import {
    Helpers
    -------------------------------------------------------- */
 
-/** Normalize airport/airline code (uppercase, alphanumeric, max 3 chars) */
 const norm = (s = "") =>
   String(s).trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3);
 
-/** Sort segments chronologically by departure time */
-const byDepTime = (a, b) =>
-  new Date(a.departureAt).getTime() - new Date(b.departureAt).getTime();
+const isDateOnly = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ""));
+const isTimeOnly = (s) => /^\d{1,2}:\d{2}(:\d{2})?$/.test(String(s || ""));
+
+const toIsoOrRaw = (dt) => {
+  if (!dt) return "";
+  // If it already parses, keep as-is (browser can format it)
+  const t = new Date(dt).toString();
+  if (t !== "Invalid Date") return dt;
+  return ""; // give up (we’ll fall back to other fields)
+};
+
+const combineDateTime = (d, t) => {
+  if (!d && !t) return "";
+  // Try to combine date + time (local ISO). Keep as string; display formatters tolerate it.
+  if (isDateOnly(d) && isTimeOnly(t)) return `${d}T${t}`;
+  if (isDateOnly(d) && !t) return `${d}T00:00`;
+  if (!d && isTimeOnly(t)) return `1970-01-01T${t}`;
+  return toIsoOrRaw(d || t);
+};
+
+const byDepTime = (a, b) => {
+  const ta = new Date(a.departureAt || a.arrivalAt || 0).getTime();
+  const tb = new Date(b.departureAt || b.arrivalAt || 0).getTime();
+  return ta - tb;
+};
 
 /**
  * Normalize raw supplier segment(s) into a consistent internal structure.
  * Handles variations in supplier keys across oneway/return/multi.
  */
 const normalizeSegments = (flightLike) => {
-  // allow single leg object (multi) or arrays of segments
   const raw =
     Array.isArray(flightLike?.segments) && flightLike.segments.length
       ? flightLike.segments
       : [flightLike];
 
-  return raw
+  const segs = raw
     .filter(Boolean)
     .map((s) => {
-      // Accept many common aliases
       const airline = s.airline ?? s.carrier ?? "";
       const flightNo = s.flightNum ?? s.flightNumber ?? "";
 
-      const departure = s.departure ?? s.origin ?? s.departureAirport ?? "";
-      const arrival = s.arrival ?? s.destination ?? s.arrivalAirport ?? "";
+      const departure = s.departure ?? s.origin ?? s.departureAirport ?? flightLike?.origin ?? "";
+      const arrival = s.arrival ?? s.destination ?? s.arrivalAirport ?? flightLike?.destination ?? "";
 
-      // Datetime (full ISO or date-only) fallbacks
-      const departureAt =
-        s.strDepartureDate ??
-        s.departureDate ??
-        s.departureTime ?? // sometimes this is an ISO datetime
-        s.depTime ??
-        "";
+      // Inputs potentially split across date-only + time-only fields
+      const depDate = s.strDepartureDate ?? s.departureDate ?? s.depDate ?? "";
+      const depTime = s.strDepartureTime ?? s.departureTime ?? s.depTime ?? "";
+      const arrDate = s.strArrivalDate ?? s.arrivalDate ?? s.arrDate ?? "";
+      const arrTime = s.strArrivalTime ?? s.arrivalTime ?? s.arrTime ?? "";
 
-      const arrivalAt =
-        s.strArrivalDate ??
-        s.arrivalDate ??
-        s.arrivalTime ?? // sometimes this is an ISO datetime
-        s.arrTime ??
-        "";
-
-      // Time-only cosmetics (if present)
-      const departureTimeAt =
-        s.strDepartureTime ??
-        s.departureTime ??
-        s.depTime ??
-        ""; // may be full ISO; the formatter will handle it
-
-      const arrivalTimeAt =
-        s.strArrivalTime ??
-        s.arrivalTime ??
-        s.arrTime ??
-        "";
+      const departureAt = combineDateTime(depDate, depTime) || toIsoOrRaw(s.departureTime) || toIsoOrRaw(s.departureDate);
+      const arrivalAt = combineDateTime(arrDate, arrTime) || toIsoOrRaw(s.arrivalTime) || toIsoOrRaw(s.arrivalDate);
 
       const bookingCode = s.bookingCode ?? s.bookingClass ?? "";
       const refundable = !!s.refundable;
@@ -75,22 +75,23 @@ const normalizeSegments = (flightLike) => {
         arrival,
         departureAt,
         arrivalAt,
-        departureTimeAt,
-        arrivalTimeAt,
+        // keep the time-only strings for UI if present
+        departureTimeAt: isTimeOnly(depTime) ? depTime : "",
+        arrivalTimeAt: isTimeOnly(arrTime) ? arrTime : "",
         bookingCode,
         refundable,
       };
     })
-    .filter((s) => s.departureAt && s.arrivalAt)
+    // Relaxed filter: keep if we have endpoints, and at least one datetime we can show
+    .filter((s) => (s.departure || s.arrival) && (s.departureAt || s.arrivalAt))
     .sort(byDepTime);
+
+  return segs;
 };
 
 /**
  * Find a contiguous chain of segments from ORIGIN → DEST.
- *
- * Options:
- *  - prefer: "earliest" | "latest"
- *  - notBefore: ISO datetime; enforces first departure >= this
+ * Options: prefer: "earliest" | "latest"; notBefore: ISO datetime fence
  */
 const findLeg = (segs, ORIGIN, DEST, { prefer = "earliest", notBefore } = {}) => {
   const O = norm(ORIGIN);
@@ -98,25 +99,19 @@ const findLeg = (segs, ORIGIN, DEST, { prefer = "earliest", notBefore } = {}) =>
   if (!O || !D || !segs?.length) return null;
 
   const chains = [];
-
   for (let i = 0; i < segs.length; i++) {
-    // Start only from matching origin
     if (norm(segs[i].departure) !== O) continue;
     if (notBefore && new Date(segs[i].departureAt) < new Date(notBefore)) continue;
 
     const chain = [segs[i]];
-
-    // Direct flight
     if (norm(segs[i].arrival) === D) {
       chains.push(chain.slice());
       continue;
     }
-
-    // Try to extend chain with contiguous connections
     for (let j = i + 1; j < segs.length; j++) {
       const prev = chain[chain.length - 1];
       const cur = segs[j];
-      if (norm(cur.departure) !== norm(prev.arrival)) break; // lost continuity
+      if (norm(cur.departure) !== norm(prev.arrival)) break;
       chain.push(cur);
       if (norm(cur.arrival) === D) {
         chains.push(chain.slice());
@@ -127,18 +122,14 @@ const findLeg = (segs, ORIGIN, DEST, { prefer = "earliest", notBefore } = {}) =>
 
   if (!chains.length) return null;
 
-  // Pick chain based on "prefer" option
   return chains.reduce((best, c) => {
-    const tBest = new Date(best[0].departureAt);
-    const tCur = new Date(c[0].departureAt);
+    const tBest = new Date(best[0].departureAt || 0);
+    const tCur = new Date(c[0].departureAt || 0);
     return prefer === "latest" ? (tCur > tBest ? c : best) : tCur < tBest ? c : best;
   });
 };
 
-/**
- * Guess the *first outbound chain* purely by continuity starting
- * from the earliest departure. Used as a fallback when no anchors are provided.
- */
+/** Guess first contiguous chain when no anchors are given */
 const guessFirstChain = (segs) => {
   if (!segs?.length) return null;
   const chain = [segs[0]];
@@ -161,7 +152,7 @@ const guessFirstChain = (segs) => {
 
 const FlightSegment = ({
   flight,
-  segmentType, // "Outbound" | "Return" | "Leg X"
+  segmentType,
 
   // formatting utilities injected from parent
   formatDate,
@@ -169,11 +160,11 @@ const FlightSegment = ({
   calculateDuration,
   getAirportName,
 
-  // airline helpers (fall back to utils if not provided)
+  // airline helpers (fallback to utils)
   getAirlineLogo,
   getAirlineName,
 
-  // Leg anchors (optional, mostly for oneway/return)
+  // optional anchors
   expectedOutboundOrigin,
   expectedOutboundDestination,
   expectedReturnOrigin,
@@ -182,73 +173,90 @@ const FlightSegment = ({
   const [openIndex, setOpenIndex] = useState(null);
   const toggleDetails = (index) => setOpenIndex((v) => (v === index ? null : index));
 
+  const airlineLogo = typeof getAirlineLogo === "function" ? getAirlineLogo : utilsGetAirlineLogo;
+  const airlineName = typeof getAirlineName === "function" ? getAirlineName : utilsGetAirlineName;
+  const safeDate = (d) => (d ? formatDate(d) : "—");
+  const safeTime = (d) => (d ? formatTime(d) : "—");
+
   /* ---------------- Normalization & anchors ---------------- */
   const allSegs = useMemo(() => normalizeSegments(flight), [flight]);
   const guess = useMemo(() => guessFirstChain(allSegs), [allSegs]);
 
-  // When rendering MULTI legs, we usually don't pass anchors — that's fine.
-  // For oneway/return, anchors from parent keep things precise.
   const OUT_O =
-    expectedOutboundOrigin || guess?.origin || allSegs[0]?.departure || flight?.origin || "";
-  const OUT_D = expectedOutboundDestination || guess?.destination || flight?.destination || "";
+    expectedOutboundOrigin ||
+    guess?.origin ||
+    allSegs[0]?.departure ||
+    flight?.origin ||
+    "";
+  const OUT_D =
+    expectedOutboundDestination ||
+    guess?.destination ||
+    allSegs.at?.(-1)?.arrival ||
+    flight?.destination ||
+    "";
 
   const outboundSegs = useMemo(() => {
-    const found = findLeg(allSegs, OUT_O, OUT_D, { prefer: "earliest" });
-    return found?.length ? found : guess?.chain || allSegs; // last fallback: show normalized segs
+    const found =
+      findLeg(allSegs, OUT_O, OUT_D, { prefer: "earliest" }) ||
+      null;
+    return found?.length ? found : guess?.chain || allSegs;
   }, [allSegs, OUT_O, OUT_D, guess]);
 
-  // Return anchors (reverse trip)
   const RET_O = expectedReturnOrigin || OUT_D;
   const RET_D = expectedReturnDestination || OUT_O;
 
-  // Return chain (with outbound arrival fence)
-  const outboundArrivesAt = outboundSegs.at(-1)?.arrivalAt || null;
+  const outboundArrivesAt = outboundSegs.at?.(-1)?.arrivalAt || null;
+
   const returnSegs = useMemo(() => {
     let chain =
       findLeg(allSegs, RET_O, RET_D, { prefer: "earliest", notBefore: outboundArrivesAt }) ||
       findLeg(allSegs, RET_O, RET_D, { prefer: "earliest" }) ||
-      findLeg(allSegs, RET_D, RET_O, { prefer: "earliest" }); // last resort swap
+      findLeg(allSegs, RET_D, RET_O, { prefer: "earliest" });
     return chain || [];
   }, [allSegs, RET_O, RET_D, outboundArrivesAt]);
 
-  // Pick active leg
   const isReturn = segmentType === "Return";
-  const legSegs = isReturn ? returnSegs : outboundSegs;
+  let legSegs = isReturn ? returnSegs : outboundSegs;
 
-  // If after all fallbacks we still have nothing (shouldn’t happen now), show the single object as 1 “segment”
-  const safeLegSegs =
-    legSegs?.length
-      ? legSegs
-      : normalizeSegments({
-          ...flight,
-          segments: [
-            {
-              airline: flight?.airline,
-              flightNum: flight?.flightNum || flight?.flightNumber,
-              departure: flight?.origin,
-              arrival: flight?.destination,
-              departureDate: flight?.departureTime,
-              arrivalDate: flight?.arrivalTime,
-              bookingCode: flight?.bookingCode,
-              refundable: flight?.refundable,
-            },
-          ],
-        });
+  // Absolute last-resort synthetic single-segment if everything else failed
+  if (!legSegs?.length) {
+    const depAt =
+      flight?.departureTime ||
+      combineDateTime(flight?.strDepartureDate, flight?.strDepartureTime) ||
+      flight?.departureDate ||
+      "";
+    const arrAt =
+      flight?.arrivalTime ||
+      combineDateTime(flight?.strArrivalDate, flight?.strArrivalTime) ||
+      flight?.arrivalDate ||
+      "";
 
-  const firstSegment = safeLegSegs?.[0];
-  const lastSegment = safeLegSegs?.at(-1);
+    if ((flight?.origin || flight?.destination) && (depAt || arrAt)) {
+      legSegs = [
+        {
+          airline: flight?.airline || flight?.marketingCarriers?.[0] || "",
+          flightNo: flight?.flightNum || flight?.flightNumber || "",
+          departure: flight?.origin || "",
+          arrival: flight?.destination || "",
+          departureAt: depAt || arrAt, // at least one
+          arrivalAt: arrAt || depAt,
+          departureTimeAt: isTimeOnly(flight?.strDepartureTime) ? flight?.strDepartureTime : "",
+          arrivalTimeAt: isTimeOnly(flight?.strArrivalTime) ? flight?.strArrivalTime : "",
+          bookingCode: flight?.bookingCode || "",
+          refundable: !!flight?.refundable,
+        },
+      ];
+    } else {
+      legSegs = [];
+    }
+  }
 
-  // Header labels (with fallbacks)
+  const hasSegments = Array.isArray(legSegs) && legSegs.length > 0;
+  const firstSegment = hasSegments ? legSegs[0] : null;
+  const lastSegment = hasSegments ? legSegs[legSegs.length - 1] : null;
+
   const headerOrigin = isReturn ? RET_O : OUT_O;
   const headerDest = isReturn ? RET_D : OUT_D;
-
-  // Safe wrappers
-  const safeDate = (d) => (d ? formatDate(d) : "—");
-  const safeTime = (d) => (d ? formatTime(d) : "—");
-
-  // Airline helpers (use injected first, utils fallback second)
-  const airlineLogo = typeof getAirlineLogo === "function" ? getAirlineLogo : utilsGetAirlineLogo;
-  const airlineName = typeof getAirlineName === "function" ? getAirlineName : utilsGetAirlineName;
 
   /* ---------------- Render ---------------- */
   return (
@@ -268,14 +276,14 @@ const FlightSegment = ({
             <div className="text-start w-100 w-md-25">
               <div className="fw-semibold text-dark text-xl">{safeDate(firstSegment?.departureAt)}</div>
               <div className="text-muted small">
-                Departure Time: <b>{firstSegment?.departureTimeAt ? safeTime(firstSegment?.departureTimeAt) : safeTime(firstSegment?.departureAt)}</b>
+                Departure Time: <b>{firstSegment?.departureTimeAt ? firstSegment.departureTimeAt : safeTime(firstSegment?.departureAt)}</b>
               </div>
               <div className="text-muted small">
-                From: <b>{getAirportName(firstSegment?.departure || headerOrigin)}</b>
+                From: <b>{getAirportName(firstSegment?.departure || headerOrigin || "")}</b>
               </div>
             </div>
 
-            {/* Timeline w/ plane icon */}
+            {/* Timeline */}
             <div className="d-flex align-items-center justify-content-center flex-grow-1 position-relative w-100 w-md-50">
               <div className="w-100 position-relative" style={{ height: "1px", backgroundColor: "#dee2e6" }} />
               <div className="position-absolute top-50 start-50 translate-middle bg-white px-2">
@@ -299,10 +307,10 @@ const FlightSegment = ({
             <div className="text-end w-100 w-md-25">
               <div className="fw-semibold text-dark text-xl">{safeDate(lastSegment?.arrivalAt)}</div>
               <div className="text-muted small">
-                Arrival Time: <b>{lastSegment?.arrivalTimeAt ? safeTime(lastSegment?.arrivalTimeAt) : safeTime(lastSegment?.arrivalAt)}</b>
+                Arrival Time: <b>{lastSegment?.arrivalTimeAt ? lastSegment.arrivalTimeAt : safeTime(lastSegment?.arrivalAt)}</b>
               </div>
               <div className="text-muted small">
-                To: <b>{getAirportName(lastSegment?.arrival || headerDest)}</b>
+                To: <b>{getAirportName(lastSegment?.arrival || headerDest || "")}</b>
               </div>
             </div>
           </div>
@@ -310,7 +318,7 @@ const FlightSegment = ({
       </div>
 
       {/* Render individual segments */}
-      {(safeLegSegs || []).map((segment, index) => (
+      {(legSegs || []).map((segment, index) => (
         <div
           key={`${segment.airline || "XX"}-${segment.flightNo || "000"}-${segment.departureAt || index}-${index}`}
           className="border rounded-4 p-2 mb-2"
@@ -366,7 +374,7 @@ const FlightSegment = ({
               {/* Departure */}
               <div className="text-center">
                 <div className="text-md font-semibold text-gray-800">
-                  {safeDate(segment.departureAt)} {segment.departureTimeAt ? safeDate(segment.departureTimeAt) && segment.departureTimeAt : ""}
+                  {safeDate(segment.departureAt)} {segment.departureTimeAt || ""}
                 </div>
                 <div className="text-xs text-gray-500">{getAirportName(segment.departure || "")}</div>
               </div>
@@ -393,7 +401,7 @@ const FlightSegment = ({
               {/* Arrival */}
               <div className="text-center">
                 <div className="text-md font-semibold text-gray-800">
-                  {safeDate(segment.arrivalAt)} {segment.arrivalTimeAt ? safeDate(segment.arrivalTimeAt) && segment.arrivalTimeAt : ""}
+                  {safeDate(segment.arrivalAt)} {segment.arrivalTimeAt || ""}
                 </div>
                 <div className="text-xs text-gray-500">{getAirportName(segment.arrival || "")}</div>
               </div>
@@ -410,12 +418,8 @@ const FlightSegment = ({
         </div>
       ))}
 
-      {/* Fallback if no valid chain */}
-      {!safeLegSegs?.length && (
-        <div className="text-center text-muted py-3">
-          No segments found for {segmentType?.toLowerCase() || "segment"} leg ({headerOrigin} → {headerDest}).
-        </div>
-      )}
+      {/* If nothing survived even after synthetic fallback, stay quiet (no scary message) */}
+      {!hasSegments && <div className="text-center text-muted py-3">Segment details unavailable for this leg.</div>}
     </div>
   );
 };
