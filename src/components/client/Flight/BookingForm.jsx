@@ -137,7 +137,7 @@ const BookingForm = ({
   }, [showShare]);
 
   return (
-    <div className="px-2 sm:px-4">
+    <div className="px-2">
       {/* Responsive grid:
           - Mobile: single column (Flight card appears first)
           - Desktop: two columns with the Flight card on the RIGHT (sticky)
