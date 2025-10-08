@@ -399,12 +399,9 @@ const FlightPage = () => {
           infants: parseInt(qp.get("infants") || "0", 10),
         };
         setSearchParams(params);
-        
-        console.info('Search Params: ', params);
 
         const res = await flygasal.searchFlights(params, { signal: abort.signal });
 
-        console.info('Search results :', res);
         let offers = [];
         let displayCurrency = "USD";
 
@@ -459,9 +456,6 @@ const FlightPage = () => {
           outbounds = Array.from(multiSet.values());
           returns = [];
         } else if (tripType === "return") {
-          const tempOut = [];
-          const tempRet = [];
-
           for (const offer of offers) {
             const fids = Array.isArray(offer?.flightIds) ? offer.flightIds.filter(Boolean) : [];
             const segs = Array.isArray(offer?.segments) ? offer.segments : [];
