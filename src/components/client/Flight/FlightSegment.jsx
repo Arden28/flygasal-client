@@ -57,10 +57,13 @@ const normalizeSegments = (flightLike) => {
       const arrival = s.arrival ?? s.destination ?? s.arrivalAirport ?? flightLike?.destination ?? "";
 
       // Inputs potentially split across date-only + time-only fields
+      const depDate = s.strDepartureDate ?? s.departureDate ?? s.depDate ?? "";
       const depTime = s.strDepartureTime ?? s.departureTime ?? s.depTime ?? "";
+      const arrDate = s.strArrivalDate ?? s.arrivalDate ?? s.arrDate ?? "";
       const arrTime = s.strArrivalTime ?? s.arrivalTime ?? s.arrTime ?? "";
-      const departureAt = s.strDepartureDate ?? s.departureDate ?? s.depDate ?? "";
-      const arrivalAt = s.strArrivalDate ?? s.arrivalDate ?? s.arrDate ?? "";
+
+      const departureAt = combineDateTime(depDate, depTime) || toIsoOrRaw(s.departureTime) || toIsoOrRaw(s.departureDate);
+      const arrivalAt = combineDateTime(arrDate, arrTime) || toIsoOrRaw(s.arrivalTime) || toIsoOrRaw(s.arrivalDate);
 
       const bookingCode = s.bookingCode ?? s.bookingClass ?? "";
       const refundable = !!s.refundable;
@@ -73,8 +76,8 @@ const normalizeSegments = (flightLike) => {
         departureAt,
         arrivalAt,
         // keep the time-only strings for UI if present
-        departureTimeAt: depTime ?? "",
-        arrivalTimeAt: arrTime ?? "",
+        departureTimeAt: isTimeOnly(depTime) ? depTime : "",
+        arrivalTimeAt: isTimeOnly(arrTime) ? arrTime : "",
         bookingCode,
         refundable,
       };
