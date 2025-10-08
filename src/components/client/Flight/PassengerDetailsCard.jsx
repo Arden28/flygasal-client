@@ -88,18 +88,37 @@ export default function PassengerDetailsCard({
 
   const desired = { adult: adults, child: children, infant: infants };
 
+  // ------ STABLE ROW KEYS (fixes remount/focus loss) ------
   const rows = useMemo(() => {
     const out = [];
     ["adult", "child", "infant"].forEach((t) => {
       const have = byType[t].length;
       const want = desired[t] || 0;
-      byType[t].forEach((trav) => out.push({ kind: "real", type: t, traveler: trav }));
+
+      // real travelers (stable by underlying array index)
+      byType[t].forEach((trav) => {
+        out.push({
+          kind: "real",
+          type: t,
+          traveler: trav,
+          _key: `real-${t}-${trav._index}`,
+        });
+      });
+
+      // placeholders to fill up to wanted count (stable per type & position)
       for (let k = 0; k < Math.max(0, want - have); k++) {
-        out.push({ kind: "placeholder", type: t, traveler: emptyTraveler(t) });
+        out.push({
+          kind: "placeholder",
+          type: t,
+          traveler: emptyTraveler(t),
+          _placeholderIndex: k,
+          _key: `ph-${t}-${k}`,
+        });
       }
     });
     return out;
   }, [byType, desired]);
+  // --------------------------------------------------------
 
   /* ---------- Mutations ---------- */
   const updateTravelers = (next) =>
@@ -145,7 +164,7 @@ export default function PassengerDetailsCard({
   /* ---------- Uniform field components (consistent height & spacing) ---------- */
   const baseCtrl =
     "block w-full rounded-2xl border border-slate-300 text-sm text-slate-900 focus:border-sky-500 focus:outline-none " +
-    "px-3 pt-4 pb-2 h-12"; // consistent height for inputs/selects
+    "px-3 pt-4 pb-2 h-12";
 
   const LabeledInput = ({ id, label, type = "text", value, onChange, required, autoComplete }) => (
     <div className="relative min-w-0">
@@ -195,7 +214,7 @@ export default function PassengerDetailsCard({
 
     return (
       <motion.li
-        key={`${row.kind}-${idx}-${row.kind === "real" ? row.traveler._index : "placeholder"}`}
+        // key comes from parent map via row._key; no need to set here again
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -8 }}
@@ -256,7 +275,7 @@ export default function PassengerDetailsCard({
 
         {/* Body */}
         <div className="px-4 pb-4">
-          {/* Row 1: Title / First / Last (1col mobile → 3col md+) */}
+          {/* Row 1: Title / First / Last */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <LabeledSelect id={`title-${idx}`} label="Title" value={t.title} onChange={onT("title")} required>
               <option value="">Select Title</option>
@@ -284,7 +303,7 @@ export default function PassengerDetailsCard({
             />
           </div>
 
-          {/* Row 2: Nationality (1col) */}
+          {/* Row 2: Nationality */}
           <div className="grid grid-cols-1 gap-3 mt-3">
             <LabeledSelect
               id={`nationality-${idx}`}
@@ -302,7 +321,7 @@ export default function PassengerDetailsCard({
             </LabeledSelect>
           </div>
 
-          {/* Row 3: DOB (1col mobile → 3col md+) */}
+          {/* Row 3: DOB */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
             <LabeledSelect
               id={`dob-month-${idx}`}
@@ -348,7 +367,7 @@ export default function PassengerDetailsCard({
             </LabeledSelect>
           </div>
 
-          {/* Row 4: Passport (full width) */}
+          {/* Row 4: Passport */}
           <div className="grid grid-cols-1 gap-3 mt-3">
             <div className="relative">
               <p className="m-0 text-end absolute right-3 top-2 text-gray-400 text-xs z-10">
@@ -365,7 +384,7 @@ export default function PassengerDetailsCard({
             </div>
           </div>
 
-          {/* Row 5: Issuance (1col mobile → 3col md+) */}
+          {/* Row 5: Issuance */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
             <LabeledSelect
               id={`iss-month-${idx}`}
@@ -411,7 +430,7 @@ export default function PassengerDetailsCard({
             </LabeledSelect>
           </div>
 
-          {/* Row 6: Expiry (1col mobile → 3col md+) */}
+          {/* Row 6: Expiry */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
             <LabeledSelect
               id={`exp-month-${idx}`}
@@ -514,7 +533,7 @@ export default function PassengerDetailsCard({
                   Set traveller counts, then fill in each passenger.
                 </motion.li>
               ) : (
-                rows.map((row, i) => <PassengerCard key={`pc-${i}`} row={row} idx={i} />)
+                rows.map((row, i) => <PassengerCard key={row._key} row={row} idx={i} />)
               )}
             </AnimatePresence>
           </ul>
