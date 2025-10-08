@@ -214,7 +214,7 @@ export default function FlightSearchInlineBar({
 
   // controlled open state for Selects
   const [openSelectKey, setOpenSelectKey] = useState(null);
-  const keyFor = (field) => `0:${field}`; // since only index 0
+  const keyFor = (field) => `0:${field}`;
   const isSelectOpen = (field) => openSelectKey === keyFor(field);
 
   const [airportMenus, setAirportMenus] = useState({});
