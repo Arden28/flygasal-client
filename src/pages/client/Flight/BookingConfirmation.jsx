@@ -50,7 +50,7 @@ const statusDisplay = (status) => {
     case "REFD_PRC": return { className: base + "text-bg-primary", text: "Refund Processing" };
     case "VOID_PRC": return { className: base + "text-bg-primary", text: "Voiding Ticket" };
     case "TO_BE_PAID": return { className: base + "text-bg-warning", text: "To be Paid" };
-    case "ISSUED": return { className: base + "text-bg-success", text: "Ticket Issued" };
+    case "ISSED": return { className: base + "text-bg-success", text: "Ticket Issued" };
     case "TO_BE_RSV": return { className: base + "text-bg-warning", text: "To be Reserved" };
     case "UNDER_REVIEW": return { className: base + "text-bg-warning", text: "Under Review" };
     case "HOLD": return { className: base + "text-bg-warning", text: "Order on Hold" };
