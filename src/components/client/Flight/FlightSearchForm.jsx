@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
-import Select, { components } from "react-select";
+import Select, { components as RS } from "react-select";
 import { Calendar } from "react-date-range";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
@@ -597,9 +597,30 @@ export default function FlightSearchInlineBar({
       <div className="grid gap-2 md:grid-cols-[1.2fr_auto_1.2fr_auto_auto] lg:grid-cols-[1.2fr_auto_1.2fr_auto_auto_auto] lg:items-center mb-2">
         {/* From */}
         <div className="z-[200] bg-white">
-          <Select
-            {...makeSelectProps(idx, "origin", leg.origin, (v) => handleFlightChange(idx, "origin", v))}
-          />
+              <Select
+                name="origin"
+                classNamePrefix="react-select"
+                options={menuOptions(0, "origin")}
+                value={flightsState[0].origin}
+                onChange={(v) => handleFlightChange(0, "origin", v)}
+                onMenuOpen={() => handleMenuOpen(0, "origin")}
+                onInputChange={handleInputChange(0, "origin")}
+                components={{
+                  Option: AirportOption,
+                  ValueContainer: RS.ValueContainer,
+                  SingleValue: AirportSingleValue,
+                }}
+                styles={selectStyles}
+                placeholder="City or airport"
+                isSearchable
+                filterOption={null}
+                menuPortalTarget={document.body}
+                menuPosition="fixed"
+                maxMenuHeight={384}
+                menuPlacement="auto"
+                getOptionValue={(opt) => opt.value}
+                noOptionsMessage={noOptionsMessage}
+              />
         </div>
 
         {/* Swap */}
