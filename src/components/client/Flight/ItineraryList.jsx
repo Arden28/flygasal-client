@@ -221,11 +221,11 @@ const selectItinerary = (itinerary) => {
     params.set(`flights[${idx}][airline]`, seg.airline);
     params.set(`flights[${idx}][flightNum]`, seg.flightNum);
     params.set(`flights[${idx}][arrival]`, seg.arrival);
-    params.set(`flights[${idx}][arrivalDate]`, seg.strArrivalDate || seg.arrivalDate || "");
-    params.set(`flights[${idx}][arrivalTime]`, seg.strArrivalTime || seg.arrivalTime || "");
+    params.set(`flights[${idx}][arrivalDate]`, seg.arrivalDate || seg.arrivalDate || "");
+    params.set(`flights[${idx}][arrivalTime]`, seg.arrivalTime || seg.arrivalTime || "");
     params.set(`flights[${idx}][departure]`, seg.departure);
-    params.set(`flights[${idx}][departureDate]`, seg.strDepartureDate || seg.departureDate || "");
-    params.set(`flights[${idx}][departureTime]`, seg.strDepartureTime || seg.departureTime || "");
+    params.set(`flights[${idx}][departureDate]`, seg.departureDate || seg.departureDate || "");
+    params.set(`flights[${idx}][departureTime]`, seg.departureTime || seg.departureTime || "");
     params.set(`flights[${idx}][bookingCode]`, seg.bookingCode || "");
     idx += 1;
   };
