@@ -1,9 +1,11 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-/* Stable id generator for rows (prevents re-mount on updates) */
+/* Stable id generator (fallback if crypto.randomUUID not available) */
 const makeId = () =>
-  Math.random().toString(36).slice(2) + Date.now().toString(36);
+  (typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2) + Date.now().toString(36));
 
 export default function PassengerDetailsCard({
   formData,
@@ -24,25 +26,6 @@ export default function PassengerDetailsCard({
   expiryYears,
 }) {
   /* ---------- Helpers ---------- */
-  const emptyTraveler = (type = "adult") => ({
-    id: makeId(), // stable key
-    type,
-    title: "",
-    first_name: "",
-    last_name: "",
-    nationality: "",
-    dob_month: "",
-    dob_day: "",
-    dob_year: "",
-    passport: "",
-    passport_issuance_month: "",
-    passport_issuance_day: "",
-    passport_issuance_year: "",
-    passport_expiry_month: "",
-    passport_expiry_day: "",
-    passport_expiry_year: "",
-  });
-
   const totalPax = (adults || 0) + (children || 0) + (infants || 0);
 
   const typeLabel = (t) => (t === "adult" ? "Adult" : t === "child" ? "Child" : "Infant");
@@ -56,7 +39,6 @@ export default function PassengerDetailsCard({
     return a || b || c ? `${a || b}${c || ""}` : typeLabel(t.type).charAt(0);
   };
 
-  // You can relax passport requirements for infants if needed
   const isComplete = (t) =>
     t.title &&
     t.first_name &&
@@ -81,14 +63,25 @@ export default function PassengerDetailsCard({
     return parts.join(", ");
   };
 
-  // Normalize travelers: ensure each has an id
-  const travelers = (formData.travelers || []).map((t) =>
-    t && t.id ? t : { ...t, id: makeId() }
-  );
+  /* ---------- One-time normalization: ensure stable ids for existing travelers ---------- */
+  useEffect(() => {
+    const list = Array.isArray(formData.travelers) ? formData.travelers : [];
+    const needsIds = list.some((t) => !t || !t.id);
+    if (needsIds) {
+      const withIds = list.map((t) => (t && t.id ? t : { ...t, id: makeId() }));
+      handleFormChange({ target: { name: "travelers", value: withIds } });
+    }
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // After normalization, use travelers directly (ids are persisted now)
+  const travelers = Array.isArray(formData.travelers) ? formData.travelers : [];
 
   const byType = useMemo(() => {
     const map = { adult: [], child: [], infant: [] };
     travelers.forEach((t, idx) => {
+      if (!t) return;
       if (map[t.type]) map[t.type].push({ ...t, _index: idx });
     });
     return map;
@@ -96,6 +89,8 @@ export default function PassengerDetailsCard({
 
   const desired = { adult: adults, child: children, infant: infants };
 
+  // Build rows. Real travelers keep their stable id.
+  // Placeholders get a deterministic id so they don't remount: "placeholder-{type}-{k}"
   const rows = useMemo(() => {
     const out = [];
     ["adult", "child", "infant"].forEach((t) => {
@@ -103,7 +98,25 @@ export default function PassengerDetailsCard({
       const want = desired[t] || 0;
       byType[t].forEach((trav) => out.push({ kind: "real", type: t, traveler: trav }));
       for (let k = 0; k < Math.max(0, want - have); k++) {
-        out.push({ kind: "placeholder", type: t, traveler: emptyTraveler(t) });
+        const placeholder = {
+          id: `placeholder-${t}-${k}`,
+          type: t,
+          title: "",
+          first_name: "",
+          last_name: "",
+          nationality: "",
+          dob_month: "",
+          dob_day: "",
+          dob_year: "",
+          passport: "",
+          passport_issuance_month: "",
+          passport_issuance_day: "",
+          passport_issuance_year: "",
+          passport_expiry_month: "",
+          passport_expiry_day: "",
+          passport_expiry_year: "",
+        };
+        out.push({ kind: "placeholder", type: t, traveler: placeholder });
       }
     });
     return out;
@@ -124,11 +137,23 @@ export default function PassengerDetailsCard({
       return;
     }
 
-    // placeholder -> real (preserve the same object/id to keep the key stable)
+    // kind === "placeholder"
+    const id = row.traveler.id;
+    const existingIdx = travelers.findIndex((t) => t && t.id === id);
+
+    if (existingIdx >= 0) {
+      // already promoted; just update in place
+      const next = [...travelers];
+      next[existingIdx] = { ...next[existingIdx], [field]: value };
+      updateTravelers(next);
+      return;
+    }
+
+    // first touch → promote placeholder to a real traveler (keep same id!)
     const draft = { ...row.traveler, [field]: value };
     const next = [...travelers, draft];
 
-    // ensure desired counts don't cap us out visually
+    // bump counts only if we're at capacity for this type
     if (type === "adult" && byType.adult.length >= desired.adult) setAdults(desired.adult + 1);
     if (type === "child" && byType.child.length >= desired.child) setChildren(desired.child + 1);
     if (type === "infant" && byType.infant.length >= desired.infant) setInfants(desired.infant + 1);
@@ -157,7 +182,7 @@ export default function PassengerDetailsCard({
   /* ---------- Uniform field components (consistent height & spacing) ---------- */
   const baseCtrl =
     "block w-full rounded-2xl border border-slate-300 text-sm text-slate-900 focus:border-sky-500 focus:outline-none " +
-    "px-3 pt-4 pb-2 h-12"; // consistent height for inputs/selects
+    "px-3 pt-4 pb-2 h-12";
 
   const LabeledInput = ({ id, label, type = "text", value, onChange, required, autoComplete }) => (
     <div className="relative min-w-0">
@@ -197,7 +222,7 @@ export default function PassengerDetailsCard({
     </div>
   );
 
-  /* ---------- Passenger Card (memoized) ---------- */
+  /* ---------- Passenger Card ---------- */
   const PassengerCard = React.memo(function PassengerCard({ row }) {
     const t = row.traveler;
     const complete = isComplete(t);
