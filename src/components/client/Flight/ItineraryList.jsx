@@ -252,6 +252,8 @@ const selectItinerary = (itinerary) => {
   params.set("totalWithMarkup", String(total));
   params.set("currency", currency);
 
+  console.info('Params: ', params);
+
   navigate(`/flight/booking/details?${params.toString()}`);
 };
 
