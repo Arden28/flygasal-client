@@ -13,9 +13,9 @@ export default function PassengerDetailsCard({
   adults,
   children,
   infants,
-  addTraveler,
+  addTraveler,      // kept for compatibility (not called on field change anymore)
   removeTraveler,
-  setAdults,
+  setAdults,        // kept for external controls, not used here during typing
   setChildren,
   setInfants,
   countries,
@@ -25,9 +25,10 @@ export default function PassengerDetailsCard({
   issuanceYears,
   expiryYears,
 }) {
-  /* ---------- Local: freeze list while a <select> is open ---------- */
+  /* ---------- Freeze list while a native <select> is open ---------- */
   const [isSelectOpen, setIsSelectOpen] = useState(false);
   const rowsFreezeRef = useRef(null);
+  const blurTimerRef = useRef(null);
 
   /* ---------- Helpers ---------- */
   const totalPax = (adults || 0) + (children || 0) + (infants || 0);
@@ -67,7 +68,7 @@ export default function PassengerDetailsCard({
     return parts.join(", ");
   };
 
-  /* ---------- One-time normalization: ensure stable ids for existing travelers ---------- */
+  /* ---------- One-time normalization: ensure stable ids ---------- */
   useEffect(() => {
     const list = Array.isArray(formData.travelers) ? formData.travelers : [];
     const needsIds = list.some((t) => !t || !t.id);
@@ -89,9 +90,13 @@ export default function PassengerDetailsCard({
     return map;
   }, [travelers]);
 
-  const desired = { adult: adults, child: children, infant: infants };
+  /* ✅ Memoize desired from primitives so identity is stable when values don’t change */
+  const desired = useMemo(
+    () => ({ adult: adults, child: children, infant: infants }),
+    [adults, children, infants]
+  );
 
-  // Build rows with stable keys. Placeholders use deterministic ids.
+  /* Build rows with stable keys. Placeholders use deterministic ids. */
   const rows = useMemo(() => {
     const out = [];
     ["adult", "child", "infant"].forEach((t) => {
@@ -138,7 +143,7 @@ export default function PassengerDetailsCard({
     handleFormChange({ target: { name: "travelers", value: next } });
 
   const onFieldChange = (row, field, value) => {
-    const { kind, type } = row;
+    const { kind } = row;
 
     if (kind === "real") {
       const realIdx = row.traveler._index;
@@ -149,33 +154,24 @@ export default function PassengerDetailsCard({
     }
 
     // kind === "placeholder"
+    // ✅ Promote placeholder to a real traveler WITHOUT touching counts or calling addTraveler.
     const id = row.traveler.id;
     const existingIdx = travelers.findIndex((t) => t && t.id === id);
 
     if (existingIdx >= 0) {
-      // already promoted; just update
       const next = [...travelers];
       next[existingIdx] = { ...next[existingIdx], [field]: value };
       updateTravelers(next);
       return;
     }
 
-    // first touch → promote placeholder to a real traveler (keep same id!)
     const draft = { ...row.traveler, [field]: value };
-    const next = [...travelers, draft];
-
-    // bump counts only if we're at capacity for this type
-    if (type === "adult" && byType.adult.length >= desired.adult) setAdults(desired.adult + 1);
-    if (type === "child" && byType.child.length >= desired.child) setChildren(desired.child + 1);
-    if (type === "infant" && byType.infant.length >= desired.infant) setInfants(desired.infant + 1);
-
-    updateTravelers(next);
-    addTraveler(type);
+    updateTravelers([...travelers, draft]);
   };
 
   const onRemove = (row) => {
     if (row.kind !== "real") return;
-    if (totalPax <= 1) return; // prevent removing last passenger
+    if (totalPax <= 1) return;
 
     const idx = row.traveler._index;
     const t = row.traveler.type;
@@ -183,6 +179,7 @@ export default function PassengerDetailsCard({
     next.splice(idx, 1);
     updateTravelers(next);
 
+    // Keep your external counters in sync only on explicit remove
     if (t === "adult" && adults > 0) setAdults(adults - 1);
     if (t === "child" && children > 0) setChildren(children - 1);
     if (t === "infant" && infants > 0) setInfants(infants - 1);
@@ -190,10 +187,9 @@ export default function PassengerDetailsCard({
     removeTraveler(idx);
   };
 
-  /* ---------- Uniform field components (consistent height & spacing) ---------- */
+  /* ---------- Uniform field components ---------- */
   const baseCtrl =
-    "block w-full rounded-2xl border border-slate-300 text-sm text-slate-900 focus:border-sky-500 focus:outline-none " +
-    "px-3 pt-4 pb-2 h-12";
+    "block w-full rounded-2xl border border-slate-300 text-sm text-slate-900 focus:border-sky-500 focus:outline-none px-3 pt-4 pb-2 h-12";
 
   const LabeledInput = ({ id, label, type = "text", value, onChange, required, autoComplete }) => (
     <div className="relative min-w-0">
@@ -216,26 +212,38 @@ export default function PassengerDetailsCard({
     </div>
   );
 
-  const LabeledSelect = ({ id, label, value, onChange, children, required }) => (
-    <div className="relative min-w-0">
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={baseCtrl + " bg-white"}
-        required={required}
-        onMouseDown={() => setIsSelectOpen(true)}         // freeze before the native picker opens
-        onBlur={() => setTimeout(() => setIsSelectOpen(false), 80)} // unfreeze after it closes
-      >
-        {children}
-      </select>
-      <label htmlFor={id} className="pointer-events-none absolute left-3 top-2 text-xs text-slate-500">
-        {label}
-      </label>
-    </div>
-  );
+  const LabeledSelect = ({ id, label, value, onChange, children, required }) => {
+    return (
+      <div className="relative min-w-0">
+        <select
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={baseCtrl + " bg-white"}
+          required={required}
+          onFocus={() => {
+            if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+            setIsSelectOpen(true);
+          }}
+          onMouseDown={() => {
+            if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+            setIsSelectOpen(true);
+          }}
+          onBlur={(e) => {
+            // Small defer so the system picker / next focus can settle
+            blurTimerRef.current = setTimeout(() => setIsSelectOpen(false), 120);
+          }}
+        >
+          {children}
+        </select>
+        <label htmlFor={id} className="pointer-events-none absolute left-3 top-2 text-xs text-slate-500">
+          {label}
+        </label>
+      </div>
+    );
+  };
 
-  /* ---------- Passenger Card (no list-level animations) ---------- */
+  /* ---------- Passenger Card ---------- */
   const PassengerCard = React.memo(function PassengerCard({ row }) {
     const t = row.traveler;
     const complete = isComplete(t);
@@ -244,10 +252,7 @@ export default function PassengerDetailsCard({
     const onT = (field) => (v) => onFieldChange(row, field, v);
 
     return (
-      <li
-        key={t.id}
-        className="rounded-2xl bg-white ring-1 ring-slate-200 overflow-hidden"
-      >
+      <li key={t.id} className="rounded-2xl bg-white ring-1 ring-slate-200 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -311,34 +316,13 @@ export default function PassengerDetailsCard({
               <option value="Mrs">Mrs</option>
             </LabeledSelect>
 
-            <LabeledInput
-              id={`first-${t.id}`}
-              label="First Name"
-              value={t.first_name}
-              onChange={onT("first_name")}
-              required
-              autoComplete="given-name"
-            />
-
-            <LabeledInput
-              id={`last-${t.id}`}
-              label="Last Name"
-              value={t.last_name}
-              onChange={onT("last_name")}
-              required
-              autoComplete="family-name"
-            />
+            <LabeledInput id={`first-${t.id}`} label="First Name" value={t.first_name} onChange={onT("first_name")} required autoComplete="given-name" />
+            <LabeledInput id={`last-${t.id}`} label="Last Name" value={t.last_name} onChange={onT("last_name")} required autoComplete="family-name" />
           </div>
 
           {/* Row 2: Nationality */}
           <div className="grid grid-cols-1 gap-3 mt-3">
-            <LabeledSelect
-              id={`nationality-${t.id}`}
-              label="Nationality"
-              value={t.nationality}
-              onChange={onT("nationality")}
-              required
-            >
+            <LabeledSelect id={`nationality-${t.id}`} label="Nationality" value={t.nationality} onChange={onT("nationality")} required>
               <option value="">Select Nationality</option>
               {countries.map((c) => (
                 <option key={c.code} value={c.code}>
@@ -350,13 +334,7 @@ export default function PassengerDetailsCard({
 
           {/* Row 3: DOB */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
-            <LabeledSelect
-              id={`dob-month-${t.id}`}
-              label="Date of Birth - Month"
-              value={t.dob_month}
-              onChange={onT("dob_month")}
-              required
-            >
+            <LabeledSelect id={`dob-month-${t.id}`} label="Date of Birth - Month" value={t.dob_month} onChange={onT("dob_month")} required>
               <option value="">Month</option>
               {months.map((m) => (
                 <option key={m.value} value={m.value}>
@@ -364,13 +342,7 @@ export default function PassengerDetailsCard({
                 </option>
               ))}
             </LabeledSelect>
-            <LabeledSelect
-              id={`dob-day-${t.id}`}
-              label="Date of Birth - Day"
-              value={t.dob_day}
-              onChange={onT("dob_day")}
-              required
-            >
+            <LabeledSelect id={`dob-day-${t.id}`} label="Date of Birth - Day" value={t.dob_day} onChange={onT("dob_day")} required>
               <option value="">Day</option>
               {days.map((d) => (
                 <option key={d.value} value={d.value}>
@@ -378,13 +350,7 @@ export default function PassengerDetailsCard({
                 </option>
               ))}
             </LabeledSelect>
-            <LabeledSelect
-              id={`dob-year-${t.id}`}
-              label="Date of Birth - Year"
-              value={t.dob_year}
-              onChange={onT("dob_year")}
-              required
-            >
+            <LabeledSelect id={`dob-year-${t.id}`} label="Date of Birth - Year" value={t.dob_year} onChange={onT("dob_year")} required>
               <option value="">Year</option>
               {dobYears.map((y) => (
                 <option key={y.value} value={y.value}>
@@ -400,26 +366,13 @@ export default function PassengerDetailsCard({
               <p className="m-0 text-end absolute right-3 top-2 text-gray-400 text-xs z-10">
                 <strong>6–15 characters</strong>
               </p>
-              <LabeledInput
-                id={`passport-${t.id}`}
-                label="Passport or ID"
-                value={t.passport}
-                onChange={onT("passport")}
-                required
-                autoComplete="off"
-              />
+              <LabeledInput id={`passport-${t.id}`} label="Passport or ID" value={t.passport} onChange={onT("passport")} required autoComplete="off" />
             </div>
           </div>
 
           {/* Row 5: Issuance */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
-            <LabeledSelect
-              id={`iss-month-${t.id}`}
-              label="Issuance - Month"
-              value={t.passport_issuance_month}
-              onChange={onT("passport_issuance_month")}
-              required
-            >
+            <LabeledSelect id={`iss-month-${t.id}`} label="Issuance - Month" value={t.passport_issuance_month} onChange={onT("passport_issuance_month")} required>
               <option value="">Month</option>
               {months.map((m) => (
                 <option key={m.value} value={m.value}>
@@ -427,13 +380,7 @@ export default function PassengerDetailsCard({
                 </option>
               ))}
             </LabeledSelect>
-            <LabeledSelect
-              id={`iss-day-${t.id}`}
-              label="Issuance - Day"
-              value={t.passport_issuance_day}
-              onChange={onT("passport_issuance_day")}
-              required
-            >
+            <LabeledSelect id={`iss-day-${t.id}`} label="Issuance - Day" value={t.passport_issuance_day} onChange={onT("passport_issuance_day")} required>
               <option value="">Day</option>
               {days.map((d) => (
                 <option key={d.value} value={d.value}>
@@ -441,13 +388,7 @@ export default function PassengerDetailsCard({
                 </option>
               ))}
             </LabeledSelect>
-            <LabeledSelect
-              id={`iss-year-${t.id}`}
-              label="Issuance - Year"
-              value={t.passport_issuance_year}
-              onChange={onT("passport_issuance_year")}
-              required
-            >
+            <LabeledSelect id={`iss-year-${t.id}`} label="Issuance - Year" value={t.passport_issuance_year} onChange={onT("passport_issuance_year")} required>
               <option value="">Year</option>
               {issuanceYears.map((y) => (
                 <option key={y.value} value={y.value}>
@@ -459,13 +400,7 @@ export default function PassengerDetailsCard({
 
           {/* Row 6: Expiry */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
-            <LabeledSelect
-              id={`exp-month-${t.id}`}
-              label="Expiry - Month"
-              value={t.passport_expiry_month}
-              onChange={onT("passport_expiry_month")}
-              required
-            >
+            <LabeledSelect id={`exp-month-${t.id}`} label="Expiry - Month" value={t.passport_expiry_month} onChange={onT("passport_expiry_month")} required>
               <option value="">Month</option>
               {months.map((m) => (
                 <option key={m.value} value={m.value}>
@@ -473,13 +408,7 @@ export default function PassengerDetailsCard({
                 </option>
               ))}
             </LabeledSelect>
-            <LabeledSelect
-              id={`exp-day-${t.id}`}
-              label="Expiry - Day"
-              value={t.passport_expiry_day}
-              onChange={onT("passport_expiry_day")}
-              required
-            >
+            <LabeledSelect id={`exp-day-${t.id}`} label="Expiry - Day" value={t.passport_expiry_day} onChange={onT("passport_expiry_day")} required>
               <option value="">Day</option>
               {days.map((d) => (
                 <option key={d.value} value={d.value}>
@@ -487,13 +416,7 @@ export default function PassengerDetailsCard({
                 </option>
               ))}
             </LabeledSelect>
-            <LabeledSelect
-              id={`exp-year-${t.id}`}
-              label="Expiry - Year"
-              value={t.passport_expiry_year}
-              onChange={onT("passport_expiry_year")}
-              required
-            >
+            <LabeledSelect id={`exp-year-${t.id}`} label="Expiry - Year" value={t.passport_expiry_year} onChange={onT("passport_expiry_year")} required>
               <option value="">Year</option>
               {expiryYears.map((y) => (
                 <option key={y.value} value={y.value}>
@@ -519,27 +442,19 @@ export default function PassengerDetailsCard({
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-4">
           <div className="flex items-center gap-3 min-w-0">
             <div className="grid h-9 w-9 place-items-center rounded-full ring-1 ring-slate-300">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="currentColor"
-                viewBox="0 0 640 640"
-                aria-hidden
-              >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 640 640" aria-hidden>
                 <path d="M320 312C386.3 312 440 258.3 440 192C440 125.7 386.3 72 320 72C253.7 72 200 125.7 200 192C200 258.3 253.7 312 320 312zM290.3 368C191.8 368 112 447.8 112 546.3C112 562.7 125.3 576 141.7 576L498.3 576C514.7 576 528 562.7 528 546.3C528 447.8 448.2 368 349.7 368L290.3 368z"/>
               </svg>
             </div>
             <div className="min-w-0">
-              <h2 className="text-base font-semibold text-slate-900">Passenger details</h2>
+              <h2 className="text/base font-semibold text-slate-900">Passenger details</h2>
               <p className="text-xs text-slate-600">
                 {getPassengerSummary(adults, children, infants)}
               </p>
             </div>
           </div>
 
-          <span className="text-xs text-slate-500">
-            Ensure names match passports exactly.
-          </span>
+          <span className="text-xs text-slate-500">Ensure names match passports exactly.</span>
         </header>
 
         {/* Body */}
@@ -548,7 +463,6 @@ export default function PassengerDetailsCard({
             Tip: Double-check passport numbers and expiry dates. Some destinations require ≥ 6 months validity.
           </p>
 
-          {/* Passenger cards (no AnimatePresence to avoid layout pulses while select is open) */}
           <ul className="mt-4 grid grid-cols-1 gap-3">
             {rowsToRender.length === 0 ? (
               <li className="px-4 py-8 text-center text-sm text-slate-500 rounded-2xl ring-1 ring-slate-200 bg-white">
