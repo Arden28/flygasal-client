@@ -38,6 +38,8 @@ export default function PassengerDetailsCard({
     passport_expiry_year: "",
   });
 
+  const totalPax = (adults || 0) + (children || 0) + (infants || 0);
+
   const typeLabel = (t) => (t === "adult" ? "Adult" : t === "child" ? "Child" : "Infant");
   const typeRing = (t) =>
     t === "adult" ? "ring-slate-700" : t === "child" ? "ring-sky-700" : "ring-emerald-700";
@@ -126,6 +128,7 @@ export default function PassengerDetailsCard({
 
   const onRemove = (row) => {
     if (row.kind !== "real") return;
+    if (totalPax <= 1) return; // prevent removing last passenger
     const idx = row.traveler._index;
     const t = row.traveler.type;
     const next = [...travelers];
@@ -232,8 +235,14 @@ export default function PassengerDetailsCard({
             <button
               type="button"
               onClick={() => onRemove(row)}
-              className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-50"
-              title="Remove passenger"
+              disabled={totalPax <= 1}
+              className={[
+                "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs",
+                totalPax <= 1
+                  ? "border-slate-200 text-slate-400 cursor-not-allowed"
+                  : "border-slate-200 text-slate-600 hover:bg-slate-50"
+              ].join(" ")}
+              title={totalPax <= 1 ? "You must have at least one passenger" : "Remove passenger"}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M3 6h18" />

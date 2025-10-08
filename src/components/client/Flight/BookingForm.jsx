@@ -143,6 +143,38 @@ const BookingForm = ({
           - Desktop: two columns with the Flight card on the RIGHT (sticky)
       */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 xl:gap-8">
+        {/* RIGHT column — Flight card (sticky on desktop) */}
+        <aside
+          className="
+            order-1 lg:order-2
+            lg:col-span-5 xl:col-span-4
+            lg:sticky lg:top-24
+            space-y-3
+          "
+        >
+          {/* Flight Detail */}
+          <FlightDetailsCard
+            flight={flight}
+            tripDetails={tripDetails}
+            // shareNative={shareNative}
+            outbound={outbound}
+            returnFlight={returnFlight}
+            tripType={tripType}
+            openSections={openSections}
+            toggleAccordion={toggleAccordion}
+            getAirportName={getAirportName}
+            formatDate={formatDate}
+            formatTime={formatTime}
+            getAirlineLogo={getAirlineLogo}
+            getAirlineName={getAirlineName}
+            getCityName={getCityName}
+            calculateDuration={calculateDuration}
+          />
+
+          <div className="text-center mb-1">
+            <span className="text-xs sm:text-sm text-slate-500">All flight times displayed are local</span>
+          </div>
+        </aside>
 
         {/* LEFT column — All other cards + actions */}
         <main className="order-2 lg:order-1 lg:col-span-7 xl:col-span-8 space-y-4">
@@ -231,40 +263,6 @@ const BookingForm = ({
             <b>Terms and Conditions</b> and the <b>Fare Rules</b> of your booking.
           </p>
         </main>
-        
-        {/* RIGHT column — Flight card (sticky on desktop) */}
-        <aside
-          className="
-            order-1 lg:order-2
-            lg:col-span-5 xl:col-span-4
-            lg:sticky lg:top-24
-            space-y-3
-          "
-        >
-          {/* Flight Detail */}
-          <FlightDetailsCard
-            flight={flight}
-            tripDetails={tripDetails}
-            // shareNative={shareNative}
-            outbound={outbound}
-            returnFlight={returnFlight}
-            tripType={tripType}
-            openSections={openSections}
-            toggleAccordion={toggleAccordion}
-            getAirportName={getAirportName}
-            formatDate={formatDate}
-            formatTime={formatTime}
-            getAirlineLogo={getAirlineLogo}
-            getAirlineName={getAirlineName}
-            getCityName={getCityName}
-            calculateDuration={calculateDuration}
-          />
-
-          <div className="text-center mb-1">
-            <span className="text-xs sm:text-sm text-slate-500">All flight times displayed are local</span>
-          </div>
-        </aside>
-        
       </div>
     </div>
   );
