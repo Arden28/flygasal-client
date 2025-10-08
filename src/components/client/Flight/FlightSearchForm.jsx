@@ -597,30 +597,9 @@ export default function FlightSearchInlineBar({
       <div className="grid gap-2 md:grid-cols-[1.2fr_auto_1.2fr_auto_auto] lg:grid-cols-[1.2fr_auto_1.2fr_auto_auto_auto] lg:items-center mb-2">
         {/* From */}
         <div className="z-[200] bg-white">
-              <Select
-                name="origin"
-                classNamePrefix="react-select"
-                options={menuOptions(0, "origin")}
-                value={flightsState[0].origin}
-                onChange={(v) => handleFlightChange(0, "origin", v)}
-                onMenuOpen={() => handleMenuOpen(0, "origin")}
-                onInputChange={handleInputChange(0, "origin")}
-                components={{
-                  Option: AirportOption,
-                  ValueContainer: RS.ValueContainer,
-                  SingleValue: AirportSingleValue,
-                }}
-                styles={selectStyles}
-                placeholder="City or airport"
-                isSearchable
-                filterOption={null}
-                menuPortalTarget={document.body}
-                menuPosition="fixed"
-                maxMenuHeight={384}
-                menuPlacement="auto"
-                getOptionValue={(opt) => opt.value}
-                noOptionsMessage={noOptionsMessage}
-              />
+          <Select
+            {...makeSelectProps(idx, "origin", leg.origin, (v) => handleFlightChange(idx, "origin", v))}
+          />
         </div>
 
         {/* Swap */}
@@ -729,9 +708,30 @@ export default function FlightSearchInlineBar({
       <div className="grid gap-2 lg:grid-cols-[1.2fr_auto_1.2fr_auto_auto_auto] lg:items-center md:grid-cols-[1.2fr_auto_1.2fr_auto_auto_auto]">
         {/* From */}
         <div className="z-[200] bg-white">
-          <Select
-            {...makeSelectProps(0, "origin", flightsState[0]?.origin || null, (v) => handleFlightChange(0, "origin", v))}
-          />
+              <Select
+                name="origin"
+                classNamePrefix="react-select"
+                options={menuOptions(0, "origin")}
+                value={flightsState[0].origin}
+                onChange={(v) => handleFlightChange(0, "origin", v)}
+                onMenuOpen={() => handleMenuOpen(0, "origin")}
+                onInputChange={handleInputChange(0, "origin")}
+                components={{
+                  Option: AirportOption,
+                  ValueContainer: RS.ValueContainer,
+                  SingleValue: AirportSingleValue,
+                }}
+                styles={selectStyles}
+                placeholder="City or airport"
+                isSearchable
+                filterOption={null}
+                menuPortalTarget={document.body}
+                menuPosition="fixed"
+                maxMenuHeight={384}
+                menuPlacement="auto"
+                getOptionValue={(opt) => opt.value}
+                noOptionsMessage={noOptionsMessage}
+              />
         </div>
 
         {/* Swap */}
@@ -752,9 +752,30 @@ export default function FlightSearchInlineBar({
 
         {/* To */}
         <div className="relative z-[200] bg-white">
-          <Select
-            {...makeSelectProps(0, "destination", flightsState[0]?.destination || null, (v) => handleFlightChange(0, "destination", v))}
-          />
+            <Select
+              name="destination"
+              classNamePrefix="react-select"
+              options={menuOptions(0, "destination")}
+              value={flightsState[0].destination}
+              onChange={(v) => handleFlightChange(0, "destination", v)}
+              onMenuOpen={() => handleMenuOpen(0, "destination")}
+              onInputChange={handleInputChange(0, "destination")}
+              components={{
+                Option: AirportOption,
+                ValueContainer: RS.ValueContainer,
+                SingleValue: AirportSingleValue,
+              }}
+              styles={selectStyles}
+              placeholder="City or airport"
+              isSearchable
+              filterOption={null}
+              menuPortalTarget={document.body}
+              menuPosition="fixed"
+              maxMenuHeight={384}
+              menuPlacement="auto"
+              getOptionValue={(opt) => opt.value}
+              noOptionsMessage={noOptionsMessage}
+            />
         </div>
 
         {/* Departure input */}
