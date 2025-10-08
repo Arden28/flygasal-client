@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
-import Select from "react-select";
+import Select, { components as RS } from "react-select";
 import { Calendar } from "react-date-range";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
@@ -137,32 +137,24 @@ const IATAPill = ({ code }) => (
   </span>
 );
 
+/** One-line SingleValue so input text sits on the same level as the value */
 const AirportSingleValue = (props) => {
   const a = props.data;
-  const isDestination = props.selectProps.name === "destination";
-  const hint = isDestination ? "Where to" : "Where from";
   return (
-    <div className={props.className} {...props.innerProps}>
+    <RS.SingleValue {...props}>
       <div className="flex min-w-0 items-center gap-2">
-        <div className="min-w-0">
-          <div className="mb-0 text-[11px] tracking-wide text-slate-500">{hint}</div>
-          <div className="truncate text-[15px] font-medium text-slate-900">{a.label}</div>
-        </div>
+        <div className="truncate text-[14px] font-medium text-slate-900">{a.label}</div>
         <IATAPill code={a.value} />
       </div>
-    </div>
+    </RS.SingleValue>
   );
 };
 
 const AirportOption = (props) => {
   const a = props.data;
   return (
-    <div
-      {...props.innerProps}
-      className={`!p-0 ${props.isFocused ? "bg-slate-50" : "bg-white"}`}
-      style={{ padding: 0 }}
-    >
-      <div className="flex items-center gap-3 px-3 py-2.5">
+    <RS.Option {...props} className="!p-0">
+      <div className={`flex items-center gap-3 px-3 py-2.5 ${props.isFocused ? "bg-slate-50" : "bg-white"}`}>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[14px] font-medium text-slate-900">{a.label}</div>
           <div className="truncate text-xs text-slate-500">
@@ -171,7 +163,7 @@ const AirportOption = (props) => {
         </div>
         <IATAPill code={a.value} />
       </div>
-    </div>
+    </RS.Option>
   );
 };
 
@@ -391,7 +383,6 @@ export default function FlightSearchInlineBar({
       copy.splice(idx, 1);
       return copy;
     });
-    // close calendar if it belonged to removed row
     setOpenCal((oc) => (oc && oc.idx === idx ? null : oc));
   };
 
