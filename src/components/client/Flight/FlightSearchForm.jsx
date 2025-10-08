@@ -500,9 +500,8 @@ useEffect(() => {
 
     /* Plane icons */
     const PlaneTakeoff = (props) => (
-    <svg aria-hidden {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M2 16l20-5-2-3-8 2-5-6-2 1 3 7-6 2z" />
-        <path d="M2 19h20" />
+    <svg xmlns="http://www.w3.org/2000/svg" aria-hidden {...props} viewBox="0 0 640 640">
+        <path d="M404 207.9L204.7 104.2C196.7 100.1 187.4 99.4 179 102.5L137.9 117.5C127.6 121.2 124.1 133.9 130.8 142.5L232.3 270.4L132.1 306.8L72 270.2C65.8 266.4 58.2 265.7 51.3 268.1L35 274.1C25.6 277.5 21.6 288.6 26.7 297.2L80.3 389C95.9 415.7 128.4 427.4 157.4 416.8L170.3 412.1L170.3 412.1L568.7 267.1C597.8 256.5 612.7 224.4 602.2 195.3C591.7 166.2 559.5 151.3 530.4 161.8L404 207.9zM64.2 512C46.5 512 32.2 526.3 32.2 544C32.2 561.7 46.5 576 64.2 576L576.2 576C593.9 576 608.2 561.7 608.2 544C608.2 526.3 593.9 512 576.2 512L64.2 512z"/>
     </svg>
     );
 
@@ -559,7 +558,7 @@ useEffect(() => {
       borderColor: state.isFocused ? "#94a3b8" : "#e5e7eb",
       boxShadow: state.isFocused ? "0 0 0 3px rgba(148,163,184,.25)" : "none",
       // add extra left padding ONLY when we render an icon
-      paddingLeft: state.selectProps?.iconType ? 42 : 12,
+      paddingLeft: state.selectProps?.iconType ? 25 : 12,
       paddingRight: 10,
       backgroundColor: "#fff",
       color: "#0f172a",
