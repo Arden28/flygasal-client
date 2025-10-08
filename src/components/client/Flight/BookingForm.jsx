@@ -193,6 +193,40 @@ const BookingForm = ({
             currency={currency}
           />
 
+          <p className="mt-1 text-xs sm:text-sm text-slate-500 leading-relaxed">
+            By clicking the <b>“Book now”</b> button above you confirm you have read and accepted the{" "}
+            <b>Terms and Conditions</b> and the <b>Fare Rules</b> of your booking.
+          </p>
+        </main>
+        
+
+      {/* RIGHT column — Flight card (sticky on desktop) */}
+      <aside className="lg:col-start-8 lg:col-span-5 xl:col-start-9 xl:col-span-4 lg:sticky lg:top-24 space-y-3">
+        
+          {/* Flight Detail */}
+          <FlightDetailsCard
+            flight={flight}
+            tripDetails={tripDetails}
+            // shareNative={shareNative}
+            outbound={outbound}
+            returnFlight={returnFlight}
+            tripType={tripType}
+            openSections={openSections}
+            toggleAccordion={toggleAccordion}
+            getAirportName={getAirportName}
+            formatDate={formatDate}
+            formatTime={formatTime}
+            getAirlineLogo={getAirlineLogo}
+            getAirlineName={getAirlineName}
+            getCityName={getCityName}
+            calculateDuration={calculateDuration}
+          />
+
+          <div className="text-center mb-2">
+            <span className="text-xs sm:text-sm text-slate-500">All flight times displayed are local</span>
+          </div>
+          
+
           {/* Book button */}
           <div className="checkout-btn mb-1">
             <button
@@ -224,38 +258,6 @@ const BookingForm = ({
             </button>
           </div>
 
-          <p className="mt-1 text-xs sm:text-sm text-slate-500 leading-relaxed">
-            By clicking the <b>“Book now”</b> button above you confirm you have read and accepted the{" "}
-            <b>Terms and Conditions</b> and the <b>Fare Rules</b> of your booking.
-          </p>
-        </main>
-        
-
-      {/* RIGHT column — Flight card (sticky on desktop) */}
-      <aside className="lg:col-start-8 lg:col-span-5 xl:col-start-9 xl:col-span-4 lg:sticky lg:top-24 space-y-3">
-        
-          {/* Flight Detail */}
-          <FlightDetailsCard
-            flight={flight}
-            tripDetails={tripDetails}
-            // shareNative={shareNative}
-            outbound={outbound}
-            returnFlight={returnFlight}
-            tripType={tripType}
-            openSections={openSections}
-            toggleAccordion={toggleAccordion}
-            getAirportName={getAirportName}
-            formatDate={formatDate}
-            formatTime={formatTime}
-            getAirlineLogo={getAirlineLogo}
-            getAirlineName={getAirlineName}
-            getCityName={getCityName}
-            calculateDuration={calculateDuration}
-          />
-
-          <div className="text-center mb-1">
-            <span className="text-xs sm:text-sm text-slate-500">All flight times displayed are local</span>
-          </div>
         </aside>
         
       </div>
