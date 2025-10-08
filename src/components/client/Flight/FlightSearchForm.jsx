@@ -182,11 +182,6 @@ export default function FlightSearchInlineBar({
   const departRect = useAnchorRect(departBtnRef, openCal?.type === "depart" && (openCal?.idx ?? 0) === 0);
   const returnRect = useAnchorRect(returnBtnRef, openCal?.type === "return" && (openCal?.idx ?? 0) === 0);
 
-  // ---- controlled open state for every Select (fixes “click does nothing”)
-  const [openSelectKey, setOpenSelectKey] = useState(null); // e.g. "0:origin"
-  const keyFor = (idx, field) => `${idx}:${field}`;
-  const isOpen = (idx, field) => openSelectKey === keyFor(idx, field);
-
   // menus per leg/field
   const [airportMenus, setAirportMenus] = useState({});
   const menuKey = (idx, field) => `${idx}:${field}`;
@@ -288,7 +283,6 @@ export default function FlightSearchInlineBar({
 
   useEffect(() => {
     setOpenCal(null);
-    setOpenSelectKey(null);
     if (tripType === "oneway") {
       setFlightsState((prev) => {
         const first = { ...(prev[0] || {
@@ -387,7 +381,6 @@ export default function FlightSearchInlineBar({
       return copy;
     });
     setOpenCal((oc) => (oc && oc.idx === idx ? null : oc));
-    setOpenSelectKey((k) => (k && k.startsWith(`${idx}:`) ? null : k));
   };
 
   const validateForm = () => {
@@ -545,7 +538,6 @@ export default function FlightSearchInlineBar({
   // ----- helper to build Select props with controlled menu open -----
   const makeSelectProps = (idx, field, value, onChange) => {
     const id = `leg-${idx}-${field}`;
-    const k = keyFor(idx, field);
     return {
       instanceId: id,
       inputId: id,
@@ -554,20 +546,11 @@ export default function FlightSearchInlineBar({
       options: menuOptions(idx, field),
       value,
       onChange,
-      onMenuOpen: () => {
-        handleMenuOpen(idx, field);
-        setOpenSelectKey(k);
-      },
-      onMenuClose: () => setOpenSelectKey((cur) => (cur === k ? null : cur)),
-      onFocus: () => {
-        handleMenuOpen(idx, field);
-        setOpenSelectKey(k);
-      },
-      onBlur: () => setOpenSelectKey((cur) => (cur === k ? null : cur)),
+      onMenuOpen: () => handleMenuOpen(idx, field),
+      onFocus: () => handleMenuOpen(idx, field),
       onInputChange: handleInputChange(idx, field),
       openMenuOnFocus: true,
       openMenuOnClick: true,
-      menuIsOpen: isOpen(idx, field), // << controlled open
       components: { Option: AirportOption, SingleValue: AirportSingleValue },
       styles: selectStyles,
       placeholder: "City or airport",
@@ -895,7 +878,7 @@ export default function FlightSearchInlineBar({
         {/* Top controls */}
         <TopControls
           tripType={tripType}
-          setTripType={(t) => { setTripType(t); setOpenSelectKey(null); }}
+          setTripType={(t) => { setTripType(t); }}
           isMobile={isMobile}
           travellersBtnRef={travellersBtnRef}
           isTravellersOpen={isTravellersOpen}
