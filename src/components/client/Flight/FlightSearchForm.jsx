@@ -182,6 +182,11 @@ export default function FlightSearchInlineBar({
   const departRect = useAnchorRect(departBtnRef, openCal?.type === "depart" && (openCal?.idx ?? 0) === 0);
   const returnRect = useAnchorRect(returnBtnRef, openCal?.type === "return" && (openCal?.idx ?? 0) === 0);
 
+  // ---- controlled open state for every Select (fixes “click does nothing”)
+  const [openSelectKey, setOpenSelectKey] = useState(null); // e.g. "0:origin"
+  const keyFor = (idx, field) => `${idx}:${field}`;
+  const isOpen = (idx, field) => openSelectKey === keyFor(idx, field);
+
   // menus per leg/field
   const [airportMenus, setAirportMenus] = useState({});
   const menuKey = (idx, field) => `${idx}:${field}`;
@@ -283,6 +288,7 @@ export default function FlightSearchInlineBar({
 
   useEffect(() => {
     setOpenCal(null);
+    setOpenSelectKey(null);
     if (tripType === "oneway") {
       setFlightsState((prev) => {
         const first = { ...(prev[0] || {
@@ -381,6 +387,7 @@ export default function FlightSearchInlineBar({
       return copy;
     });
     setOpenCal((oc) => (oc && oc.idx === idx ? null : oc));
+    setOpenSelectKey((k) => (k && k.startsWith(`${idx}:`) ? null : k));
   };
 
   const validateForm = () => {
@@ -535,6 +542,46 @@ export default function FlightSearchInlineBar({
     return { top, left, width };
   };
 
+  // ----- helper to build Select props with controlled menu open -----
+  const makeSelectProps = (idx, field, value, onChange) => {
+    const id = `leg-${idx}-${field}`;
+    const k = keyFor(idx, field);
+    return {
+      instanceId: id,
+      inputId: id,
+      name: id,
+      classNamePrefix: "react-select",
+      options: menuOptions(idx, field),
+      value,
+      onChange,
+      onMenuOpen: () => {
+        handleMenuOpen(idx, field);
+        setOpenSelectKey(k);
+      },
+      onMenuClose: () => setOpenSelectKey((cur) => (cur === k ? null : cur)),
+      onFocus: () => {
+        handleMenuOpen(idx, field);
+        setOpenSelectKey(k);
+      },
+      onBlur: () => setOpenSelectKey((cur) => (cur === k ? null : cur)),
+      onInputChange: handleInputChange(idx, field),
+      openMenuOnFocus: true,
+      openMenuOnClick: true,
+      menuIsOpen: isOpen(idx, field), // << controlled open
+      components: { Option: AirportOption, SingleValue: AirportSingleValue },
+      styles: selectStyles,
+      placeholder: "City or airport",
+      isSearchable: true,
+      filterOption: null,
+      menuPortalTarget: document?.body || undefined,
+      menuPosition: "fixed",
+      maxMenuHeight: 384,
+      menuPlacement: "auto",
+      getOptionValue: (opt) => opt.value,
+      noOptionsMessage,
+    };
+  };
+
   const LegRow = ({ idx }) => {
     const leg = flightsState[idx];
     const legDepartBtnRef = useRef(null);
@@ -551,29 +598,7 @@ export default function FlightSearchInlineBar({
         {/* From */}
         <div className="z-[200] bg-white">
           <Select
-            instanceId={`leg-${idx}-origin`}
-            inputId={`leg-${idx}-origin`}
-            name={`leg-${idx}-origin`}
-            classNamePrefix="react-select"
-            options={menuOptions(idx, "origin")}
-            value={leg.origin}
-            onChange={(v) => handleFlightChange(idx, "origin", v)}
-            onMenuOpen={() => handleMenuOpen(idx, "origin")}
-            onInputChange={handleInputChange(idx, "origin")}
-            onFocus={() => handleMenuOpen(idx, "origin")}
-            openMenuOnFocus
-            openMenuOnClick
-            components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
-            styles={selectStyles}
-            placeholder="City or airport"
-            isSearchable
-            filterOption={null}
-            menuPortalTarget={document?.body || undefined}
-            menuPosition="fixed"
-            maxMenuHeight={384}
-            menuPlacement="auto"
-            getOptionValue={(opt) => opt.value}
-            noOptionsMessage={noOptionsMessage}
+            {...makeSelectProps(idx, "origin", leg.origin, (v) => handleFlightChange(idx, "origin", v))}
           />
         </div>
 
@@ -596,29 +621,7 @@ export default function FlightSearchInlineBar({
         {/* To */}
         <div className="relative z-[200] bg-white">
           <Select
-            instanceId={`leg-${idx}-destination`}
-            inputId={`leg-${idx}-destination`}
-            name={`leg-${idx}-destination`}
-            classNamePrefix="react-select"
-            options={menuOptions(idx, "destination")}
-            value={leg.destination}
-            onChange={(v) => handleFlightChange(idx, "destination", v)}
-            onMenuOpen={() => handleMenuOpen(idx, "destination")}
-            onInputChange={handleInputChange(idx, "destination")}
-            onFocus={() => handleMenuOpen(idx, "destination")}
-            openMenuOnFocus
-            openMenuOnClick
-            components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
-            styles={selectStyles}
-            placeholder="City or airport"
-            isSearchable
-            filterOption={null}
-            menuPortalTarget={document?.body || undefined}
-            menuPosition="fixed"
-            maxMenuHeight={384}
-            menuPlacement="auto"
-            getOptionValue={(opt) => opt.value}
-            noOptionsMessage={noOptionsMessage}
+            {...makeSelectProps(idx, "destination", leg.destination, (v) => handleFlightChange(idx, "destination", v))}
           />
         </div>
 
@@ -651,9 +654,9 @@ export default function FlightSearchInlineBar({
                   transition={{ duration: 0.18 }}
                   style={{
                     position: "fixed",
-                    top: calcCalendarPosition(legDepartRect).top,
-                    left: calcCalendarPosition(legDepartRect).left,
-                    width: calcCalendarPosition(legDepartRect).width,
+                    top: pos.top,
+                    left: pos.left,
+                    width: pos.width,
                     zIndex: 100000,
                   }}
                 >
@@ -706,29 +709,7 @@ export default function FlightSearchInlineBar({
         {/* From */}
         <div className="z-[200] bg-white">
           <Select
-            instanceId="owret-origin"
-            inputId="owret-origin"
-            name="owret-origin"
-            classNamePrefix="react-select"
-            options={menuOptions(0, "origin")}
-            value={flightsState[0]?.origin || null}
-            onChange={(v) => handleFlightChange(0, "origin", v)}
-            onMenuOpen={() => handleMenuOpen(0, "origin")}
-            onInputChange={handleInputChange(0, "origin")}
-            onFocus={() => handleMenuOpen(0, "origin")}
-            openMenuOnFocus
-            openMenuOnClick
-            components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
-            styles={selectStyles}
-            placeholder="City or airport"
-            isSearchable
-            filterOption={null}
-            menuPortalTarget={document?.body || undefined}
-            menuPosition="fixed"
-            maxMenuHeight={384}
-            menuPlacement="auto"
-            getOptionValue={(opt) => opt.value}
-            noOptionsMessage={noOptionsMessage}
+            {...makeSelectProps(0, "origin", flightsState[0]?.origin || null, (v) => handleFlightChange(0, "origin", v))}
           />
         </div>
 
@@ -751,29 +732,7 @@ export default function FlightSearchInlineBar({
         {/* To */}
         <div className="relative z-[200] bg-white">
           <Select
-            instanceId="owret-destination"
-            inputId="owret-destination"
-            name="owret-destination"
-            classNamePrefix="react-select"
-            options={menuOptions(0, "destination")}
-            value={flightsState[0]?.destination || null}
-            onChange={(v) => handleFlightChange(0, "destination", v)}
-            onMenuOpen={() => handleMenuOpen(0, "destination")}
-            onInputChange={handleInputChange(0, "destination")}
-            onFocus={() => handleMenuOpen(0, "destination")}
-            openMenuOnFocus
-            openMenuOnClick
-            components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
-            styles={selectStyles}
-            placeholder="City or airport"
-            isSearchable
-            filterOption={null}
-            menuPortalTarget={document?.body || undefined}
-            menuPosition="fixed"
-            maxMenuHeight={384}
-            menuPlacement="auto"
-            getOptionValue={(opt) => opt.value}
-            noOptionsMessage={noOptionsMessage}
+            {...makeSelectProps(0, "destination", flightsState[0]?.destination || null, (v) => handleFlightChange(0, "destination", v))}
           />
         </div>
 
@@ -936,7 +895,7 @@ export default function FlightSearchInlineBar({
         {/* Top controls */}
         <TopControls
           tripType={tripType}
-          setTripType={setTripType}
+          setTripType={(t) => { setTripType(t); setOpenSelectKey(null); }}
           isMobile={isMobile}
           travellersBtnRef={travellersBtnRef}
           isTravellersOpen={isTravellersOpen}
