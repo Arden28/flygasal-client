@@ -25,6 +25,7 @@ const normalizeCabinKey = (raw = "") => {
 
 /* ---------- Canonical signatures + dedupe helpers ---------- */
 const iso = (d) => (d ? new Date(d).toISOString() : "");
+
 const segSignature = (s) =>
   [
     (s.airline || s.carrier || "").toUpperCase(),
@@ -36,40 +37,76 @@ const segSignature = (s) =>
   ].join("~");
 
 const legSignature = (legLike) => {
-  const segs = Array.isArray(legLike?.segments) && legLike.segments.length ? legLike.segments : [legLike];
+  const segs =
+    Array.isArray(legLike?.segments) && legLike.segments.length
+      ? legLike.segments
+      : [legLike];
   return segs.map(segSignature).join(">");
 };
 
 const onewayKey = (legLike, cabin) =>
-  `${legSignature(legLike)}|${normalizeCabinKey(cabin || legLike?.cabin || legLike?.segments?.[0]?.cabinClass || "")}`;
+  `${legSignature(legLike)}|${normalizeCabinKey(
+    cabin ||
+      legLike?.cabin ||
+      legLike?.segments?.[0]?.cabinClass ||
+      ""
+  )}`;
 
 const returnKey = (out, ret, cabin) =>
-  `${legSignature(out)}|${legSignature(ret)}|${normalizeCabinKey(cabin || out?.cabin || ret?.cabin || "")}`;
+  `${legSignature(out)}|${legSignature(ret)}|${normalizeCabinKey(
+    cabin || out?.cabin || ret?.cabin || ""
+  )}`;
 
 const multiKey = (legs, cabin) =>
   `${(legs || []).map(legSignature).join("||")}|${normalizeCabinKey(
-    cabin || legs?.[0]?.cabin || legs?.[0]?.segments?.[0]?.cabinClass || ""
+    cabin ||
+      legs?.[0]?.cabin ||
+      legs?.[0]?.segments?.[0]?.cabinClass ||
+      ""
   )}`;
 
 const priceOf = (o) => Number(o?.priceBreakdown?.total || 0);
 
+/* ---------- date helpers for str* ---------- */
+const pad = (n) => String(n).padStart(2, "0");
+const splitDT = (isoLike) => {
+  const d = isoLike ? new Date(isoLike) : null;
+  if (!d || isNaN(d)) return { strDate: "", strTime: "" };
+  return {
+    strDate: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    strTime: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+};
+
 /* ---------- Multi carving (respect requested legs order) ---------- */
-const carveLegsForMulti = (offer, requestedLegs = [], normalizeSegsForCarve, findContiguousChain) => {
+const carveLegsForMulti = (
+  offer,
+  requestedLegs = [],
+  normalizeSegsForCarve,
+  findContiguousChain
+) => {
   const segs = normalizeSegsForCarve(offer);
   if (!Array.isArray(requestedLegs) || requestedLegs.length < 2) return null;
 
   let notBefore = null;
   const legs = [];
+
   for (let i = 0; i < requestedLegs.length; i++) {
     const rq = requestedLegs[i] || {};
     const chain =
-      findContiguousChain(segs, rq.origin, rq.destination, { prefer: "earliest", notBefore }) ||
-      findContiguousChain(segs, rq.origin, rq.destination, { prefer: "earliest" });
+      findContiguousChain(segs, rq.origin, rq.destination, {
+        prefer: "earliest",
+        notBefore,
+      }) ||
+      findContiguousChain(segs, rq.origin, rq.destination, {
+        prefer: "earliest",
+      });
 
     if (!chain || !chain.length) return null;
 
     const first = chain[0],
       last = chain[chain.length - 1];
+
     legs.push({
       ...offer,
       id: `${offer.id || offer.solutionId || "OFF"}-L${i + 1}`,
@@ -79,16 +116,24 @@ const carveLegsForMulti = (offer, requestedLegs = [], normalizeSegsForCarve, fin
       arrivalTime: last.arrivalAt,
       cabin: offer.cabin,
       bookingCode: offer.bookingCode,
-      segments: chain.map((s) => ({
-        airline: s.airline,
-        flightNum: s.flightNo,
-        departure: s.departure,
-        arrival: s.arrival,
-        departureDate: s.departureAt,
-        arrivalDate: s.arrivalAt,
-        bookingCode: s.bookingCode,
-        refundable: s.refundable,
-      })),
+      segments: chain.map((s) => {
+        const dep = splitDT(s.departureAt);
+        const arr = splitDT(s.arrivalAt);
+        return {
+          airline: s.airline,
+          flightNum: s.flightNo,
+          departure: s.departure,
+          arrival: s.arrival,
+          departureDate: s.departureAt,
+          arrivalDate: s.arrivalAt,
+          strDepartureDate: dep.strDate,
+          strDepartureTime: dep.strTime,
+          strArrivalDate: arr.strDate,
+          strArrivalTime: arr.strTime,
+          bookingCode: s.bookingCode,
+          refundable: s.refundable,
+        };
+      }),
       stops: Math.max(0, chain.length - 1),
       priceBreakdown: offer.priceBreakdown,
     });
@@ -159,7 +204,11 @@ const FlightPage = () => {
 
   const tripType = searchParams?.tripType || "oneway";
   const legsCount =
-    tripType === "multi" ? (searchParams?.flights?.length || 2) : tripType === "return" ? 2 : 1;
+    tripType === "multi"
+      ? (searchParams?.flights?.length || 2)
+      : tripType === "return"
+      ? 2
+      : 1;
 
   // Markup
   const agentMarkupPercent = user?.agency_markup || 0;
@@ -172,11 +221,28 @@ const FlightPage = () => {
   };
 
   const formatDate = (d) =>
-    d ? new Date(d).toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" }) : "";
+    d
+      ? new Date(d).toLocaleDateString("en-US", {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+        })
+      : "";
   const formatTime = (d) =>
-    d ? new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "";
+    d
+      ? new Date(d).toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : "";
   const formatTimeOnly = (d) =>
-    d ? new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: false }) : "";
+    d
+      ? new Date(d).toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: false,
+        })
+      : "";
   const formatToYMD = (d) => {
     const dt = new Date(d);
     const y = dt.getFullYear();
@@ -192,10 +258,13 @@ const FlightPage = () => {
     return `${h}h ${m}m`;
   };
 
-  const getAirportName = (code) => airports.find((a) => a.value === code)?.label || code;
-  const getAirlineName = (code) => airlines.find((x) => x.code === code)?.name || code;
+  const getAirportName = (code) =>
+    airports.find((a) => a.value === code)?.label || code;
+  const getAirlineName = (code) =>
+    airlines.find((x) => x.code === code)?.name || code;
   const getAirlineLogo = (code) =>
-    airlines.find((x) => x.code === code)?.logo || `/assets/img/airlines/${code}.png`;
+    airlines.find((x) => x.code === code)?.logo ||
+    `/assets/img/airlines/${code}.png`;
   const toggleSearchForm = () => setIsSearchFormVisible((v) => !v);
 
   // Advanced filters helpers
@@ -207,7 +276,8 @@ const FlightPage = () => {
     const carry = offer?.baggage?.adt?.carryOnBySegment?.[seg0];
     const checked = offer?.baggage?.adt?.checkedBySegment?.[seg0];
     return Boolean(
-      (carry && ((carry.amount ?? 0) > 0 || (carry.weight ?? 0) > 0)) ||
+      (carry &&
+        ((carry.amount ?? 0) > 0 || (carry.weight ?? 0) > 0)) ||
         (checked && ((checked.amount ?? 0) > 0 || (checked.weight ?? 0) > 0))
     );
   };
@@ -216,16 +286,28 @@ const FlightPage = () => {
     if (Array.isArray(legsForMulti) && legsForMulti.length) {
       const first = legsForMulti[0];
       const last = legsForMulti[legsForMulti.length - 1];
-      const dep = new Date(first?.segments?.[0]?.departureDate || first?.departureTime);
-      const arr = new Date(last?.segments?.slice(-1)?.[0]?.arrivalDate || last?.arrivalTime);
+      const dep = new Date(
+        first?.segments?.[0]?.departureDate || first?.departureTime
+      );
+      const arr = new Date(
+        last?.segments?.slice(-1)?.[0]?.arrivalDate || last?.arrivalTime
+      );
       return Math.max(0, Math.round((arr - dep) / 60000));
     }
-    const dep1 = new Date(outbound?.segments?.[0]?.departureDate || outbound?.departureTime);
-    const arr1 = new Date(outbound?.segments?.slice(-1)?.[0]?.arrivalDate || outbound?.arrivalTime);
+    const dep1 = new Date(
+      outbound?.segments?.[0]?.departureDate || outbound?.departureTime
+    );
+    const arr1 = new Date(
+      outbound?.segments?.slice(-1)?.[0]?.arrivalDate || outbound?.arrivalTime
+    );
     let mins = Math.max(0, (arr1 - dep1) / 60000);
     if (ret) {
-      const dep2 = new Date(ret?.segments?.[0]?.departureDate || ret?.departureTime);
-      const arr2 = new Date(ret?.segments?.slice(-1)?.[0]?.arrivalDate || ret?.arrivalTime);
+      const dep2 = new Date(
+        ret?.segments?.[0]?.departureDate || ret?.departureTime
+      );
+      const arr2 = new Date(
+        ret?.segments?.slice(-1)?.[0]?.arrivalDate || ret?.arrivalTime
+      );
       mins += Math.max(0, (arr2 - dep2) / 60000);
     }
     return Math.round(mins);
@@ -261,7 +343,9 @@ const FlightPage = () => {
 
   const normalizeSegsForCarve = (flightLike) => {
     const raw =
-      Array.isArray(flightLike?.segments) && flightLike.segments.length ? flightLike.segments : [flightLike];
+      Array.isArray(flightLike?.segments) && flightLike.segments.length
+        ? flightLike.segments
+        : [flightLike];
 
     return raw
       .filter(Boolean)
@@ -272,10 +356,6 @@ const FlightPage = () => {
         arrival: s.arrival ?? s.destination ?? s.arrivalAirport ?? "",
         departureAt: s.departureDate ?? s.departureTime ?? s.depTime ?? "",
         arrivalAt: s.arrivalDate ?? s.arrivalTime ?? s.arrTime ?? "",
-        departureDate: s.strDepartureDate ?? "", // explicit date
-        departureTime: s.strDepartureTime ?? s.depTime ?? "", // explicit time
-        arrivalDate: s.strArrivalDate ?? "", // explicit date
-        arrivalTime: s.strArrivalTime ?? s.arrTime ?? "", // explicit time
         bookingCode: s.bookingCode ?? s.bookingClass ?? "",
         refundable: !!s.refundable,
       }))
@@ -283,7 +363,12 @@ const FlightPage = () => {
       .sort((a, b) => new Date(a.departureAt) - new Date(b.departureAt));
   };
 
-  const findContiguousChain = (segs, ORIGIN, DEST, { prefer = "earliest", notBefore } = {}) => {
+  const findContiguousChain = (
+    segs,
+    ORIGIN,
+    DEST,
+    { prefer = "earliest", notBefore } = {}
+  ) => {
     const O = norm3(ORIGIN),
       D = norm3(DEST);
     if (!O || !D || !segs?.length) return null;
@@ -291,7 +376,8 @@ const FlightPage = () => {
     const chains = [];
     for (let i = 0; i < segs.length; i++) {
       if (norm3(segs[i].departure) !== O) continue;
-      if (notBefore && new Date(segs[i].departureAt) < new Date(notBefore)) continue;
+      if (notBefore && new Date(segs[i].departureAt) < new Date(notBefore))
+        continue;
 
       const chain = [segs[i]];
       if (norm3(segs[i].arrival) === D) {
@@ -311,18 +397,27 @@ const FlightPage = () => {
     }
     if (!chains.length) return null;
     if (prefer === "latest") {
-      return chains.reduce((best, c) => (new Date(c[0].departureAt) > new Date(best[0].departureAt) ? c : best));
+      return chains.reduce((best, c) =>
+        new Date(c[0].departureAt) > new Date(best[0].departureAt) ? c : best
+      );
     }
-    return chains.reduce((best, c) => (new Date(c[0].departureAt) < new Date(best[0].departureAt) ? c : best));
+    return chains.reduce((best, c) =>
+      new Date(c[0].departureAt) < new Date(best[0].departureAt) ? c : best
+    );
   };
 
   const carveReturnFromSingleOffer = (offer, { origin, destination }) => {
     const segs = normalizeSegsForCarve(offer);
-    const out = findContiguousChain(segs, origin, destination, { prefer: "earliest" }) || [];
+    const out =
+      findContiguousChain(segs, origin, destination, { prefer: "earliest" }) ||
+      [];
     const outArr = out[out.length - 1]?.arrivalAt || null;
 
     let ret =
-      findContiguousChain(segs, destination, origin, { prefer: "earliest", notBefore: outArr }) ||
+      findContiguousChain(segs, destination, origin, {
+        prefer: "earliest",
+        notBefore: outArr,
+      }) ||
       findContiguousChain(segs, destination, origin, { prefer: "earliest" }) ||
       findContiguousChain(segs, origin, destination, { prefer: "latest" }) ||
       [];
@@ -331,22 +426,36 @@ const FlightPage = () => {
       if (!chain.length) return null;
       const first = chain[0],
         last = chain[chain.length - 1];
+      const dep = splitDT(first.departureAt);
+      const arr = splitDT(last.arrivalAt);
       return {
         ...offer,
-        segments: chain.map((s) => ({
-          airline: s.airline,
-          flightNum: s.flightNo,
-          departure: s.departure,
-          arrival: s.arrival,
-          departureDate: s.departureAt,
-          arrivalDate: s.arrivalAt,
-          bookingCode: s.bookingCode,
-          refundable: s.refundable,
-        })),
+        segments: chain.map((s) => {
+          const ds = splitDT(s.departureAt);
+          const as = splitDT(s.arrivalAt);
+          return {
+            airline: s.airline,
+            flightNum: s.flightNo,
+            departure: s.departure,
+            arrival: s.arrival,
+            departureDate: s.departureAt,
+            arrivalDate: s.arrivalAt,
+            strDepartureDate: ds.strDate,
+            strDepartureTime: ds.strTime,
+            strArrivalDate: as.strDate,
+            strArrivalTime: as.strTime,
+            bookingCode: s.bookingCode,
+            refundable: s.refundable,
+          };
+        }),
         origin: first.departure,
         destination: last.arrival,
         departureTime: first.departureAt,
         arrivalTime: last.arrivalAt,
+        strDepartureDate: dep.strDate,
+        strDepartureTime: dep.strTime,
+        strArrivalDate: arr.strDate,
+        strArrivalTime: arr.strTime,
       };
     };
 
@@ -381,12 +490,21 @@ const FlightPage = () => {
           i++;
         }
 
-        const fallbackFirst = { origin: "HKG", destination: "BKK", depart: "2024-12-15" };
+        const fallbackFirst = {
+          origin: "HKG",
+          destination: "BKK",
+          depart: "2024-12-15",
+        };
         const first = legs[0] || fallbackFirst;
         const last = legs[legs.length - 1] || first;
 
         const rawTrip = (qp.get("tripType") || "oneway").toLowerCase();
-        const tripType = rawTrip === "multi" ? "multi" : rawTrip === "return" ? "return" : "oneway";
+        const tripType =
+          rawTrip === "multi"
+            ? "multi"
+            : rawTrip === "return"
+            ? "return"
+            : "oneway";
         const flightType = qp.get("flightType") || "";
 
         const params = {
@@ -397,17 +515,20 @@ const FlightPage = () => {
           origin: first.origin,
           destination: tripType === "multi" ? last.destination : first.destination,
           departureDate: first.depart,
-          returnDate: tripType === "return" ? qp.get("returnDate") || null : null,
+          returnDate:
+            tripType === "return" ? qp.get("returnDate") || null : null,
           adults: parseInt(qp.get("adults") || "1", 10),
           children: parseInt(qp.get("children") || "0", 10),
           infants: parseInt(qp.get("infants") || "0", 10),
         };
         setSearchParams(params);
 
-        const res = await flygasal.searchFlights(params, { signal: abort.signal });
+        const res = await flygasal.searchFlights(params, {
+          signal: abort.signal,
+        });
 
-        console.info('Search results: ', res);
-        
+        console.info("Search results: ", res);
+
         let offers = [];
         let displayCurrency = "USD";
 
@@ -446,12 +567,18 @@ const FlightPage = () => {
         if (tripType === "multi") {
           const multiSet = new Map();
           for (const offer of offers) {
-            const carved = carveLegsForMulti(offer, params.flights, normalizeSegsForCarve, findContiguousChain);
+            const carved = carveLegsForMulti(
+              offer,
+              params.flights,
+              normalizeSegsForCarve,
+              findContiguousChain
+            );
             if (!carved) continue;
 
             const key = multiKey(carved.legs, carved.cabin);
             if (multiSet.has(key)) {
-              if (priceOf(offer) < multiSet.get(key).totalPrice) multiSet.set(key, carved);
+              if (priceOf(offer) < multiSet.get(key).totalPrice)
+                multiSet.set(key, carved);
             } else {
               multiSet.set(key, carved);
             }
@@ -463,7 +590,9 @@ const FlightPage = () => {
           returns = [];
         } else if (tripType === "return") {
           for (const offer of offers) {
-            const fids = Array.isArray(offer?.flightIds) ? offer.flightIds.filter(Boolean) : [];
+            const fids = Array.isArray(offer?.flightIds)
+              ? offer.flightIds.filter(Boolean)
+              : [];
             const segs = Array.isArray(offer?.segments) ? offer.segments : [];
 
             const buildLegFromSegments = (baseOffer, segs, suffix) => {
@@ -479,6 +608,9 @@ const FlightPage = () => {
 
               const perLegTotal = Math.round((originalTotal / 2) * 100) / 100;
 
+              const dep = splitDT(firstSeg?.departureDate);
+              const arr = splitDT(lastSeg?.arrivalDate);
+
               return {
                 id: `${baseOffer.id}-${suffix}`,
                 solutionId: baseOffer.solutionId,
@@ -491,8 +623,14 @@ const FlightPage = () => {
 
                 origin: firstSeg?.departure || baseOffer.origin,
                 destination: lastSeg?.arrival || baseOffer.destination,
-                departureTime: firstSeg?.departureDate || baseOffer.departureTime,
+                departureTime:
+                  firstSeg?.departureDate || baseOffer.departureTime,
                 arrivalTime: lastSeg?.arrivalDate || baseOffer.arrivalTime,
+                strDepartureDate: dep.strDate,
+                strDepartureTime: dep.strTime,
+                strArrivalDate: arr.strDate,
+                strArrivalTime: arr.strTime,
+
                 segments: segs.slice(),
                 equipment: baseOffer.equipment,
 
@@ -536,29 +674,47 @@ const FlightPage = () => {
             if (!outLeg || !retLeg) continue;
 
             const outKey = onewayKey(outLeg, outLeg.cabin);
-            if (!seenOneWay.has(outKey) || priceOf(outLeg) < priceOf(seenOneWay.get(outKey))) {
+            if (
+              !seenOneWay.has(outKey) ||
+              priceOf(outLeg) < priceOf(seenOneWay.get(outKey))
+            ) {
               seenOneWay.set(outKey, outLeg);
             }
             const retKey = onewayKey(retLeg, retLeg.cabin);
-            if (!seenReturns.has(retKey) || priceOf(retLeg) < priceOf(seenReturns.get(retKey))) {
+            if (
+              !seenReturns.has(retKey) ||
+              priceOf(retLeg) < priceOf(seenReturns.get(retKey))
+            ) {
               seenReturns.set(retKey, retLeg);
             }
 
-            const pairKey = returnKey(outLeg, retLeg, outLeg.cabin || retLeg.cabin);
+            const pairKey = returnKey(
+              outLeg,
+              retLeg,
+              outLeg.cabin || retLeg.cabin
+            );
             const pairTotal = priceOf(offer);
             const existing = seenItinPairs.get(pairKey);
             if (!existing || pairTotal < existing.total) {
-              seenItinPairs.set(pairKey, { out: outLeg, ret: retLeg, total: pairTotal });
+              seenItinPairs.set(pairKey, {
+                out: outLeg,
+                ret: retLeg,
+                total: pairTotal,
+              });
             }
 
             if (seenItinPairs.size >= MAX_RESULTS) break;
           }
 
           outbounds = Array.from(seenOneWay.values()).sort(
-            (a, b) => priceOf(a) - priceOf(b) || (a.journeyTime ?? 0) - (b.journeyTime ?? 0)
+            (a, b) =>
+              priceOf(a) - priceOf(b) ||
+              (a.journeyTime ?? 0) - (b.journeyTime ?? 0)
           );
           returns = Array.from(seenReturns.values()).sort(
-            (a, b) => priceOf(a) - priceOf(b) || (a.journeyTime ?? 0) - (b.journeyTime ?? 0)
+            (a, b) =>
+              priceOf(a) - priceOf(b) ||
+              (a.journeyTime ?? 0) - (b.journeyTime ?? 0)
           );
         } else {
           // ONEWAY dedupe
@@ -571,7 +727,9 @@ const FlightPage = () => {
             if (oneMap.size >= MAX_RESULTS) break;
           }
           outbounds = Array.from(oneMap.values()).sort(
-            (a, b) => priceOf(a) - priceOf(b) || (a.journeyTime ?? 0) - (b.journeyTime ?? 0)
+            (a, b) =>
+              priceOf(a) - priceOf(b) ||
+              (a.journeyTime ?? 0) - (b.journeyTime ?? 0)
           );
           returns = [];
         }
@@ -604,11 +762,15 @@ const FlightPage = () => {
     const checked = offer?.baggage?.adt?.checkedBySegment?.[seg0];
     const carryTxt =
       carry && ((carry.amount ?? 0) > 0 || (carry.weight ?? 0) > 0)
-        ? `${carry.amount ?? ""}${carry.amount ? "PC" : ""}${carry.weight ? ` ${carry.weight}KG` : ""} carry-on`
+        ? `${carry.amount ?? ""}${carry.amount ? "PC" : ""}${
+            carry.weight ? ` ${carry.weight}KG` : ""
+          } carry-on`
         : "";
     const checkedTxt =
       checked && ((checked.amount ?? 0) > 0 || (checked.weight ?? 0) > 0)
-        ? `${checked.amount ?? ""}${checked.amount ? "PC" : ""}${checked.weight ? ` ${checked.weight}KG` : ""} checked`
+        ? `${checked.amount ?? ""}${checked.amount ? "PC" : ""}${
+            checked.weight ? ` ${checked.weight}KG` : ""
+          } checked`
         : "";
     const both = [carryTxt, checkedTxt].filter(Boolean).join(" + ");
     return both || null;
@@ -618,7 +780,8 @@ const FlightPage = () => {
   const itineraries = useMemo(() => {
     if (!searchParams) return [];
 
-    const cabinOf = (x) => x?.cabin || x?.segments?.[0]?.cabinClass || "Economy";
+    const cabinOf = (x) =>
+      x?.cabin || x?.segments?.[0]?.cabinClass || "Economy";
     const carriers = (o) =>
       Array.from(
         new Set(
@@ -634,8 +797,11 @@ const FlightPage = () => {
       for (const m of availableFlights || []) {
         if (!Array.isArray(m?.legs) || !m.legs.length) continue;
         const key = multiKey(m.legs, m.cabin);
-        const totalStops = m.totalStops ?? m.legs.reduce((acc, l) => acc + (l.stops || 0), 0);
-        const airlines = m.airlines?.length ? m.airlines : Array.from(new Set(m.legs.flatMap(carriers)));
+        const totalStops =
+          m.totalStops ?? m.legs.reduce((acc, l) => acc + (l.stops || 0), 0);
+        const airlines = m.airlines?.length
+          ? m.airlines
+          : Array.from(new Set(m.legs.flatMap(carriers)));
 
         const rec = {
           id: m.id,
@@ -652,13 +818,16 @@ const FlightPage = () => {
         if (!exist || rec.totalPrice < exist.totalPrice) dedup.set(key, rec);
         if (dedup.size >= MAX_RESULTS) break;
       }
-      return Array.from(dedup.values()).sort((a, b) => a.totalPrice - b.totalPrice);
+      return Array.from(dedup.values()).sort(
+        (a, b) => a.totalPrice - b.totalPrice
+      );
     }
 
     // RETURN
     if (searchParams.tripType === "return") {
       const items = [];
-      const hasSeparateReturnList = Array.isArray(returnFlights) && returnFlights.length > 0;
+      const hasSeparateReturnList =
+        Array.isArray(returnFlights) && returnFlights.length > 0;
 
       if (!hasSeparateReturnList) {
         for (const out of availableFlights || []) {
@@ -687,17 +856,24 @@ const FlightPage = () => {
         const final = new Map();
         for (const it of items) {
           const k = returnKey(it.outbound, it.return, it.cabin);
-          if (!final.has(k) || it.totalPrice < final.get(k).totalPrice) final.set(k, it);
+          if (!final.has(k) || it.totalPrice < final.get(k).totalPrice)
+            final.set(k, it);
         }
         return Array.from(final.values());
       }
 
-      const sortedReturns = [...returnFlights].sort((a, b) => priceOf(a) - priceOf(b));
+      const sortedReturns = [...returnFlights].sort(
+        (a, b) => priceOf(a) - priceOf(b)
+      );
       const final = new Map();
 
       for (const out of availableFlights || []) {
         let added = 0;
-        for (let i = 0; i < sortedReturns.length && added < MAX_RETURNS_PER_OUTBOUND; i++) {
+        for (
+          let i = 0;
+          i < sortedReturns.length && added < MAX_RETURNS_PER_OUTBOUND;
+          i++
+        ) {
           const rt = sortedReturns[i];
           const total = Number(priceOf(out) + priceOf(rt));
           const rec = {
@@ -721,7 +897,9 @@ const FlightPage = () => {
         if (final.size >= MAX_RESULTS) break;
       }
 
-      return Array.from(final.values()).sort((a, b) => a.totalPrice - b.totalPrice);
+      return Array.from(final.values()).sort(
+        (a, b) => a.totalPrice - b.totalPrice
+      );
     }
 
     // ONEWAY
@@ -739,16 +917,21 @@ const FlightPage = () => {
         refundable: false,
       };
       const k = onewayKey(rec.outbound, rec.cabin);
-      if (!oneDedup.has(k) || rec.totalPrice < oneDedup.get(k).totalPrice) oneDedup.set(k, rec);
+      if (!oneDedup.has(k) || rec.totalPrice < oneDedup.get(k).totalPrice)
+        oneDedup.set(k, rec);
       if (oneDedup.size >= MAX_RESULTS) break;
     }
-    return Array.from(oneDedup.values()).sort((a, b) => a.totalPrice - b.totalPrice);
+    return Array.from(oneDedup.values()).sort(
+      (a, b) => a.totalPrice - b.totalPrice
+    );
   }, [searchParams, availableFlights, returnFlights]);
 
   // ======= Recompute price bounds from actual itineraries =======
   useEffect(() => {
     if (Array.isArray(itineraries) && itineraries.length) {
-      const prices = itineraries.map((it) => Number(it.totalPrice)).filter((p) => Number.isFinite(p));
+      const prices = itineraries
+        .map((it) => Number(it.totalPrice))
+        .filter((p) => Number.isFinite(p));
       if (prices.length) {
         const absMin = Math.floor(Math.min(...prices));
         const absMax = Math.ceil(Math.max(...prices));
@@ -774,15 +957,23 @@ const FlightPage = () => {
         const priceOk = it.totalPrice >= low && it.totalPrice <= high;
 
         // normalize stops: 0 / 1 / 2+
-        const stopsCount = Math.max(0, Number.isFinite(it.totalStops) ? it.totalStops : 0);
-        const stopClass = stopsCount >= 2 ? "oneway_2" : `oneway_${stopsCount}`;
+        const stopsCount = Math.max(
+          0,
+          Number.isFinite(it.totalStops) ? it.totalStops : 0
+        );
+        const stopClass =
+          stopsCount >= 2 ? "oneway_2" : `oneway_${stopsCount}`;
         const stopsOk = currentStop === "mix" || currentStop === stopClass;
 
         // outbound vs return airline filters
         const obCode =
-          it.outbound?.marketingCarriers?.[0] || it.outbound?.segments?.[0]?.airline || "";
+          it.outbound?.marketingCarriers?.[0] ||
+          it.outbound?.segments?.[0]?.airline ||
+          "";
         const rtCode =
-          it.return?.marketingCarriers?.[0] || it.return?.segments?.[0]?.airline || "";
+          it.return?.marketingCarriers?.[0] ||
+          it.return?.segments?.[0]?.airline ||
+          "";
 
         const owOk =
           checkedOnewayValue.length === 0 ||
@@ -793,40 +984,72 @@ const FlightPage = () => {
           checkedReturnValue.length === 0 ||
           (rtCode && checkedReturnValue.includes(`return_${rtCode}`));
 
-        // time windows
-        const owDep = getHour(it.outbound?.segments?.[0]?.departureDate || it.outbound?.departureTime);
+        // time windows (multi uses first leg's first seg)
+        const owDep = it.legs?.length
+          ? new Date(
+              it.legs[0]?.segments?.[0]?.departureDate ||
+                it.legs[0]?.departureTime
+            )
+              .getHours()
+          : getHour(
+              it.outbound?.segments?.[0]?.departureDate ||
+                it.outbound?.departureTime
+            );
         const owTimeOk = owDep >= depTimeRange[0] && owDep <= depTimeRange[1];
 
         let rtTimeOk = true;
         if (it.return) {
-          const rtDep = getHour(it.return?.segments?.[0]?.departureDate || it.return?.departureTime);
+          const rtDep = getHour(
+            it.return?.segments?.[0]?.departureDate || it.return?.departureTime
+          );
           rtTimeOk = rtDep >= retTimeRange[0] && rtDep <= retTimeRange[1];
         }
 
         // CABIN FILTER
         const outCabinKey = normalizeCabinKey(
-          it.cabin || it.outbound?.cabin || it.outbound?.segments?.[0]?.cabinClass
+          it.cabin ||
+            it.outbound?.cabin ||
+            it.outbound?.segments?.[0]?.cabinClass
         );
         const retCabinKey = it.return
-          ? normalizeCabinKey(it.return?.cabin || it.return?.segments?.[0]?.cabinClass)
+          ? normalizeCabinKey(
+              it.return?.cabin || it.return?.segments?.[0]?.cabinClass
+            )
           : null;
 
         const cabinOk =
           selectedCabins.length === 0 ||
-          (selectedCabins.includes(outCabinKey) && (!retCabinKey || selectedCabins.includes(retCabinKey)));
+          (selectedCabins.includes(outCabinKey) &&
+            (!retCabinKey || selectedCabins.includes(retCabinKey)));
 
         // duration + baggage
-        const durHrs = totalDurationMins(it.outbound, it.return, it.legs) / 60;
+        const durHrs =
+          totalDurationMins(it.outbound, it.return, it.legs) / 60;
         const durationOk = durHrs <= maxDurationHours;
+
         const bagOk =
           !baggageOnly ||
           hasBaggage(it.outbound) ||
           (it.return && hasBaggage(it.return)) ||
           (Array.isArray(it.legs) && it.legs.some((l) => hasBaggage(l)));
 
-        return priceOk && stopsOk && owOk && rtOk && owTimeOk && rtTimeOk && durationOk && bagOk && cabinOk;
+        return (
+          priceOk &&
+          stopsOk &&
+          owOk &&
+          rtOk &&
+          owTimeOk &&
+          rtTimeOk &&
+          durationOk &&
+          bagOk &&
+          cabinOk
+        );
       })
-      .sort((a, b) => (sortOrder === "asc" ? a.totalPrice - b.totalPrice : b.totalPrice - a.totalPrice));
+      .sort((a, b) =>
+        sortOrder === "asc"
+          ? a.totalPrice - b.totalPrice
+          : b.totalPrice - a.totalPrice
+      );
   }, [
     itineraries,
     minPrice,
@@ -847,8 +1070,11 @@ const FlightPage = () => {
   const outboundPrimary = useMemo(() => {
     const set = new Set();
     itineraries.forEach((it) => {
-      const code =
-        (it.outbound?.marketingCarriers?.[0] || it.outbound?.segments?.[0]?.airline || "").toUpperCase();
+      const code = (
+        it.outbound?.marketingCarriers?.[0] ||
+        it.outbound?.segments?.[0]?.airline ||
+        ""
+      ).toUpperCase();
       if (code) set.add(code);
     });
     return Array.from(set).sort();
@@ -858,19 +1084,25 @@ const FlightPage = () => {
     const set = new Set();
     itineraries.forEach((it) => {
       if (!it.return) return;
-      const code =
-        (it.return?.marketingCarriers?.[0] || it.return?.segments?.[0]?.airline || "").toUpperCase();
+      const code = (
+        it.return?.marketingCarriers?.[0] ||
+        it.return?.segments?.[0]?.airline ||
+        ""
+      ).toUpperCase();
       if (code) set.add(code);
     });
     return Array.from(set).sort();
   }, [itineraries]);
 
-  // Live counts (optional but enables “Hide 0” + disables non-matching)
+  // Live counts
   const airlineCountsOutbound = useMemo(() => {
     const m = {};
     itineraries.forEach((it) => {
-      const code =
-        (it.outbound?.marketingCarriers?.[0] || it.outbound?.segments?.[0]?.airline || "").toUpperCase();
+      const code = (
+        it.outbound?.marketingCarriers?.[0] ||
+        it.outbound?.segments?.[0]?.airline ||
+        ""
+      ).toUpperCase();
       if (!code) return;
       m[code] = (m[code] || 0) + 1;
     });
@@ -881,8 +1113,11 @@ const FlightPage = () => {
     const m = {};
     itineraries.forEach((it) => {
       if (!it.return) return;
-      const code =
-        (it.return?.marketingCarriers?.[0] || it.return?.segments?.[0]?.airline || "").toUpperCase();
+      const code = (
+        it.return?.marketingCarriers?.[0] ||
+        it.return?.segments?.[0]?.airline ||
+        ""
+      ).toUpperCase();
       if (!code) return;
       m[code] = (m[code] || 0) + 1;
     });
@@ -891,7 +1126,9 @@ const FlightPage = () => {
 
   // Cabin handlers
   const toggleCabin = (key) => {
-    setSelectedCabins((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+    setSelectedCabins((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
     setCurrentPage(1);
     setOpenDetailsId(null);
   };
@@ -902,7 +1139,10 @@ const FlightPage = () => {
   };
 
   // ---------- Pagination guards ----------
-  const totalPages = useMemo(() => Math.ceil(filteredItineraries.length / flightsPerPage), [filteredItineraries]);
+  const totalPages = useMemo(
+    () => Math.ceil(filteredItineraries.length / flightsPerPage),
+    [filteredItineraries]
+  );
 
   const safePage = useMemo(
     () => Math.min(Math.max(currentPage, 1), totalPages || 1),
@@ -917,7 +1157,11 @@ const FlightPage = () => {
   }, [safePage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pageItems = useMemo(
-    () => filteredItineraries.slice((safePage - 1) * flightsPerPage, safePage * flightsPerPage),
+    () =>
+      filteredItineraries.slice(
+        (safePage - 1) * flightsPerPage,
+        safePage * flightsPerPage
+      ),
     [filteredItineraries, safePage]
   );
 
@@ -982,12 +1226,16 @@ const FlightPage = () => {
   };
   const handleOnewayChange = (e, airline) => {
     const v = `oneway_${airline}`;
-    setCheckedOnewayValue((prev) => (e.target.checked ? [...prev, v] : prev.filter((x) => x !== v)));
+    setCheckedOnewayValue((prev) =>
+      e.target.checked ? [...prev, v] : prev.filter((x) => x !== v)
+    );
     resetToTop();
   };
   const handleReturnChange = (e, airline) => {
     const v = `return_${airline}`;
-    setCheckedReturnValue((prev) => (e.target.checked ? [...prev, v] : prev.filter((x) => x !== v)));
+    setCheckedReturnValue((prev) =>
+      e.target.checked ? [...prev, v] : prev.filter((x) => x !== v)
+    );
     resetToTop();
   };
 
@@ -999,7 +1247,10 @@ const FlightPage = () => {
           return f.legs.flatMap((l) =>
             (l?.marketingCarriers || [])
               .concat(l?.operatingCarriers || [])
-              .concat((l?.segments || []).map((s) => s?.airline).filter(Boolean) || [])
+              .concat(
+                (l?.segments || []).map((s) => s?.airline).filter(Boolean) ||
+                  []
+              )
           );
         }
         return (f?.marketingCarriers || [])
@@ -1025,7 +1276,10 @@ const FlightPage = () => {
   const ListSkeleton = () => (
     <div className="space-y-3">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="animate-pulse rounded-2xl border border-gray-100 bg-white p-4">
+        <div
+          key={i}
+          className="animate-pulse rounded-2xl border border-gray-100 bg-white p-4"
+        >
           <div className="h-6 w-2/3 bg-gray-200 rounded mb-3" />
           <div className="h-4 w-1/3 bg-gray-200 rounded" />
         </div>
@@ -1043,17 +1297,26 @@ const FlightPage = () => {
             <div className="text-sm text-gray-600">
               {searchParams ? (
                 <>
-                  <span className="font-medium text-gray-800">{getAirportName(searchParams.origin)}</span>
+                  <span className="font-medium text-gray-800">
+                    {getAirportName(searchParams.origin)}
+                  </span>
                   <span className="mx-2">→</span>
-                  <span className="font-medium text-gray-800">{getAirportName(searchParams.destination)}</span>
+                  <span className="font-medium text-gray-800">
+                    {getAirportName(searchParams.destination)}
+                  </span>
                   {searchParams.departureDate && (
                     <span className="ml-3">
                       {formatDate(searchParams.departureDate)}
-                      {searchParams.returnDate ? ` – ${formatDate(searchParams.returnDate)}` : ""}
+                      {searchParams.returnDate
+                        ? ` – ${formatDate(searchParams.returnDate)}`
+                        : ""}
                     </span>
                   )}
                   <span className="ml-3">
-                    {(searchParams.adults || 1) + (searchParams.children || 0) + (searchParams.infants || 0)} pax
+                    {(searchParams.adults || 1) +
+                      (searchParams.children || 0) +
+                      (searchParams.infants || 0)}{" "}
+                    pax
                   </span>
                 </>
               ) : (
@@ -1065,7 +1328,14 @@ const FlightPage = () => {
               onClick={() => setIsSearchFormVisible((v) => !v)}
             >
               {isSearchFormVisible ? "Hide search" : "Modify search"}
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M19 9l-7 7-7-7" />
               </svg>
             </button>
@@ -1102,7 +1372,14 @@ const FlightPage = () => {
               onClick={() => setFiltersOpenMobile((v) => !v)}
             >
               {filtersOpenMobile ? "Hide filters" : "Show filters"}
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M19 9l-7 7-7-7" />
               </svg>
             </button>
@@ -1275,10 +1552,15 @@ const FlightPage = () => {
                     <div className="flex-1 mx-3 h-2 bg-gray-200 rounded overflow-hidden">
                       <div
                         className="h-full bg-blue-600"
-                        style={{ width: `${(timeRemaining / 900) * 100}%`, transition: "width 1s linear" }}
+                        style={{
+                          width: `${(timeRemaining / 900) * 100}%`,
+                          transition: "width 1s linear",
+                        }}
                       />
                     </div>
-                    <span className="text-end fw-bold">{formatTimer(timeRemaining)}</span>
+                    <span className="text-end fw-bold">
+                      {formatTimer(timeRemaining)}
+                    </span>
                   </motion.div>
 
                   {/* Sort */}
@@ -1321,12 +1603,17 @@ const FlightPage = () => {
                     />
                   ) : (
                     <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-gray-600">
-                      No results match your filters. Try widening time windows or clearing some filters.
+                      No results match your filters. Try widening time windows
+                      or clearing some filters.
                     </div>
                   )}
 
                   {/* Pagination */}
-                  <Pagination currentPage={safePage} totalPages={totalPages} handlePageChange={handlePageChange} />
+                  <Pagination
+                    currentPage={safePage}
+                    totalPages={totalPages}
+                    handlePageChange={handlePageChange}
+                  />
                 </>
               )}
             </div>
