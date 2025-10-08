@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FlightDetailsCard from "./FlightDetailsCard";
 import FareRulesCard from "./FareRulesCard";
 import ContactDetailsCard from "./ContactDetailsCard";
@@ -13,7 +12,7 @@ const BookingForm = ({
   searchParams,
   formData,
   setFormData,
-  handleFormChange,
+  handleFormChange, // parent-level handler that was firing on every keystroke
   isSubmitting,
   cancellation_policy,
   setCancellationPolicy,
@@ -52,7 +51,72 @@ const BookingForm = ({
   isProcessing,
   currency,
 }) => {
-  /* ---------------- Share Modal state ---------------- */
+  /* ---------------- Local draft form (prevents parent-driven remounts) ---------------- */
+  const [draftForm, setDraftForm] = useState(formData || {});
+  const debounceTimer = useRef(null);
+
+  // keep local draft in sync if parent replaces formData wholesale (e.g., load/prefill)
+  useEffect(() => {
+    setDraftForm(formData || {});
+  }, [formData]);
+
+  // debounce helper to push local -> parent
+  const flushToParent = useCallback(
+    (next) => {
+      // Prefer setFormData if provided; fall back to synthetic event handler if that’s what the parent expects
+      if (typeof setFormData === "function") {
+        setFormData(next);
+      } else if (typeof handleFormChange === "function") {
+        // Send a single "root form" change if parent is built around a synthetic event
+        handleFormChange({ target: { name: "__form__", value: next } });
+      }
+    },
+    [setFormData, handleFormChange]
+  );
+
+  // buffered change handler passed to children
+  const bufferedFormChange = useCallback(
+    (e) => {
+      // Normalize (supports both {target:{name,value}} and direct object patches)
+      if (e && e.target && typeof e.target.name === "string") {
+        const { name, value } = e.target;
+        const next = { ...draftForm, [name]: value };
+        setDraftForm(next);
+
+        // Debounce parent sync (keystroke-safe)
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        debounceTimer.current = setTimeout(() => flushToParent(next), 300);
+        return;
+      }
+
+      // Special case: your PassengerDetailsCard calls with { target: { name: "travelers", value: nextArray } }
+      if (e && e.target && e.target.name === "travelers") {
+        const next = { ...draftForm, travelers: e.target.value };
+        setDraftForm(next);
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        debounceTimer.current = setTimeout(() => flushToParent(next), 300);
+        return;
+      }
+
+      // If a component passes the whole partial object directly (rare)
+      if (e && typeof e === "object" && !e.target) {
+        const next = { ...draftForm, ...e };
+        setDraftForm(next);
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        debounceTimer.current = setTimeout(() => flushToParent(next), 300);
+      }
+    },
+    [draftForm, flushToParent]
+  );
+
+  // Make sure we don’t leave timers around
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, []);
+
+  /* ---------------- Share Modal state (unchanged logic) ---------------- */
   const [showShare, setShowShare] = useState(false);
   const [copied, setCopied] = useState(false);
   const [openSections, setOpenSections] = useState({
@@ -65,17 +129,16 @@ const BookingForm = ({
   const money = (n, currency = "USD") =>
     (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
 
-  const toggleAccordion = (key) => {
+  const toggleAccordion = useCallback((key) => {
     setOpenSections((prev) => ({
       ...prev,
       [key]: !prev[key],
     }));
-  };
+  }, []);
 
   // Build a clean share URL + message from current context
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
-    // Prefer current URL (already contains all params). Fallback to reconstruct from searchParams.
     return (
       window.location?.href ||
       `${window.location.origin}/flight/booking/details?${searchParams?.toString?.() || ""}`
@@ -99,11 +162,13 @@ const BookingForm = ({
   }, [outbound, returnFlight, tripType, getCityName, formatDate]);
 
   const shareText = useMemo(() => {
-    return `${shareSubtitle}\n${getPassengerSummary(adults, children, infants)} • ${outbound?.cabin || "Economy"}`;
+    return `${shareSubtitle}\n${getPassengerSummary(adults, children, infants)} • ${
+      outbound?.cabin || "Economy"
+    }`;
   }, [shareSubtitle, getPassengerSummary, adults, children, infants, outbound]);
 
   // Handle copying link
-  const copyLink = async () => {
+  const copyLink = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
@@ -111,10 +176,10 @@ const BookingForm = ({
     } catch {
       // noop
     }
-  };
+  }, [shareUrl]);
 
   // Native share (when available)
-  const shareNative = async () => {
+  const shareNative = useCallback(async () => {
     if (navigator.share) {
       try {
         await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
@@ -124,9 +189,9 @@ const BookingForm = ({
       }
     }
     setShowShare(true);
-  };
+  }, [shareTitle, shareText, shareUrl]);
 
-  // Close on ESC
+  // Close on ESC (share modal only)
   useEffect(() => {
     if (!showShare) return;
     const onKey = (e) => {
@@ -137,13 +202,10 @@ const BookingForm = ({
   }, [showShare]);
 
   return (
-  <div className="px-2 sm:px-4">
-    {/* Mobile: single column.
-        Desktop: main (left) + aside (right) with explicit column starts. */}
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 xl:gap-8">
-
-      {/* LEFT column — All other cards + actions */}
-      <main className="lg:col-start-1 lg:col-span-7 xl:col-start-1 xl:col-span-8 space-y-4">
+    <div className="px-2 sm:px-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 xl:gap-8">
+        {/* LEFT column */}
+        <main className="lg:col-start-1 lg:col-span-7 xl:col-start-1 xl:col-span-8 space-y-4">
           {/* Fare Rules */}
           <FareRulesCard
             outbound={outbound}
@@ -154,10 +216,10 @@ const BookingForm = ({
             getAirportName={getAirportName}
           />
 
-          {/* Passenger Details */}
+          {/* Passenger Details — uses LOCAL DRAFT + BUFFERED HANDLER */}
           <PassengerDetailsCard
-            formData={formData}
-            handleFormChange={handleFormChange}
+            formData={draftForm}
+            handleFormChange={bufferedFormChange}
             adults={adults}
             children={children}
             infants={infants}
@@ -173,20 +235,20 @@ const BookingForm = ({
             getPassengerSummary={getPassengerSummary}
           />
 
-          {/* Contact Details */}
-          <ContactDetailsCard formData={formData} handleFormChange={handleFormChange} />
+          {/* Contact Details — same buffering */}
+          <ContactDetailsCard formData={draftForm} handleFormChange={bufferedFormChange} />
 
-          {/* Payment Selection */}
+          {/* Payment Selection — same buffering */}
           <PaymentSelectionCard
-            formData={formData}
-            handleFormChange={handleFormChange}
+            formData={draftForm}
+            handleFormChange={bufferedFormChange}
             isFormValid={isFormValid}
             totalPrice={totalPrice}
           />
 
-          {/* Price Breakdown */}
+          {/* Price Breakdown (read-only props) */}
           <PriceBreakdownCard
-            formData={formData}
+            formData={draftForm}
             totalPrice={totalPrice}
             isAgent={isAgent}
             agentMarkupPercent={agentMarkupPercent}
@@ -198,12 +260,9 @@ const BookingForm = ({
             <b>Terms and Conditions</b> and the <b>Fare Rules</b> of your booking.
           </p>
         </main>
-        
 
-      {/* RIGHT column — Flight card (sticky on desktop) */}
-      <aside className="lg:col-start-8 lg:col-span-5 xl:col-start-9 xl:col-span-4 lg:sticky lg:top-24 space-y-3">
-        
-          {/* Flight Detail */}
+        {/* RIGHT column — Flight card (sticky on desktop) */}
+        <aside className="lg:col-start-8 lg:col-span-5 xl:col-start-9 xl:col-span-4 lg:sticky lg:top-24 space-y-3">
           <FlightDetailsCard
             flight={flight}
             tripDetails={tripDetails}
@@ -223,16 +282,17 @@ const BookingForm = ({
           />
 
           <div className="text-center mb-2">
-            <span className="text-xs sm:text-sm text-slate-500">All flight times displayed are local</span>
+            <span className="text-xs sm:text-sm text-slate-500">
+              All flight times displayed are local
+            </span>
           </div>
-          
 
           {/* Book button */}
           <div className="checkout-btn mb-1">
             <button
               type="button"
-              onClick={() => handlePayment(formData.payment_method)}
-              disabled={!isFormValid || !formData.payment_method || isProcessing}
+              onClick={() => handlePayment(draftForm.payment_method)}
+              disabled={!isFormValid || !draftForm.payment_method || isProcessing}
               className="btn w-full bg-[#0ea5e9] text-white font-semibold py-3 px-4 rounded-2xl hover:bg-[#1982FF] transition duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {isProcessing ? (
@@ -257,9 +317,7 @@ const BookingForm = ({
               )}
             </button>
           </div>
-
         </aside>
-        
       </div>
     </div>
   );
