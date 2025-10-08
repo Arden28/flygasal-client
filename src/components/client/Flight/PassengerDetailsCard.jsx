@@ -49,6 +49,7 @@ export default function PassengerDetailsCard({
     return a || b || c ? `${a || b}${c || ""}` : typeLabel(t.type).charAt(0);
   };
 
+  // You can relax passport requirements for infants if needed
   const isComplete = (t) =>
     t.title &&
     t.first_name &&
@@ -75,7 +76,6 @@ export default function PassengerDetailsCard({
 
   const travelers = formData.travelers || [];
 
-  // Map existing travelers by type and remember their real indices in the master array
   const byType = useMemo(() => {
     const map = { adult: [], child: [], infant: [] };
     travelers.forEach((t, idx) => {
@@ -86,17 +86,12 @@ export default function PassengerDetailsCard({
 
   const desired = { adult: adults, child: children, infant: infants };
 
-  // Build rows (existing travelers first, then placeholders up to desired count)
   const rows = useMemo(() => {
     const out = [];
     ["adult", "child", "infant"].forEach((t) => {
       const have = byType[t].length;
       const want = desired[t] || 0;
-
-      // Real ones
       byType[t].forEach((trav) => out.push({ kind: "real", type: t, traveler: trav }));
-
-      // Placeholders
       for (let k = 0; k < Math.max(0, want - have); k++) {
         out.push({ kind: "placeholder", type: t, traveler: emptyTraveler(t) });
       }
@@ -105,12 +100,9 @@ export default function PassengerDetailsCard({
   }, [byType, desired]);
 
   /* ---------- Mutations ---------- */
-
-  // Update master traveler list immutably
   const updateTravelers = (next) =>
     handleFormChange({ target: { name: "travelers", value: next } });
 
-  // Change field either on a real row (in-place) or convert placeholder to real (push)
   const onFieldChange = (row, field, value) => {
     const { kind, type } = row;
 
@@ -122,10 +114,9 @@ export default function PassengerDetailsCard({
       return;
     }
 
-    // Placeholder → turn into a real traveler when user starts typing
+    // placeholder -> real
     const draft = { ...row.traveler, [field]: value };
     const next = [...travelers, draft];
-    // If we exceed the desired count for this type, bump the count in parent to match UX
     if (type === "adult" && byType.adult.length >= desired.adult) setAdults(desired.adult + 1);
     if (type === "child" && byType.child.length >= desired.child) setChildren(desired.child + 1);
     if (type === "infant" && byType.infant.length >= desired.infant) setInfants(desired.infant + 1);
@@ -134,14 +125,13 @@ export default function PassengerDetailsCard({
   };
 
   const onRemove = (row) => {
-    if (row.kind !== "real") return; // nothing to remove
+    if (row.kind !== "real") return;
     const idx = row.traveler._index;
     const t = row.traveler.type;
     const next = [...travelers];
     next.splice(idx, 1);
     updateTravelers(next);
 
-    // Also lower the desired counters so placeholders don't come back immediately
     if (t === "adult" && adults > 0) setAdults(adults - 1);
     if (t === "child" && children > 0) setChildren(children - 1);
     if (t === "infant" && infants > 0) setInfants(infants - 1);
@@ -149,21 +139,26 @@ export default function PassengerDetailsCard({
     removeTraveler(idx);
   };
 
-  /* ---------- Field components ---------- */
-  const LabeledInput = ({ id, label, type = "text", value, onChange, placeholder = " ", required }) => (
-    <div className="relative">
+  /* ---------- Uniform field components (consistent height & spacing) ---------- */
+  const baseCtrl =
+    "block w-full rounded-2xl border border-slate-300 text-sm text-slate-900 focus:border-sky-500 focus:outline-none " +
+    "px-3 pt-4 pb-2 h-12"; // consistent height for inputs/selects
+
+  const LabeledInput = ({ id, label, type = "text", value, onChange, required, autoComplete }) => (
+    <div className="relative min-w-0">
       <input
         id={id}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="peer block w-full border border-slate-300 rounded-2xl px-3 pt-4 pb-2 text-sm text-slate-900 placeholder-transparent focus:border-sky-500 focus:outline-none"
+        className={baseCtrl + " placeholder-transparent"}
+        placeholder=" "
         required={required}
+        autoComplete={autoComplete}
       />
       <label
         htmlFor={id}
-        className="absolute left-3 top-2 text-slate-500 text-xs transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-slate-400 peer-placeholder-shown:text-xs peer-focus:top-2 peer-focus:text-xs"
+        className="pointer-events-none absolute left-3 top-2 text-xs text-slate-500 transition-all peer-focus:top-2"
       >
         {label}
       </label>
@@ -171,31 +166,28 @@ export default function PassengerDetailsCard({
   );
 
   const LabeledSelect = ({ id, label, value, onChange, children, required }) => (
-    <div className="relative">
+    <div className="relative min-w-0">
       <select
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="peer block w-full border border-slate-300 rounded-2xl px-3 pt-4 pb-2 text-sm text-slate-900 focus:border-sky-500 focus:outline-none bg-white"
+        className={baseCtrl + " bg-white"}
         required={required}
       >
         {children}
       </select>
-      <label
-        htmlFor={id}
-        className="absolute left-3 top-2 text-slate-500 text-xs transition-all peer-focus:top-2 peer-focus:text-xs"
-      >
+      <label htmlFor={id} className="pointer-events-none absolute left-3 top-2 text-xs text-slate-500">
         {label}
       </label>
     </div>
   );
 
+  /* ---------- Passenger Card ---------- */
   const PassengerCard = ({ row, idx }) => {
     const t = row.traveler;
-    const complete = row.kind === "real" ? isComplete(t) : isComplete(t); // live completeness even while typing
+    const complete = isComplete(t);
     const badgeClasses = complete ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700";
     const dot = complete ? "bg-emerald-600" : "bg-amber-600";
-
     const onT = (field) => (v) => onFieldChange(row, field, v);
 
     return (
@@ -216,16 +208,16 @@ export default function PassengerDetailsCard({
               </span>
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <p className="truncate text-sm font-semibold text-slate-900">
                   {t.title || t.first_name || t.last_name
                     ? `${t.title ? `${t.title} ` : ""}${t.first_name || ""} ${t.last_name || ""}`.trim()
                     : `Passenger (${typeLabel(row.type)})`}
                 </p>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700">
+                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700">
                   {typeLabel(row.type)}
                 </span>
-                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] ${badgeClasses}`}>
+                <span className={`shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] ${badgeClasses}`}>
                   <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
                   {complete ? "Complete" : "Incomplete"}
                 </span>
@@ -255,15 +247,9 @@ export default function PassengerDetailsCard({
 
         {/* Body */}
         <div className="px-4 pb-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {/* Title / First / Last */}
-            <LabeledSelect
-              id={`title-${idx}`}
-              label="Title"
-              value={t.title}
-              onChange={onT("title")}
-              required
-            >
+          {/* Row 1: Title / First / Last (1col mobile → 3col md+) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <LabeledSelect id={`title-${idx}`} label="Title" value={t.title} onChange={onT("title")} required>
               <option value="">Select Title</option>
               <option value="Mr">Mr</option>
               <option value="Miss">Miss</option>
@@ -276,6 +262,7 @@ export default function PassengerDetailsCard({
               value={t.first_name}
               onChange={onT("first_name")}
               required
+              autoComplete="given-name"
             />
 
             <LabeledInput
@@ -284,9 +271,12 @@ export default function PassengerDetailsCard({
               value={t.last_name}
               onChange={onT("last_name")}
               required
+              autoComplete="family-name"
             />
+          </div>
 
-            {/* Nationality */}
+          {/* Row 2: Nationality (1col) */}
+          <div className="grid grid-cols-1 gap-3 mt-3">
             <LabeledSelect
               id={`nationality-${idx}`}
               label="Nationality"
@@ -301,171 +291,161 @@ export default function PassengerDetailsCard({
                 </option>
               ))}
             </LabeledSelect>
+          </div>
 
-            {/* DOB */}
-            <div className="lg:col-span-2">
-              <div className="grid grid-cols-3 gap-3">
-                <LabeledSelect
-                  id={`dob-month-${idx}`}
-                  label="Date of Birth — Month"
-                  value={t.dob_month}
-                  onChange={onT("dob_month")}
-                  required
-                >
-                  <option value="">Month</option>
-                  {months.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </LabeledSelect>
-                <LabeledSelect
-                  id={`dob-day-${idx}`}
-                  label="Date of Birth — Day"
-                  value={t.dob_day}
-                  onChange={onT("dob_day")}
-                  required
-                >
-                  <option value="">Day</option>
-                  {days.map((d) => (
-                    <option key={d.value} value={d.value}>
-                      {d.label}
-                    </option>
-                  ))}
-                </LabeledSelect>
-                <LabeledSelect
-                  id={`dob-year-${idx}`}
-                  label="Date of Birth — Year"
-                  value={t.dob_year}
-                  onChange={onT("dob_year")}
-                  required
-                >
-                  <option value="">Year</option>
-                  {dobYears.map((y) => (
-                    <option key={y.value} value={y.value}>
-                      {y.label}
-                    </option>
-                  ))}
-                </LabeledSelect>
-              </div>
-              {row.type !== "adult" && (
-                <p className="mt-1 text-[11px] text-slate-500">
-                  Make sure the date of birth matches {typeLabel(row.type).toLowerCase()} fare rules.
-                </p>
-              )}
-            </div>
+          {/* Row 3: DOB (1col mobile → 3col md+) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+            <LabeledSelect
+              id={`dob-month-${idx}`}
+              label="Date of Birth - Month"
+              value={t.dob_month}
+              onChange={onT("dob_month")}
+              required
+            >
+              <option value="">Month</option>
+              {months.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </LabeledSelect>
+            <LabeledSelect
+              id={`dob-day-${idx}`}
+              label="Date of Birth - Day"
+              value={t.dob_day}
+              onChange={onT("dob_day")}
+              required
+            >
+              <option value="">Day</option>
+              {days.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </LabeledSelect>
+            <LabeledSelect
+              id={`dob-year-${idx}`}
+              label="Date of Birth - Year"
+              value={t.dob_year}
+              onChange={onT("dob_year")}
+              required
+            >
+              <option value="">Year</option>
+              {dobYears.map((y) => (
+                <option key={y.value} value={y.value}>
+                  {y.label}
+                </option>
+              ))}
+            </LabeledSelect>
+          </div>
 
-            {/* Passport / ID */}
-            <div className="lg:col-span-2">
-              <div className="relative">
-                <p className="m-0 text-end absolute right-3 top-2 text-gray-400 text-xs z-10">
-                  <strong>6–15 characters</strong>
-                </p>
-                <LabeledInput
-                  id={`passport-${idx}`}
-                  label="Passport or ID"
-                  value={t.passport}
-                  onChange={onT("passport")}
-                  required
-                />
-              </div>
+          {/* Row 4: Passport (full width) */}
+          <div className="grid grid-cols-1 gap-3 mt-3">
+            <div className="relative">
+              <p className="m-0 text-end absolute right-3 top-2 text-gray-400 text-xs z-10">
+                <strong>6–15 characters</strong>
+              </p>
+              <LabeledInput
+                id={`passport-${idx}`}
+                label="Passport or ID"
+                value={t.passport}
+                onChange={onT("passport")}
+                required
+                autoComplete="off"
+              />
             </div>
+          </div>
 
-            {/* Issuance */}
-            <div>
-              <div className="grid grid-cols-3 gap-3">
-                <LabeledSelect
-                  id={`iss-month-${idx}`}
-                  label="Issuance — Month"
-                  value={t.passport_issuance_month}
-                  onChange={onT("passport_issuance_month")}
-                  required
-                >
-                  <option value="">Month</option>
-                  {months.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </LabeledSelect>
-                <LabeledSelect
-                  id={`iss-day-${idx}`}
-                  label="Issuance — Day"
-                  value={t.passport_issuance_day}
-                  onChange={onT("passport_issuance_day")}
-                  required
-                >
-                  <option value="">Day</option>
-                  {days.map((d) => (
-                    <option key={d.value} value={d.value}>
-                      {d.label}
-                    </option>
-                  ))}
-                </LabeledSelect>
-                <LabeledSelect
-                  id={`iss-year-${idx}`}
-                  label="Issuance — Year"
-                  value={t.passport_issuance_year}
-                  onChange={onT("passport_issuance_year")}
-                  required
-                >
-                  <option value="">Year</option>
-                  {issuanceYears.map((y) => (
-                    <option key={y.value} value={y.value}>
-                      {y.label}
-                    </option>
-                  ))}
-                </LabeledSelect>
-              </div>
-            </div>
+          {/* Row 5: Issuance (1col mobile → 3col md+) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+            <LabeledSelect
+              id={`iss-month-${idx}`}
+              label="Issuance - Month"
+              value={t.passport_issuance_month}
+              onChange={onT("passport_issuance_month")}
+              required
+            >
+              <option value="">Month</option>
+              {months.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </LabeledSelect>
+            <LabeledSelect
+              id={`iss-day-${idx}`}
+              label="Issuance - Day"
+              value={t.passport_issuance_day}
+              onChange={onT("passport_issuance_day")}
+              required
+            >
+              <option value="">Day</option>
+              {days.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </LabeledSelect>
+            <LabeledSelect
+              id={`iss-year-${idx}`}
+              label="Issuance - Year"
+              value={t.passport_issuance_year}
+              onChange={onT("passport_issuance_year")}
+              required
+            >
+              <option value="">Year</option>
+              {issuanceYears.map((y) => (
+                <option key={y.value} value={y.value}>
+                  {y.label}
+                </option>
+              ))}
+            </LabeledSelect>
+          </div>
 
-            {/* Expiry */}
-            <div>
-              <div className="grid grid-cols-3 gap-3">
-                <LabeledSelect
-                  id={`exp-month-${idx}`}
-                  label="Expiry — Month"
-                  value={t.passport_expiry_month}
-                  onChange={onT("passport_expiry_month")}
-                  required
-                >
-                  <option value="">Month</option>
-                  {months.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </LabeledSelect>
-                <LabeledSelect
-                  id={`exp-day-${idx}`}
-                  label="Expiry — Day"
-                  value={t.passport_expiry_day}
-                  onChange={onT("passport_expiry_day")}
-                  required
-                >
-                  <option value="">Day</option>
-                  {days.map((d) => (
-                    <option key={d.value} value={d.value}>
-                      {d.label}
-                    </option>
-                  ))}
-                </LabeledSelect>
-                <LabeledSelect
-                  id={`exp-year-${idx}`}
-                  label="Expiry — Year"
-                  value={t.passport_expiry_year}
-                  onChange={onT("passport_expiry_year")}
-                  required
-                >
-                  <option value="">Year</option>
-                  {expiryYears.map((y) => (
-                    <option key={y.value} value={y.value}>
-                      {y.label}
-                    </option>
-                  ))}
-                </LabeledSelect>
-              </div>
-            </div>
+          {/* Row 6: Expiry (1col mobile → 3col md+) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+            <LabeledSelect
+              id={`exp-month-${idx}`}
+              label="Expiry - Month"
+              value={t.passport_expiry_month}
+              onChange={onT("passport_expiry_month")}
+              required
+            >
+              <option value="">Month</option>
+              {months.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </LabeledSelect>
+            <LabeledSelect
+              id={`exp-day-${idx}`}
+              label="Expiry - Day"
+              value={t.passport_expiry_day}
+              onChange={onT("passport_expiry_day")}
+              required
+            >
+              <option value="">Day</option>
+              {days.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </LabeledSelect>
+            <LabeledSelect
+              id={`exp-year-${idx}`}
+              label="Expiry - Year"
+              value={t.passport_expiry_year}
+              onChange={onT("passport_expiry_year")}
+              required
+            >
+              <option value="">Year</option>
+              {expiryYears.map((y) => (
+                <option key={y.value} value={y.value}>
+                  {y.label}
+                </option>
+              ))}
+            </LabeledSelect>
           </div>
         </div>
       </motion.li>
