@@ -24,7 +24,7 @@ export default function PriceBreakdownCard({
   
   return (
           <motion.div
-              className="bg-white rounded-2xl w-full max-w-3xl mb-3 overflow-hidden ring-1 ring-slate-200"
+              className="bg-white rounded-2xl w-full mb-3 overflow-hidden ring-1 ring-slate-200"
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35, ease: "easeOut" }}
