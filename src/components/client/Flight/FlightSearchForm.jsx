@@ -182,6 +182,11 @@ export default function FlightSearchInlineBar({
   const departRect = useAnchorRect(departBtnRef, openCal?.type === "depart" && (openCal?.idx ?? 0) === 0);
   const returnRect = useAnchorRect(returnBtnRef, openCal?.type === "return" && (openCal?.idx ?? 0) === 0);
 
+  // ---- controlled open state for every Select (fixes “click does nothing”)
+  const [openSelectKey, setOpenSelectKey] = useState(null); // e.g. "0:origin"
+  const keyFor = (idx, field) => `${idx}:${field}`;
+  const isOpen = (idx, field) => openSelectKey === keyFor(idx, field);
+
   // menus per leg/field
   const [airportMenus, setAirportMenus] = useState({});
   const menuKey = (idx, field) => `${idx}:${field}`;
@@ -283,6 +288,7 @@ export default function FlightSearchInlineBar({
 
   useEffect(() => {
     setOpenCal(null);
+    setOpenSelectKey(null);
     if (tripType === "oneway") {
       setFlightsState((prev) => {
         const first = { ...(prev[0] || {
@@ -381,6 +387,7 @@ export default function FlightSearchInlineBar({
       return copy;
     });
     setOpenCal((oc) => (oc && oc.idx === idx ? null : oc));
+    setOpenSelectKey((k) => (k && k.startsWith(`${idx}:`) ? null : k));
   };
 
   const validateForm = () => {
@@ -535,40 +542,39 @@ export default function FlightSearchInlineBar({
     return { top, left, width };
   };
 
-  // ----- helper to build Select props (uncontrolled menu) -----
+  // ----- helper to build Select props with controlled menu open -----
   const makeSelectProps = (idx, field, value, onChange) => {
     const id = `leg-${idx}-${field}`;
+    const k = keyFor(idx, field);
     return {
       instanceId: id,
       inputId: id,
       name: id,
       classNamePrefix: "react-select",
-
       options: menuOptions(idx, field),
       value,
       onChange,
-
-      // Seed options each time menu opens (keeps your default list behavior)
-      onMenuOpen: () => handleMenuOpen(idx, field),
-
-      // Live-search
+      onMenuOpen: () => {
+        handleMenuOpen(idx, field);
+        setOpenSelectKey(k);
+      },
+      onMenuClose: () => setOpenSelectKey((cur) => (cur === k ? null : cur)),
+      onFocus: () => {
+        handleMenuOpen(idx, field);
+        setOpenSelectKey(k);
+      },
+      onBlur: () => setOpenSelectKey((cur) => (cur === k ? null : cur)),
       onInputChange: handleInputChange(idx, field),
-
-      // Keep UX identical
       openMenuOnFocus: true,
       openMenuOnClick: true,
-
-      // Let react-select control open/close (no menuIsOpen/onBlur/onFocus here)
+      menuIsOpen: isOpen(idx, field),
       components: { Option: AirportOption, SingleValue: AirportSingleValue },
       styles: selectStyles,
       placeholder: "City or airport",
       isSearchable: true,
       filterOption: null,
-
-      // Portal fixes “under something” layering issues
-      menuPortalTarget: typeof document !== "undefined" ? document.body : undefined,
+      menuPortalTarget: document?.body || undefined,
       menuPosition: "fixed",
-      menuShouldScrollIntoView: false,
       maxMenuHeight: 384,
       menuPlacement: "auto",
       getOptionValue: (opt) => opt.value,
@@ -597,11 +603,11 @@ export default function FlightSearchInlineBar({
         </div>
 
         {/* Swap */}
-        <div className="flex items-center justify-center md:-mx-5 pointer-events-none">
+        <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100000 }}>
           <button
             type="button"
             onClick={() => swapPlaces(idx)}
-            className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
             aria-label="Swap origin and destination"
             title="Swap"
           >
@@ -708,11 +714,11 @@ export default function FlightSearchInlineBar({
         </div>
 
         {/* Swap */}
-        <div className="flex items-center justify-center md:-mx-5 pointer-events-none">
+        <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100000 }}>
           <button
             type="button"
             onClick={() => swapPlaces(0)}
-            className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
             aria-label="Swap origin and destination"
             title="Swap"
           >
@@ -889,7 +895,7 @@ export default function FlightSearchInlineBar({
         {/* Top controls */}
         <TopControls
           tripType={tripType}
-          setTripType={(t) => { setTripType(t); }}
+          setTripType={(t) => { setTripType(t); setOpenSelectKey(null); }}
           isMobile={isMobile}
           travellersBtnRef={travellersBtnRef}
           isTravellersOpen={isTravellersOpen}
