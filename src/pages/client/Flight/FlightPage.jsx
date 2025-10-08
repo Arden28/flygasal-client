@@ -399,6 +399,8 @@ const FlightPage = () => {
           infants: parseInt(qp.get("infants") || "0", 10),
         };
         setSearchParams(params);
+        
+        console.info('Search Params: ', params);
 
         const res = await flygasal.searchFlights(params, { signal: abort.signal });
 
