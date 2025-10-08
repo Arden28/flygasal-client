@@ -272,6 +272,10 @@ const FlightPage = () => {
         arrival: s.arrival ?? s.destination ?? s.arrivalAirport ?? "",
         departureAt: s.departureDate ?? s.departureTime ?? s.depTime ?? "",
         arrivalAt: s.arrivalDate ?? s.arrivalTime ?? s.arrTime ?? "",
+        departureDate: s.strDepartureDate ?? "", // explicit date
+        departureTime: s.strDepartureTime ?? s.depTime ?? "", // explicit time
+        arrivalDate: s.strArrivalDate ?? "", // explicit date
+        arrivalTime: s.strArrivalTime ?? s.arrTime ?? "", // explicit time
         bookingCode: s.bookingCode ?? s.bookingClass ?? "",
         refundable: !!s.refundable,
       }))
