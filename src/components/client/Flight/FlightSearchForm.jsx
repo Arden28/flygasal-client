@@ -498,6 +498,57 @@ useEffect(() => {
     }, 350);
   };
 
+    /* Plane icons */
+    const PlaneTakeoff = (props) => (
+    <svg aria-hidden {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <path d="M2 16l20-5-2-3-8 2-5-6-2 1 3 7-6 2z" />
+        <path d="M2 19h20" />
+    </svg>
+    );
+
+    const PlaneLanding = (props) => (
+    <svg aria-hidden {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <path d="M2 19h20" />
+        <path d="M22 16l-20-5 2-3 8 2 5-6 2 1-3 7 6 2z" />
+    </svg>
+    );
+
+    /* Control with a left icon (takeoff/landing) */
+    const ControlWithIcon = (props) => {
+    const { children, innerProps, selectProps } = props;
+    const { iconType } = selectProps; // "from" | "to" | undefined
+
+    return (
+        <components.Control {...props}>
+        {/* left icon (absolute so it doesn't change layout) */}
+        {iconType && (
+            <span
+            style={{
+                position: "absolute",
+                left: 10,
+                top: "50%",
+                transform: "translateY(-50%)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 18,
+                height: 18,
+                color: "#64748b", // slate-500
+                pointerEvents: "none",
+            }}
+            >
+            {iconType === "from" ? (
+                <PlaneTakeoff width={18} height={18} />
+            ) : (
+                <PlaneLanding width={18} height={18} />
+            )}
+            </span>
+        )}
+        {children}
+        </components.Control>
+    );
+    };
+
   /* —— STYLE TWEAKS —— */
   const selectStyles = {
     control: (base, state) => ({
@@ -508,7 +559,8 @@ useEffect(() => {
       minHeight: 54,
       borderColor: state.isFocused ? "#94a3b8" : "#e5e7eb",
       boxShadow: state.isFocused ? "0 0 0 3px rgba(148,163,184,.25)" : "none",
-      paddingLeft: 12,
+      // add extra left padding ONLY when we render an icon
+      paddingLeft: state.selectProps?.iconType ? 36 : 12,
       paddingRight: 10,
       backgroundColor: "#fff",
       color: "#0f172a",
@@ -738,7 +790,7 @@ useEffect(() => {
                 onChange={(v) => handleFlightChange(0, "origin", v)}
                 onMenuOpen={() => handleMenuOpen(0, "origin")}
                 onInputChange={handleInputChange(0, "origin")}
-                components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
+                components={{ Control: ControlWithIcon, Option: AirportOption, SingleValue: AirportSingleValue }}
                 styles={selectStyles}
                 placeholder="City or airport"
                 isSearchable
@@ -749,6 +801,7 @@ useEffect(() => {
                 menuPlacement="auto"
                 getOptionValue={(opt) => opt.value}
                 noOptionsMessage={noOptionsMessage}
+                iconType="from"
               />
             </div>
 
@@ -777,7 +830,7 @@ useEffect(() => {
                 onChange={(v) => handleFlightChange(0, "destination", v)}
                 onMenuOpen={() => handleMenuOpen(0, "destination")}
                 onInputChange={handleInputChange(0, "destination")}
-                components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
+                components={{ Control: ControlWithIcon, Option: AirportOption, SingleValue: AirportSingleValue }}
                 styles={selectStyles}
                 placeholder="City or airport"
                 isSearchable
@@ -788,6 +841,7 @@ useEffect(() => {
                 menuPlacement="auto"
                 getOptionValue={(opt) => opt.value}
                 noOptionsMessage={noOptionsMessage}
+                iconType="to"
               />
             </div>
 
@@ -950,7 +1004,7 @@ useEffect(() => {
                       onChange={(v) => handleFlightChange(idx, "origin", v)}
                       onMenuOpen={() => handleMenuOpen(idx, "origin")}
                       onInputChange={handleInputChange(idx, "origin")}
-                      components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
+                      components={{ Control: ControlWithIcon, Option: AirportOption, SingleValue: AirportSingleValue }}
                       styles={selectStyles}
                       placeholder="City or airport"
                       isSearchable
@@ -961,6 +1015,7 @@ useEffect(() => {
                       menuPlacement="auto"
                       getOptionValue={(opt) => opt.value}
                       noOptionsMessage={noOptionsMessage}
+                      iconType="from"
                     />
                   </div>
 
@@ -989,7 +1044,7 @@ useEffect(() => {
                       onChange={(v) => handleFlightChange(idx, "destination", v)}
                       onMenuOpen={() => handleMenuOpen(idx, "destination")}
                       onInputChange={handleInputChange(idx, "destination")}
-                      components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
+                      components={{ Control: ControlWithIcon, Option: AirportOption, SingleValue: AirportSingleValue }}
                       styles={selectStyles}
                       placeholder="City or airport"
                       isSearchable
@@ -1000,6 +1055,7 @@ useEffect(() => {
                       menuPlacement="auto"
                       getOptionValue={(opt) => opt.value}
                       noOptionsMessage={noOptionsMessage}
+                      iconType="to"
                     />
                   </div>
 
