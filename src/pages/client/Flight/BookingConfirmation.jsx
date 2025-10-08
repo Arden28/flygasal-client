@@ -1213,18 +1213,14 @@ const BookingConfirmation = ({
                   <table className="minimalist-table mb-3">
                     <thead>
                       <tr>
-                        <th className="text-center">Booking ID</th>
                         <th className="text-center">Booking Reference</th>
-                        <th className="text-center">Order Reference</th>
                         <th className="text-center">PNR</th>
                         <th className="text-center">Booking Date</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
-                        <td className="text-center">{bookingData?.bookingId || "—"}</td>
                         <td className="text-center">{bookingData?.orderNum || bookingData?.order_num || "—"}</td>
-                        <td className="text-center">{bookingData?.refOrderNum || "—"}</td>
                         <td className="text-center">{bookingData?.pnr || "—"}</td>
                         <td className="text-center">
                           {bookingData?.createdTime ? `${formatDate(bookingData.createdTime)} ${formatTime(bookingData.createdTime)}` : "—"}
@@ -1245,10 +1241,10 @@ const BookingConfirmation = ({
                     <thead>
                       <tr>
                         <th className="num">No</th>
-                        <th className="text-center">Sr</th>
+                        {/* <th className="text-center">Sr</th> */}
                         <th className="text-start">Name</th>
                         <th className="text-center">Passport No.</th>
-                        <th className="text-center">Passport Issue – Expiry</th>
+                        <th className="text-center">Passport Expiry</th>
                         <th className="text-center">DOB</th>
                         <th className="text-center">PNR</th>
                         <th className="text-center">Ticket</th>
@@ -1258,14 +1254,14 @@ const BookingConfirmation = ({
                       {passengers.map((t, idx) => (
                         <tr key={`${t?.cardNum || t?.ticketNum || idx}-${idx}`}>
                           <td className="num">{idx + 1}</td>
-                          <td className="text-center">{t?.salutation || "—"}</td>
+                          {/* <td className="text-center">{t?.salutation || "—"}</td> */}
                           <td className="text-start">
                             <div className="fw-semibold">{t?.firstName} {t?.lastName}</div>
                             {t?.email ? <small className="d-block text-muted">{t.email}</small> : null}
                             {t?.phone ? <small className="d-block text-muted">{t.phone}</small> : null}
                           </td>
                           <td className="text-center">{t?.cardNum || "—"}</td>
-                          <td className="text-center">{t?.passportIssue || "—"} — {t?.cardExpiredDate || "—"}</td>
+                          <td className="text-center">{t?.cardExpiredDate || "—"}</td>
                           <td className="text-center">{t?.birthday || "—"}</td>
                           <td className="text-center">{t?.pnr || "N/A"}</td>
                           <td className="text-center">{t?.ticketNum || "N/A"}</td>

@@ -183,9 +183,9 @@ export default function FlightSearchInlineBar({
   const returnRect = useAnchorRect(returnBtnRef, openCal?.type === "return" && (openCal?.idx ?? 0) === 0);
 
   // ---- controlled open state for every Select (fixes “click does nothing”)
-//   const [openSelectKey, setOpenSelectKey] = useState(null); // e.g. "0:origin"
-//   const keyFor = (idx, field) => `${idx}:${field}`;
-//   const isOpen = (idx, field) => openSelectKey === keyFor(idx, field);
+  const [openSelectKey, setOpenSelectKey] = useState(null); // e.g. "0:origin"
+  const keyFor = (idx, field) => `${idx}:${field}`;
+  const isOpen = (idx, field) => openSelectKey === keyFor(idx, field);
 
   // menus per leg/field
   const [airportMenus, setAirportMenus] = useState({});
@@ -288,7 +288,7 @@ export default function FlightSearchInlineBar({
 
   useEffect(() => {
     setOpenCal(null);
-    // setOpenSelectKey(null);
+    setOpenSelectKey(null);
     if (tripType === "oneway") {
       setFlightsState((prev) => {
         const first = { ...(prev[0] || {
@@ -387,7 +387,7 @@ export default function FlightSearchInlineBar({
       return copy;
     });
     setOpenCal((oc) => (oc && oc.idx === idx ? null : oc));
-    // setOpenSelectKey((k) => (k && k.startsWith(`${idx}:`) ? null : k));
+    setOpenSelectKey((k) => (k && k.startsWith(`${idx}:`) ? null : k));
   };
 
   const validateForm = () => {
@@ -543,46 +543,44 @@ export default function FlightSearchInlineBar({
   };
 
   // ----- helper to build Select props with controlled menu open -----
-const makeSelectProps = (idx, field, value, onChange) => {
-  const id = `leg-${idx}-${field}`;
-  return {
-    instanceId: id,
-    inputId: id,
-    name: id,
-    classNamePrefix: "react-select",
-
-    options: menuOptions(idx, field),
-    value,
-    onChange,
-
-    // Seed options each time menu opens (keeps your default list behavior)
-    onMenuOpen: () => handleMenuOpen(idx, field),
-
-    // Live-search
-    onInputChange: handleInputChange(idx, field),
-
-    // Keep UX identical
-    openMenuOnFocus: true,
-    openMenuOnClick: true,
-
-    // Let react-select control open/close (NO menuIsOpen / onBlur / onFocus here)
-    components: { Option: AirportOption, SingleValue: AirportSingleValue },
-    styles: selectStyles,
-    placeholder: "City or airport",
-    isSearchable: true,
-    filterOption: null,
-
-    // Portal fixes “under something” layering issues
-    menuPortalTarget: typeof document !== "undefined" ? document.body : undefined,
-    menuPosition: "fixed",
-    menuShouldScrollIntoView: false,
-    maxMenuHeight: 384,
-    menuPlacement: "auto",
-    getOptionValue: (opt) => opt.value,
-    noOptionsMessage,
+  const makeSelectProps = (idx, field, value, onChange) => {
+    const id = `leg-${idx}-${field}`;
+    const k = keyFor(idx, field);
+    return {
+      instanceId: id,
+      inputId: id,
+      name: id,
+      classNamePrefix: "react-select",
+      options: menuOptions(idx, field),
+      value,
+      onChange,
+      onMenuOpen: () => {
+        handleMenuOpen(idx, field);
+        setOpenSelectKey(k);
+      },
+      onMenuClose: () => setOpenSelectKey((cur) => (cur === k ? null : cur)),
+      onFocus: () => {
+        handleMenuOpen(idx, field);
+        setOpenSelectKey(k);
+      },
+      onBlur: () => setOpenSelectKey((cur) => (cur === k ? null : cur)),
+      onInputChange: handleInputChange(idx, field),
+      openMenuOnFocus: true,
+      openMenuOnClick: true,
+      menuIsOpen: isOpen(idx, field),
+      components: { Option: AirportOption, SingleValue: AirportSingleValue },
+      styles: selectStyles,
+      placeholder: "City or airport",
+      isSearchable: true,
+      filterOption: null,
+      menuPortalTarget: document?.body || undefined,
+      menuPosition: "fixed",
+      maxMenuHeight: 384,
+      menuPlacement: "auto",
+      getOptionValue: (opt) => opt.value,
+      noOptionsMessage,
+    };
   };
-};
-
 
   const LegRow = ({ idx }) => {
     const leg = flightsState[idx];
@@ -605,7 +603,7 @@ const makeSelectProps = (idx, field, value, onChange) => {
         </div>
 
         {/* Swap */}
-        <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100 }}>
+        <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100000 }}>
           <button
             type="button"
             onClick={() => swapPlaces(idx)}
@@ -716,7 +714,7 @@ const makeSelectProps = (idx, field, value, onChange) => {
         </div>
 
         {/* Swap */}
-        <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100 }}>
+        <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100000 }}>
           <button
             type="button"
             onClick={() => swapPlaces(0)}
@@ -897,7 +895,7 @@ const makeSelectProps = (idx, field, value, onChange) => {
         {/* Top controls */}
         <TopControls
           tripType={tripType}
-          setTripType={(t) => { setTripType(t); }}
+          setTripType={(t) => { setTripType(t); setOpenSelectKey(null); }}
           isMobile={isMobile}
           travellersBtnRef={travellersBtnRef}
           isTravellersOpen={isTravellersOpen}
