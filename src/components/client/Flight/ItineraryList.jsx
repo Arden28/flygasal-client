@@ -252,7 +252,21 @@ const selectItinerary = (itinerary) => {
   params.set("totalWithMarkup", String(total));
   params.set("currency", currency);
 
-  console.info('Params: ', params.toString());
+  const flights = {};
+
+  for (const [key, value] of params.entries()) {
+    if (key.startsWith("flights[")) {
+      // Match something like flights[0][origin]
+      const match = key.match(/flights\[(\d+)\]\[(.+)\]/);
+      if (match) {
+        const [, index, field] = match;
+        flights[index] = flights[index] || {};
+        flights[index][field] = value;
+      }
+    }
+  }
+
+  console.log(flights);
 
   navigate(`/flight/booking/details?${params.toString()}`);
 };
