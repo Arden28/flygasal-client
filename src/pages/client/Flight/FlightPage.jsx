@@ -404,6 +404,7 @@ const FlightPage = () => {
 
         const res = await flygasal.searchFlights(params, { signal: abort.signal });
 
+        console.info('Search results :', res);
         let offers = [];
         let displayCurrency = "USD";
 
