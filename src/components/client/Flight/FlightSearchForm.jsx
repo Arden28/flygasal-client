@@ -1,39 +1,44 @@
 import React, { useEffect, useMemo, useRef, useState, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
-import Select, { components as RS } from "react-select";
-import { DateRange } from "react-date-range";
+import Select, { components } from "react-select";
+import { Calendar } from "react-date-range";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 import { airports, flights } from "../../../data/fakeData";
 import { motion, AnimatePresence } from "framer-motion";
-import { format, addDays, startOfToday, isValid, addWeeks } from "date-fns";
+import { format, addDays, startOfToday, isValid } from "date-fns";
 
 /* --------------------- portal + anchor rect helpers --------------------- */
 function Portal({ children }) {
-  const [ready, setReady] = useState(false);
-  const elRef = useRef(null);
+  const [mountNode, setMountNode] = useState(null);
   useEffect(() => {
-    elRef.current = document.body;
-    setReady(true);
+    Promise.resolve().then(() => setMountNode(document?.body || null));
   }, []);
-  return ready && elRef.current ? createPortal(children, elRef.current) : null;
+  return mountNode ? createPortal(children, mountNode) : null;
 }
 
-function useAnchorRect(ref) {
+function useAnchorRect(ref, enabled) {
   const [rect, setRect] = useState(null);
   useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const update = () => setRect(el.getBoundingClientRect());
+    if (!enabled || !ref.current) return;
+    const update = () => {
+      const el = ref.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setRect({ top: r.top, left: r.left, right: r.right, bottom: r.bottom, width: r.width, height: r.height });
+    };
     update();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    ro?.observe(ref.current);
     window.addEventListener("resize", update, { passive: true });
     window.addEventListener("scroll", update, { passive: true });
     return () => {
+      ro?.disconnect();
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update);
     };
-  }, [ref]);
+  }, [enabled, ref]);
   return rect;
 }
 
@@ -49,7 +54,6 @@ const safeParseDate = (value, fallback = today) => {
 };
 const clampToToday = (d) => (d < today ? today : d);
 
-/** Canonicalize any cabin string to the API’s expected codes */
 const toCabinCode = (raw) => {
   const s = String(raw || "").trim().toUpperCase().replace(/\s+/g, "_");
   if (s.includes("PREMIUM") && s.includes("ECONOMY")) return "PREMIUM_ECONOMY";
@@ -75,17 +79,9 @@ const useMedia = (query) => {
     if (typeof window === "undefined" || !window.matchMedia) return;
     const mql = window.matchMedia(query);
     const handler = (e) => setMatches(e.matches);
-    try {
-      mql.addEventListener("change", handler);
-    } catch {
-      mql.addListener(handler);
-    }
+    try { mql.addEventListener("change", handler); } catch { mql.addListener(handler); }
     return () => {
-      try {
-        mql.removeEventListener("change", handler);
-      } catch {
-        mql.removeListener(handler);
-      }
+      try { mql.removeEventListener("change", handler); } catch { mql.removeListener(handler); }
     };
   }, [query]);
   return matches;
@@ -112,12 +108,7 @@ function searchAirports(index, rawQuery, limit = SEARCH_LIMIT) {
   const scored = [];
   for (const a of index) {
     let ok = true;
-    for (const p of parts) {
-      if (!a._s.includes(p)) {
-        ok = false;
-        break;
-      }
-    }
+    for (const p of parts) if (!a._s.includes(p)) { ok = false; break; }
     if (!ok) continue;
     let score = 0;
     if (a._v.startsWith(q)) score += 120;
@@ -139,28 +130,21 @@ const IATAPill = ({ code }) => (
 );
 
 const AirportSingleValue = (props) => {
-  const { selectProps } = props;
-  if (selectProps.inputValue) return null;
   const a = props.data;
-  const isDestination = selectProps.name === "destination";
-  const hint = isDestination ? "Where to" : "Where from";
   return (
-    <RS.SingleValue {...props}>
+    <components.SingleValue {...props}>
       <div className="flex min-w-0 items-center gap-2">
-        <div className="min-w-0">
-          <div className="mb-0 text-[11px] tracking-wide text-slate-500">{hint}</div>
-          <div className="truncate text-[15px] font-medium text-slate-900">{a.label}</div>
-        </div>
+        <div className="truncate text-[14px] font-medium text-slate-900">{a.label}</div>
         <IATAPill code={a.value} />
       </div>
-    </RS.SingleValue>
+    </components.SingleValue>
   );
 };
 
 const AirportOption = (props) => {
   const a = props.data;
   return (
-    <RS.Option {...props} className="!p-0">
+    <components.Option {...props} className="!p-0">
       <div className={`flex items-center gap-3 px-3 py-2.5 ${props.isFocused ? "bg-slate-50" : "bg-white"}`}>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[14px] font-medium text-slate-900">{a.label}</div>
@@ -170,27 +154,7 @@ const AirportOption = (props) => {
         </div>
         <IATAPill code={a.value} />
       </div>
-    </RS.Option>
-  );
-};
-
-const ValueContainer = ({ children, ...props }) => {
-  const a = props.getValue?.()[0];
-  return (
-    <RS.ValueContainer {...props}>
-      {a ? (
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="min-w-0">
-            <div className="truncate text-[13px] font-medium text-slate-900">{a.label}</div>
-            <div className="truncate text-[11px] text-slate-500">
-              {a.city ? `${a.city}, ${a.country}` : a.country}
-            </div>
-          </div>
-          <IATAPill code={a.value} />
-        </div>
-      ) : null}
-      {children}
-    </RS.ValueContainer>
+    </components.Option>
   );
 };
 
@@ -202,27 +166,65 @@ export default function FlightSearchInlineBar({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const isDesktop = useMedia("(min-width: 1024px)");
   const isMobile = useMedia("(max-width: 640px)");
   const AIRPORT_INDEX = useAirportIndex();
 
-  // anchor refs for desktop popovers
+  // anchors
   const travellersBtnRef = useRef(null);
-  const datesBtnRef = useRef(null);
-  const travellersRect = useAnchorRect(travellersBtnRef);
-  const datesRect = useAnchorRect(datesBtnRef);
+  const departBtnRef = useRef(null);
+  const returnBtnRef = useRef(null);
 
-  // controlled open state for Selects
-  const [openSelectKey, setOpenSelectKey] = useState(null);
-  const keyFor = (field) => `0:${field}`;
-  const isSelectOpen = (field) => openSelectKey === keyFor(field);
+  // which calendar is open
+  const [openCal, setOpenCal] = useState(null); // { type: 'depart'|'return', idx: number } | null
 
+  // measure only when that popover is open
+  const travellersRect = useAnchorRect(travellersBtnRef, true);
+  const departRect = useAnchorRect(departBtnRef, openCal?.type === "depart" && (openCal?.idx ?? 0) === 0);
+  const returnRect = useAnchorRect(returnBtnRef, openCal?.type === "return" && (openCal?.idx ?? 0) === 0);
+
+  // ---- controlled open state for every Select (fixes “click does nothing”)
+//   const [openSelectKey, setOpenSelectKey] = useState(null); // e.g. "0:origin"
+//   const keyFor = (idx, field) => `${idx}:${field}`;
+//   const isOpen = (idx, field) => openSelectKey === keyFor(idx, field);
+
+  // menus per leg/field
   const [airportMenus, setAirportMenus] = useState({});
   const menuKey = (idx, field) => `${idx}:${field}`;
   const defaultChunk = useMemo(() => AIRPORT_INDEX.slice(0, DEFAULT_MENU_COUNT), [AIRPORT_INDEX]);
-  const ensureMenu = (key) => airportMenus[key] ?? { input: "", options: defaultChunk };
+  const ensureMenuObj = (key) => airportMenus[key] ?? { input: "", options: defaultChunk };
   const setMenu = (key, data) => setAirportMenus((prev) => ({ ...prev, [key]: data }));
-  const handleMenuOpen = (idx, field) => setMenu(menuKey(idx, field), { input: "", options: defaultChunk });
+
+  // ---- state
+  const [tripType, setTripType] = useState("oneway"); // 'oneway' | 'return' | 'multi'
+  const [flightType, setFlightType] = useState("ECONOMY");
+  const [flightsState, setFlightsState] = useState([
+    { origin: null, destination: null, dateRange: { startDate: today, endDate: addDays(today, 5), key: "selection" } },
+  ]);
+  const [adults, setAdults] = useState(1);
+  const [children, setChildren] = useState(0);
+  const [infants, setInfants] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isTravellersOpen, setIsTravellersOpen] = useState(false);
+  const [errors, setErrors] = useState([]);
+
+  // seed menus for all existing legs
+  useEffect(() => {
+    setAirportMenus((prev) => {
+      const next = { ...prev };
+      const count = flightsState.length || 1;
+      for (let i = 0; i < count; i++) {
+        const ok = menuKey(i, "origin");
+        const dk = menuKey(i, "destination");
+        if (!next[ok]) next[ok] = { input: "", options: defaultChunk };
+        if (!next[dk]) next[dk] = { input: "", options: defaultChunk };
+      }
+      return next;
+    });
+  }, [flightsState.length, defaultChunk]);
+
+  const handleMenuOpen = (idx, field) =>
+    setMenu(menuKey(idx, field), { input: "", options: defaultChunk });
+
   const handleInputChange =
     (idx, field) =>
     (inputValue, meta) => {
@@ -232,28 +234,6 @@ export default function FlightSearchInlineBar({
       setMenu(key, { input: inputValue, options: results });
       return inputValue;
     };
-
-  const [tripType, setTripType] = useState("oneway");
-  // Store cabin as canonical code
-  const [flightType, setFlightType] = useState("ECONOMY");
-  const [flightsState, setFlightsState] = useState([
-    {
-      origin: null,
-      destination: null,
-      dateRange: {
-        startDate: today,
-        endDate: addDays(today, 5),
-        key: "selection",
-      },
-    },
-  ]);
-  const [adults, setAdults] = useState(1);
-  const [children, setChildren] = useState(0);
-  const [infants, setInfants] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isTravellersOpen, setIsTravellersOpen] = useState(false);
-  const [openDatePickerIdx, setOpenDatePickerIdx] = useState(null);
-  const [errors, setErrors] = useState([]);
 
   /* -------- hydrate from URL or props -------- */
   useEffect(() => {
@@ -270,19 +250,14 @@ export default function FlightSearchInlineBar({
         });
         i++;
       }
+      const rawTrip = (queryParams.get("tripType") || "oneway").toLowerCase();
+      const normTrip = rawTrip === "return" ? "return" : rawTrip === "multi" ? "multi" : "oneway";
       params = {
-        tripType: (queryParams.get("tripType") || "oneway").toLowerCase() === "return" ? "return" : "oneway",
-        // Normalize any incoming value to canonical code
+        tripType: normTrip,
         flightType: toCabinCode(queryParams.get("flightType") || "Economy"),
         flights: flightsFromUrl.length
           ? flightsFromUrl
-          : [
-              {
-                origin: "JFK",
-                destination: "LAX",
-                depart: format(today, "yyyy-MM-dd"),
-              },
-            ],
+          : [{ origin: "JFK", destination: "LAX", depart: format(today, "yyyy-MM-dd") }],
         returnDate: queryParams.get("returnDate") || format(addDays(today, 5), "yyyy-MM-dd"),
         adults: parseInt(queryParams.get("adults")) || 1,
         children: parseInt(queryParams.get("children")) || 0,
@@ -295,39 +270,54 @@ export default function FlightSearchInlineBar({
     const normSegments = params.flights.map((f, i) => {
       let start = clampToToday(safeParseDate(f.depart));
       let end =
-        params.tripType === "return"
+        params.tripType === "return" && i === 0
           ? clampToToday(safeParseDate(params.returnDate, addDays(start, 5)))
           : start;
       if (end < start) end = start;
       const originObj = airports.find((a) => a.value === f.origin) || null;
       const destObj = airports.find((a) => a.value === f.destination) || null;
-      const oKey = menuKey(i, "origin");
-      const dKey = menuKey(i, "destination");
-      setMenu(oKey, ensureMenu(oKey));
-      setMenu(dKey, ensureMenu(dKey));
-      return {
-        origin: originObj,
-        destination: destObj,
-        dateRange: { startDate: start, endDate: end, key: "selection" },
-      };
+      return { origin: originObj, destination: destObj, dateRange: { startDate: start, endDate: end, key: "selection" } };
     });
-    setFlightsState(normSegments);
+    setFlightsState(normSegments.length ? normSegments : [{
+      origin: null, destination: null, dateRange: { startDate: today, endDate: today, key: "selection" }
+    }]);
     setAdults(params.adults || 1);
     setChildren(params.children || 0);
     setInfants(params.infants || 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, location.search]);
 
   useEffect(() => {
-    setOpenDatePickerIdx(null);
-    setOpenSelectKey(null);
+    setOpenCal(null);
+    // setOpenSelectKey(null);
     if (tripType === "oneway") {
-      setFlightsState((prev) =>
-        prev.map((f) => ({
+      setFlightsState((prev) => {
+        const first = { ...(prev[0] || {
+          origin: null, destination: null, dateRange: { startDate: today, endDate: today, key: "selection" }
+        }) };
+        first.dateRange = { ...first.dateRange, endDate: first.dateRange.startDate };
+        return [first];
+      });
+    } else if (tripType === "return") {
+      setFlightsState((prev) => {
+        const first = { ...(prev[0] || {
+          origin: null, destination: null, dateRange: { startDate: today, endDate: addDays(today, 5), key: "selection" }
+        }) };
+        if ((first.dateRange.endDate || first.dateRange.startDate) < first.dateRange.startDate) {
+          first.dateRange.endDate = first.dateRange.startDate;
+        }
+        return [first];
+      });
+    } else if (tripType === "multi") {
+      setFlightsState((prev) => {
+        const base = prev.length ? prev : [
+          { origin: null, destination: null, dateRange: { startDate: today, endDate: today, key: "selection" } },
+          { origin: null, destination: null, dateRange: { startDate: addDays(today, 1), endDate: addDays(today, 1), key: "selection" } },
+        ];
+        return base.map((f) => ({
           ...f,
-          dateRange: { ...f.dateRange, endDate: f.dateRange.startDate },
-        }))
-      );
+          dateRange: { ...f.dateRange, endDate: f.dateRange.startDate || today },
+        }));
+      });
     }
   }, [tripType]);
 
@@ -344,19 +334,61 @@ export default function FlightSearchInlineBar({
 
   const handleFlightChange = (idx, field, value) =>
     setFlightsState((prev) => prev.map((f, i) => (i === idx ? { ...f, [field]: value } : f)));
-  const handleDateRangeChange = (idx, ranges) => {
-    const selection = ranges.selection;
-    let start = clampToToday(selection.startDate || today);
-    let end = tripType === "oneway" ? start : clampToToday(selection.endDate || start);
-    if (end < start) end = start;
-    const next = { startDate: start, endDate: end, key: "selection" };
-    setFlightsState((prev) => prev.map((f, i) => (i === idx ? { ...f, dateRange: next } : f)));
-    if (tripType === "oneway") setOpenDatePickerIdx(null);
+
+  const handleDepartPick = (idx, date) => {
+    const start = clampToToday(Array.isArray(date) ? date[0] : date);
+    setFlightsState((prev) =>
+      prev.map((f, i) => {
+        if (i !== idx) return f;
+        const end = tripType === "return" && idx === 0 ? (f.dateRange.endDate < start ? start : f.dateRange.endDate) : start;
+        return { ...f, dateRange: { ...f.dateRange, startDate: start, endDate: end } };
+      })
+    );
+    if (isMobile) setOpenCal(null);
   };
+
+  const handleReturnPick = (idx, date) => {
+    const d = clampToToday(Array.isArray(date) ? date[0] : date);
+    setFlightsState((prev) =>
+      prev.map((f, i) => {
+        if (i !== idx) return f;
+        const start = f.dateRange.startDate || today;
+        const end = d < start ? start : d;
+        return { ...f, dateRange: { ...f.dateRange, endDate: end } };
+      })
+    );
+    if (isMobile) setOpenCal(null);
+  };
+
   const swapPlaces = (idx) =>
     setFlightsState((prev) =>
       prev.map((f, i) => (i === idx ? { ...f, origin: f.destination, destination: f.origin } : f))
     );
+
+  const addLeg = () => {
+    setFlightsState((prev) => {
+      const last = prev[prev.length - 1];
+      const nextStart = addDays(last?.dateRange?.startDate || today, 1);
+      return [
+        ...prev,
+        {
+          origin: last?.destination || null,
+          destination: null,
+          dateRange: { startDate: nextStart, endDate: nextStart, key: "selection" },
+        },
+      ];
+    });
+  };
+  const removeLeg = (idx) => {
+    setFlightsState((prev) => {
+      if (prev.length <= 1) return prev;
+      const copy = prev.slice();
+      copy.splice(idx, 1);
+      return copy;
+    });
+    setOpenCal((oc) => (oc && oc.idx === idx ? null : oc));
+    // setOpenSelectKey((k) => (k && k.startsWith(`${idx}:`) ? null : k));
+  };
 
   const validateForm = () => {
     const errs = [];
@@ -366,16 +398,12 @@ export default function FlightSearchInlineBar({
       if (f.origin && f.destination && f.origin.value === f.destination.value)
         errs.push(`Flight ${i + 1}: Departure and destination cannot be the same`);
       if (!f.dateRange.startDate) errs.push(`Flight ${i + 1}: Please select a departure date`);
-      if (tripType === "return" && !f.dateRange.endDate)
-        errs.push(`Flight ${i + 1}: Please select a return date`);
-      if (
-        tripType === "return" &&
-        f.dateRange.startDate &&
-        f.dateRange.endDate &&
-        f.dateRange.endDate < f.dateRange.startDate
-      )
-        errs.push(`Flight ${i + 1}: Return date must be after departure date`);
+      if (tripType === "return" && i === 0) {
+        if (!f.dateRange.endDate) errs.push(`Flight 1: Please select a return date`);
+        if (f.dateRange.endDate < f.dateRange.startDate) errs.push(`Flight 1: Return date must be after departure date`);
+      }
     });
+    if (tripType === "multi" && flightsState.length < 2) errs.push("Please add at least 2 flights for Multi-city");
     if (totalTravellers === 0) errs.push("At least one traveller is required");
     if (infants > adults) errs.push("Number of infants cannot exceed number of adults");
     return errs;
@@ -384,33 +412,29 @@ export default function FlightSearchInlineBar({
   const handleSubmit = (e) => {
     e.preventDefault();
     const v = validateForm();
-    if (v.length) {
-      setErrors(v);
-      return;
-    }
+    if (v.length) { setErrors(v); return; }
     setErrors([]);
     setIsLoading(true);
 
     const cabinCode = toCabinCode(flightType);
-
     const queryParams = new URLSearchParams();
     queryParams.set("tripType", tripType);
-    queryParams.set("flightType", cabinCode); // <<<<<<<<<<<<<< canonical code
+    queryParams.set("flightType", cabinCode);
+
     flightsState.forEach((f, idx) => {
       queryParams.set(`flights[${idx}][origin]`, f.origin?.value || "");
       queryParams.set(`flights[${idx}][destination]`, f.destination?.value || "");
-      queryParams.set(
-        `flights[${idx}][depart]`,
-        f.dateRange.startDate ? format(f.dateRange.startDate, "yyyy-MM-dd") : ""
-      );
+      queryParams.set(`flights[${idx}][depart]`, f.dateRange.startDate ? format(f.dateRange.startDate, "yyyy-MM-dd") : "");
     });
-    if (tripType === "return" && flightsState[0]?.dateRange.endDate)
+
+    if (tripType === "return" && flightsState[0]?.dateRange.endDate) {
       queryParams.set("returnDate", format(flightsState[0].dateRange.endDate, "yyyy-MM-dd"));
+    }
+
     queryParams.set("adults", String(adults));
     queryParams.set("children", String(children));
     queryParams.set("infants", String(infants));
 
-    // Optional local fake data prefill (UI feedback before navigation)
     const outbound = flights.filter((fl) =>
       flightsState.some(
         (f) =>
@@ -426,8 +450,7 @@ export default function FlightSearchInlineBar({
         (fl) =>
           fl.origin === flightsState[0].destination?.value &&
           fl.destination === flightsState[0].origin?.value &&
-          new Date(flightsState[0].dateRange.endDate).toDateString() ===
-            new Date(fl.departureTime).toDateString()
+          new Date(flightsState[0].dateRange.endDate).toDateString() === new Date(fl.departureTime).toDateString()
       );
     }
 
@@ -440,7 +463,7 @@ export default function FlightSearchInlineBar({
     }, 350);
   };
 
-  // —— STYLE TWEAKS ONLY (keeps inline layout) ——
+  /* —— STYLE TWEAKS —— */
   const selectStyles = {
     control: (base, state) => ({
       ...base,
@@ -453,8 +476,12 @@ export default function FlightSearchInlineBar({
       paddingLeft: 12,
       paddingRight: 10,
       backgroundColor: "#fff",
+      color: "#0f172a",
       ":hover": { borderColor: "#94a3b8" },
     }),
+    singleValue: (b) => ({ ...b, color: "#0f172a" }),
+    input: (b) => ({ ...b, color: "#0f172a", margin: 0, padding: 0 }),
+    placeholder: (b) => ({ ...b, color: "#64748b" }),
     valueContainer: (b) => ({ ...b, padding: 0 }),
     indicatorsContainer: (b) => ({ ...b, gap: 6, paddingRight: 6 }),
     dropdownIndicator: (b) => ({ ...b, padding: 8 }),
@@ -474,87 +501,384 @@ export default function FlightSearchInlineBar({
       color: "#0f172a",
       padding: 0,
     }),
-    input: (b) => ({ ...b, margin: 0, padding: 0 }),
-    placeholder: (b) => ({ ...b, color: "#64748b" }),
   };
 
-  const menuOptions = (idx, field) => ensureMenu(menuKey(idx, field)).options;
+  const menuOptions = (idx, field) => (ensureMenuObj(menuKey(idx, field)).options || defaultChunk);
   const noOptionsMessage = ({ inputValue }) =>
     inputValue && inputValue.length > 1 ? "No airports match your search" : "Type to search airports";
 
-  const presetRanges = [
-    {
-      id: "weekend",
-      label: "This Weekend",
-      compute: () => ({
-        start: addDays(today, ((6 - today.getDay() + 7) % 7) || 5),
-        end: addDays(today, ((7 - today.getDay() + 7) % 7) || 7),
-      }),
-    },
-    {
-      id: "nextweek",
-      label: "Next Week",
-      compute: () => ({ start: addWeeks(today, 1), end: addWeeks(today, 1) }),
-    },
-    {
-      id: "+3",
-      label: "+3 days",
-      compute: (current) => ({
-        start: current.startDate,
-        end: addDays(current.startDate, 3),
-      }),
-    },
-  ];
-
+  // compact calendar visuals
   const datePickerStyles = `
-    .rdrCalendarWrapper{background:#fff;border-radius:14px;border:1px solid #e5e7eb;padding:.5rem;}
-    .rdrMonth{padding:4px}
-    .rdrMonthAndYearWrapper{padding:.5rem .75rem;border-bottom:1px solid #e5e7eb}
-    .rdrDay{font-size:.95rem;color:#0f172a}
-    .rdrSelected,.rdrInRange,.rdrStartEdge,.rdrEndEdge{background:#0284c7!important;color:#fff!important}
+    .rdrCalendarWrapper{background:#fff;border-radius:12px;border:1px solid #e5e7eb;padding:.2rem}
+    .rdrMonth{padding:0}
+    .rdrMonths{gap:.25rem}
+    .rdrMonthAndYearWrapper{padding:.35rem .5rem;border-bottom:1px solid #e5e7eb}
+    .rdrWeekDays{margin:0 .25rem}
+    .rdrDays{margin:.15rem .25rem}
+    .rdrDay{font-size:.9rem;color:#0f172a}
+    .rdrDayNumber{margin:0}
+    .rdrSelected,.rdrStartEdge,.rdrEndEdge{background:#0284c7!important;color:#fff!important}
     .rdrInRange{background:#bae6fd!important}
     .rdrDayToday .rdrDayNumber span:after{background:#0284c7}
   `;
 
-  // helper to build Select props with controlled menu open
-  const makeSelectProps = (field, value, onChange) => {
-    const k = keyFor(field);
-    return {
-      name: field,
-      classNamePrefix: "react-select",
-      options: menuOptions(0, field),
-      value,
-      onChange,
-      onMenuOpen: () => {
-        handleMenuOpen(0, field);
-        setOpenSelectKey(k);
-      },
-      onMenuClose: () => setOpenSelectKey((cur) => (cur === k ? null : cur)),
-      onFocus: () => {
-        handleMenuOpen(0, field);
-        setOpenSelectKey(k);
-      },
-      onBlur: () => setOpenSelectKey((cur) => (cur === k ? null : cur)),
-      onInputChange: handleInputChange(0, field),
-      openMenuOnFocus: true,
-      openMenuOnClick: true,
-      menuIsOpen: isSelectOpen(field),
-      components: {
-        Option: AirportOption,
-        ValueContainer: RS.ValueContainer,
-        SingleValue: AirportSingleValue,
-      },
-      styles: selectStyles,
-      placeholder: "City or airport",
-      isSearchable: true,
-      filterOption: null,
-      menuPortalTarget: document.body,
-      menuPosition: "fixed",
-      maxMenuHeight: 384,
-      menuPlacement: "auto",
-      getOptionValue: (opt) => opt.value,
-      noOptionsMessage,
+  const departLabel0 = flightsState[0]?.dateRange?.startDate
+    ? format(flightsState[0].dateRange.startDate, "EEE d MMM")
+    : "Select date";
+  const returnLabel0 = flightsState[0]?.dateRange?.endDate
+    ? format(flightsState[0].dateRange.endDate, "EEE d MMM")
+    : "Select date";
+
+  const calcCalendarPosition = (rect) => {
+    if (!rect) return { top: 0, left: 0, width: 320 };
+    const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
+    const vh = typeof window !== "undefined" ? window.innerHeight : 768;
+    const pad = 12;
+    const width = Math.min(360, vw - pad * 2);
+    const estH = 332;
+    let left = Math.max(pad, Math.min(rect.left, vw - pad - width));
+    let top = rect.bottom + 8;
+    if (top + estH > vh - pad) top = Math.max(pad, rect.top - estH - 8);
+    return { top, left, width };
+  };
+
+  // ----- helper to build Select props with controlled menu open -----
+const makeSelectProps = (idx, field, value, onChange) => {
+  const id = `leg-${idx}-${field}`;
+  return {
+    instanceId: id,
+    inputId: id,
+    name: id,
+    classNamePrefix: "react-select",
+
+    options: menuOptions(idx, field),
+    value,
+    onChange,
+
+    // Seed options each time menu opens (keeps your default list behavior)
+    onMenuOpen: () => handleMenuOpen(idx, field),
+
+    // Live-search
+    onInputChange: handleInputChange(idx, field),
+
+    // Keep UX identical
+    openMenuOnFocus: true,
+    openMenuOnClick: true,
+
+    // Let react-select control open/close (NO menuIsOpen / onBlur / onFocus here)
+    components: { Option: AirportOption, SingleValue: AirportSingleValue },
+    styles: selectStyles,
+    placeholder: "City or airport",
+    isSearchable: true,
+    filterOption: null,
+
+    // Portal fixes “under something” layering issues
+    menuPortalTarget: typeof document !== "undefined" ? document.body : undefined,
+    menuPosition: "fixed",
+    menuShouldScrollIntoView: false,
+    maxMenuHeight: 384,
+    menuPlacement: "auto",
+    getOptionValue: (opt) => opt.value,
+    noOptionsMessage,
+  };
+};
+
+
+  const LegRow = ({ idx }) => {
+    const leg = flightsState[idx];
+    const legDepartBtnRef = useRef(null);
+    const legDepartRect = useAnchorRect(legDepartBtnRef, openCal?.type === "depart" && openCal?.idx === idx);
+    const openLegCal = () => {
+      legDepartBtnRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+      setOpenCal((oc) => (oc && oc.type === "depart" && oc.idx === idx ? null : { type: "depart", idx }));
     };
+    const dateLabel = leg?.dateRange?.startDate ? format(leg.dateRange.startDate, "EEE d MMM") : "Select date";
+    const pos = calcCalendarPosition(legDepartRect);
+
+    return (
+      <div className="grid gap-2 md:grid-cols-[1.2fr_auto_1.2fr_auto_auto] lg:grid-cols-[1.2fr_auto_1.2fr_auto_auto_auto] lg:items-center mb-2">
+        {/* From */}
+        <div className="z-[200] bg-white">
+          <Select
+            {...makeSelectProps(idx, "origin", leg.origin, (v) => handleFlightChange(idx, "origin", v))}
+          />
+        </div>
+
+        {/* Swap */}
+        <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100000 }}>
+          <button
+            type="button"
+            onClick={() => swapPlaces(idx)}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+            aria-label="Swap origin and destination"
+            title="Swap"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="transform rotate-90 xs:rotate-0 transition-transform">
+              <path d="M3 7h13l-4-4" />
+              <path d="M21 17H8l4 4" />
+            </svg>
+          </button>
+        </div>
+
+        {/* To */}
+        <div className="relative z-[200] bg-white">
+          <Select
+            {...makeSelectProps(idx, "destination", leg.destination, (v) => handleFlightChange(idx, "destination", v))}
+          />
+        </div>
+
+        {/* Date */}
+        <div className="relative">
+          <button
+            ref={legDepartBtnRef}
+            type="button"
+            onClick={openLegCal}
+            className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none text-slate-800"
+            aria-expanded={openCal?.type === "depart" && openCal?.idx === idx}
+          >
+            <div className="min-w-0 truncate">
+              <div className="text-[11px] tracking-wide text-slate-500">Departure</div>
+              <div className="truncate text-slate-800">{dateLabel}</div>
+            </div>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
+              <path d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {/* Calendar */}
+          <AnimatePresence>
+            {openCal?.type === "depart" && openCal?.idx === idx && legDepartRect && (
+              <Portal>
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.18 }}
+                  style={{
+                    position: "fixed",
+                    top: pos.top,
+                    left: pos.left,
+                    width: pos.width,
+                    zIndex: 100000,
+                  }}
+                >
+                  <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-2xl">
+                    <div className="px-2 pt-1 pb-2 text-xs font-medium text-slate-600">
+                      Departure (Leg {idx + 1})
+                    </div>
+                    <Calendar
+                      date={leg.dateRange.startDate}
+                      onChange={(d) => handleDepartPick(idx, d)}
+                      minDate={today}
+                      months={1}
+                      showMonthAndYearPickers
+                    />
+                    <div className="p-2 pt-0 flex justify-end">
+                      <button
+                        type="button"
+                        className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-black"
+                        onClick={() => setOpenCal(null)}
+                      >
+                        Done
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </Portal>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Remove leg */}
+        <div className="flex items-center justify-end">
+          <button
+            type="button"
+            onClick={() => removeLeg(idx)}
+            disabled={flightsState.length <= 1}
+            className="inline-flex h-10 items-center rounded-full border border-slate-200 bg-white px-3 text-sm text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+            title="Remove leg"
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const OneWayReturnRows = () => {
+    return (
+      <div className="grid gap-2 lg:grid-cols-[1.2fr_auto_1.2fr_auto_auto_auto] lg:items-center md:grid-cols-[1.2fr_auto_1.2fr_auto_auto_auto]">
+        {/* From */}
+        <div className="z-[200] bg-white">
+          <Select
+            {...makeSelectProps(0, "origin", flightsState[0]?.origin || null, (v) => handleFlightChange(0, "origin", v))}
+          />
+        </div>
+
+        {/* Swap */}
+        <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100000 }}>
+          <button
+            type="button"
+            onClick={() => swapPlaces(0)}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+            aria-label="Swap origin and destination"
+            title="Swap"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="transform rotate-90 xs:rotate-0 transition-transform">
+              <path d="M3 7h13l-4-4" />
+              <path d="M21 17H8l4 4" />
+            </svg>
+          </button>
+        </div>
+
+        {/* To */}
+        <div className="relative z-[200] bg-white">
+          <Select
+            {...makeSelectProps(0, "destination", flightsState[0]?.destination || null, (v) => handleFlightChange(0, "destination", v))}
+          />
+        </div>
+
+        {/* Departure input */}
+        <div className="relative">
+          <button
+            ref={departBtnRef}
+            type="button"
+            onClick={() => {
+              departBtnRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+              setOpenCal((oc) => (oc && oc.type === "depart" ? null : { type: "depart", idx: 0 }));
+            }}
+            className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none text-slate-800"
+            aria-expanded={openCal?.type === "depart"}
+          >
+            <div className="min-w-0 truncate">
+              <div className="text-[11px] tracking-wide text-slate-500">Departure</div>
+              <div className="truncate text-slate-800">{departLabel0}</div>
+            </div>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
+              <path d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {/* Departure calendar */}
+          <AnimatePresence>
+            {openCal?.type === "depart" && departRect && (
+              <Portal>
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
+                  style={{
+                    position: "fixed",
+                    top: calcCalendarPosition(departRect).top,
+                    left: calcCalendarPosition(departRect).left,
+                    width: calcCalendarPosition(departRect).width,
+                    zIndex: 100000,
+                  }}
+                >
+                  <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
+                    <div className="px-2 pt-1 pb-1 text-xs font-medium text-slate-600">Departure</div>
+                    <Calendar
+                      date={flightsState[0]?.dateRange?.startDate}
+                      onChange={(d) => handleDepartPick(0, d)}
+                      minDate={today}
+                      months={1}
+                      showMonthAndYearPickers
+                    />
+                    <div className="p-2 pt-1 flex justify-end">
+                      <button type="button" className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-black" onClick={() => setOpenCal(null)}>
+                        Done
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </Portal>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Return input (visible only in Return mode) */}
+        {tripType === "return" ? (
+          <div className="relative">
+            <button
+              ref={returnBtnRef}
+              type="button"
+              onClick={() => {
+                returnBtnRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+                setOpenCal((oc) => (oc && oc.type === "return" ? null : { type: "return", idx: 0 }));
+              }}
+              className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none text-slate-800"
+              aria-expanded={openCal?.type === "return"}
+            >
+              <div className="min-w-0 truncate">
+                <div className="text-[11px] tracking-wide text-slate-500">Return</div>
+                <div className="truncate text-slate-800">{returnLabel0}</div>
+              </div>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
+                <path d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* Return calendar */}
+            <AnimatePresence>
+              {openCal?.type === "return" && returnRect && (
+                <Portal>
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
+                    style={{
+                      position: "fixed",
+                      top: calcCalendarPosition(returnRect).top,
+                      left: calcCalendarPosition(returnRect).left,
+                      width: calcCalendarPosition(returnRect).width,
+                      zIndex: 100000,
+                    }}
+                  >
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
+                      <div className="px-2 pt-1 pb-1 text-xs font-medium text-slate-600">Return</div>
+                      <Calendar
+                        date={flightsState[0]?.dateRange?.endDate}
+                        onChange={(d) => handleReturnPick(0, d)}
+                        minDate={flightsState[0]?.dateRange?.startDate || today}
+                        months={1}
+                        showMonthAndYearPickers
+                      />
+                      <div className="p-2 pt-1 flex justify-end">
+                        <button type="button" className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-black" onClick={() => setOpenCal(null)}>
+                          Done
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </Portal>
+              )}
+            </AnimatePresence>
+          </div>
+        ) : (
+          <div />
+        )}
+
+        {/* Search */}
+        <div className="flex items-center justify-end">
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="inline-flex h-12 items-center gap-2 rounded-full bg-slate-900 px-6 font-medium text-white shadow-sm hover:bg-black disabled:opacity-60"
+          >
+            {isLoading ? (
+              <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z" />
+              </svg>
+            ) : (
+              <>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                Search
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -564,421 +888,231 @@ export default function FlightSearchInlineBar({
       {!!errors.length && (
         <div className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
           <ul className="list-disc pl-5 space-y-1">
-            {errors.map((e, i) => (
-              <li key={i}>{e}</li>
-            ))}
+            {errors.map((e, i) => (<li key={i}>{e}</li>))}
           </ul>
         </div>
       )}
 
       <div className="relative">
         {/* Top controls */}
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1">
-            <button
-              type="button"
-              className={`rounded-lg px-3 py-2 text-sm ${tripType === "oneway" ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-50"}`}
-              onClick={() => setTripType("oneway")}
-              aria-pressed={tripType === "oneway"}
-            >
-              One way
-            </button>
-            <button
-              type="button"
-              className={`rounded-lg px-3 py-2 text-sm ${tripType === "return" ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-50"}`}
-              onClick={() => setTripType("return")}
-              aria-pressed={tripType === "return"}
-            >
-              Return
-            </button>
+        <TopControls
+          tripType={tripType}
+          setTripType={(t) => { setTripType(t); }}
+          isMobile={isMobile}
+          travellersBtnRef={travellersBtnRef}
+          isTravellersOpen={isTravellersOpen}
+          setIsTravellersOpen={setIsTravellersOpen}
+          travellersRect={travellersRect}
+          adults={adults}
+          setAdults={setAdults}
+          children={children}
+          setChildren={setChildren}
+          infants={infants}
+          setInfants={setInfants}
+          travellerSummary={travellerSummary}
+          flightType={flightType}
+          setFlightType={setFlightType}
+        />
+
+        {/* Main rows */}
+        {tripType !== "multi" ? (
+          <OneWayReturnRows />
+        ) : (
+          <div>
+            {flightsState.map((_, idx) => (
+              <LegRow key={`leg-${idx}`} idx={idx} />
+            ))}
+
+            <div className="mt-2 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={addLeg}
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 hover:bg-slate-50"
+              >
+                + Add another flight
+              </button>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="inline-flex h-12 items-center gap-2 rounded-full bg-slate-900 px-6 font-medium text-white shadow-sm hover:bg-black disabled:opacity-60"
+              >
+                {isLoading ? (
+                  <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z" />
+                  </svg>
+                ) : (
+                  <>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    Search
+                  </>
+                )}
+              </button>
+            </div>
           </div>
+        )}
+      </div>
 
-          {/* Travellers trigger */}
-          <div className="relative text-black">
-            <button
-              ref={travellersBtnRef}
-              type="button"
-              onClick={() => setIsTravellersOpen((v) => !v)}
-              className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-800 hover:bg-gray-200"
-              aria-expanded={isTravellersOpen}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-              {travellerSummary}
-            </button>
+      {/* Keep react-select menus above everything */}
+      <style>{`.react-select__menu-portal{z-index:100000}`}</style>
+    </form>
+  );
+}
 
-            {/* Travellers: full-screen on mobile, portaled on desktop */}
-            <AnimatePresence>
-              {isTravellersOpen &&
-                (isMobile ? (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-[100000] flex flex-col bg-white"
-                  >
-                    <div className="flex items-center justify-between border-b border-slate-200 p-3">
-                      <div className="text-sm font-medium">Travellers & cabin</div>
-                      <span className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm cursor-pointer" onClick={() => setIsTravellersOpen(false)}>
-                        Close
-                      </span>
+/* ------- Top controls ------- */
+function TopControls({
+  tripType, setTripType, isMobile,
+  travellersBtnRef, isTravellersOpen, setIsTravellersOpen, travellersRect,
+  adults, setAdults, children, setChildren, infants, setInfants,
+  travellerSummary, flightType, setFlightType
+}) {
+  const setWithClamp = (setter, val, min, max) => setter(Math.max(min, Math.min(max, val)));
+  const toCabinCode = (raw) => {
+    const s = String(raw || "").trim().toUpperCase().replace(/\s+/g, "_");
+    if (s.includes("PREMIUM") && s.includes("ECONOMY")) return "PREMIUM_ECONOMY";
+    if (s.startsWith("BUSI")) return "BUSINESS";
+    if (s.startsWith("FIR")) return "FIRST";
+    return "Economy";
+  };
+  const CABIN_OPTIONS = [
+    { value: "Economy", label: "ECONOMY" },
+    { value: "PREMIUM_ECONOMY", label: "Premium Economy" },
+    { value: "BUSINESS", label: "Business" },
+    { value: "FIRST", label: "First" },
+  ];
+
+  return (
+    <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+      <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1">
+        <button
+          type="button"
+          className={`rounded-lg px-3 py-2 text-sm ${tripType === "oneway" ? "bg-blue-600 text-white" : "text-gray-800 hover:bg-gray-50"}`}
+          onClick={() => setTripType("oneway")}
+          aria-pressed={tripType === "oneway"}
+        >
+          One way
+        </button>
+        <button
+          type="button"
+          className={`rounded-lg px-3 py-2 text-sm ${tripType === "return" ? "bg-blue-600 text-white" : "text-gray-800 hover:bg-gray-50"}`}
+          onClick={() => setTripType("return")}
+          aria-pressed={tripType === "return"}
+        >
+          Return
+        </button>
+        <button
+          type="button"
+          className={`rounded-lg px-3 py-2 text-sm ${tripType === "multi" ? "bg-blue-600 text-white" : "text-gray-800 hover:bg-gray-50"}`}
+          onClick={() => setTripType("multi")}
+          aria-pressed={tripType === "multi"}
+        >
+          Multi-city
+        </button>
+      </div>
+
+      {/* Travellers */}
+      <div className="relative text-black">
+        <button
+          ref={travellersBtnRef}
+          type="button"
+          onClick={() => setIsTravellersOpen((v) => !v)}
+          className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-800 hover:bg-gray-200"
+          aria-expanded={isTravellersOpen}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-800">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+          <span className="text-slate-800">{travellerSummary}</span>
+        </button>
+
+        <AnimatePresence>
+          {isTravellersOpen &&
+            (isMobile ? (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100000] flex flex-col bg-white">
+                <div className="flex items-center justify-between border-b border-slate-200 p-3">
+                  <div className="text-sm font-medium text-slate-800">Travellers & cabin</div>
+                  <span className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800 cursor-pointer" onClick={() => setIsTravellersOpen(false)}>Close</span>
+                </div>
+                <div className="flex-1 overflow-auto p-4">
+                  {[
+                    { key: "Adults", sub: "+12 years", value: adults, set: setAdults, min: 1 },
+                    { key: "Children", sub: "2–11 years", value: children, set: setChildren, min: 0 },
+                    { key: "Infants", sub: "0–2 years", value: infants, set: setInfants, min: 0 },
+                  ].map((row) => (
+                    <div key={row.key} className="mb-4 flex items-center justify-between">
+                      <div>
+                        <div className="font-medium text-slate-800">{row.key}</div>
+                        <div className="text-xs text-slate-500">{row.sub}</div>
+                      </div>
+                      <div className="inline-flex items-center gap-3">
+                        <button type="button" className="h-10 w-10 rounded-full border border-slate-300 text-slate-800" onClick={() => setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)}>–</button>
+                        <span className="w-8 text-center text-sm text-slate-800">{row.value}</span>
+                        <button type="button" className="h-10 w-10 rounded-full border border-slate-300 text-slate-800" onClick={() => setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)}>+</button>
+                      </div>
                     </div>
-
-                    <div className="flex-1 overflow-auto p-4">
+                  ))}
+                  <div className="mt-2">
+                    <label htmlFor="flight_type" className="mb-1 block text-sm text-slate-700">Cabin class</label>
+                    <select
+                      id="flight_type"
+                      className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                      value={flightType}
+                      onChange={(e) => setFlightType(toCabinCode(e.target.value))}
+                    >
+                      {CABIN_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+                    </select>
+                  </div>
+                </div>
+                <div className="border-t border-slate-200 p-3">
+                  <span className="w-full cursor-pointer rounded-lg bg-slate-900 py-2 text-sm text-white" onClick={() => setIsTravellersOpen(false)}>Done</span>
+                </div>
+              </motion.div>
+            ) : (
+              travellersRect && (
+                <Portal>
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
+                    style={{ position: "fixed", top: travellersRect.bottom + 8, left: Math.min(travellersRect.left, Math.max(16, window.innerWidth - 352 - 16)), width: "min(96vw, 22rem)", zIndex: 100000 }}
+                  >
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-2xl">
                       {[
                         { key: "Adults", sub: "+12 years", value: adults, set: setAdults, min: 1 },
                         { key: "Children", sub: "2–11 years", value: children, set: setChildren, min: 0 },
                         { key: "Infants", sub: "0–2 years", value: infants, set: setInfants, min: 0 },
                       ].map((row) => (
-                        <div key={row.key} className="mb-4 flex items-center justify-between">
+                        <div key={row.key} className="mb-3 flex items-center justify-between last:mb-0">
                           <div>
                             <div className="font-medium text-slate-800">{row.key}</div>
                             <div className="text-xs text-slate-500">{row.sub}</div>
                           </div>
-                          <div className="inline-flex items-center gap-3">
-                            <button
-                              type="button"
-                              className="h-10 w-10 rounded-full border border-slate-300"
-                              onClick={() => setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)}
-                            >
-                              –
-                            </button>
-                            <span className="w-8 text-center text-sm">{row.value}</span>
-                            <button
-                              type="button"
-                              className="h-10 w-10 rounded-full border border-slate-300"
-                              onClick={() => setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)}
-                            >
-                              +
-                            </button>
+                          <div className="inline-flex items-center gap-2">
+                            <button type="button" className="h-8 w-8 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-800" onClick={() => setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)}>–</button>
+                            <span className="w-8 text-center text-sm text-slate-800">{row.value}</span>
+                            <button type="button" className="h-8 w-8 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-800" onClick={() => setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)}>+</button>
                           </div>
                         </div>
                       ))}
-
-                      <div className="mt-2">
-                        <label htmlFor="flight_type" className="mb-1 block text-sm text-slate-700">
-                          Cabin class
-                        </label>
-                        <select
-                          id="flight_type"
-                          className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-                          value={flightType}
-                          onChange={(e) => setFlightType(toCabinCode(e.target.value))}
-                        >
-                          {CABIN_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>
-                              {o.label}
-                            </option>
-                          ))}
+                      <div className="mt-2 mb-2">
+                        <label htmlFor="flight_type" className="sr-only">Cabin class</label>
+                        <select id="flight_type" className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-slate-500 focus:ring-2 focus:ring-slate-200" value={flightType} onChange={(e) => setFlightType(toCabinCode(e.target.value))}>
+                          {CABIN_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
                         </select>
                       </div>
-                    </div>
-
-                    <div className="border-t border-slate-200 p-3">
-                      <span className="w-full cursor-pointer rounded-lg bg-slate-900 py-2 text-sm text-white" onClick={() => setIsTravellersOpen(false)}>
-                        Done
-                      </span>
+                      <span className="mt-3 w-full inline-block cursor-pointer text-center rounded-lg bg-slate-900 px-6 py-2 text-sm text-white hover:bg-black" onClick={() => setIsTravellersOpen(false)}>Done</span>
                     </div>
                   </motion.div>
-                ) : (
-                  travellersRect && (
-                    <Portal>
-                      <motion.div
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        transition={{ duration: 0.18 }}
-                        style={{
-                          position: "fixed",
-                          top: travellersRect.bottom + 8,
-                          left: Math.min(
-                            travellersRect.left,
-                            Math.max(16, window.innerWidth - 352 - 16)
-                          ),
-                          width: "min(96vw, 22rem)",
-                          zIndex: 100000,
-                        }}
-                      >
-                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-2xl">
-                          {[
-                            { key: "Adults", sub: "+12 years", value: adults, set: setAdults, min: 1 },
-                            { key: "Children", sub: "2–11 years", value: children, set: setChildren, min: 0 },
-                            { key: "Infants", sub: "0–2 years", value: infants, set: setInfants, min: 0 },
-                          ].map((row) => (
-                            <div key={row.key} className="mb-3 flex items-center justify-between last:mb-0">
-                              <div>
-                                <div className="font-medium text-slate-800">{row.key}</div>
-                                <div className="text-xs text-slate-500">{row.sub}</div>
-                              </div>
-                              <div className="inline-flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  className="h-8 w-8 rounded-full border border-slate-300 hover:bg-slate-50"
-                                  onClick={() => setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)}
-                                >
-                                  –
-                                </button>
-                                <span className="w-8 text-center text-sm">{row.value}</span>
-                                <button
-                                  type="button"
-                                  className="h-8 w-8 rounded-full border border-slate-300 hover:bg-slate-50"
-                                  onClick={() => setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)}
-                                >
-                                  +
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-
-                          <div className="mt-2 mb-2">
-                            <label htmlFor="flight_type" className="sr-only">
-                              Cabin class
-                            </label>
-                            <select
-                              id="flight_type"
-                              className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-                              value={flightType}
-                              onChange={(e) => setFlightType(toCabinCode(e.target.value))}
-                            >
-                              {CABIN_OPTIONS.map((o) => (
-                                <option key={o.value} value={o.value}>
-                                  {o.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="">
-                            <span
-                              className="mt-3 w-full inline-block cursor-pointer text-center rounded-lg bg-slate-900 px-6 py-2 text-sm text-white hover:bg-black"
-                              onClick={() => setIsTravellersOpen(false)}
-                            >
-                              Done
-                            </span>
-                          </div>
-                        </div>
-                      </motion.div>
-                    </Portal>
-                  )
-                ))}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        <div className="grid gap-2 lg:grid-cols-[1.2fr_auto1.2fr_1fr_auto_auto] lg:items-center md:grid-cols-[1.2fr_auto_1.2fr_1fr_auto_auto]">
-          {/* From */}
-          <div className="z-[200] bg-white">
-            <div className="w-full">
-              <Select
-                {...makeSelectProps("origin", flightsState[0].origin, (v) => handleFlightChange(0, "origin", v))}
-              />
-            </div>
-          </div>
-
-          {/* Swap */}
-          <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100000 }}>
-            <button
-              type="button"
-              onClick={() => swapPlaces(0)}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-black hover:bg-slate-50"
-              aria-label="Swap origin and destination"
-              title="Swap"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="transform rotate-90 xs:rotate-0 transition-transform"
-              >
-                <path d="M3 7h13l-4-4" />
-                <path d="M21 17H8l4 4" />
-              </svg>
-            </button>
-          </div>
-
-          {/* To */}
-          <div className="relative z-[200] bg-white">
-            <Select
-              {...makeSelectProps("destination", flightsState[0].destination, (v) => handleFlightChange(0, "destination", v))}
-            />
-          </div>
-
-          {/* Dates trigger */}
-          <div className="relative text-black">
-            <button
-              ref={datesBtnRef}
-              type="button"
-              onClick={() => setOpenDatePickerIdx(openDatePickerIdx === 0 ? null : 0)}
-              className="flex h-[58px] w-full items-center justify-between rounded-3 border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none"
-              aria-expanded={openDatePickerIdx === 0}
-            >
-              <div className="min-w-0 truncate">
-                <div className="text-[11px] tracking-wide text-slate-500">Date</div>
-                <div className="truncate">
-                  {tripType === "return"
-                    ? `${format(flightsState[0].dateRange.startDate, "EEE d MMM")} – ${format(
-                        flightsState[0].dateRange.endDate,
-                        "EEE d MMM"
-                      )}`
-                    : format(flightsState[0].dateRange.startDate, "EEE d MMM")}
-                </div>
-              </div>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2">
-                <path d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {/* Calendar: full-screen on mobile, portaled on desktop */}
-            <AnimatePresence>
-              {openDatePickerIdx === 0 &&
-                (isMobile ? (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-[100000] flex flex-col bg-white"
-                  >
-                    <div className="flex items-center justify-between border-b border-slate-200 p-3">
-                      <div className="text-sm font-medium">Select dates</div>
-                      <span
-                        className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
-                        onClick={() => setOpenDatePickerIdx(null)}
-                      >
-                        Close
-                      </span>
-                    </div>
-                    <div className="flex-1 overflow-auto p-2">
-                      <DateRange
-                        ranges={[flightsState[0].dateRange]}
-                        onChange={(r) => handleDateRangeChange(0, r)}
-                        minDate={today}
-                        months={1}
-                        direction="horizontal"
-                        showDateDisplay
-                        moveRangeOnFirstSelection={false}
-                        rangeColors={["#0284c7"]}
-                        className="w-full"
-                      />
-                    </div>
-                    {tripType === "return" && (
-                      <div className="border-t border-slate-200 p-3">
-                        <button className="w-full rounded-lg bg-slate-900 py-2 text-sm text-white" onClick={() => setOpenDatePickerIdx(null)}>
-                          Done
-                        </button>
-                      </div>
-                    )}
-                  </motion.div>
-                ) : (
-                  datesRect && (
-                    <Portal>
-                      <motion.div
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        transition={{ duration: 0.18 }}
-                        style={{
-                          position: "fixed",
-                          top: datesRect.bottom + 8,
-                          left: Math.max(
-                            16,
-                            Math.min(
-                              datesRect.right - Math.min(window.innerWidth * 0.96, 740),
-                              window.innerWidth - 16 - Math.min(window.innerWidth * 0.96, 740)
-                            )
-                          ),
-                          width: "min(96vw, 740px)",
-                          zIndex: 100000,
-                        }}
-                      >
-                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
-                          <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 p-2">
-                            {presetRanges.map((p) => (
-                              <button
-                                key={p.id}
-                                type="button"
-                                className="rounded-full border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
-                                onClick={() => {
-                                  const current = flightsState[0].dateRange;
-                                  const { start, end } = p.compute(current);
-                                  handleDateRangeChange(0, {
-                                    selection: {
-                                      startDate: clampToToday(start),
-                                      endDate: clampToToday(end),
-                                      key: "selection",
-                                    },
-                                  });
-                                }}
-                              >
-                                {p.label}
-                              </button>
-                            ))}
-                          </div>
-                          <div className="p-2">
-                            <DateRange
-                              ranges={[flightsState[0].dateRange]}
-                              onChange={(r) => handleDateRangeChange(0, r)}
-                              minDate={today}
-                              months={isDesktop ? 2 : 1}
-                              direction="horizontal"
-                              showDateDisplay
-                              moveRangeOnFirstSelection={false}
-                              rangeColors={["#0284c7"]}
-                              className="w-full"
-                            />
-                          </div>
-                          {tripType === "return" && (
-                            <div className="border-t border-slate-100 p-3">
-                              <button
-                                type="button"
-                                className="w-full rounded-lg bg-slate-900 py-2 text-sm text-white hover:bg-black"
-                                onClick={() => setOpenDatePickerIdx(null)}
-                              >
-                                Done
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
-                    </Portal>
-                  )
-                ))}
-            </AnimatePresence>
-          </div>
-
-          {/* Search */}
-          <div className="flex items-center justify-end">
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="inline-flex h-12 items-center gap-2 rounded-full bg-slate-900 px-6 font-medium text-white shadow-sm hover:bg-black disabled:opacity-60"
-            >
-              {isLoading ? (
-                <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z" />
-                </svg>
-              ) : (
-                <>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                  Search
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+                </Portal>
+              )
+            ))}
+        </AnimatePresence>
       </div>
-
-      {/* Make sure react-select menus are above everything */}
-      <style>{`.react-select__menu-portal{z-index:100000}`}</style>
-    </form>
+    </div>
   );
 }
