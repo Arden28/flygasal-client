@@ -253,35 +253,43 @@ const FlightPage = () => {
       setIsExpired(false);
 
       try {
+        
         const qp = new URLSearchParams(location.search);
 
-        // Parse incoming query params into a normalized "params"
+        // Parse incoming query params into a normalized "params" (supports MULTI)
         const legs = [];
         let i = 0;
-        while (qp.has(`flights[${i}][origin]`)) {
+        // accept a leg if any of origin/destination/depart is present
+        while (
+          qp.has(`flights[${i}][origin]`) ||
+          qp.has(`flights[${i}][destination]`) ||
+          qp.has(`flights[${i}][depart]`)
+        ) {
           legs.push({
-            origin: qp.get(`flights[${i}][origin]`),
-            destination: qp.get(`flights[${i}][destination]`),
-            depart: qp.get(`flights[${i}][depart]`),
+            origin: qp.get(`flights[${i}][origin]`) || null,
+            destination: qp.get(`flights[${i}][destination]`) || null,
+            depart: qp.get(`flights[${i}][depart]`) || null,
           });
           i++;
         }
 
         const fallbackFirst = { origin: "HKG", destination: "BKK", depart: "2024-12-15" };
         const first = legs[0] || fallbackFirst;
+        const last = legs[legs.length - 1] || first;
 
         const rawTrip = (qp.get("tripType") || "oneway").toLowerCase();
-        const tripType = rawTrip === "return" ? "return" : "oneway";
+        const tripType = rawTrip === "multi" ? "multi" : rawTrip === "return" ? "return" : "oneway";
         const flightType = qp.get("flightType") || "";
 
         const params = {
-          flights: legs.length ? legs : [first],
           tripType,
           cabinType: flightType,
+          flights: legs.length ? legs : [first],
+          // single-field fallbacks for header display
           origin: first.origin,
-          destination: first.destination,
+          destination: tripType === "multi" ? last.destination : first.destination,
           departureDate: first.depart,
-          returnDate: qp.get("returnDate") || null,
+          returnDate: tripType === "return" ? (qp.get("returnDate") || null) : null,
           adults: parseInt(qp.get("adults") || "1", 10),
           children: parseInt(qp.get("children") || "0", 10),
           infants: parseInt(qp.get("infants") || "0", 10),
@@ -296,7 +304,7 @@ const FlightPage = () => {
 
         if (Array.isArray(res?.offers)) {
           offers = res.offers;
-          
+
           console.info('Normalized offers:', offers);
 
           displayCurrency = offers[0]?.priceBreakdown?.currency || "USD";
