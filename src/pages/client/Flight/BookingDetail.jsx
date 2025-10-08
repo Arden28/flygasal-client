@@ -831,7 +831,7 @@ const BookingDetail = () => {
       />
 
       {/* Main Content */}
-      <div className="container px-0 lg:px-0 py-3" style={{ maxWidth: "785px" }}>
+      <div className="container px-0 lg:px-0 py-3">
         <form onSubmit={handleSubmit}>
           <BookingForm
             flight={flight}
