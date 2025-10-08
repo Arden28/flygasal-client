@@ -188,9 +188,6 @@ const BookingForm = ({
             getAirportName={getAirportName}
           />
 
-          {/* Contact Details */}
-          <ContactDetailsCard formData={formData} handleFormChange={handleFormChange} />
-
           {/* Passenger Details */}
           <PassengerDetailsCard
             formData={formData}
@@ -209,6 +206,9 @@ const BookingForm = ({
             getAirlineLogo={getAirlineLogo}
             getPassengerSummary={getPassengerSummary}
           />
+
+          {/* Contact Details */}
+          <ContactDetailsCard formData={formData} handleFormChange={handleFormChange} />
 
           {/* Payment Selection */}
           <PaymentSelectionCard
