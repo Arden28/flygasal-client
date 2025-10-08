@@ -296,6 +296,9 @@ const FlightPage = () => {
 
         if (Array.isArray(res?.offers)) {
           offers = res.offers;
+          
+          console.info('Normalized offers:', offers);
+
           displayCurrency = offers[0]?.priceBreakdown?.currency || "USD";
           if (res.searchKey) {
             qp.set("searchKey", res.searchKey);
@@ -307,8 +310,6 @@ const FlightPage = () => {
           const data = res?.data;
           const newKey = data?.searchKey || null;
           offers = flygasal.transformPKFareData(data) || [];
-
-          console.info('Normalized offers:', offers);
 
           displayCurrency = offers[0]?.priceBreakdown?.currency || "USD";
           if (newKey) {
