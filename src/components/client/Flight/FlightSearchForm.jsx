@@ -229,57 +229,100 @@ export default function FlightSearchForm({
   }, [flightsState.length, defaultChunk]);
 
   /* -------- hydrate from URL or props -------- */
-  useEffect(() => {
-    const queryParams = new URLSearchParams(location.search);
-    let params = searchParams;
-    if (!params) {
-      const flightsFromUrl = [];
-      let i = 0;
-      while (queryParams.has(`flights[${i}][origin]`)) {
-        flightsFromUrl.push({
-          origin: queryParams.get(`flights[${i}][origin]`),
-          destination: queryParams.get(`flights[${i}][destination]`),
-          depart: queryParams.get(`flights[${i}][depart]`),
-        });
-        i++;
-      }
-      const rawTrip = (queryParams.get("tripType") || "oneway").toLowerCase();
-      const normTrip = rawTrip === "return" ? "return" : rawTrip === "multi" ? "multi" : "oneway";
-      params = {
-        tripType: normTrip,
-        flightType: toCabinCode(queryParams.get("flightType") || "Economy"),
-        flights: flightsFromUrl.length
-          ? flightsFromUrl
-          : [{ origin: "JFK", destination: "LAX", depart: format(today, "yyyy-MM-dd") }],
-        returnDate: queryParams.get("returnDate") || format(addDays(today, 5), "yyyy-MM-dd"),
-        adults: parseInt(queryParams.get("adults")) || 1,
-        children: parseInt(queryParams.get("children")) || 0,
-        infants: parseInt(queryParams.get("infants")) || 0,
-      };
-    }
-    setTripType(params.tripType);
-    setFlightType(toCabinCode(params.flightType || "ECONOMY"));
+/* -------- hydrate from URL or props (trust tripType, then verify legs) -------- */
+useEffect(() => {
+  const queryParams = new URLSearchParams(location.search);
+  let params = searchParams;
 
-    const normSegments = params.flights.map((f, i) => {
-      let start = clampToToday(safeParseDate(f.depart));
-      let end =
-        params.tripType === "return" && i === 0
-          ? clampToToday(safeParseDate(params.returnDate, addDays(start, 5)))
-          : start;
-      if (end < start) end = start;
-      const originObj = airports.find((a) => a.value === f.origin) || null;
-      const destObj = airports.find((a) => a.value === f.destination) || null;
-      return { origin: originObj, destination: destObj, dateRange: { startDate: start, endDate: end, key: "selection" } };
-    });
-    setFlightsState(
-      normSegments.length
-        ? normSegments
-        : [{ origin: null, destination: null, dateRange: { startDate: today, endDate: today, key: "selection" } }]
-    );
-    setAdults(params.adults || 1);
-    setChildren(params.children || 0);
-    setInfants(params.infants || 0);
-  }, [searchParams, location.search]);
+  if (!params) {
+    // collect legs from flights[0][...], flights[1][...], ...
+    const flightsFromUrl = [];
+    let i = 0;
+    while (queryParams.has(`flights[${i}][origin]`)) {
+      flightsFromUrl.push({
+        origin: queryParams.get(`flights[${i}][origin]`) || null,
+        destination: queryParams.get(`flights[${i}][destination]`) || null,
+        depart: queryParams.get(`flights[${i}][depart]`) || null,
+      });
+      i++;
+    }
+
+    // base on tripType from URL, then verify against number of legs
+    const rawTrip = (queryParams.get("tripType") || "oneway").toLowerCase();
+    let trip = rawTrip === "return" ? "return" : rawTrip === "multi" ? "multi" : "oneway";
+
+    let legs = flightsFromUrl.slice();
+
+    if (trip === "multi") {
+      if (legs.length < 2) {
+        // Ensure at least two legs for multi
+        if (legs.length === 0) {
+          const d0 = format(today, "yyyy-MM-dd");
+          legs = [{ origin: "JFK", destination: "LAX", depart: d0 }];
+        }
+        const firstDate = clampToToday(safeParseDate(legs[0].depart));
+        legs.push({
+          origin: null,
+          destination: null,
+          depart: format(addDays(firstDate, 1), "yyyy-MM-dd"),
+        });
+      }
+      // keep all provided legs for multi (optionally cap if you have a max)
+    } else {
+      // oneway or return: keep only first leg
+      if (legs.length === 0) {
+        legs = [{ origin: "JFK", destination: "LAX", depart: format(today, "yyyy-MM-dd") }];
+      } else if (legs.length > 1) {
+        legs = [legs[0]];
+      }
+    }
+
+    params = {
+      tripType: trip,
+      flightType: toCabinCode(queryParams.get("flightType") || "Economy"),
+      flights: legs,
+      returnDate: queryParams.get("returnDate") || format(addDays(today, 5), "yyyy-MM-dd"),
+      adults: parseInt(queryParams.get("adults") || "1", 10) || 1,
+      children: parseInt(queryParams.get("children") || "0", 10) || 0,
+      infants: parseInt(queryParams.get("infants") || "0", 10) || 0,
+    };
+  }
+
+  setTripType(params.tripType);
+  setFlightType(toCabinCode(params.flightType || "ECONOMY"));
+
+  // Build normalized legs for state
+  const normSegments = (params.flights || []).map((f, i) => {
+    const start = clampToToday(safeParseDate(f.depart));
+    let end = start;
+
+    if (params.tripType === "return" && i === 0) {
+      const fallback = addDays(start, 5);
+      const rtn = clampToToday(safeParseDate(params.returnDate, fallback));
+      end = rtn < start ? start : rtn;
+    }
+
+    const originObj = airports.find((a) => a.value === f.origin) || null;
+    const destObj   = airports.find((a) => a.value === f.destination) || null;
+
+    return {
+      origin: originObj,
+      destination: destObj,
+      dateRange: { startDate: start, endDate: end, key: "selection" },
+    };
+  });
+
+  setFlightsState(
+    normSegments.length
+      ? normSegments
+      : [{ origin: null, destination: null, dateRange: { startDate: today, endDate: today, key: "selection" } }]
+  );
+
+  setAdults(params.adults || 1);
+  setChildren(params.children || 0);
+  setInfants(params.infants || 0);
+}, [searchParams, location.search]);
+
 
   useEffect(() => {
     setOpenCal(null);
