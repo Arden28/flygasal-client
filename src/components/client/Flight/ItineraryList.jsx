@@ -1,626 +1,423 @@
-import React, { useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import FlightSegment from "./FlightSegment";
+import React, { useState, useMemo } from "react";
+import {
+  getAirlineLogo as utilsGetAirlineLogo,
+  getAirlineName as utilsGetAirlineName,
+} from "../../../utils/utils";
 
-const money = (n, currency = "USD") =>
-  (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
+/* --------------------------------------------------------
+   Helpers
+   -------------------------------------------------------- */
 
-const Pill = ({ children, tone = "slate" }) => {
-  const tones = {
-    blue: "bg-blue-50 text-blue-700 border-blue-200",
-    green: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    amber: "bg-amber-50 text-amber-800 border-amber-200",
-    slate: "bg-slate-50 text-slate-700 border-slate-200",
-    red: "bg-rose-50 text-rose-700 border-rose-200",
+/** Normalize airport/airline code (uppercase, alphanumeric, max 3 chars) */
+const norm = (s = "") =>
+  String(s).trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3);
+
+/** Sort segments chronologically by departure time */
+const byDepTime = (a, b) =>
+  new Date(a.departureAt).getTime() - new Date(b.departureAt).getTime();
+
+/**
+ * Normalize raw supplier segment(s) into a consistent internal structure.
+ * Handles variations in supplier keys across oneway/return/multi.
+ */
+const normalizeSegments = (flightLike) => {
+  // allow single leg object (multi) or arrays of segments
+  const raw =
+    Array.isArray(flightLike?.segments) && flightLike.segments.length
+      ? flightLike.segments
+      : [flightLike];
+
+  return raw
+    .filter(Boolean)
+    .map((s) => {
+      // Accept many common aliases
+      const airline = s.airline ?? s.carrier ?? "";
+      const flightNo = s.flightNum ?? s.flightNumber ?? "";
+
+      const departure = s.departure ?? s.origin ?? s.departureAirport ?? "";
+      const arrival = s.arrival ?? s.destination ?? s.arrivalAirport ?? "";
+
+      // Datetime (full ISO or date-only) fallbacks
+      const departureAt =
+        s.strDepartureDate ??
+        s.departureDate ??
+        s.departureTime ?? // sometimes this is an ISO datetime
+        s.depTime ??
+        "";
+
+      const arrivalAt =
+        s.strArrivalDate ??
+        s.arrivalDate ??
+        s.arrivalTime ?? // sometimes this is an ISO datetime
+        s.arrTime ??
+        "";
+
+      // Time-only cosmetics (if present)
+      const departureTimeAt =
+        s.strDepartureTime ??
+        s.departureTime ??
+        s.depTime ??
+        ""; // may be full ISO; the formatter will handle it
+
+      const arrivalTimeAt =
+        s.strArrivalTime ??
+        s.arrivalTime ??
+        s.arrTime ??
+        "";
+
+      const bookingCode = s.bookingCode ?? s.bookingClass ?? "";
+      const refundable = !!s.refundable;
+
+      return {
+        airline,
+        flightNo,
+        departure,
+        arrival,
+        departureAt,
+        arrivalAt,
+        departureTimeAt,
+        arrivalTimeAt,
+        bookingCode,
+        refundable,
+      };
+    })
+    .filter((s) => s.departureAt && s.arrivalAt)
+    .sort(byDepTime);
+};
+
+/**
+ * Find a contiguous chain of segments from ORIGIN → DEST.
+ *
+ * Options:
+ *  - prefer: "earliest" | "latest"
+ *  - notBefore: ISO datetime; enforces first departure >= this
+ */
+const findLeg = (segs, ORIGIN, DEST, { prefer = "earliest", notBefore } = {}) => {
+  const O = norm(ORIGIN);
+  const D = norm(DEST);
+  if (!O || !D || !segs?.length) return null;
+
+  const chains = [];
+
+  for (let i = 0; i < segs.length; i++) {
+    // Start only from matching origin
+    if (norm(segs[i].departure) !== O) continue;
+    if (notBefore && new Date(segs[i].departureAt) < new Date(notBefore)) continue;
+
+    const chain = [segs[i]];
+
+    // Direct flight
+    if (norm(segs[i].arrival) === D) {
+      chains.push(chain.slice());
+      continue;
+    }
+
+    // Try to extend chain with contiguous connections
+    for (let j = i + 1; j < segs.length; j++) {
+      const prev = chain[chain.length - 1];
+      const cur = segs[j];
+      if (norm(cur.departure) !== norm(prev.arrival)) break; // lost continuity
+      chain.push(cur);
+      if (norm(cur.arrival) === D) {
+        chains.push(chain.slice());
+        break;
+      }
+    }
+  }
+
+  if (!chains.length) return null;
+
+  // Pick chain based on "prefer" option
+  return chains.reduce((best, c) => {
+    const tBest = new Date(best[0].departureAt);
+    const tCur = new Date(c[0].departureAt);
+    return prefer === "latest" ? (tCur > tBest ? c : best) : tCur < tBest ? c : best;
+  });
+};
+
+/**
+ * Guess the *first outbound chain* purely by continuity starting
+ * from the earliest departure. Used as a fallback when no anchors are provided.
+ */
+const guessFirstChain = (segs) => {
+  if (!segs?.length) return null;
+  const chain = [segs[0]];
+  for (let i = 1; i < segs.length; i++) {
+    const prev = chain[chain.length - 1];
+    const cur = segs[i];
+    if (norm(cur.departure) !== norm(prev.arrival)) break;
+    chain.push(cur);
+  }
+  return {
+    chain,
+    origin: chain[0]?.departure || "",
+    destination: chain[chain.length - 1]?.arrival || "",
   };
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${tones[tone] || tones.slate}`}>
-      {children}
-    </span>
-  );
 };
 
-const computeItinKey = (it) => {
-  if (Array.isArray(it.legs) && it.legs.length) {
-    const legKeys = it.legs.map((leg) => {
-      const id = leg.id || leg.solutionId || "";
-      const mc = leg.marketingCarriers?.[0] || leg.segments?.[0]?.airline || "";
-      const fn = leg.flightNumber || "";
-      const dep = leg.departureTime || leg.segments?.[0]?.departureDate || "";
-      const arr = leg.arrivalTime || leg.segments?.slice(-1)?.[0]?.arrivalDate || "";
-      return `${id}-${mc}-${fn}-${dep}-${arr}`;
-    });
-    return `${legKeys.join("|")}|${it.totalPrice}`;
-  }
+/* --------------------------------------------------------
+   Component
+   -------------------------------------------------------- */
 
-  const out = it.outbound || {};
-  const ret = it.return || {};
-  const outKey =
-    out.id ||
-    out.solutionId ||
-    `${(out.marketingCarriers?.[0] || out.segments?.[0]?.airline || "")}-${out.flightNumber || ""}-${out.departureTime || ""}-${out.arrivalTime || ""}`;
-  const retKey = it.return
-    ? ret.id ||
-      ret.solutionId ||
-      `${(ret.marketingCarriers?.[0] || ret.segments?.[0]?.airline || "")}-${ret.flightNumber || ""}-${ret.departureTime || ""}-${ret.arrivalTime || ""}`
-    : "OW";
-  return `${outKey}|${retKey}|${it.totalPrice}`;
-};
+const FlightSegment = ({
+  flight,
+  segmentType, // "Outbound" | "Return" | "Leg X"
 
-
-const Chevron = ({ open }) => (
-  <motion.svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    initial={false}
-    animate={{ rotate: open ? 180 : 0 }}
-    transition={{ duration: 0.15 }}
-    className="shrink-0"
-  >
-    <path d="M6 9l6 6 6-6" />
-  </motion.svg>
-);
-
-const Row = ({ label, value, bold = false, subtle = false }) => (
-  <div className="flex items-center justify-between py-1.5">
-    <span className={`text-xs ${subtle ? "text-slate-500" : "text-slate-600"}`}>{label}</span>
-    <span className={`text-xs ${bold ? "font-semibold text-slate-900" : "text-slate-700"}`}>{value}</span>
-  </div>
-);
-
-const Icon = ({ name, className = "h-4 w-4 text-slate-700" }) => {
-  switch (name) {
-    case "price":
-      return (
-        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor">
-          <path strokeWidth="1.8" d="M3 7h18M3 17h18M6 7v10m12-10v10M8.5 12h7" />
-        </svg>
-      );
-    case "user":
-      return (
-        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor">
-          <path strokeWidth="1.8" d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm7 8a7 7 0 0 0-14 0" />
-        </svg>
-      );
-    case "bag":
-      return (
-        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor">
-          <rect x="3" y="7" width="18" height="13" rx="2" strokeWidth="1.8" />
-          <path strokeWidth="1.8" d="M8 7V6a4 4 0 0 1 8 0v1" />
-        </svg>
-      );
-    case "seat":
-      return (
-        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor">
-          <path strokeWidth="1.8" d="M7 12V5a3 3 0 0 1 3-3h1a3 3 0 0 1 3 3v7" />
-          <path strokeWidth="1.8" d="M4 14h14a2 2 0 0 1 2 2v4H4z" />
-        </svg>
-      );
-    case "clock":
-      return (
-        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor">
-          <circle cx="12" cy="12" r="9" strokeWidth="1.8" />
-          <path strokeWidth="1.8" d="M12 7v6l4 2" />
-        </svg>
-      );
-    case "airline":
-      return (
-        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor">
-          <path strokeWidth="1.6" d="M2 16l20-8-9 9-2 5-3-4-6-2z" />
-        </svg>
-      );
-    case "shield":
-      return (
-        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor">
-          <path strokeWidth="1.8" d="M12 3l8 4v6a9 9 0 0 1-8 8 9 9 0 0 1-8-8V7z" />
-          <path strokeWidth="1.8" d="M9 12l2 2 4-4" />
-        </svg>
-      );
-    case "changes":
-      return (
-        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor">
-          <path strokeWidth="1.8" d="M3 12a9 9 0 1 1 2.64 6.36M3 12h4m-4 0v-4" />
-        </svg>
-      );
-    case "info":
-      return (
-        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor">
-          <circle cx="12" cy="12" r="9" strokeWidth="1.8" />
-          <path strokeWidth="1.8" d="M12 8h.01M11 12h2v5h-2z" />
-        </svg>
-      );
-    default:
-      return null;
-  }
-};
-
-const SectionHeader = ({ icon, title, hint }) => (
-  <div className="mb-2 flex items-center justify-between">
-    <div className="flex items-center gap-2">
-      <span className="grid h-6 w-6 place-items-center rounded-full border border-slate-300 bg-slate-50">
-        <Icon name={icon} />
-      </span>
-      <div className="text-xs font-semibold text-slate-900">{title}</div>
-    </div>
-    {hint ? <div className="text-[11px] text-slate-500">{hint}</div> : null}
-  </div>
-);
-
-const Tile = ({ icon, title, hint, children }) => (
-  <div className="rounded-xl border border-slate-200 p-3 md:p-4">
-    <SectionHeader icon={icon} title={title} hint={hint} />
-    {children}
-  </div>
-);
-
-const ItineraryList = ({
-  paginatedItineraries,
-  openDetailsId,
-  setOpenDetailsId,
-  searchParams,
-  getAirlineLogo,
-  getAirlineName,
+  // formatting utilities injected from parent
   formatDate,
-  formatToYMD,
   formatTime,
-  formatTimeOnly,
   calculateDuration,
   getAirportName,
-  agentMarkupPercent = 0,
-  currency = "USD",
-  totalCount,
-  currentPage,
-  pageSize,
+
+  // airline helpers (fall back to utils if not provided)
+  getAirlineLogo,
+  getAirlineName,
+
+  // Leg anchors (optional, mostly for oneway/return)
+  expectedOutboundOrigin,
+  expectedOutboundDestination,
+  expectedReturnOrigin,
+  expectedReturnDestination,
 }) => {
-  const navigate = useNavigate();
+  const [openIndex, setOpenIndex] = useState(null);
+  const toggleDetails = (index) => setOpenIndex((v) => (v === index ? null : index));
 
-  const pageSummary = useMemo(() => {
-    if (!totalCount || !currentPage || !pageSize) return null;
-    const start = (currentPage - 1) * pageSize + 1;
-    const end = Math.min(currentPage * pageSize, totalCount);
-    return { start, end, total: totalCount };
-  }, [totalCount, currentPage, pageSize]);
+  /* ---------------- Normalization & anchors ---------------- */
+  const allSegs = useMemo(() => normalizeSegments(flight), [flight]);
+  const guess = useMemo(() => guessFirstChain(allSegs), [allSegs]);
 
-const selectItinerary = (itinerary) => {
-  const isMulti = (searchParams?.tripType || "").toLowerCase() === "multi" || (Array.isArray(itinerary.legs) && itinerary.legs.length > 0);
-  const params = new URLSearchParams();
+  // When rendering MULTI legs, we usually don't pass anchors — that's fine.
+  // For oneway/return, anchors from parent keep things precise.
+  const OUT_O =
+    expectedOutboundOrigin || guess?.origin || allSegs[0]?.departure || flight?.origin || "";
+  const OUT_D = expectedOutboundDestination || guess?.destination || flight?.destination || "";
 
-  if (isMulti) {
-    params.set("tripType", "multi");
-    params.set("solutionId", itinerary.solutionId || itinerary.legs?.[0]?.solutionId || "");
-    params.set("cabin", itinerary.cabin || itinerary.legs?.[0]?.cabin || "Economy");
-  } else {
-    const out = itinerary.outbound || {};
-    params.set("solutionKey", out.solutionKey || "");
-    params.set("solutionId", out.solutionId || "");
-    params.set("tripType", itinerary.return ? "return" : "oneway");
-    if (itinerary.return?.segments?.[0]?.departureTime) {
-      params.set("returnDate", formatToYMD(itinerary.return.segments[0].departureTime));
-    }
-    params.set("cabin", itinerary.outbound?.cabin || "Economy");
-    params.set("flightId", itinerary.outbound?.id || "");
-    params.set("returnFlightId", itinerary.return ? itinerary.return.id : "");
-    params.set("flightNumber", itinerary.outbound?.flightNumber || "");
-  }
+  const outboundSegs = useMemo(() => {
+    const found = findLeg(allSegs, OUT_O, OUT_D, { prefer: "earliest" });
+    return found?.length ? found : guess?.chain || allSegs; // last fallback: show normalized segs
+  }, [allSegs, OUT_O, OUT_D, guess]);
 
-  params.set("adults", `${searchParams?.adults || 1}`);
-  params.set("children", `${searchParams?.children || 0}`);
-  params.set("infants", `${searchParams?.infants || 0}`);
+  // Return anchors (reverse trip)
+  const RET_O = expectedReturnOrigin || OUT_D;
+  const RET_D = expectedReturnDestination || OUT_O;
 
-  // ---- Write segments into flights[i] ----
-  let idx = 0;
+  // Return chain (with outbound arrival fence)
+  const outboundArrivesAt = outboundSegs.at(-1)?.arrivalAt || null;
+  const returnSegs = useMemo(() => {
+    let chain =
+      findLeg(allSegs, RET_O, RET_D, { prefer: "earliest", notBefore: outboundArrivesAt }) ||
+      findLeg(allSegs, RET_O, RET_D, { prefer: "earliest" }) ||
+      findLeg(allSegs, RET_D, RET_O, { prefer: "earliest" }); // last resort swap
+    return chain || [];
+  }, [allSegs, RET_O, RET_D, outboundArrivesAt]);
 
-  const writeSeg = (seg) => {
-    params.set(`flights[${idx}][origin]`, seg.departure);
-    params.set(`flights[${idx}][destination]`, seg.arrival);
-    params.set(`flights[${idx}][airline]`, seg.airline);
-    params.set(`flights[${idx}][flightNum]`, seg.flightNum);
-    params.set(`flights[${idx}][arrival]`, seg.arrival);
-    params.set(`flights[${idx}][arrivalDate]`, seg.strArrivalDate || seg.arrivalDate || "");
-    params.set(`flights[${idx}][arrivalTime]`, seg.strArrivalTime || seg.arrivalTime || "");
-    params.set(`flights[${idx}][departure]`, seg.departure);
-    params.set(`flights[${idx}][departureDate]`, seg.strDepartureDate || seg.departureDate || "");
-    params.set(`flights[${idx}][departureTime]`, seg.strDepartureTime || seg.departureTime || "");
-    params.set(`flights[${idx}][bookingCode]`, seg.bookingCode || "");
-    idx += 1;
-  };
+  // Pick active leg
+  const isReturn = segmentType === "Return";
+  const legSegs = isReturn ? returnSegs : outboundSegs;
 
-  if (isMulti) {
-    // Flatten all legs' segments in order
-    (itinerary.legs || []).forEach((leg) => {
-      (leg.segments || []).forEach(writeSeg);
-    });
-  } else {
-    // Outbound segments
-    (itinerary.outbound?.segments || []).forEach(writeSeg);
-    // Return segments
-    (itinerary.return?.segments || []).forEach(writeSeg);
-  }
+  // If after all fallbacks we still have nothing (shouldn’t happen now), show the single object as 1 “segment”
+  const safeLegSegs =
+    legSegs?.length
+      ? legSegs
+      : normalizeSegments({
+          ...flight,
+          segments: [
+            {
+              airline: flight?.airline,
+              flightNum: flight?.flightNum || flight?.flightNumber,
+              departure: flight?.origin,
+              arrival: flight?.destination,
+              departureDate: flight?.departureTime,
+              arrivalDate: flight?.arrivalTime,
+              bookingCode: flight?.bookingCode,
+              refundable: flight?.refundable,
+            },
+          ],
+        });
 
-  // ---- Pricing/markup ----
-  const base = Number(itinerary.totalPrice) || 0;
-  const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
-  const total = +(base + markup).toFixed(2);
-  params.set("basePrice", String(base));
-  params.set("agentMarkupPercent", String(agentMarkupPercent));
-  params.set("agentMarkupAmount", String(markup));
-  params.set("totalWithMarkup", String(total));
-  params.set("currency", currency);
+  const firstSegment = safeLegSegs?.[0];
+  const lastSegment = safeLegSegs?.at(-1);
 
-  navigate(`/flight/booking/details?${params.toString()}`);
-};
+  // Header labels (with fallbacks)
+  const headerOrigin = isReturn ? RET_O : OUT_O;
+  const headerDest = isReturn ? RET_D : OUT_D;
 
+  // Safe wrappers
+  const safeDate = (d) => (d ? formatDate(d) : "—");
+  const safeTime = (d) => (d ? formatTime(d) : "—");
 
+  // Airline helpers (use injected first, utils fallback second)
+  const airlineLogo = typeof getAirlineLogo === "function" ? getAirlineLogo : utilsGetAirlineLogo;
+  const airlineName = typeof getAirlineName === "function" ? getAirlineName : utilsGetAirlineName;
 
-  const pax = useMemo(() => {
-    const a = Number(searchParams?.adults || 1);
-    const c = Number(searchParams?.children || 0);
-    const i = Number(searchParams?.infants || 0);
-    const paying = Math.max(1, a + c);
-    const total = a + c + i;
-    return { adults: a, children: c, infants: i, paying, total };
-  }, [searchParams?.adults, searchParams?.children, searchParams?.infants]);
-
-  
-  // console.info("Rendering ItineraryList with itineraries:", paginatedItineraries);
-
-  const priceBreakdown = (it) => {
-    const base = isNaN(Number(it.totalPrice)) ? 0 : Number(it.totalPrice) * pax.paying;
-    const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
-    const total = +(base + markup).toFixed(2);
-    const perBase = +(base / pax.paying).toFixed(2);
-    const perMarkup = +(markup / pax.paying).toFixed(2);
-    const perTotal = +(base / pax.paying).toFixed(2);
-    return { base, markup, total, perBase, perMarkup, perTotal };
-  };
-
-  const isOpen = (id) => openDetailsId === id;
-  const toggleOpen = (id) => setOpenDetailsId(isOpen(id) ? null : id);
-
-  if (!paginatedItineraries || paginatedItineraries.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white py-10">
-        <img src="/assets/img/flights_search.gif" alt="No flights" style={{ width: 220 }} />
-        <div className="text-slate-700">No results match your filters.</div>
-      </div>
-    );
-  }
-
+  /* ---------------- Render ---------------- */
   return (
-    <div className="mt-3" aria-live="polite">
-      {pageSummary && (
-        <div className="mb-2 text-sm text-slate-600">
-          Showing <span className="font-medium text-slate-800">{pageSummary.start}–{pageSummary.end}</span> of{" "}
-          <span className="font-medium text-slate-800">{pageSummary.total}</span> results
+    <div className="mb-4 rounded-3 bg-white">
+      {/* Leg type chip */}
+      <div className="d-flex justify-content-end pt-2 pe-2">
+        <span className="badge text-dark border rounded-pill px-3" style={{ background: "#EEF4FB" }}>
+          {segmentType || "Segment"}
+        </span>
+      </div>
+
+      {/* Header block */}
+      <div className="row g-3 mb-2 pb-2">
+        <div className="col-md-12">
+          <div className="d-flex flex-column mb-3 flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+            {/* Departure */}
+            <div className="text-start w-100 w-md-25">
+              <div className="fw-semibold text-dark text-xl">{safeDate(firstSegment?.departureAt)}</div>
+              <div className="text-muted small">
+                Departure Time: <b>{firstSegment?.departureTimeAt ? safeTime(firstSegment?.departureTimeAt) : safeTime(firstSegment?.departureAt)}</b>
+              </div>
+              <div className="text-muted small">
+                From: <b>{getAirportName(firstSegment?.departure || headerOrigin)}</b>
+              </div>
+            </div>
+
+            {/* Timeline w/ plane icon */}
+            <div className="d-flex align-items-center justify-content-center flex-grow-1 position-relative w-100 w-md-50">
+              <div className="w-100 position-relative" style={{ height: "1px", backgroundColor: "#dee2e6" }} />
+              <div className="position-absolute top-50 start-50 translate-middle bg-white px-2">
+                <svg width="25" height="25" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                  <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
+                    <g transform="translate(-624.000000, 0.000000)">
+                      <g transform="translate(624.000000, 0.000000)">
+                        <path d="M24,0 L24,24 L0,24 L0,0 L24,0 Z M12.5934901,23.257841 L12.5819402,23.2595131 L12.5108777,23.2950439 L12.4918791,23.2987469 L12.4918791,23.2987469 L12.4767152,23.2950439 L12.4056548,23.2595131 C12.3958229,23.2563662 12.3870493,23.2590235 12.3821421,23.2649074 L12.3780323,23.275831 L12.360941,23.7031097 L12.3658947,23.7234994 L12.3769048,23.7357139 L12.4804777,23.8096931 L12.4953491,23.8136134 L12.4953491,23.8136134 L12.5071152,23.8096931 L12.6106902,23.7357139 L12.6232938,23.7196733 L12.6232938,23.7196733 L12.6266527,23.7031097 L12.609561,23.275831 C12.6075724,23.2657013 12.6010112,23.2592993 12.5934901,23.257841 L12.5934901,23.257841 Z M12.8583906,23.1452862 L12.8445485,23.1473072 L12.6598443,23.2396597 L12.6498822,23.2499052 L12.6498822,23.2499052 L12.6471943,23.2611114 L12.6650943,23.6906389 L12.6699349,23.7034178 L12.6699349,23.7034178 L12.678386,23.7104931 L12.8793402,23.8032389 C12.8914285,23.8068999 12.9022333,23.8029875 12.9078286,23.7952264 L12.9118235,23.7811639 L12.8776777,23.1665331 C12.8752882,23.1545897 12.8674102,23.1470016 12.8583906,23.1452862 L12.8583906,23.1452862 Z M12.1430473,23.1473072 C12.1332178,23.1423925 12.1221763,23.1452606 12.1156365,23.1525954 L12.1099173,23.1665331 L12.0757714,23.7811639 C12.0751323,23.7926639 12.0828099,23.8018602 12.0926481,23.8045676 L12.108256,23.8032389 L12.3092106,23.7104931 L12.3186497,23.7024347 L12.3186497,23.7024347 L12.3225043,23.6906389 L12.340401,23.2611114 L12.337245,23.2485176 L12.337245,23.2485176 L12.3277531,23.2396597 L12.1430473,23.1473072 Z" fillRule="nonzero"></path>
+                        <path
+                          d="M20.9999,20 C21.5522,20 21.9999,20.4477 21.9999,21 C21.9999,21.51285 21.613873,21.9355092 21.1165239,21.9932725 L20.9999,22 L2.99988,22 C2.44759,22 1.99988,21.5523 1.99988,21 C1.99988,20.48715 2.38591566,20.0644908 2.8832579,20.0067275 L2.99988,20 L20.9999,20 Z M7.26152,3.77234 C7.60270875,3.68092 7.96415594,3.73859781 8.25798121,3.92633426 L8.37951,4.0147 L14.564,9.10597 L18.3962,8.41394 C19.7562,8.16834 21.1459,8.64954 22.0628,9.68357 C22.5196,10.1987 22.7144,10.8812 22.4884,11.5492 C22.1394625,12.580825 21.3287477,13.3849891 20.3041894,13.729249 L20.0965,13.7919 L5.02028,17.8315 C4.629257,17.93626 4.216283,17.817298 3.94116938,17.5298722 L3.85479,17.4279 L0.678249,13.1819 C0.275408529,12.6434529 0.504260903,11.8823125 1.10803202,11.640394 L1.22557,11.6013 L3.49688,10.9927 C3.85572444,10.8966111 4.23617877,10.9655 4.53678409,11.1757683 L4.64557,11.2612 L5.44206,11.9612 L7.83692,11.0255 L3.97034,6.11174 C3.54687,5.57357667 3.77335565,4.79203787 4.38986791,4.54876405 L4.50266,4.51158 L7.26152,3.77234 Z M7.40635,5.80409 L6.47052,6.05484 L10.2339,10.8375 C10.6268063,11.3368125 10.463277,12.0589277 9.92111759,12.3504338 L9.80769,12.4028 L5.60866,14.0433 C5.29604667,14.1654333 4.9460763,14.123537 4.67296914,13.9376276 L4.57438,13.8612 L3.6268,13.0285 L3.15564,13.1547 L5.09121,15.7419 L19.5789,11.86 C20.0227,11.7411 20.3838,11.4227 20.5587,11.0018 C20.142625,10.53815 19.5333701,10.3022153 18.9191086,10.3592364 L18.7516,10.3821 L14.4682,11.1556 C14.218,11.2007714 13.9615551,11.149698 13.7491184,11.0154781 L13.6468,10.9415 L7.40635,5.80409 Z"
+                          fill="#333333"
+                        ></path>
+                      </g>
+                    </g>
+                  </g>
+                </svg>
+              </div>
+            </div>
+
+            {/* Arrival */}
+            <div className="text-end w-100 w-md-25">
+              <div className="fw-semibold text-dark text-xl">{safeDate(lastSegment?.arrivalAt)}</div>
+              <div className="text-muted small">
+                Arrival Time: <b>{lastSegment?.arrivalTimeAt ? safeTime(lastSegment?.arrivalTimeAt) : safeTime(lastSegment?.arrivalAt)}</b>
+              </div>
+              <div className="text-muted small">
+                To: <b>{getAirportName(lastSegment?.arrival || headerDest)}</b>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Render individual segments */}
+      {(safeLegSegs || []).map((segment, index) => (
+        <div
+          key={`${segment.airline || "XX"}-${segment.flightNo || "000"}-${segment.departureAt || index}-${index}`}
+          className="border rounded-4 p-2 mb-2"
+        >
+          {/* Summary row */}
+          <div className="d-flex justify-content-between gap-2">
+            <div className="d-flex justify-content-start text-start align-items-center gap-2">
+              {/* Airline logo */}
+              <img
+                className="w-[35px]"
+                src={airlineLogo(segment.airline)}
+                alt={airlineName(segment.airline)}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = "/assets/img/airlines/placeholder.png";
+                }}
+              />
+              <div className="pb-2 border-md border-end w-100 pe-5">
+                <span className="fw-bold text-sm">{airlineName(segment.airline) || "N/A"}</span>
+                <span className="text-secondary d-block fw-light mt-1 lh-0">
+                  <small>
+                    Flight No. {segment.flightNo || "—"} - {segment.departure || "—"} - {segment.arrival || "—"}
+                  </small>
+                </span>
+              </div>
+            </div>
+
+            {/* Expand toggle */}
+            <span
+              onClick={() => toggleDetails(index)}
+              className="d-flex h-[40px] cursor-pointer rounded-4 p-2 text-sm px-3 bg-[#EEF4FB] active:bg-[#cfd4da] items-center gap-2"
+            >
+              Details
+              <svg
+                className={`w-4 h-4 transform transition-transform duration-300 ${openIndex === index ? "rotate-90" : "rotate-0"}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </span>
+          </div>
+
+          {/* Expanded details */}
+          <div
+            className={`overflow-hidden mt-2 gap-2 border-top p-3 transition-all duration-500 ease-in-out ${
+              openIndex === index ? "max-h-[1000px] opacity-100" : "d-none opacity-0"
+            }`}
+          >
+            <div className="flex justify-between gap-4 w-full mx-auto mt-2">
+              {/* Departure */}
+              <div className="text-center">
+                <div className="text-md font-semibold text-gray-800">
+                  {safeDate(segment.departureAt)} {segment.departureTimeAt ? safeDate(segment.departureTimeAt) && segment.departureTimeAt : ""}
+                </div>
+                <div className="text-xs text-gray-500">{getAirportName(segment.departure || "")}</div>
+              </div>
+
+              {/* Timeline */}
+              <div className="relative flex-1 h-[1px] bg-gray-300 mx-2 mt-2">
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-1">
+                  <svg width="25" height="25" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                    <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
+                      <g transform="translate(-624.000000, 0.000000)">
+                        <g transform="translate(624.000000, 0.000000)">
+                          <path d="M24,0 L24,24 L0,24 L0,0 L24,0 Z M12.5934901,23.257841 L12.5819402,23.2595131 L12.5108777,23.2950439 L12.4918791,23.2987469 L12.4918791,23.2987469 L12.4767152,23.2950439 L12.4056548,23.2595131 C12.3958229,23.2563662 12.3870493,23.2590235 12.3821421,23.2649074 L12.3780323,23.275831 L12.360941,23.7031097 L12.3658947,23.7234994 L12.3769048,23.7357139 L12.4804777,23.8096931 L12.4953491,23.8136134 L12.4953491,23.8136134 L12.5071152,23.8096931 L12.6106902,23.7357139 L12.6232938,23.7196733 L12.6232938,23.7196733 L12.6266527,23.7031097 L12.609561,23.275831 C12.6075724,23.2657013 12.6010112,23.2592993 12.5934901,23.257841 L12.5934901,23.257841 Z M12.8583906,23.1452862 L12.8445485,23.1473072 L12.6598443,23.2396597 L12.6498822,23.2499052 L12.6498822,23.2499052 L12.6471943,23.2611114 L12.6650943,23.6906389 L12.6699349,23.7034178 L12.6699349,23.7034178 L12.678386,23.7104931 L12.8793402,23.8032389 C12.8914285,23.8068999 12.9022333,23.8029875 12.9078286,23.7952264 L12.9118235,23.7811639 L12.8776777,23.1665331 C12.8752882,23.1545897 12.8674102,23.1470016 12.8583906,23.1452862 L12.8583906,23.1452862 Z M12.1430473,23.1473072 C12.1332178,23.1423925 12.1221763,23.1452606 12.1156365,23.1525954 L12.1099173,23.1665331 L12.0757714,23.7811639 C12.0751323,23.7926639 12.0828099,23.8018602 12.0926481,23.8045676 L12.108256,23.8032389 L12.3092106,23.7104931 L12.3186497,23.7024347 L12.3186497,23.7024347 L12.3225043,23.6906389 L12.340401,23.2611114 L12.337245,23.2485176 L12.337245,23.2485176 L12.3277531,23.2396597 L12.1430473,23.1473072 Z" fillRule="nonzero"></path>
+                          <path
+                            d="M20.9999,20 C21.5522,20 21.9999,20.4477 21.9999,21 C21.9999,21.51285 21.613873,21.9355092 21.1165239,21.9932725 L20.9999,22 L2.99988,22 C2.44759,22 1.99988,21.5523 1.99988,21 C1.99988,20.48715 2.38591566,20.0644908 2.8832579,20.0067275 L2.99988,20 L20.9999,20 Z M7.26152,3.77234 C7.60270875,3.68092 7.96415594,3.73859781 8.25798121,3.92633426 L8.37951,4.0147 L14.564,9.10597 L18.3962,8.41394 C19.7562,8.16834 21.1459,8.64954 22.0628,9.68357 C22.5196,10.1987 22.7144,10.8812 22.4884,11.5492 C22.1394625,12.580825 21.3287477,13.3849891 20.3041894,13.729249 L20.0965,13.7919 L5.02028,17.8315 C4.629257,17.93626 4.216283,17.817298 3.94116938,17.5298722 L3.85479,17.4279 L0.678249,13.1819 C0.275408529,12.6434529 0.504260903,11.8823125 1.10803202,11.640394 L1.22557,11.6013 L3.49688,10.9927 C3.85572444,10.8966111 4.23617877,10.9655 4.53678409,11.1757683 L4.64557,11.2612 L5.44206,11.9612 L7.83692,11.0255 L3.97034,6.11174 C3.54687,5.57357667 3.77335565,4.79203787 4.38986791,4.54876405 L4.50266,4.51158 L7.26152,3.77234 Z M7.40635,5.80409 L6.47052,6.05484 L10.2339,10.8375 C10.6268063,11.3368125 10.463277,12.0589277 9.92111759,12.3504338 L9.80769,12.4028 L5.60866,14.0433 C5.29604667,14.1654333 4.9460763,14.123537 4.67296914,13.9376276 L4.57438,13.8612 L3.6268,13.0285 L3.15564,13.1547 L5.09121,15.7419 L19.5789,11.86 C20.0227,11.7411 20.3838,11.4227 20.5587,11.0018 C20.142625,10.53815 19.5333701,10.3022153 18.9191086,10.3592364 L18.7516,10.3821 L14.4682,11.1556 C14.218,11.2007714 13.9615551,11.149698 13.7491184,11.0154781 L13.6468,10.9415 L7.40635,5.80409 Z"
+                            fill="#333333"
+                          ></path>
+                        </g>
+                      </g>
+                    </g>
+                  </svg>
+                </div>
+              </div>
+
+              {/* Arrival */}
+              <div className="text-center">
+                <div className="text-md font-semibold text-gray-800">
+                  {safeDate(segment.arrivalAt)} {segment.arrivalTimeAt ? safeDate(segment.arrivalTimeAt) && segment.arrivalTimeAt : ""}
+                </div>
+                <div className="text-xs text-gray-500">{getAirportName(segment.arrival || "")}</div>
+              </div>
+            </div>
+
+            {/* Tags */}
+            <div className="d-flex flex-wrap mt-2 mb-2 text-muted fw-bold gap-2" style={{ fontSize: "12px" }}>
+              <span className="border rounded-5 px-3 text-capitalize">
+                {segment.refundable ? "Refundable" : "Non-refundable"}
+              </span>
+              {segment.bookingCode ? <span className="border rounded-5 px-3">Class: {segment.bookingCode}</span> : null}
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {/* Fallback if no valid chain */}
+      {!safeLegSegs?.length && (
+        <div className="text-center text-muted py-3">
+          No segments found for {segmentType?.toLowerCase() || "segment"} leg ({headerOrigin} → {headerDest}).
         </div>
       )}
-
-      <motion.ul layout className="mt-2 space-y-3">
-        <AnimatePresence mode="sync" initial={false}>
-          {paginatedItineraries.map((itinerary) => {
-            const key = computeItinKey(itinerary);
-            const { base, markup, total, perBase, perMarkup, perTotal } = priceBreakdown(itinerary);
-            const direct = itinerary.totalStops === 0;
-            const airlines = itinerary.airlines || [];
-            const isMulti = (searchParams?.tripType || "").toLowerCase() === "multi" || (Array.isArray(itinerary.legs) && itinerary.legs.length > 0);
-            const isRoundTrip = !isMulti && !!itinerary.return;
-            
-            // console.info("Itinerary:", itinerary);
-
-            let durText = "";
-            if (isMulti) {
-              const first = itinerary.legs?.[0];
-              const last = itinerary.legs?.[itinerary.legs.length - 1];
-              const dep = first?.departureTime || first?.segments?.[0]?.departureDate;
-              const arr = last?.arrivalTime || last?.segments?.slice(-1)?.[0]?.arrivalDate;
-              durText = dep && arr ? `${calculateDuration(dep, arr)}` : "—";
-            } else if (isRoundTrip) {
-              durText = `${calculateDuration(itinerary.outbound.departureTime, itinerary.return?.arrivalTime)}`;
-            } else {
-              durText = `${calculateDuration(itinerary.outbound.departureTime, itinerary.outbound.arrivalTime)}`;
-            }
-
-            const detailsId = `fare-details-${key.replace(/[^a-zA-Z0-9]/g, "")}`;
-            const open = isOpen(key);
-
-            return (
-              <motion.li
-                key={key}
-                layout="position"
-                presenceAffectsLayout={false}
-                className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className="grid grid-cols-12 gap-0">
-                  {/* Left: segments & badges */}
-                  <div className="col-span-12 md:col-span-9 p-3 md:p-4">
-                    <div className="mb-2 flex flex-wrap items-center gap-2">
-                      {airlines.map((code) => (
-                        <div
-                          key={`${key}-${code}`}
-                          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2 py-1"
-                        >
-                          <img
-                            src={getAirlineLogo(code)}
-                            alt={`${getAirlineName(code)} logo`}
-                            className="h-4 w-4 rounded object-contain"
-                            onError={(e) => {
-                              e.currentTarget.onerror = null;
-                              e.currentTarget.src = "/assets/img/airlines/placeholder.png";
-                            }}
-                          />
-                          <span className="text-xs text-slate-700">{getAirlineName(code)}</span>
-                          <span className="text-[10px] text-slate-500">{code}</span>
-                        </div>
-                      ))}
-
-                    </div>
-
-                    {isMulti ? (
-                      <>
-                        {(itinerary.legs || []).map((leg, li) => (
-                          <div key={`leg-${li}`} className={li > 0 ? "mt-2 border-t border-dashed border-slate-200 pt-2" : ""}>
-                            <FlightSegment
-                              flight={leg}
-                              segmentType={`Leg ${li + 1}`}
-                              formatDate={formatDate}
-                              formatTime={formatTime}
-                              calculateDuration={calculateDuration}
-                              getAirportName={getAirportName}
-                              getAirlineName={getAirlineName}
-                              getAirlineLogo={getAirlineLogo}
-                            />
-                          </div>
-                        ))}
-                      </>
-                    ) : (
-                      <>
-                        <FlightSegment
-                          flight={itinerary.outbound}
-                          segmentType="Outbound"
-                          formatDate={formatDate}
-                          formatTime={formatTime}
-                          calculateDuration={calculateDuration}
-                          getAirportName={getAirportName}
-                          getAirlineName={getAirlineName}
-                          getAirlineLogo={getAirlineLogo}
-                          expectedOutboundOrigin={searchParams?.origin}
-                          expectedOutboundDestination={searchParams?.destination}
-                        />
-                        {isRoundTrip && (
-                          <div className="mt-2 border-t border-dashed border-slate-200 pt-2">
-                            <FlightSegment
-                              flight={itinerary.return}
-                              segmentType="Return"
-                              formatDate={formatDate}
-                              formatTime={formatTime}
-                              calculateDuration={calculateDuration}
-                              getAirportName={getAirportName}
-                              getAirlineName={getAirlineName}
-                              getAirlineLogo={getAirlineLogo}
-                              expectedReturnOrigin={searchParams?.destination}
-                              expectedReturnDestination={searchParams?.origin}
-                            />
-                          </div>
-                        )}
-                      </>
-                    )}
-
-
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-                      <Pill tone={direct ? "green" : "blue"}>
-                        {direct ? "Direct" : `${itinerary.totalStops} stop${itinerary.totalStops > 1 ? "s" : ""}`}
-                      </Pill>
-                      <Pill tone="slate">
-                        Duration: <span className="ml-1 font-medium">{durText}</span>
-                      </Pill>
-                      {itinerary.cabin && (
-                        <Pill tone="slate">
-                          Cabin: <span className="ml-1 font-medium">{itinerary.cabin}</span>
-                        </Pill>
-                      )}
-                      {itinerary.baggage && (
-                        <Pill tone="slate">
-                          Baggage: <span className="ml-1 font-medium">{itinerary.baggage}</span>
-                        </Pill>
-                      )}
-                      <Pill tone={itinerary.refundable ? "green" : "red"}>
-                        {itinerary.refundable ? "Refundable" : "Non-refundable"}
-                      </Pill>
-                      {/* {itinerary.outbound.solutionKey ?? 'Solution key'} */}
-                    </div>
-                  </div>
-
-                  {/* Right: price & actions */}
-                  <div className="col-span-12 md:col-span-3 border-t md:border-t-0 md:border-l border-slate-200 p-3 md:p-4 md:rounded-l-none rounded-t-none md:rounded-r-2xl bg-slate-50">
-                    {pax.total > 1 ? (
-                      <>
-                        <div className="text-[12px] text-[#9aa3b2]">Per traveler{pax.infants > 0 ? " *" : ""}</div>
-                        <div className="mt-1 text-2xl font-bold leading-none">{money(perTotal, currency)}</div>
-
-                        <div className="mt-2 space-y-1 text-xs text-slate-600">
-                          <Row label="Est. total (travellers)" value={`${pax.paying} × ${money(perTotal, currency)}`} subtle />
-                          <Row label="Subtotal" value={money(total, currency)} bold />
-                        </div>
-
-                        {pax.infants > 0 && (
-                          <div className="mt-1 text-[11px] text-slate-500">
-                            *Infants are priced differently and may not be included in the per-traveler estimate.
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-[12px] text-[#9aa3b2]">From</div>
-                        <div className="mt-1 text-2xl font-bold leading-none">{money(total, currency)}</div>
-                      </>
-                    )}
-
-                    <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-                      <Row label="Base" value={money(base, currency)} />
-                      <Row label={`Agent markup (${agentMarkupPercent}%)`} value={money(markup, currency)} />
-                      <div className="mt-1 border-t border-slate-200 pt-1">
-                        <Row label="Total" value={money(total, currency)} bold />
-                      </div>
-                    </div>
-
-                    {agentMarkupPercent > 0 && (
-                      <div className="mt-2">
-                        <Pill tone="amber">Agent earns {money(markup, currency)}</Pill>
-                      </div>
-                    )}
-
-                    <div className="mt-3 flex flex-col gap-2">
-                      <button
-                        type="button"
-                        className="btn btn-primary d-flex items-center justify-center gap-2 rounded-4"
-                        onClick={() => selectItinerary(itinerary)}
-                      >
-                        <span>Select flight</span>
-                        <i className="bi bi-arrow-right" />
-                      </button>
-
-                      <button
-                        type="button"
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-3 border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50"
-                        onClick={() => toggleOpen(key)}
-                        aria-expanded={open}
-                        aria-controls={detailsId}
-                      >
-                        {open ? "Hide fare details" : "Show fare details"}
-                        <Chevron open={open} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Fare details */}
-                <AnimatePresence initial={false}>
-                  {open && (
-                    <motion.div
-                      id={detailsId}
-                      layout="position"
-                      presenceAffectsLayout={false}
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="border-t border-slate-200 bg-white"
-                    >
-                      <div className="p-3 md:p-4">
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                          {/* Fare breakdown */}
-                          <Tile icon="price" title="Fare breakdown" hint="Taxes & fees included">
-                            {pax.total > 1 && (
-                              <>
-                                <Row
-                                  label={`Per traveler${pax.infants > 0 ? " (excl. infants)" : ""}`}
-                                  value={money(perTotal, currency)}
-                                />
-                                <div className="my-2 border-t border-slate-200" />
-                              </>
-                            )}
-                            <Row label="Base" value={money(base, currency)} />
-                            <Row label={`Agent markup (${agentMarkupPercent}%)`} value={money(markup, currency)} />
-                            <div className="mt-2 border-t border-slate-200 pt-2">
-                              <Row label="Estimated total" value={money(total, currency)} bold />
-                            </div>
-                            {pax.infants > 0 && (
-                              <div className="mt-2 flex items-start gap-2 text-[11px] text-slate-500">
-                                <Icon name="info" className="mt-[2px] h-3.5 w-3.5 text-slate-400" />
-                                <span>Infant pricing/policies may differ by airline.</span>
-                              </div>
-                            )}
-                          </Tile>
-
-                          {/* Inclusions */}
-                          <Tile icon="bag" title="Inclusions">
-                            <div className="space-y-2 text-xs">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Icon name="seat" />
-                                  <span className="text-slate-600">Cabin</span>
-                                </div>
-                                <span className="font-medium text-slate-900">
-                                  {itinerary.cabin || "—"}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Icon name="bag" />
-                                  <span className="text-slate-600">Baggage</span>
-                                </div>
-                                <span className="font-medium text-slate-900">
-                                  {itinerary.baggage || "—"}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Icon name="airline" />
-                                  <span className="text-slate-600">Airlines</span>
-                                </div>
-                                <span className="truncate pl-2 text-right font-medium text-slate-900">
-                                  {(itinerary.airlines || [])
-                                    .map((a) => getAirlineName(a))
-                                    .filter(Boolean)
-                                    .join(", ") || "—"}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Icon name="clock" />
-                                  <span className="text-slate-600">Journey time</span>
-                                </div>
-                                <span className="font-medium text-slate-900">{durText}</span>
-                              </div>
-                            </div>
-                          </Tile>
-
-                          {/* Rules & notes */}
-                          <Tile icon="shield" title="Rules & notes">
-                            <div className="space-y-2 text-xs">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Icon name="shield" className={`h-4 w-4 ${itinerary.refundable ? "text-emerald-700" : "text-rose-700"}`} />
-                                  <span className="text-slate-600">Refundability</span>
-                                </div>
-                                <span className={`font-medium ${itinerary.refundable ? "text-emerald-700" : "text-rose-700"}`}>
-                                  {itinerary.refundable ? "Refundable" : "Non-refundable"}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Icon name="changes" />
-                                  <span className="text-slate-600">Changes</span>
-                                </div>
-                                <span className="font-medium text-slate-900">Shown at checkout</span>
-                              </div>
-                              <div className="flex items-start gap-2 text-[11px] text-slate-500">
-                                <Icon name="info" className="mt-[2px] h-3.5 w-3.5 text-slate-400" />
-                                <span>Availability can refresh; totals finalize on the next step.</span>
-                              </div>
-                            </div>
-                          </Tile>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.li>
-            );
-          })}
-        </AnimatePresence>
-      </motion.ul>
     </div>
   );
 };
 
-export default ItineraryList;
+export default FlightSegment;
