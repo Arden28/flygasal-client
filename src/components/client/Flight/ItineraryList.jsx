@@ -22,6 +22,18 @@ const Pill = ({ children, tone = "slate" }) => {
 };
 
 const computeItinKey = (it) => {
+  if (Array.isArray(it.legs) && it.legs.length) {
+    const legKeys = it.legs.map((leg) => {
+      const id = leg.id || leg.solutionId || "";
+      const mc = leg.marketingCarriers?.[0] || leg.segments?.[0]?.airline || "";
+      const fn = leg.flightNumber || "";
+      const dep = leg.departureTime || leg.segments?.[0]?.departureDate || "";
+      const arr = leg.arrivalTime || leg.segments?.slice(-1)?.[0]?.arrivalDate || "";
+      return `${id}-${mc}-${fn}-${dep}-${arr}`;
+    });
+    return `${legKeys.join("|")}|${it.totalPrice}`;
+  }
+
   const out = it.outbound || {};
   const ret = it.return || {};
   const outKey =
@@ -35,6 +47,7 @@ const computeItinKey = (it) => {
     : "OW";
   return `${outKey}|${retKey}|${it.totalPrice}`;
 };
+
 
 const Chevron = ({ open }) => (
   <motion.svg
@@ -173,68 +186,75 @@ const ItineraryList = ({
     return { start, end, total: totalCount };
   }, [totalCount, currentPage, pageSize]);
 
-  const selectItinerary = (itinerary) => {
+const selectItinerary = (itinerary) => {
+  const isMulti = (searchParams?.tripType || "").toLowerCase() === "multi" || (Array.isArray(itinerary.legs) && itinerary.legs.length > 0);
+  const params = new URLSearchParams();
+
+  if (isMulti) {
+    params.set("tripType", "multi");
+    params.set("solutionId", itinerary.solutionId || itinerary.legs?.[0]?.solutionId || "");
+    params.set("cabin", itinerary.cabin || itinerary.legs?.[0]?.cabin || "Economy");
+  } else {
     const out = itinerary.outbound || {};
-    const firstAirline = out.marketingCarriers?.[0] || out.segments?.[0]?.airline || "";
-    const params = new URLSearchParams({
-      solutionKey: out.solutionKey || "",
-      solutionId: out.solutionId || "",
-      tripType: itinerary.return ? "return" : "oneway",
-      returnDate: itinerary.return ? formatToYMD(itinerary.return.segments[0]?.departureTime) : "",
-      adults: `${searchParams?.adults || 1}`,
-      children: `${searchParams?.children || 0}`,
-      infants: `${searchParams?.infants || 0}`,
-      cabin: itinerary.outbound.cabin || "Economy",
-      flightId: itinerary.outbound.id,
-      returnFlightId: itinerary.return ? itinerary.return.id : "",
-      flightNumber: itinerary.outbound.flightNumber || "",
-    });
-
-    // Outbound segments
-    itinerary.outbound.segments.forEach((seg, i) => {
-      params.set(`flights[${i}][origin]`, seg.departure);
-      params.set(`flights[${i}][destination]`, seg.arrival);
-      params.set(`flights[${i}][airline]`, seg.airline);
-      params.set(`flights[${i}][flightNum]`, seg.flightNum);
-      params.set(`flights[${i}][arrival]`, seg.arrival);
-      params.set(`flights[${i}][arrivalDate]`, seg.strArrivalDate);
-      params.set(`flights[${i}][arrivalTime]`, seg.strArrivalTime);
-      params.set(`flights[${i}][departure]`, seg.departure);
-      params.set(`flights[${i}][departureDate]`, seg.strDepartureDate);
-      params.set(`flights[${i}][departureTime]`, seg.strDepartureTime);
-      params.set(`flights[${i}][bookingCode]`, seg.bookingCode || "");
-    });
-
-    // Return segments (if present)
-    if (itinerary.return?.segments?.length) {
-      itinerary.return.segments.forEach((seg, j) => {
-        const i = itinerary.outbound.segments.length + j; // continue index after outbound
-        params.set(`flights[${i}][origin]`, seg.departure);
-        params.set(`flights[${i}][destination]`, seg.arrival);
-        params.set(`flights[${i}][airline]`, seg.airline);
-        params.set(`flights[${i}][flightNum]`, seg.flightNum);
-        params.set(`flights[${i}][arrival]`, seg.arrival);
-        params.set(`flights[${i}][arrivalDate]`, seg.strArrivalDate);
-        params.set(`flights[${i}][arrivalTime]`, seg.strArrivalTime);
-        params.set(`flights[${i}][departure]`, seg.departure);
-        params.set(`flights[${i}][departureDate]`, seg.strDepartureDate);
-        params.set(`flights[${i}][departureTime]`, seg.strDepartureTime);
-        params.set(`flights[${i}][bookingCode]`, seg.bookingCode || "");
-      });
+    params.set("solutionKey", out.solutionKey || "");
+    params.set("solutionId", out.solutionId || "");
+    params.set("tripType", itinerary.return ? "return" : "oneway");
+    if (itinerary.return?.segments?.[0]?.departureTime) {
+      params.set("returnDate", formatToYMD(itinerary.return.segments[0].departureTime));
     }
+    params.set("cabin", itinerary.outbound?.cabin || "Economy");
+    params.set("flightId", itinerary.outbound?.id || "");
+    params.set("returnFlightId", itinerary.return ? itinerary.return.id : "");
+    params.set("flightNumber", itinerary.outbound?.flightNumber || "");
+  }
 
+  params.set("adults", `${searchParams?.adults || 1}`);
+  params.set("children", `${searchParams?.children || 0}`);
+  params.set("infants", `${searchParams?.infants || 0}`);
 
-    const base = Number(itinerary.totalPrice) || 0;
-    const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
-    const total = +(base + markup).toFixed(2);
-    params.set("basePrice", String(base));
-    params.set("agentMarkupPercent", String(agentMarkupPercent));
-    params.set("agentMarkupAmount", String(markup));
-    params.set("totalWithMarkup", String(total));
-    params.set("currency", currency);
+  // ---- Write segments into flights[i] ----
+  let idx = 0;
 
-    navigate(`/flight/booking/details?${params.toString()}`);
+  const writeSeg = (seg) => {
+    params.set(`flights[${idx}][origin]`, seg.departure);
+    params.set(`flights[${idx}][destination]`, seg.arrival);
+    params.set(`flights[${idx}][airline]`, seg.airline);
+    params.set(`flights[${idx}][flightNum]`, seg.flightNum);
+    params.set(`flights[${idx}][arrival]`, seg.arrival);
+    params.set(`flights[${idx}][arrivalDate]`, seg.strArrivalDate || seg.arrivalDate || "");
+    params.set(`flights[${idx}][arrivalTime]`, seg.strArrivalTime || seg.arrivalTime || "");
+    params.set(`flights[${idx}][departure]`, seg.departure);
+    params.set(`flights[${idx}][departureDate]`, seg.strDepartureDate || seg.departureDate || "");
+    params.set(`flights[${idx}][departureTime]`, seg.strDepartureTime || seg.departureTime || "");
+    params.set(`flights[${idx}][bookingCode]`, seg.bookingCode || "");
+    idx += 1;
   };
+
+  if (isMulti) {
+    // Flatten all legs' segments in order
+    (itinerary.legs || []).forEach((leg) => {
+      (leg.segments || []).forEach(writeSeg);
+    });
+  } else {
+    // Outbound segments
+    (itinerary.outbound?.segments || []).forEach(writeSeg);
+    // Return segments
+    (itinerary.return?.segments || []).forEach(writeSeg);
+  }
+
+  // ---- Pricing/markup ----
+  const base = Number(itinerary.totalPrice) || 0;
+  const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
+  const total = +(base + markup).toFixed(2);
+  params.set("basePrice", String(base));
+  params.set("agentMarkupPercent", String(agentMarkupPercent));
+  params.set("agentMarkupAmount", String(markup));
+  params.set("totalWithMarkup", String(total));
+  params.set("currency", currency);
+
+  navigate(`/flight/booking/details?${params.toString()}`);
+};
+
 
 
   const pax = useMemo(() => {
@@ -287,13 +307,23 @@ const ItineraryList = ({
             const { base, markup, total, perBase, perMarkup, perTotal } = priceBreakdown(itinerary);
             const direct = itinerary.totalStops === 0;
             const airlines = itinerary.airlines || [];
-            const isRoundTrip = !!itinerary.return;
+            const isMulti = (searchParams?.tripType || "").toLowerCase() === "multi" || (Array.isArray(itinerary.legs) && itinerary.legs.length > 0);
+            const isRoundTrip = !isMulti && !!itinerary.return;
             
             // console.info("Itinerary:", itinerary);
 
-            const durText = isRoundTrip
-              ? `${calculateDuration(itinerary.outbound.departureTime, itinerary.return?.arrivalTime)}`
-              : `${calculateDuration(itinerary.outbound.departureTime, itinerary.outbound.arrivalTime)}`;
+            let durText = "";
+            if (isMulti) {
+              const first = itinerary.legs?.[0];
+              const last = itinerary.legs?.[itinerary.legs.length - 1];
+              const dep = first?.departureTime || first?.segments?.[0]?.departureDate;
+              const arr = last?.arrivalTime || last?.segments?.slice(-1)?.[0]?.arrivalDate;
+              durText = dep && arr ? `${calculateDuration(dep, arr)}` : "—";
+            } else if (isRoundTrip) {
+              durText = `${calculateDuration(itinerary.outbound.departureTime, itinerary.return?.arrivalTime)}`;
+            } else {
+              durText = `${calculateDuration(itinerary.outbound.departureTime, itinerary.outbound.arrivalTime)}`;
+            }
 
             const detailsId = `fare-details-${key.replace(/[^a-zA-Z0-9]/g, "")}`;
             const open = isOpen(key);
@@ -334,35 +364,56 @@ const ItineraryList = ({
 
                     </div>
 
-                    <FlightSegment
-                      flight={itinerary.outbound}
-                      segmentType="Outbound"
-                      formatDate={formatDate}
-                      formatTime={formatTime}
-                      calculateDuration={calculateDuration}
-                      getAirportName={getAirportName}
-                      getAirlineName={getAirlineName}
-                      getAirlineLogo={getAirlineLogo}
-                      expectedOutboundOrigin={searchParams?.origin}
-                      expectedOutboundDestination={searchParams?.destination}
-                    />
-
-                    {isRoundTrip && (
-                      <div className="mt-2 border-t border-dashed border-slate-200 pt-2">
+                    {isMulti ? (
+                      <>
+                        {(itinerary.legs || []).map((leg, li) => (
+                          <div key={`leg-${li}`} className={li > 0 ? "mt-2 border-t border-dashed border-slate-200 pt-2" : ""}>
+                            <FlightSegment
+                              flight={leg}
+                              segmentType={`Leg ${li + 1}`}
+                              formatDate={formatDate}
+                              formatTime={formatTime}
+                              calculateDuration={calculateDuration}
+                              getAirportName={getAirportName}
+                              getAirlineName={getAirlineName}
+                              getAirlineLogo={getAirlineLogo}
+                            />
+                          </div>
+                        ))}
+                      </>
+                    ) : (
+                      <>
                         <FlightSegment
-                          flight={itinerary.return}
-                          segmentType="Return"
+                          flight={itinerary.outbound}
+                          segmentType="Outbound"
                           formatDate={formatDate}
                           formatTime={formatTime}
                           calculateDuration={calculateDuration}
                           getAirportName={getAirportName}
                           getAirlineName={getAirlineName}
                           getAirlineLogo={getAirlineLogo}
-                          expectedReturnOrigin={searchParams?.destination}
-                          expectedReturnDestination={searchParams?.origin}
+                          expectedOutboundOrigin={searchParams?.origin}
+                          expectedOutboundDestination={searchParams?.destination}
                         />
-                      </div>
+                        {isRoundTrip && (
+                          <div className="mt-2 border-t border-dashed border-slate-200 pt-2">
+                            <FlightSegment
+                              flight={itinerary.return}
+                              segmentType="Return"
+                              formatDate={formatDate}
+                              formatTime={formatTime}
+                              calculateDuration={calculateDuration}
+                              getAirportName={getAirportName}
+                              getAirlineName={getAirlineName}
+                              getAirlineLogo={getAirlineLogo}
+                              expectedReturnOrigin={searchParams?.destination}
+                              expectedReturnDestination={searchParams?.origin}
+                            />
+                          </div>
+                        )}
+                      </>
                     )}
+
 
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
                       <Pill tone={direct ? "green" : "blue"}>
