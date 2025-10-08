@@ -252,6 +252,7 @@ const selectItinerary = (itinerary) => {
   params.set("totalWithMarkup", String(total));
   params.set("currency", currency);
 
+  console.info('Itinerary: ', itinerary);
   const flights = {};
 
   for (const [key, value] of params.entries()) {
