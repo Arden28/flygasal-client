@@ -1,5 +1,4 @@
 import React, { useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 
 export default function PassengerDetailsCard({
   formData,
@@ -88,7 +87,7 @@ export default function PassengerDetailsCard({
 
   const desired = { adult: adults, child: children, infant: infants };
 
-  // ------ STABLE ROW KEYS (fixes remount/focus loss) ------
+  // ------ STABLE ROW KEYS ------
   const rows = useMemo(() => {
     const out = [];
     ["adult", "child", "infant"].forEach((t) => {
@@ -118,7 +117,7 @@ export default function PassengerDetailsCard({
     });
     return out;
   }, [byType, desired]);
-  // --------------------------------------------------------
+  // -----------------------------
 
   /* ---------- Mutations ---------- */
   const updateTravelers = (next) =>
@@ -161,7 +160,7 @@ export default function PassengerDetailsCard({
     removeTraveler(idx);
   };
 
-  /* ---------- Uniform field components (consistent height & spacing) ---------- */
+  /* ---------- Uniform field components ---------- */
   const baseCtrl =
     "block w-full rounded-2xl border border-slate-300 text-sm text-slate-900 focus:border-sky-500 focus:outline-none " +
     "px-3 pt-4 pb-2 h-12";
@@ -180,7 +179,7 @@ export default function PassengerDetailsCard({
       />
       <label
         htmlFor={id}
-        className="pointer-events-none absolute left-3 top-2 text-xs text-slate-500 transition-all peer-focus:top-2"
+        className="pointer-events-none absolute left-3 top-2 text-xs text-slate-500 transition-all"
       >
         {label}
       </label>
@@ -213,14 +212,7 @@ export default function PassengerDetailsCard({
     const onT = (field) => (v) => onFieldChange(row, field, v);
 
     return (
-      <motion.li
-        // key comes from parent map via row._key; no need to set here again
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -8 }}
-        transition={{ duration: 0.2 }}
-        className="rounded-2xl bg-white ring-1 ring-slate-200 overflow-hidden"
-      >
+      <li className="rounded-2xl bg-white ring-1 ring-slate-200 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -476,18 +468,13 @@ export default function PassengerDetailsCard({
             </LabeledSelect>
           </div>
         </div>
-      </motion.li>
+      </li>
     );
   };
 
   return (
     <div className="travel">
-      <motion.div
-        className="bg-white rounded-2xl w-full max-w-4xl mb-3 overflow-hidden ring-1 ring-slate-200"
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: "easeOut" }}
-      >
+      <div className="bg-white rounded-2xl w-full max-w-4xl mb-3 overflow-hidden ring-1 ring-slate-200">
         {/* Header */}
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-4">
           <div className="flex items-center gap-3 min-w-0">
@@ -523,22 +510,16 @@ export default function PassengerDetailsCard({
 
           {/* Passenger cards */}
           <ul className="mt-4 grid grid-cols-1 gap-3">
-            <AnimatePresence initial={false}>
-              {rows.length === 0 ? (
-                <motion.li
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="px-4 py-8 text-center text-sm text-slate-500 rounded-2xl ring-1 ring-slate-200 bg-white"
-                >
-                  Set traveller counts, then fill in each passenger.
-                </motion.li>
-              ) : (
-                rows.map((row, i) => <PassengerCard key={row._key} row={row} idx={i} />)
-              )}
-            </AnimatePresence>
+            {rows.length === 0 ? (
+              <li className="px-4 py-8 text-center text-sm text-slate-500 rounded-2xl ring-1 ring-slate-200 bg-white">
+                Set traveller counts, then fill in each passenger.
+              </li>
+            ) : (
+              rows.map((row, i) => <PassengerCard key={row._key} row={row} idx={i} />)
+            )}
           </ul>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

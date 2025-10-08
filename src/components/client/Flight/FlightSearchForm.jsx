@@ -558,7 +558,7 @@ useEffect(() => {
       borderColor: state.isFocused ? "#94a3b8" : "#e5e7eb",
       boxShadow: state.isFocused ? "0 0 0 3px rgba(148,163,184,.25)" : "none",
       // add extra left padding ONLY when we render an icon
-      paddingLeft: state.selectProps?.iconType ? 25 : 12,
+      paddingLeft: state.selectProps?.iconType ? 45 : 12,
       paddingRight: 10,
       backgroundColor: "#fff",
       color: "#0f172a",
