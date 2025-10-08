@@ -610,7 +610,7 @@ export const rawAirlines = [
   { code: 'VU', name: 'Air Ivoire', logo: '/assets/img/airlines/VU.png' },
 
   // -- Jamaica --
-  { code: 'JM', name: 'Air Jamaica', logo: '/assets/img/airlines/JM.png' },
+  { code: 'JM', name: 'Jambojet', logo: '/assets/img/airlines/JM.png' },
   { code: 'I4', name: 'International AirLink', logo: '/assets/img/airlines/I4.png' },
 
   // -- Japan --

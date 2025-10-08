@@ -137,7 +137,6 @@ const IATAPill = ({ code }) => (
   </span>
 );
 
-/** One-line SingleValue so input text sits on the same level as the value */
 const AirportSingleValue = (props) => {
   const a = props.data;
   return (
@@ -178,7 +177,7 @@ export default function FlightSearchInlineBar({
   const isMobile = useMedia("(max-width: 640px)");
   const AIRPORT_INDEX = useAirportIndex();
 
-  // anchors for popovers (one-way / return keep the original anchored UX)
+  // anchors
   const travellersBtnRef = useRef(null);
   const departBtnRef = useRef(null);
   const returnBtnRef = useRef(null);
@@ -194,9 +193,28 @@ export default function FlightSearchInlineBar({
   const [airportMenus, setAirportMenus] = useState({});
   const menuKey = (idx, field) => `${idx}:${field}`;
   const defaultChunk = useMemo(() => AIRPORT_INDEX.slice(0, DEFAULT_MENU_COUNT), [AIRPORT_INDEX]);
-  const ensureMenu = (key) => airportMenus[key] ?? { input: "", options: defaultChunk };
+
+  const ensureMenuObj = (key) => airportMenus[key] ?? { input: "", options: defaultChunk };
   const setMenu = (key, data) => setAirportMenus((prev) => ({ ...prev, [key]: data }));
-  const handleMenuOpen = (idx, field) => setMenu(menuKey(idx, field), { input: "", options: defaultChunk });
+
+  // 🔧 Seed menus for all legs so every Select has options ready (fixes “placeholder only” / not opening)
+  useEffect(() => {
+    setAirportMenus((prev) => {
+      const next = { ...prev };
+      const count = flightsState.length || 1;
+      for (let i = 0; i < count; i++) {
+        const ok = menuKey(i, "origin");
+        const dk = menuKey(i, "destination");
+        if (!next[ok]) next[ok] = { input: "", options: defaultChunk };
+        if (!next[dk]) next[dk] = { input: "", options: defaultChunk };
+      }
+      return next;
+    });
+  }, [flightsState.length, defaultChunk]);
+
+  const handleMenuOpen = (idx, field) =>
+    setMenu(menuKey(idx, field), { input: "", options: defaultChunk });
+
   const handleInputChange =
     (idx, field) =>
     (inputValue, meta) => {
@@ -221,7 +239,6 @@ export default function FlightSearchInlineBar({
   const [infants, setInfants] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isTravellersOpen, setIsTravellersOpen] = useState(false);
-
   const [errors, setErrors] = useState([]);
 
   /* -------- hydrate from URL or props -------- */
@@ -265,10 +282,6 @@ export default function FlightSearchInlineBar({
       if (end < start) end = start;
       const originObj = airports.find((a) => a.value === f.origin) || null;
       const destObj = airports.find((a) => a.value === f.destination) || null;
-      const oKey = menuKey(i, "origin");
-      const dKey = menuKey(i, "destination");
-      setMenu(oKey, ensureMenu(oKey));
-      setMenu(dKey, ensureMenu(dKey));
       return { origin: originObj, destination: destObj, dateRange: { startDate: start, endDate: end, key: "selection" } };
     });
     setFlightsState(normSegments.length ? normSegments : [{
@@ -283,7 +296,6 @@ export default function FlightSearchInlineBar({
   useEffect(() => {
     setOpenCal(null);
     if (tripType === "oneway") {
-      // force single leg; endDate mirrors startDate
       setFlightsState((prev) => {
         const first = { ...(prev[0] || {
           origin: null, destination: null, dateRange: { startDate: today, endDate: today, key: "selection" }
@@ -292,7 +304,6 @@ export default function FlightSearchInlineBar({
         return [first];
       });
     } else if (tripType === "return") {
-      // force single leg; keep endDate separate
       setFlightsState((prev) => {
         const first = { ...(prev[0] || {
           origin: null, destination: null, dateRange: { startDate: today, endDate: addDays(today, 5), key: "selection" }
@@ -303,16 +314,15 @@ export default function FlightSearchInlineBar({
         return [first];
       });
     } else if (tripType === "multi") {
-      // ensure at least 2 legs; each leg one-way (end = start)
       setFlightsState((prev) => {
-        const norm = (prev.length ? prev : [
+        const base = prev.length ? prev : [
           { origin: null, destination: null, dateRange: { startDate: today, endDate: today, key: "selection" } },
           { origin: null, destination: null, dateRange: { startDate: addDays(today, 1), endDate: addDays(today, 1), key: "selection" } },
-        ]).map((f) => ({
+        ];
+        return base.map((f) => ({
           ...f,
           dateRange: { ...f.dateRange, endDate: f.dateRange.startDate || today },
         }));
-        return norm;
       });
     }
   }, [tripType]);
@@ -431,7 +441,6 @@ export default function FlightSearchInlineBar({
     queryParams.set("children", String(children));
     queryParams.set("infants", String(infants));
 
-    // Optional local fake data prefill (kept as-is)
     const outbound = flights.filter((fl) =>
       flightsState.some(
         (f) =>
@@ -500,7 +509,7 @@ export default function FlightSearchInlineBar({
     }),
   };
 
-  const menuOptions = (idx, field) => ensureMenu(menuKey(idx, field)).options;
+  const menuOptions = (idx, field) => (ensureMenuObj(menuKey(idx, field)).options || defaultChunk);
   const noOptionsMessage = ({ inputValue }) =>
     inputValue && inputValue.length > 1 ? "No airports match your search" : "Type to search airports";
 
@@ -531,11 +540,34 @@ export default function FlightSearchInlineBar({
   const LegRow = ({ idx }) => {
     const leg = flightsState[idx];
 
-    // own ref + rect so the calendar anchors NEXT TO the clicked input
     const legDepartBtnRef = useRef(null);
-    const legDepartRect = useAnchorRect(legDepartBtnRef, openCal?.type === "depart" && openCal.idx === idx);
+    const legDepartRect = useAnchorRect(legDepartBtnRef, openCal?.type === "depart" && openCal?.idx === idx);
+
+    // Auto-center the button in view when opening calendar (avoid long scroll)
+    const openLegCal = () => {
+      legDepartBtnRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+      setOpenCal((oc) =>
+        oc && oc.type === "depart" && oc.idx === idx ? null : { type: "depart", idx }
+      );
+    };
 
     const dateLabel = leg?.dateRange?.startDate ? format(leg.dateRange.startDate, "EEE d MMM") : "Select date";
+
+    // smart calendar placement
+    const calWidth = Math.min(360, window.innerWidth - 24);
+    const estHeight = 332; // approx height of 1-month calendar
+    const placeFromRect = (rect) => {
+      if (!rect) return { top: 0, left: 0 };
+      let left = Math.max(12, Math.min(rect.left, window.innerWidth - 12 - calWidth));
+      let top = rect.bottom + 8;
+      if (top + estHeight > window.innerHeight - 12) {
+        top = Math.max(12, rect.top - estHeight - 8);
+      }
+      return { top, left };
+    };
+
+    const pos = placeFromRect(legDepartRect);
+
     return (
       <div className="grid gap-2 md:grid-cols-[1.2fr_auto_1.2fr_auto_auto] lg:grid-cols-[1.2fr_auto_1.2fr_auto_auto_auto] lg:items-center mb-2">
         {/* From */}
@@ -607,13 +639,9 @@ export default function FlightSearchInlineBar({
           <button
             ref={legDepartBtnRef}
             type="button"
-            onClick={() =>
-              setOpenCal((oc) =>
-                oc && oc.type === "depart" && oc.idx === idx ? null : { type: "depart", idx }
-              )
-            }
+            onClick={openLegCal}
             className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none text-slate-800"
-            aria-expanded={openCal?.type === "depart" && openCal.idx === idx}
+            aria-expanded={openCal?.type === "depart" && openCal?.idx === idx}
           >
             <div className="min-w-0 truncate">
               <div className="text-[11px] tracking-wide text-slate-500">Departure</div>
@@ -624,9 +652,9 @@ export default function FlightSearchInlineBar({
             </svg>
           </button>
 
-          {/* Anchored calendar via Portal so it opens next to THIS input */}
+          {/* Anchored calendar via Portal, smart-positioned & scroll-friendly */}
           <AnimatePresence>
-            {openCal?.type === "depart" && openCal.idx === idx && legDepartRect && (
+            {openCal?.type === "depart" && openCal?.idx === idx && legDepartRect && (
               <Portal>
                 <motion.div
                   initial={{ opacity: 0, y: -6 }}
@@ -635,9 +663,9 @@ export default function FlightSearchInlineBar({
                   transition={{ duration: 0.18 }}
                   style={{
                     position: "fixed",
-                    top: legDepartRect.bottom + 8,
-                    left: Math.max(16, Math.min(legDepartRect.left, window.innerWidth - 16 - 320)),
-                    width: 320,
+                    top: pos.top,
+                    left: pos.left,
+                    width: calWidth,
                     zIndex: 100000,
                   }}
                 >
@@ -700,375 +728,49 @@ export default function FlightSearchInlineBar({
 
       <div className="relative">
         {/* Top controls */}
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1">
-            <button
-              type="button"
-              className={`rounded-lg px-3 py-2 text-sm ${tripType === "oneway" ? "bg-blue-600 text-white" : "text-gray-800 hover:bg-gray-50"}`}
-              onClick={() => setTripType("oneway")}
-              aria-pressed={tripType === "oneway"}
-            >
-              One way
-            </button>
-            <button
-              type="button"
-              className={`rounded-lg px-3 py-2 text-sm ${tripType === "return" ? "bg-blue-600 text-white" : "text-gray-800 hover:bg-gray-50"}`}
-              onClick={() => setTripType("return")}
-              aria-pressed={tripType === "return"}
-            >
-              Return
-            </button>
-            <button
-              type="button"
-              className={`rounded-lg px-3 py-2 text-sm ${tripType === "multi" ? "bg-blue-600 text-white" : "text-gray-800 hover:bg-gray-50"}`}
-              onClick={() => setTripType("multi")}
-              aria-pressed={tripType === "multi"}
-            >
-              Multi-city
-            </button>
-          </div>
-
-          {/* Travellers trigger */}
-          <div className="relative text-black">
-            <button
-              ref={travellersBtnRef}
-              type="button"
-              onClick={() => setIsTravellersOpen((v) => !v)}
-              className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-800 hover:bg-gray-200"
-              aria-expanded={isTravellersOpen}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-800">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-              <span className="text-slate-800">{travellerSummary}</span>
-            </button>
-
-            {/* Travellers popover */}
-            <AnimatePresence>
-              {isTravellersOpen &&
-                (isMobile ? (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100000] flex flex-col bg-white">
-                    <div className="flex items-center justify-between border-b border-slate-200 p-3">
-                      <div className="text-sm font-medium text-slate-800">Travellers & cabin</div>
-                      <span className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800 cursor-pointer" onClick={() => setIsTravellersOpen(false)}>Close</span>
-                    </div>
-                    <div className="flex-1 overflow-auto p-4">
-                      {[
-                        { key: "Adults", sub: "+12 years", value: adults, set: setAdults, min: 1 },
-                        { key: "Children", sub: "2–11 years", value: children, set: setChildren, min: 0 },
-                        { key: "Infants", sub: "0–2 years", value: infants, set: setInfants, min: 0 },
-                      ].map((row) => (
-                        <div key={row.key} className="mb-4 flex items-center justify-between">
-                          <div>
-                            <div className="font-medium text-slate-800">{row.key}</div>
-                            <div className="text-xs text-slate-500">{row.sub}</div>
-                          </div>
-                          <div className="inline-flex items-center gap-3">
-                            <button type="button" className="h-10 w-10 rounded-full border border-slate-300 text-slate-800" onClick={() => setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)}>–</button>
-                            <span className="w-8 text-center text-sm text-slate-800">{row.value}</span>
-                            <button type="button" className="h-10 w-10 rounded-full border border-slate-300 text-slate-800" onClick={() => setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)}>+</button>
-                          </div>
-                        </div>
-                      ))}
-                      <div className="mt-2">
-                        <label htmlFor="flight_type" className="mb-1 block text-sm text-slate-700">Cabin class</label>
-                        <select
-                          id="flight_type"
-                          className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-                          value={flightType}
-                          onChange={(e) => setFlightType(toCabinCode(e.target.value))}
-                        >
-                          {CABIN_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="border-t border-slate-200 p-3">
-                      <span className="w-full cursor-pointer rounded-lg bg-slate-900 py-2 text-sm text-white" onClick={() => setIsTravellersOpen(false)}>Done</span>
-                    </div>
-                  </motion.div>
-                ) : (
-                  travellersRect && (
-                    <Portal>
-                      <motion.div
-                        initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
-                        style={{ position: "fixed", top: travellersRect.bottom + 8, left: Math.min(travellersRect.left, Math.max(16, window.innerWidth - 352 - 16)), width: "min(96vw, 22rem)", zIndex: 100000 }}
-                      >
-                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-2xl">
-                          {[
-                            { key: "Adults", sub: "+12 years", value: adults, set: setAdults, min: 1 },
-                            { key: "Children", sub: "2–11 years", value: children, set: setChildren, min: 0 },
-                            { key: "Infants", sub: "0–2 years", value: infants, set: setInfants, min: 0 },
-                          ].map((row) => (
-                            <div key={row.key} className="mb-3 flex items-center justify-between last:mb-0">
-                              <div>
-                                <div className="font-medium text-slate-800">{row.key}</div>
-                                <div className="text-xs text-slate-500">{row.sub}</div>
-                              </div>
-                              <div className="inline-flex items-center gap-2">
-                                <button type="button" className="h-8 w-8 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-800" onClick={() => setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)}>–</button>
-                                <span className="w-8 text-center text-sm text-slate-800">{row.value}</span>
-                                <button type="button" className="h-8 w-8 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-800" onClick={() => setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)}>+</button>
-                              </div>
-                            </div>
-                          ))}
-                          <div className="mt-2 mb-2">
-                            <label htmlFor="flight_type" className="sr-only">Cabin class</label>
-                            <select id="flight_type" className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-slate-500 focus:ring-2 focus:ring-slate-200" value={flightType} onChange={(e) => setFlightType(toCabinCode(e.target.value))}>
-                              {CABIN_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
-                            </select>
-                          </div>
-                          <span className="mt-3 w-full inline-block cursor-pointer text-center rounded-lg bg-slate-900 px-6 py-2 text-sm text-white hover:bg-black" onClick={() => setIsTravellersOpen(false)}>Done</span>
-                        </div>
-                      </motion.div>
-                    </Portal>
-                  )
-                ))}
-            </AnimatePresence>
-          </div>
-        </div>
+        <TopControls
+          tripType={tripType}
+          setTripType={setTripType}
+          isMobile={isMobile}
+          travellersBtnRef={travellersBtnRef}
+          isTravellersOpen={isTravellersOpen}
+          setIsTravellersOpen={setIsTravellersOpen}
+          travellersRect={travellersRect}
+          adults={adults}
+          setAdults={setAdults}
+          children={children}
+          setChildren={setChildren}
+          infants={infants}
+          setInfants={setInfants}
+          travellerSummary={travellerSummary}
+          flightType={flightType}
+          setFlightType={setFlightType}
+        />
 
         {/* === Main rows === */}
         {tripType !== "multi" ? (
-          <>
-            <div className="grid gap-2 lg:grid-cols-[1.2fr_auto1.2fr_auto_auto_auto] lg:items-center md:grid-cols-[1.2fr_auto_1.2fr_auto_auto_auto]">
-              {/* From */}
-              <div className="z-[200] bg-white">
-                <Select
-                  name="origin"
-                  classNamePrefix="react-select"
-                  options={menuOptions(0, "origin")}
-                  value={flightsState[0]?.origin || null}
-                  onChange={(v) => handleFlightChange(0, "origin", v)}
-                  onMenuOpen={() => handleMenuOpen(0, "origin")}
-                  onInputChange={handleInputChange(0, "origin")}
-                  components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
-                  styles={selectStyles}
-                  placeholder="City or airport"
-                  isSearchable
-                  filterOption={null}
-                  menuPortalTarget={document.body}
-                  menuPosition="fixed"
-                  maxMenuHeight={384}
-                  menuPlacement="auto"
-                  getOptionValue={(opt) => opt.value}
-                  noOptionsMessage={noOptionsMessage}
-                />
-              </div>
-
-              {/* Swap */}
-              <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100000 }}>
-                <button
-                  type="button"
-                  onClick={() => swapPlaces(0)}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
-                  aria-label="Swap origin and destination"
-                  title="Swap"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="transform rotate-90 xs:rotate-0 transition-transform">
-                    <path d="M3 7h13l-4-4" />
-                    <path d="M21 17H8l4 4" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* To */}
-              <div className="relative z-[200] bg-white">
-                <Select
-                  name="destination"
-                  classNamePrefix="react-select"
-                  options={menuOptions(0, "destination")}
-                  value={flightsState[0]?.destination || null}
-                  onChange={(v) => handleFlightChange(0, "destination", v)}
-                  onMenuOpen={() => handleMenuOpen(0, "destination")}
-                  onInputChange={handleInputChange(0, "destination")}
-                  components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
-                  styles={selectStyles}
-                  placeholder="City or airport"
-                  isSearchable
-                  filterOption={null}
-                  menuPortalTarget={document.body}
-                  menuPosition="fixed"
-                  maxMenuHeight={384}
-                  menuPlacement="auto"
-                  getOptionValue={(opt) => opt.value}
-                  noOptionsMessage={noOptionsMessage}
-                />
-              </div>
-
-              {/* Departure input */}
-              <div className="relative">
-                <button
-                  ref={departBtnRef}
-                  type="button"
-                  onClick={() => setOpenCal(openCal && openCal.type === "depart" ? null : { type: "depart", idx: 0 })}
-                  className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none text-slate-800"
-                  aria-expanded={openCal?.type === "depart"}
-                >
-                  <div className="min-w-0 truncate">
-                    <div className="text-[11px] tracking-wide text-slate-500">Departure</div>
-                    <div className="truncate text-slate-800">{departLabel0}</div>
-                  </div>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
-                    <path d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                {/* Departure calendar */}
-                <AnimatePresence>
-                  {openCal?.type === "depart" &&
-                    (isMobile ? (
-                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100000] flex flex-col bg-white">
-                        <div className="flex items-center justify-between border-b border-slate-200 p-3">
-                          <div className="text-sm font-medium text-slate-800">Select departure</div>
-                          <span className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800" onClick={() => setOpenCal(null)}>Close</span>
-                        </div>
-                        <div className="flex-1 overflow-auto p-3">
-                          <Calendar
-                            date={flightsState[0]?.dateRange?.startDate}
-                            onChange={(d) => handleDepartPick(0, d)}
-                            minDate={today}
-                            months={1}
-                            showMonthAndYearPickers
-                          />
-                        </div>
-                      </motion.div>
-                    ) : (
-                      departRect && (
-                        <Portal>
-                          <motion.div
-                            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
-                            style={{
-                              position: "fixed",
-                              top: departRect.bottom + 8,
-                              left: Math.max(16, Math.min(departRect.left, window.innerWidth - 16 - 320)),
-                              width: 320,
-                              zIndex: 100000,
-                            }}
-                          >
-                            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
-                              <div className="px-2 pt-1 pb-1 text-xs font-medium text-slate-600">Departure</div>
-                              <Calendar
-                                date={flightsState[0]?.dateRange?.startDate}
-                                onChange={(d) => handleDepartPick(0, d)}
-                                minDate={today}
-                                months={1}
-                                showMonthAndYearPickers
-                              />
-                              <div className="p-2 pt-1 flex justify-end">
-                                <button type="button" className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-black" onClick={() => setOpenCal(null)}>
-                                  Done
-                                </button>
-                              </div>
-                            </div>
-                          </motion.div>
-                        </Portal>
-                      )
-                    ))}
-                </AnimatePresence>
-              </div>
-
-              {/* Return input (only if return trip) */}
-              {tripType === "return" && (
-                <div className="relative">
-                  <button
-                    ref={returnBtnRef}
-                    type="button"
-                    onClick={() => setOpenCal(openCal && openCal.type === "return" ? null : { type: "return", idx: 0 })}
-                    className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none text-slate-800"
-                    aria-expanded={openCal?.type === "return"}
-                  >
-                    <div className="min-w-0 truncate">
-                      <div className="text-[11px] tracking-wide text-slate-500">Return</div>
-                      <div className="truncate text-slate-800">{returnLabel0}</div>
-                    </div>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
-                      <path d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-
-                  {/* Return calendar */}
-                  <AnimatePresence>
-                    {openCal?.type === "return" &&
-                      (isMobile ? (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100000] flex flex-col bg-white">
-                          <div className="flex items-center justify-between border-b border-slate-200 p-3">
-                            <div className="text-sm font-medium text-slate-800">Select return</div>
-                            <span className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800" onClick={() => setOpenCal(null)}>Close</span>
-                          </div>
-                          <div className="flex-1 overflow-auto p-3">
-                            <Calendar
-                              date={flightsState[0]?.dateRange?.endDate}
-                              onChange={(d) => handleReturnPick(0, d)}
-                              minDate={flightsState[0]?.dateRange?.startDate || today}
-                              months={1}
-                              showMonthAndYearPickers
-                            />
-                          </div>
-                        </motion.div>
-                      ) : (
-                        returnRect && (
-                          <Portal>
-                            <motion.div
-                              initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
-                              style={{
-                                position: "fixed",
-                                top: returnRect.bottom + 8,
-                                left: Math.max(16, Math.min(returnRect.left, window.innerWidth - 16 - 320)),
-                                width: 320,
-                                zIndex: 100000,
-                              }}
-                            >
-                              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
-                                <div className="px-2 pt-1 pb-1 text-xs font-medium text-slate-600">Return</div>
-                                <Calendar
-                                  date={flightsState[0]?.dateRange?.endDate}
-                                  onChange={(d) => handleReturnPick(0, d)}
-                                  minDate={flightsState[0]?.dateRange?.startDate || today}
-                                  months={1}
-                                  showMonthAndYearPickers
-                                />
-                                <div className="p-2 pt-1 flex justify-end">
-                                  <button type="button" className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-black" onClick={() => setOpenCal(null)}>
-                                    Done
-                                  </button>
-                                </div>
-                              </div>
-                            </motion.div>
-                          </Portal>
-                        )
-                      ))}
-                  </AnimatePresence>
-                </div>
-              )}
-
-              {/* Search */}
-              <div className="flex items-center justify-end">
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="inline-flex h-12 items-center gap-2 rounded-full bg-slate-900 px-6 font-medium text-white shadow-sm hover:bg-black disabled:opacity-60"
-                >
-                  {isLoading ? (
-                    <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z" />
-                    </svg>
-                  ) : (
-                    <>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="11" cy="11" r="8" />
-                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                      </svg>
-                      Search
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </>
+          <OneWayReturnRows
+            flightsState={flightsState}
+            handleFlightChange={handleFlightChange}
+            handleMenuOpen={handleMenuOpen}
+            handleInputChange={handleInputChange}
+            menuOptions={menuOptions}
+            selectStyles={selectStyles}
+            noOptionsMessage={noOptionsMessage}
+            swapPlaces={swapPlaces}
+            // calendars
+            isMobile={isMobile}
+            openCal={openCal}
+            setOpenCal={setOpenCal}
+            departBtnRef={departBtnRef}
+            returnBtnRef={returnBtnRef}
+            departRect={departRect}
+            returnRect={returnRect}
+            handleDepartPick={handleDepartPick}
+            handleReturnPick={handleReturnPick}
+            departLabel0={departLabel0}
+            returnLabel0={returnLabel0}
+          />
         ) : (
           /* === MULTI-CITY === */
           <div>
@@ -1113,5 +815,364 @@ export default function FlightSearchInlineBar({
       {/* Make sure react-select menus are above everything */}
       <style>{`.react-select__menu-portal{z-index:100000}`}</style>
     </form>
+  );
+}
+
+/* ------- Small extracted chunks (unchanged visuals) ------- */
+function TopControls({
+  tripType, setTripType, isMobile,
+  travellersBtnRef, isTravellersOpen, setIsTravellersOpen, travellersRect,
+  adults, setAdults, children, setChildren, infants, setInfants,
+  travellerSummary, flightType, setFlightType
+}) {
+  const CABIN_OPTIONS = [
+    { value: "Economy", label: "ECONOMY" },
+    { value: "PREMIUM_ECONOMY", label: "Premium Economy" },
+    { value: "BUSINESS", label: "Business" },
+    { value: "FIRST", label: "First" },
+  ];
+  const toCabinCode = (raw) => {
+    const s = String(raw || "").trim().toUpperCase().replace(/\s+/g, "_");
+    if (s.includes("PREMIUM") && s.includes("ECONOMY")) return "PREMIUM_ECONOMY";
+    if (s.startsWith("BUSI")) return "BUSINESS";
+    if (s.startsWith("FIR")) return "FIRST";
+    return "Economy";
+  };
+  const MAX_TRAVELLERS = 9;
+  const setWithClamp = (setter, val, min, max) => setter(Math.max(min, Math.min(max, val)));
+
+  return (
+    <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+      <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1">
+        <button
+          type="button"
+          className={`rounded-lg px-3 py-2 text-sm ${tripType === "oneway" ? "bg-blue-600 text-white" : "text-gray-800 hover:bg-gray-50"}`}
+          onClick={() => setTripType("oneway")}
+          aria-pressed={tripType === "oneway"}
+        >
+          One way
+        </button>
+        <button
+          type="button"
+          className={`rounded-lg px-3 py-2 text-sm ${tripType === "return" ? "bg-blue-600 text-white" : "text-gray-800 hover:bg-gray-50"}`}
+          onClick={() => setTripType("return")}
+          aria-pressed={tripType === "return"}
+        >
+          Return
+        </button>
+        <button
+          type="button"
+          className={`rounded-lg px-3 py-2 text-sm ${tripType === "multi" ? "bg-blue-600 text-white" : "text-gray-800 hover:bg-gray-50"}`}
+          onClick={() => setTripType("multi")}
+          aria-pressed={tripType === "multi"}
+        >
+          Multi-city
+        </button>
+      </div>
+
+      {/* Travellers */}
+      <div className="relative text-black">
+        <button
+          ref={travellersBtnRef}
+          type="button"
+          onClick={() => setIsTravellersOpen((v) => !v)}
+          className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-800 hover:bg-gray-200"
+          aria-expanded={isTravellersOpen}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-800">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+          <span className="text-slate-800">{travellerSummary}</span>
+        </button>
+
+        <AnimatePresence>
+          {isTravellersOpen &&
+            (isMobile ? (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100000] flex flex-col bg-white">
+                <div className="flex items-center justify-between border-b border-slate-200 p-3">
+                  <div className="text-sm font-medium text-slate-800">Travellers & cabin</div>
+                  <span className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800 cursor-pointer" onClick={() => setIsTravellersOpen(false)}>Close</span>
+                </div>
+                <div className="flex-1 overflow-auto p-4">
+                  {[
+                    { key: "Adults", sub: "+12 years", value: adults, set: setAdults, min: 1 },
+                    { key: "Children", sub: "2–11 years", value: children, set: setChildren, min: 0 },
+                    { key: "Infants", sub: "0–2 years", value: infants, set: setInfants, min: 0 },
+                  ].map((row) => (
+                    <div key={row.key} className="mb-4 flex items-center justify-between">
+                      <div>
+                        <div className="font-medium text-slate-800">{row.key}</div>
+                        <div className="text-xs text-slate-500">{row.sub}</div>
+                      </div>
+                      <div className="inline-flex items-center gap-3">
+                        <button type="button" className="h-10 w-10 rounded-full border border-slate-300 text-slate-800" onClick={() => setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)}>–</button>
+                        <span className="w-8 text-center text-sm text-slate-800">{row.value}</span>
+                        <button type="button" className="h-10 w-10 rounded-full border border-slate-300 text-slate-800" onClick={() => setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)}>+</button>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="mt-2">
+                    <label htmlFor="flight_type" className="mb-1 block text-sm text-slate-700">Cabin class</label>
+                    <select
+                      id="flight_type"
+                      className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+                      value={flightType}
+                      onChange={(e) => setFlightType(toCabinCode(e.target.value))}
+                    >
+                      {CABIN_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+                    </select>
+                  </div>
+                </div>
+                <div className="border-t border-slate-200 p-3">
+                  <span className="w-full cursor-pointer rounded-lg bg-slate-900 py-2 text-sm text-white" onClick={() => setIsTravellersOpen(false)}>Done</span>
+                </div>
+              </motion.div>
+            ) : (
+              travellersRect && (
+                <Portal>
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
+                    style={{ position: "fixed", top: travellersRect.bottom + 8, left: Math.min(travellersRect.left, Math.max(16, window.innerWidth - 352 - 16)), width: "min(96vw, 22rem)", zIndex: 100000 }}
+                  >
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-2xl">
+                      {[
+                        { key: "Adults", sub: "+12 years", value: adults, set: setAdults, min: 1 },
+                        { key: "Children", sub: "2–11 years", value: children, set: setChildren, min: 0 },
+                        { key: "Infants", sub: "0–2 years", value: infants, set: setInfants, min: 0 },
+                      ].map((row) => (
+                        <div key={row.key} className="mb-3 flex items-center justify-between last:mb-0">
+                          <div>
+                            <div className="font-medium text-slate-800">{row.key}</div>
+                            <div className="text-xs text-slate-500">{row.sub}</div>
+                          </div>
+                          <div className="inline-flex items-center gap-2">
+                            <button type="button" className="h-8 w-8 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-800" onClick={() => setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)}>–</button>
+                            <span className="w-8 text-center text-sm text-slate-800">{row.value}</span>
+                            <button type="button" className="h-8 w-8 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-800" onClick={() => setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)}>+</button>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="mt-2 mb-2">
+                        <label htmlFor="flight_type" className="sr-only">Cabin class</label>
+                        <select id="flight_type" className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-slate-500 focus:ring-2 focus:ring-slate-200" value={flightType} onChange={(e) => setFlightType(toCabinCode(e.target.value))}>
+                          {CABIN_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+                        </select>
+                      </div>
+                      <span className="mt-3 w-full inline-block cursor-pointer text-center rounded-lg bg-slate-900 px-6 py-2 text-sm text-white hover:bg-black" onClick={() => setIsTravellersOpen(false)}>Done</span>
+                    </div>
+                  </motion.div>
+                </Portal>
+              )
+            ))}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+function OneWayReturnRows({
+  flightsState, handleFlightChange, handleMenuOpen, handleInputChange,
+  menuOptions, selectStyles, noOptionsMessage, swapPlaces,
+  isMobile, openCal, setOpenCal, departBtnRef, returnBtnRef,
+  departRect, returnRect, handleDepartPick, handleReturnPick,
+  departLabel0, returnLabel0
+}) {
+  const calWidth = Math.min(360, window.innerWidth - 24);
+  const estHeight = 332;
+  const placeFromRect = (rect) => {
+    if (!rect) return { top: 0, left: 0 };
+    let left = Math.max(12, Math.min(rect.left, window.innerWidth - 12 - calWidth));
+    let top = rect.bottom + 8;
+    if (top + estHeight > window.innerHeight - 12) {
+      top = Math.max(12, rect.top - estHeight - 8);
+    }
+    return { top, left };
+  };
+  const posDepart = placeFromRect(departRect);
+  const posReturn = placeFromRect(returnRect);
+
+  return (
+    <div className="grid gap-2 lg:grid-cols-[1.2fr_auto1.2fr_auto_auto_auto] lg:items-center md:grid-cols-[1.2fr_auto_1.2fr_auto_auto_auto]">
+      {/* From */}
+      <div className="z-[200] bg-white">
+        <Select
+          name="origin"
+          classNamePrefix="react-select"
+          options={menuOptions(0, "origin")}
+          value={flightsState[0]?.origin || null}
+          onChange={(v) => handleFlightChange(0, "origin", v)}
+          onMenuOpen={() => handleMenuOpen(0, "origin")}
+          onInputChange={handleInputChange(0, "origin")}
+          components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
+          styles={selectStyles}
+          placeholder="City or airport"
+          isSearchable
+          filterOption={null}
+          menuPortalTarget={document.body}
+          menuPosition="fixed"
+          maxMenuHeight={384}
+          menuPlacement="auto"
+          getOptionValue={(opt) => opt.value}
+          noOptionsMessage={noOptionsMessage}
+        />
+      </div>
+
+      {/* Swap */}
+      <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100000 }}>
+        <button
+          type="button"
+          onClick={() => swapPlaces(0)}
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+          aria-label="Swap origin and destination"
+          title="Swap"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="transform rotate-90 xs:rotate-0 transition-transform">
+            <path d="M3 7h13l-4-4" />
+            <path d="M21 17H8l4 4" />
+          </svg>
+        </button>
+      </div>
+
+      {/* To */}
+      <div className="relative z-[200] bg-white">
+        <Select
+          name="destination"
+          classNamePrefix="react-select"
+          options={menuOptions(0, "destination")}
+          value={flightsState[0]?.destination || null}
+          onChange={(v) => handleFlightChange(0, "destination", v)}
+          onMenuOpen={() => handleMenuOpen(0, "destination")}
+          onInputChange={handleInputChange(0, "destination")}
+          components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
+          styles={selectStyles}
+          placeholder="City or airport"
+          isSearchable
+          filterOption={null}
+          menuPortalTarget={document.body}
+          menuPosition="fixed"
+          maxMenuHeight={384}
+          menuPlacement="auto"
+          getOptionValue={(opt) => opt.value}
+          noOptionsMessage={noOptionsMessage}
+        />
+      </div>
+
+      {/* Departure input */}
+      <div className="relative">
+        <button
+          ref={departBtnRef}
+          type="button"
+          onClick={() => {
+            departBtnRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+            setOpenCal(openCal && openCal.type === "depart" ? null : { type: "depart", idx: 0 });
+          }}
+          className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none text-slate-800"
+          aria-expanded={openCal?.type === "depart"}
+        >
+          <div className="min-w-0 truncate">
+            <div className="text-[11px] tracking-wide text-slate-500">Departure</div>
+            <div className="truncate text-slate-800">{departLabel0}</div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
+            <path d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {/* Departure calendar */}
+        <AnimatePresence>
+          {openCal?.type === "depart" &&
+            (isMobile ? (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100000] flex flex-col bg-white">
+                <div className="flex items-center justify-between border-b border-slate-200 p-3">
+                  <div className="text-sm font-medium text-slate-800">Select departure</div>
+                  <span className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800" onClick={() => setOpenCal(null)}>Close</span>
+                </div>
+                <div className="flex-1 overflow-auto p-3">
+                  <Calendar
+                    date={flightsState[0]?.dateRange?.startDate}
+                    onChange={(d) => handleDepartPick(0, d)}
+                    minDate={today}
+                    months={1}
+                    showMonthAndYearPickers
+                  />
+                </div>
+              </motion.div>
+            ) : (
+              departRect && (
+                <Portal>
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
+                    style={{
+                      position: "fixed",
+                      top: posDepart.top,
+                      left: posDepart.left,
+                      width: calWidth,
+                      zIndex: 100000,
+                    }}
+                  >
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
+                      <div className="px-2 pt-1 pb-1 text-xs font-medium text-slate-600">Departure</div>
+                      <Calendar
+                        date={flightsState[0]?.dateRange?.startDate}
+                        onChange={(d) => handleDepartPick(0, d)}
+                        minDate={today}
+                        months={1}
+                        showMonthAndYearPickers
+                      />
+                      <div className="p-2 pt-1 flex justify-end">
+                        <button type="button" className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-black" onClick={() => setOpenCal(null)}>
+                          Done
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </Portal>
+              )
+            ))}
+        </AnimatePresence>
+      </div>
+
+      {/* Return input (if return trip) */}
+      {flightsState.length && flightsState[0] && flightsState[0].dateRange && (
+        <div className="relative">
+          {/* This block is rendered by parent only when tripType === 'return' */}
+        </div>
+      )}
+
+      {/* Return input is placed by parent when tripType==='return' */}
+      {openCal?.type === "return" && !isMobile && returnRect && (
+        <Portal>
+          <motion.div
+            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
+            style={{
+              position: "fixed",
+              top: posReturn.top,
+              left: posReturn.left,
+              width: calWidth,
+              zIndex: 100000,
+            }}
+          >
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
+              <div className="px-2 pt-1 pb-1 text-xs font-medium text-slate-600">Return</div>
+              <Calendar
+                date={flightsState[0]?.dateRange?.endDate}
+                onChange={(d) => handleReturnPick(0, d)}
+                minDate={flightsState[0]?.dateRange?.startDate || today}
+                months={1}
+                showMonthAndYearPickers
+              />
+              <div className="p-2 pt-1 flex justify-end">
+                <button type="button" className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-black" onClick={() => setOpenCal(null)}>
+                  Done
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </Portal>
+      )}
+    </div>
   );
 }
