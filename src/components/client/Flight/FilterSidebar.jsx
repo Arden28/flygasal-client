@@ -1,22 +1,21 @@
 import React, { useMemo, useState } from "react";
-import Slider from "rc-slider";
 import "rc-slider/assets/index.css";
 
+/* ---------- Small helpers ---------- */
 const hh = (n) => `${String(n).padStart(2, "0")}:00`;
-const timeMarks = { 0: "00", 6: "06", 12: "12", 18: "18", 24: "24" };
 
 /* ---------- Simple Section (no accordion, no shadow) ---------- */
-const Section = ({ title, helper, children }) => (
+const Section = ({ title, children }) => (
   <section className="rounded-2xl ring-1 ring-slate-200 bg-white overflow-hidden">
-    <header className="px-3.5 py-3 lg:px-4 lg:py-3.5 border-b border-slate-200/70">
+    <header className="px-4 py-3 border-b border-slate-200/70">
       <h3 className="text-sm font-semibold tracking-wide text-slate-800">{title}</h3>
-      {helper ? <p className="mt-1 text-xs text-slate-500">{helper}</p> : null}
     </header>
-    <div className="px-3.5 pb-3 lg:px-4 lg:pb-4">{children}</div>
+    {/* space between header & content */}
+    <div className="px-4 pt-3 pb-4">{children}</div>
   </section>
 );
 
-/* ---------- Airline row (overflow-safe) ---------- */
+/* ---------- Airline row ---------- */
 const AirlineRow = ({
   code,
   checked,
@@ -111,7 +110,7 @@ const CabinCard = ({ active, label, sub, icon, onClick }) => (
   </button>
 );
 
-/* ---------- Time buckets ---------- */
+/* ---------- Time buckets (chips only) ---------- */
 const TIME_BUCKETS = [
   { key: "any", label: "Any time", range: [0, 24] },
   { key: "early", label: "Early morning", range: [0, 6] },
@@ -196,8 +195,6 @@ export default function FilterSidebar({
 
   const [airlineSearchOW, setAirlineSearchOW] = useState("");
   const [airlineSearchRT, setAirlineSearchRT] = useState("");
-  const [hideZeroOutbound, setHideZeroOutbound] = useState(false);
-  const [hideZeroReturn, setHideZeroReturn] = useState(false);
 
   /* Build name/logo meta once per code for stable, alphabetical lists */
   const toMeta = (code) => ({
@@ -225,26 +222,20 @@ export default function FilterSidebar({
     [rawReturnCodes, getAirlineName, getAirlineLogo]
   );
 
-  /* Search & hide-0 filtering */
+  /* Filter by search (no "Hide 0" anymore) */
   const filteredOnewayAirlines = useMemo(() => {
     const q = airlineSearchOW.trim().toLowerCase();
     let list = airlineMetaOutbound;
     if (q) list = list.filter(({ code, name }) => code.toLowerCase().includes(q) || name.toLowerCase().includes(q));
-    if (hideZeroOutbound && airlineCountsOutbound) {
-      list = list.filter(({ code }) => (airlineCountsOutbound[code] || 0) > 0);
-    }
     return list;
-  }, [airlineMetaOutbound, airlineSearchOW, hideZeroOutbound, airlineCountsOutbound]);
+  }, [airlineMetaOutbound, airlineSearchOW]);
 
   const filteredReturnAirlines = useMemo(() => {
     const q = airlineSearchRT.trim().toLowerCase();
     let list = airlineMetaReturn;
     if (q) list = list.filter(({ code, name }) => code.toLowerCase().includes(q) || name.toLowerCase().includes(q));
-    if (hideZeroReturn && airlineCountsReturn) {
-      list = list.filter(({ code }) => (airlineCountsReturn[code] || 0) > 0);
-    }
     return list;
-  }, [airlineMetaReturn, airlineSearchRT, hideZeroReturn, airlineCountsReturn]);
+  }, [airlineMetaReturn, airlineSearchRT]);
 
   /* Bulk toggle helpers */
   const bulkToggle = (type, list) => (selectAll) => {
@@ -258,17 +249,6 @@ export default function FilterSidebar({
 
   const getCountOW = (code) => (airlineCountsOutbound ? (airlineCountsOutbound[code] || 0) : undefined);
   const getCountRT = (code) => (airlineCountsReturn ? (airlineCountsReturn[code] || 0) : undefined);
-
-  /* ---------- Stops helper text ---------- */
-  const stopsContext = useMemo(() => {
-    if (tripType === "return") {
-      return { caption: "Direct = 0 stops per leg", segments: 2 };
-    }
-    if (tripType === "multi") {
-      return { caption: `Direct = 0 stops on each of ${legsCount} legs`, segments: legsCount };
-    }
-    return { caption: "Direct = 0 stops", segments: 1 };
-  }, [tripType, legsCount]);
 
   return (
     <aside
@@ -320,19 +300,8 @@ export default function FilterSidebar({
         </div>
       </Section>
 
-      {/* Stops */}
-      <Section
-        title="Stops"
-        helper={
-          <>
-            {stopsContext.caption}
-            {tripType !== "oneway" && (
-              <> ({stopsContext.segments} {stopsContext.segments === 1 ? "segment" : "segments"} total)</>
-            )}
-            . “1 stop” and “2+ stops” refer to layovers within a leg.
-          </>
-        }
-      >
+      {/* Stops (removed extra indications/badges) */}
+      <Section title="Stops">
         <div className="flex flex-wrap items-center gap-2">
           {[
             { value: "mix", label: "All" },
@@ -355,93 +324,47 @@ export default function FilterSidebar({
               {label}
             </button>
           ))}
-
-          <span
-            className="ml-1 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-[2px] text-[10px] text-slate-700"
-            title={
-              tripType === "oneway"
-                ? "Direct means 1 flight segment total."
-                : tripType === "return"
-                ? "Direct means 0 stops on each leg (2 segments total)."
-                : `Direct means 0 stops on each of ${legsCount} legs (~${legsCount} segments total).`
-            }
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-              <path d="M12 2a10 10 0 1010 10A10.012 10.012 0 0012 2zm1 15h-2v-2h2zm0-4h-2V7h2z" />
-            </svg>
-            {stopsContext.segments} seg
-          </span>
         </div>
       </Section>
 
-      {/* Price */}
-      <Section title={`Price (${"USD"})`}>
-        <div className="px-0.5">
-          <Slider
-            range
-            min={absMin}
-            max={absMax}
-            value={clamped}
-            onChange={handlePriceChange}
-            trackStyle={[{ height: 6 }]}
-            railStyle={{ height: 6 }}
-            handleStyle={[{ width: 18, height: 18, marginTop: -6 }, { width: 18, height: 18, marginTop: -6 }]}
-          />
-          <div className="mt-2 flex items-center justify-between gap-2 text-sm text-slate-700">
-            <span className="truncate">${clamped[0]}</span>
-            <span className="truncate">${clamped[1]}</span>
+      {/* Price (kept simple input pill instead of slider UI per your request to simplify look) */}
+      <Section title={`Price (${/* currency visual only */ "USD"})`}>
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-2 text-xs text-slate-500">Min</span>
+            <input
+              type="number"
+              value={clamped[0]}
+              onChange={(e) => handlePriceChange([Number(e.target.value || 0), clamped[1]])}
+              className="mt-5 h-10 w-full rounded-xl ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
+            />
+          </div>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-2 text-xs text-slate-500">Max</span>
+            <input
+              type="number"
+              value={clamped[1]}
+              onChange={(e) => handlePriceChange([clamped[0], Number(e.target.value || 0)])}
+              className="mt-5 h-10 w-full rounded-xl ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
+            />
           </div>
         </div>
       </Section>
 
-      {/* Time windows — outbound */}
+      {/* Time windows — outbound (chips only, no slider) */}
       <Section title="Departure time (outbound)">
         <TimeBucketChips value={depTimeRange} onChange={onDepTimeChange} />
-        <div className="mt-3 px-0.5">
-          <Slider
-            range
-            min={0}
-            max={24}
-            marks={timeMarks}
-            step={1}
-            value={depTimeRange}
-            onChange={onDepTimeChange}
-            trackStyle={[{ height: 6 }]}
-            railStyle={{ height: 6 }}
-            handleStyle={[{ width: 18, height: 18, marginTop: -6 }, { width: 18, height: 18, marginTop: -6 }]}
-          />
-          <div className="mt-2 text-sm text-slate-700">
-            {hh(depTimeRange[0])} – {hh(depTimeRange[1])}
-          </div>
-        </div>
       </Section>
 
-      {/* Time windows — return */}
+      {/* Time windows — return (chips only, no slider) */}
       {returnFlights?.length > 0 && (
         <Section title="Departure time (return)">
           <TimeBucketChips value={retTimeRange} onChange={onRetTimeChange} />
-          <div className="mt-3 px-0.5">
-            <Slider
-              range
-              min={0}
-              max={24}
-              marks={timeMarks}
-              step={1}
-              value={retTimeRange}
-              onChange={onRetTimeChange}
-              trackStyle={[{ height: 6 }]}
-              railStyle={{ height: 6 }}
-              handleStyle={[{ width: 18, height: 18, marginTop: -6 }, { width: 18, height: 18, marginTop: -6 }]}
-            />
-            <div className="mt-2 text-sm text-slate-700">
-              {hh(retTimeRange[0])} – {hh(retTimeRange[1])}
-            </div>
-          </div>
         </Section>
       )}
 
       {/* Max duration */}
-      <Section title="Max total duration" helper="From first departure to final arrival (round-trip sums both legs).">
+      <Section title="Max total duration">
         <div className="flex items-center gap-3">
           <input
             type="number"
@@ -449,7 +372,7 @@ export default function FilterSidebar({
             max={72}
             value={maxDurationHours}
             onChange={(e) => onMaxDurationChange(Number(e.target.value || 0))}
-            className="h-10 w-28 rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
+            className="h-10 w-28 rounded-xl ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
           />
           <span className="text-sm text-slate-600">hours</span>
         </div>
@@ -471,6 +394,13 @@ export default function FilterSidebar({
       {/* Airlines — outbound */}
       <Section title="Airlines (outbound)">
         <div className="mb-2 flex items-center justify-between gap-2">
+          <input
+            type="text"
+            placeholder="Search airline name or code…"
+            value={airlineSearchOW}
+            onChange={(e) => setAirlineSearchOW(e.target.value)}
+            className="h-9 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
+          />
           <div className="whitespace-nowrap text-xs flex items-center gap-2">
             <button
               type="button"
@@ -527,17 +457,6 @@ export default function FilterSidebar({
               className="h-9 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
             />
             <div className="whitespace-nowrap text-xs flex items-center gap-2">
-              {airlineCountsReturn && (
-                <label className="inline-flex items-center gap-1 text-slate-600">
-                  <input
-                    type="checkbox"
-                    className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                    checked={hideZeroReturn}
-                    onChange={(e) => setHideZeroReturn(e.target.checked)}
-                  />
-                  Hide 0
-                </label>
-              )}
               <button
                 type="button"
                 className="rounded-full ring-1 ring-slate-300 px-3 py-1 hover:bg-slate-50"
@@ -585,7 +504,7 @@ export default function FilterSidebar({
       {/* Footer actions */}
       <div className="lg:pt-1">
         <div className="lg:static sticky bottom-2 left-0 right-0">
-          <div className="flex items-center justify-between gap-3 bg-transparent">
+          <div className="flex items-center justify-between gap-3">
             <button
               type="button"
               className="rounded-xl ring-1 ring-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-white"
