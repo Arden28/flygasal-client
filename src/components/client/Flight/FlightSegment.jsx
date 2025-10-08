@@ -61,6 +61,7 @@ const normalizeSegments = (flightLike) => {
       const depTime = s.strDepartureTime ?? s.departureTime ?? s.depTime ?? "";
       const arrDate = s.strArrivalDate ?? s.arrivalDate ?? s.arrDate ?? "";
       const arrTime = s.strArrivalTime ?? s.arrivalTime ?? s.arrTime ?? "";
+      
 
       const departureAt = combineDateTime(depDate, depTime) || toIsoOrRaw(s.departureTime) || toIsoOrRaw(s.departureDate);
       const arrivalAt = combineDateTime(arrDate, arrTime) || toIsoOrRaw(s.arrivalTime) || toIsoOrRaw(s.arrivalDate);

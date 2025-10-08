@@ -252,6 +252,23 @@ const selectItinerary = (itinerary) => {
   params.set("totalWithMarkup", String(total));
   params.set("currency", currency);
 
+  console.info('Itinerary: ', itinerary);
+  const flights = {};
+
+  for (const [key, value] of params.entries()) {
+    if (key.startsWith("flights[")) {
+      // Match something like flights[0][origin]
+      const match = key.match(/flights\[(\d+)\]\[(.+)\]/);
+      if (match) {
+        const [, index, field] = match;
+        flights[index] = flights[index] || {};
+        flights[index][field] = value;
+      }
+    }
+  }
+
+  console.log(flights);
+
   navigate(`/flight/booking/details?${params.toString()}`);
 };
 
@@ -307,13 +324,23 @@ const selectItinerary = (itinerary) => {
             const { base, markup, total, perBase, perMarkup, perTotal } = priceBreakdown(itinerary);
             const direct = itinerary.totalStops === 0;
             const airlines = itinerary.airlines || [];
-            const isRoundTrip = !!itinerary.return;
+            const isMulti = (searchParams?.tripType || "").toLowerCase() === "multi" || (Array.isArray(itinerary.legs) && itinerary.legs.length > 0);
+            const isRoundTrip = !isMulti && !!itinerary.return;
             
             // console.info("Itinerary:", itinerary);
 
-            const durText = isRoundTrip
-              ? `${calculateDuration(itinerary.outbound.departureTime, itinerary.return?.arrivalTime)}`
-              : `${calculateDuration(itinerary.outbound.departureTime, itinerary.outbound.arrivalTime)}`;
+            let durText = "";
+            if (isMulti) {
+              const first = itinerary.legs?.[0];
+              const last = itinerary.legs?.[itinerary.legs.length - 1];
+              const dep = first?.departureTime || first?.segments?.[0]?.departureDate;
+              const arr = last?.arrivalTime || last?.segments?.slice(-1)?.[0]?.arrivalDate;
+              durText = dep && arr ? `${calculateDuration(dep, arr)}` : "—";
+            } else if (isRoundTrip) {
+              durText = `${calculateDuration(itinerary.outbound.departureTime, itinerary.return?.arrivalTime)}`;
+            } else {
+              durText = `${calculateDuration(itinerary.outbound.departureTime, itinerary.outbound.arrivalTime)}`;
+            }
 
             const detailsId = `fare-details-${key.replace(/[^a-zA-Z0-9]/g, "")}`;
             const open = isOpen(key);
@@ -354,35 +381,56 @@ const selectItinerary = (itinerary) => {
 
                     </div>
 
-                    <FlightSegment
-                      flight={itinerary.outbound}
-                      segmentType="Outbound"
-                      formatDate={formatDate}
-                      formatTime={formatTime}
-                      calculateDuration={calculateDuration}
-                      getAirportName={getAirportName}
-                      getAirlineName={getAirlineName}
-                      getAirlineLogo={getAirlineLogo}
-                      expectedOutboundOrigin={searchParams?.origin}
-                      expectedOutboundDestination={searchParams?.destination}
-                    />
-
-                    {isRoundTrip && (
-                      <div className="mt-2 border-t border-dashed border-slate-200 pt-2">
+                    {isMulti ? (
+                      <>
+                        {(itinerary.legs || []).map((leg, li) => (
+                          <div key={`leg-${li}`} className={li > 0 ? "mt-2 border-t border-dashed border-slate-200 pt-2" : ""}>
+                            <FlightSegment
+                              flight={leg}
+                              segmentType={`Leg ${li + 1}`}
+                              formatDate={formatDate}
+                              formatTime={formatTime}
+                              calculateDuration={calculateDuration}
+                              getAirportName={getAirportName}
+                              getAirlineName={getAirlineName}
+                              getAirlineLogo={getAirlineLogo}
+                            />
+                          </div>
+                        ))}
+                      </>
+                    ) : (
+                      <>
                         <FlightSegment
-                          flight={itinerary.return}
-                          segmentType="Return"
+                          flight={itinerary.outbound}
+                          segmentType="Outbound"
                           formatDate={formatDate}
                           formatTime={formatTime}
                           calculateDuration={calculateDuration}
                           getAirportName={getAirportName}
                           getAirlineName={getAirlineName}
                           getAirlineLogo={getAirlineLogo}
-                          expectedReturnOrigin={searchParams?.destination}
-                          expectedReturnDestination={searchParams?.origin}
+                          expectedOutboundOrigin={searchParams?.origin}
+                          expectedOutboundDestination={searchParams?.destination}
                         />
-                      </div>
+                        {isRoundTrip && (
+                          <div className="mt-2 border-t border-dashed border-slate-200 pt-2">
+                            <FlightSegment
+                              flight={itinerary.return}
+                              segmentType="Return"
+                              formatDate={formatDate}
+                              formatTime={formatTime}
+                              calculateDuration={calculateDuration}
+                              getAirportName={getAirportName}
+                              getAirlineName={getAirlineName}
+                              getAirlineLogo={getAirlineLogo}
+                              expectedReturnOrigin={searchParams?.destination}
+                              expectedReturnDestination={searchParams?.origin}
+                            />
+                          </div>
+                        )}
+                      </>
                     )}
+
 
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
                       <Pill tone={direct ? "green" : "blue"}>
