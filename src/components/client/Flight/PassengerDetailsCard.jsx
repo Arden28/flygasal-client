@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
 
 /* Stable id generator (fallback if crypto.randomUUID not available) */
 const makeId = () =>
@@ -25,6 +25,10 @@ export default function PassengerDetailsCard({
   issuanceYears,
   expiryYears,
 }) {
+  /* ---------- Local: freeze list while a <select> is open ---------- */
+  const [isSelectOpen, setIsSelectOpen] = useState(false);
+  const rowsFreezeRef = useRef(null);
+
   /* ---------- Helpers ---------- */
   const totalPax = (adults || 0) + (children || 0) + (infants || 0);
 
@@ -71,11 +75,9 @@ export default function PassengerDetailsCard({
       const withIds = list.map((t) => (t && t.id ? t : { ...t, id: makeId() }));
       handleFormChange({ target: { name: "travelers", value: withIds } });
     }
-    // run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // After normalization, use travelers directly (ids are persisted now)
   const travelers = Array.isArray(formData.travelers) ? formData.travelers : [];
 
   const byType = useMemo(() => {
@@ -89,8 +91,7 @@ export default function PassengerDetailsCard({
 
   const desired = { adult: adults, child: children, infant: infants };
 
-  // Build rows. Real travelers keep their stable id.
-  // Placeholders get a deterministic id so they don't remount: "placeholder-{type}-{k}"
+  // Build rows with stable keys. Placeholders use deterministic ids.
   const rows = useMemo(() => {
     const out = [];
     ["adult", "child", "infant"].forEach((t) => {
@@ -122,6 +123,16 @@ export default function PassengerDetailsCard({
     return out;
   }, [byType, desired]);
 
+  /* Freeze the set of rows while a <select> is open so DOM nodes are not replaced */
+  const rowsToRender = (() => {
+    if (isSelectOpen) {
+      if (!rowsFreezeRef.current) rowsFreezeRef.current = rows;
+      return rowsFreezeRef.current;
+    }
+    rowsFreezeRef.current = rows;
+    return rowsFreezeRef.current;
+  })();
+
   /* ---------- Mutations ---------- */
   const updateTravelers = (next) =>
     handleFormChange({ target: { name: "travelers", value: next } });
@@ -142,7 +153,7 @@ export default function PassengerDetailsCard({
     const existingIdx = travelers.findIndex((t) => t && t.id === id);
 
     if (existingIdx >= 0) {
-      // already promoted; just update in place
+      // already promoted; just update
       const next = [...travelers];
       next[existingIdx] = { ...next[existingIdx], [field]: value };
       updateTravelers(next);
@@ -213,6 +224,8 @@ export default function PassengerDetailsCard({
         onChange={(e) => onChange(e.target.value)}
         className={baseCtrl + " bg-white"}
         required={required}
+        onMouseDown={() => setIsSelectOpen(true)}         // freeze before the native picker opens
+        onBlur={() => setTimeout(() => setIsSelectOpen(false), 80)} // unfreeze after it closes
       >
         {children}
       </select>
@@ -222,7 +235,7 @@ export default function PassengerDetailsCard({
     </div>
   );
 
-  /* ---------- Passenger Card ---------- */
+  /* ---------- Passenger Card (no list-level animations) ---------- */
   const PassengerCard = React.memo(function PassengerCard({ row }) {
     const t = row.traveler;
     const complete = isComplete(t);
@@ -231,12 +244,8 @@ export default function PassengerDetailsCard({
     const onT = (field) => (v) => onFieldChange(row, field, v);
 
     return (
-      <motion.li
+      <li
         key={t.id}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -8 }}
-        transition={{ duration: 0.2 }}
         className="rounded-2xl bg-white ring-1 ring-slate-200 overflow-hidden"
       >
         {/* Header */}
@@ -494,7 +503,7 @@ export default function PassengerDetailsCard({
             </LabeledSelect>
           </div>
         </div>
-      </motion.li>
+      </li>
     );
   });
 
@@ -504,7 +513,7 @@ export default function PassengerDetailsCard({
         className="bg-white rounded-2xl w-full max-w-4xl mb-3 overflow-hidden ring-1 ring-slate-200"
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: "easeOut" }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
       >
         {/* Header */}
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-4">
@@ -539,21 +548,15 @@ export default function PassengerDetailsCard({
             Tip: Double-check passport numbers and expiry dates. Some destinations require ≥ 6 months validity.
           </p>
 
-          {/* Passenger cards */}
+          {/* Passenger cards (no AnimatePresence to avoid layout pulses while select is open) */}
           <ul className="mt-4 grid grid-cols-1 gap-3">
-            <AnimatePresence initial={false}>
-              {rows.length === 0 ? (
-                <motion.li
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="px-4 py-8 text-center text-sm text-slate-500 rounded-2xl ring-1 ring-slate-200 bg-white"
-                >
-                  Set traveller counts, then fill in each passenger.
-                </motion.li>
-              ) : (
-                rows.map((row) => <PassengerCard key={row.traveler.id} row={row} />)
-              )}
-            </AnimatePresence>
+            {rowsToRender.length === 0 ? (
+              <li className="px-4 py-8 text-center text-sm text-slate-500 rounded-2xl ring-1 ring-slate-200 bg-white">
+                Set traveller counts, then fill in each passenger.
+              </li>
+            ) : (
+              rowsToRender.map((row) => <PassengerCard key={row.traveler.id} row={row} />)
+            )}
           </ul>
         </div>
       </motion.div>
