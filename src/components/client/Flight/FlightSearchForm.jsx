@@ -558,16 +558,28 @@ useEffect(() => {
       borderColor: state.isFocused ? "#94a3b8" : "#e5e7eb",
       boxShadow: state.isFocused ? "0 0 0 3px rgba(148,163,184,.25)" : "none",
       // add extra left padding ONLY when we render an icon
-      marginLeft: state.selectProps?.iconType ? 25 : 12,
+      //paddingLeft: state.selectProps?.iconType ? 45 : 12,
       paddingRight: 10,
       backgroundColor: "#fff",
       color: "#0f172a",
       ":hover": { borderColor: "#94a3b8" },
     }),
     singleValue: (b) => ({ ...b, color: "#0f172a" }),
-    input: (b) => ({ ...b, color: "#0f172a", margin: 0, padding: 0 }),
+    input: (base, state) => ({ 
+        ...base, 
+        color: "#0f172a", 
+        margin: 0, 
+        padding: 0,
+        // keep caret comfy when icon is present
+        marginLeft: state.selectProps?.iconType ? 2 : 0,
+    }),
     placeholder: (b) => ({ ...b, color: "#64748b" }),
-    valueContainer: (b) => ({ ...b, padding: 0 }),
+    valueContainer: (base, state) => ({ 
+        ...base, 
+        padding: 0,
+        // add the left spacing here so text/caret area shifts right of the icon
+        paddingLeft: state.selectProps?.iconType ? 44 : 12,
+    }),
     indicatorsContainer: (b) => ({ ...b, gap: 6, paddingRight: 6 }),
     dropdownIndicator: (b) => ({ ...b, padding: 8 }),
     clearIndicator: (b) => ({ ...b, padding: 8 }),
