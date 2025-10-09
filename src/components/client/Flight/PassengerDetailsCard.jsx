@@ -529,7 +529,7 @@ export default function PassengerDetailsCard({
 
   return (
     <div className="travel">
-      <div className="bg-white rounded-2xl w-full max-w-4xl mb-3 overflow-hidden ring-1 ring-slate-200">
+      <div className="bg-white rounded-2xl w-full mb-3 overflow-hidden ring-1 ring-slate-200">
         {/* Header */}
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-4">
           <div className="flex items-center gap-3 min-w-0">
