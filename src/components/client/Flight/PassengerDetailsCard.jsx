@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 
 export default function PassengerDetailsCard({
   formData,
@@ -50,7 +50,6 @@ export default function PassengerDetailsCard({
     return a || b || c ? `${a || b}${c || ""}` : typeLabel(t.type).charAt(0);
   };
 
-  // You can relax passport requirements for infants if needed
   const isComplete = (t) =>
     t.title &&
     t.first_name &&
@@ -87,14 +86,17 @@ export default function PassengerDetailsCard({
 
   const desired = { adult: adults, child: children, infant: infants };
 
-  // ------ STABLE ROW KEYS ------
+  // ------ local drafts & dirty flags (no parent writes while typing) ------
+  const [drafts, setDrafts] = useState({});
+  const [dirty, setDirty] = useState({});
+
+  // ------ STABLE ROW KEYS (unchanged visual/structure) ------
   const rows = useMemo(() => {
     const out = [];
     ["adult", "child", "infant"].forEach((t) => {
       const have = byType[t].length;
       const want = desired[t] || 0;
 
-      // real travelers (stable by underlying array index)
       byType[t].forEach((trav) => {
         out.push({
           kind: "real",
@@ -104,7 +106,6 @@ export default function PassengerDetailsCard({
         });
       });
 
-      // placeholders to fill up to wanted count (stable per type & position)
       for (let k = 0; k < Math.max(0, want - have); k++) {
         out.push({
           kind: "placeholder",
@@ -117,31 +118,48 @@ export default function PassengerDetailsCard({
     });
     return out;
   }, [byType, desired]);
-  // -----------------------------
+  // -----------------------------------------------------------------------
 
   /* ---------- Mutations ---------- */
   const updateTravelers = (next) =>
     handleFormChange({ target: { name: "travelers", value: next } });
 
+  // store field edits locally (don’t touch parent yet)
   const onFieldChange = (row, field, value) => {
-    const { kind, type } = row;
+    const key = row._key;
+    setDrafts((prev) => {
+      const base = prev[key] ?? { ...row.traveler, type: row.type };
+      return { ...prev, [key]: { ...base, [field]: value } };
+    });
+    setDirty((d) => ({ ...d, [key]: true }));
+  };
 
-    if (kind === "real") {
-      const realIdx = row.traveler._index;
+  const commitRow = (row) => {
+    const key = row._key;
+    const draft = drafts[key];
+    if (!draft) return;
+
+    if (row.kind === "real") {
+      const idx = row.traveler._index;
       const next = [...travelers];
-      next[realIdx] = { ...next[realIdx], [field]: value };
+      next[idx] = { ...next[idx], ...draft };
       updateTravelers(next);
-      return;
+    } else {
+      // placeholder -> real traveler on commit
+      const next = [...travelers, { ...draft, type: row.type }];
+      updateTravelers(next);
+      if (row.type === "adult") setAdults((adults || 0) + 1);
+      if (row.type === "child") setChildren((children || 0) + 1);
+      if (row.type === "infant") setInfants((infants || 0) + 1);
+      addTraveler(row.type);
     }
 
-    // placeholder -> real
-    const draft = { ...row.traveler, [field]: value };
-    const next = [...travelers, draft];
-    if (type === "adult" && byType.adult.length >= desired.adult) setAdults(desired.adult + 1);
-    if (type === "child" && byType.child.length >= desired.child) setChildren(desired.child + 1);
-    if (type === "infant" && byType.infant.length >= desired.infant) setInfants(desired.infant + 1);
-    updateTravelers(next);
-    addTraveler(type);
+    // clear dirty/draft for this row
+    setDirty((d) => ({ ...d, [key]: false }));
+    setDrafts((prev) => {
+      const { [key]: _omit, ...rest } = prev;
+      return rest;
+    });
   };
 
   const onRemove = (row) => {
@@ -160,7 +178,7 @@ export default function PassengerDetailsCard({
     removeTraveler(idx);
   };
 
-  /* ---------- Uniform field components ---------- */
+  /* ---------- Uniform field components (unchanged styling) ---------- */
   const baseCtrl =
     "block w-full rounded-2xl border border-slate-300 text-sm text-slate-900 focus:border-sky-500 focus:outline-none " +
     "px-3 pt-4 pb-2 h-12";
@@ -203,9 +221,10 @@ export default function PassengerDetailsCard({
     </div>
   );
 
-  /* ---------- Passenger Card ---------- */
+  /* ---------- Passenger Card (UI same, just reads from draft if present) ---------- */
   const PassengerCard = ({ row, idx }) => {
-    const t = row.traveler;
+    const draftT = drafts[row._key];
+    const t = draftT || row.traveler; // show draft values while user is editing
     const complete = isComplete(t);
     const badgeClasses = complete ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700";
     const dot = complete ? "bg-emerald-600" : "bg-amber-600";
@@ -242,27 +261,45 @@ export default function PassengerDetailsCard({
             </div>
           </div>
 
-          {row.kind === "real" && (
+          <div className="flex items-center gap-2">
+            {/* NEW: Update button (quiet outline), enabled only when dirty */}
             <button
               type="button"
-              onClick={() => onRemove(row)}
-              disabled={totalPax <= 1}
+              onClick={() => commitRow(row)}
+              disabled={!dirty[row._key]}
               className={[
                 "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs",
-                totalPax <= 1
+                !dirty[row._key]
                   ? "border-slate-200 text-slate-400 cursor-not-allowed"
-                  : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                  : "border-slate-200 text-slate-600 hover:bg-slate-50",
               ].join(" ")}
-              title={totalPax <= 1 ? "You must have at least one passenger" : "Remove passenger"}
+              title={dirty[row._key] ? "Save changes" : "No changes to save"}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M3 6h18" />
-                <path d="M8 6V4h8v2" />
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-              </svg>
-              Remove
+              Update
             </button>
-          )}
+
+            {row.kind === "real" && (
+              <button
+                type="button"
+                onClick={() => onRemove(row)}
+                disabled={totalPax <= 1}
+                className={[
+                  "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs",
+                  totalPax <= 1
+                    ? "border-slate-200 text-slate-400 cursor-not-allowed"
+                    : "border-slate-200 text-slate-600 hover:bg-slate-50",
+                ].join(" ")}
+                title={totalPax <= 1 ? "You must have at least one passenger" : "Remove passenger"}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4h8v2" />
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                </svg>
+                Remove
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Body */}

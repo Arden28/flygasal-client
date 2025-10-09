@@ -21,6 +21,7 @@ const countries = [
   { code: "EG", name: "Egypt", flag: "/assets/img/flags/eg.png" },
   { code: "MA", name: "Morocco", flag: "/assets/img/flags/ma.png" },
 ];
+
 const months = [
   { value: "01", label: "01 January" },
   { value: "02", label: "02 February" },
