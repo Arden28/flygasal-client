@@ -208,6 +208,7 @@ const BookingForm = ({
         <main className="lg:col-start-1 lg:col-span-7 xl:col-start-1 xl:col-span-8 space-y-4">
           {/* Fare Rules */}
           <FareRulesCard
+            flight={flight}
             outbound={outbound}
             returnFlight={returnFlight}
             tripType={tripType}
