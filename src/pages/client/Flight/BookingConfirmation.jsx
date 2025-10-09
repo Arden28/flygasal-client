@@ -1246,7 +1246,7 @@ const BookingConfirmation = ({
                         <th className="text-center">Passport No.</th>
                         <th className="text-center">Passport Expiry</th>
                         <th className="text-center">DOB</th>
-                        <th className="text-center">PNR</th>
+                        {/* <th className="text-center">PNR</th> */}
                         <th className="text-center">Ticket</th>
                       </tr>
                     </thead>
@@ -1263,7 +1263,7 @@ const BookingConfirmation = ({
                           <td className="text-center">{t?.cardNum || "—"}</td>
                           <td className="text-center">{t?.cardExpiredDate || "—"}</td>
                           <td className="text-center">{t?.birthday || "—"}</td>
-                          <td className="text-center">{t?.pnr || "N/A"}</td>
+                          {/* <td className="text-center">{t?.pnr || "N/A"}</td> */}
                           <td className="text-center">{t?.ticketNum || "N/A"}</td>
                         </tr>
                       ))}
