@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { calculateLayover } from "../../../lib/pkfare/utils";
+import { formatDuration } from "../../../lib/helper";
 
 /**
  * FlightDetailsCard.jsx
@@ -246,7 +247,7 @@ function FlightLegAccordion({
 
                           <div>
                             <span className="text-slate-500">Duration:</span>{" "}
-                            <span className="font-medium">{calculateDuration(depAt, arrAt)}</span>
+                            <span className="font-medium">{formatDuration(seg.flightTime)}</span>
                           </div>
 
                           {seg.cabinClass && (
