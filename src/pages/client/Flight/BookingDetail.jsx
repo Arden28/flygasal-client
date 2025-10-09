@@ -115,9 +115,10 @@ const AirLoading = ({ location }) => {
                   animate={{ left: ["-16px", "calc(100% - 16px)"] }}
                   transition={{ duration: 2.6, repeat: Infinity, ease: [0.4, 0.0, 0.2, 1] }}
                 >
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-slate-800">
-                    <path d="M2 16l20-8-9 9-2 5-3-4-6-2z" strokeWidth="1.2" />
-                  </svg>
+                <svg aria-hidden width="26" height="26"  viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path d="M2 16l20-5-2-3-8 2-5-6-2 1 3 7-6 2z" />
+                    <path d="M2 19h20" />
+                </svg>
                 </motion.div>
               </div>
             </div>
