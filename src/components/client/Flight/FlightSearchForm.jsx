@@ -190,29 +190,15 @@ export default function FlightSearchForm({
   const handleMenuOpen = (idx, field) =>
     setMenu(menuKey(idx, field), { input: "", options: defaultChunk });
 
-const handleInputChange =
-  (idx, field) =>
-  (inputValue, meta) => {
-    if (meta?.action !== "input-change") return inputValue; // ignore blur/close events
-    const key = menuKey(idx, field);
-    // Only update state if the results actually changed
-    const results = searchAirports(AIRPORT_INDEX, inputValue, SEARCH_LIMIT);
-    setAirportMenus((prev) => {
-      const prevChunk = prev[key]?.options || [];
-      // shallow compare lengths + first/last id as a cheap guard
-      if (
-        prev[key]?.input === inputValue &&
-        prevChunk.length === results.length &&
-        (prevChunk[0]?.value === results[0]?.value) &&
-        (prevChunk[results.length - 1]?.value === results[results.length - 1]?.value)
-      ) {
-        return prev;
-      }
-      return { ...prev, [key]: { input: inputValue, options: results } };
-    });
-    return inputValue;
-  };
-
+  const handleInputChange =
+    (idx, field) =>
+    (inputValue, meta) => {
+      if (meta?.action === "menu-close") return inputValue;
+      const key = menuKey(idx, field);
+      const results = searchAirports(AIRPORT_INDEX, inputValue, SEARCH_LIMIT);
+      setMenu(key, { input: inputValue, options: results });
+      return inputValue;
+    };
 
   /* ---- state ---- */
   const [tripType, setTripType] = useState("oneway"); // 'oneway' | 'return' | 'multi'
@@ -514,7 +500,7 @@ useEffect(() => {
 
     /* Plane icons */
     const PlaneTakeoff = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" aria-hidden {...props} viewBox="0 0 640 640">
+    <svg xmlns="http://www.w3.org/2000/svg" aria-hidden {...props}  viewBox="0 0 640 640">
         <path d="M404 207.9L204.7 104.2C196.7 100.1 187.4 99.4 179 102.5L137.9 117.5C127.6 121.2 124.1 133.9 130.8 142.5L232.3 270.4L132.1 306.8L72 270.2C65.8 266.4 58.2 265.7 51.3 268.1L35 274.1C25.6 277.5 21.6 288.6 26.7 297.2L80.3 389C95.9 415.7 128.4 427.4 157.4 416.8L170.3 412.1L170.3 412.1L568.7 267.1C597.8 256.5 612.7 224.4 602.2 195.3C591.7 166.2 559.5 151.3 530.4 161.8L404 207.9zM64.2 512C46.5 512 32.2 526.3 32.2 544C32.2 561.7 46.5 576 64.2 576L576.2 576C593.9 576 608.2 561.7 608.2 544C608.2 526.3 593.9 512 576.2 512L64.2 512z"/>
     </svg>
     );
@@ -566,34 +552,22 @@ useEffect(() => {
     control: (base, state) => ({
       ...base,
       position: "relative",
-      zIndex: 110000,
+      zIndex: 100000,
       borderRadius: 12,
       minHeight: 54,
       borderColor: state.isFocused ? "#94a3b8" : "#e5e7eb",
       boxShadow: state.isFocused ? "0 0 0 3px rgba(148,163,184,.25)" : "none",
       // add extra left padding ONLY when we render an icon
-      //paddingLeft: state.selectProps?.iconType ? 45 : 12,
+      paddingLeft: state.selectProps?.iconType ? 42 : 12,
       paddingRight: 10,
       backgroundColor: "#fff",
       color: "#0f172a",
       ":hover": { borderColor: "#94a3b8" },
     }),
     singleValue: (b) => ({ ...b, color: "#0f172a" }),
-    input: (base, state) => ({ 
-        ...base, 
-        color: "#0f172a", 
-        margin: 0, 
-        padding: 0,
-        // keep caret comfy when icon is present
-        marginLeft: state.selectProps?.iconType ? 2 : 0,
-    }),
+    input: (b) => ({ ...b, color: "#0f172a", margin: 0, padding: 0 }),
     placeholder: (b) => ({ ...b, color: "#64748b" }),
-    valueContainer: (base, state) => ({ 
-        ...base, 
-        padding: 0,
-        // add the left spacing here so text/caret area shifts right of the icon
-        paddingLeft: state.selectProps?.iconType ? 44 : 12,
-    }),
+    valueContainer: (b) => ({ ...b, padding: 0 }),
     indicatorsContainer: (b) => ({ ...b, gap: 6, paddingRight: 6 }),
     dropdownIndicator: (b) => ({ ...b, padding: 8 }),
     clearIndicator: (b) => ({ ...b, padding: 8 }),
@@ -602,7 +576,7 @@ useEffect(() => {
       borderRadius: 14,
       overflow: "hidden",
       boxShadow: "0 18px 40px rgba(2,6,23,.18)",
-      zIndex: 110001,
+      zIndex: 10000,
       maxWidth: "min(96vw, 560px)",
     }),
     menuPortal: (b) => ({ ...b, zIndex: 10000 }),
@@ -821,8 +795,6 @@ useEffect(() => {
                 filterOption={null}
                 menuPortalTarget={document?.body || undefined}
                 menuPosition="fixed"
-                closeMenuOnScroll={false}
-                menuShouldScrollIntoView={false}
                 maxMenuHeight={384}
                 menuPlacement="auto"
                 getOptionValue={(opt) => opt.value}
@@ -863,8 +835,6 @@ useEffect(() => {
                 filterOption={null}
                 menuPortalTarget={document?.body || undefined}
                 menuPosition="fixed"
-                closeMenuOnScroll={false}
-                menuShouldScrollIntoView={false}
                 maxMenuHeight={384}
                 menuPlacement="auto"
                 getOptionValue={(opt) => opt.value}
@@ -1039,8 +1009,6 @@ useEffect(() => {
                       filterOption={null}
                       menuPortalTarget={document?.body || undefined}
                       menuPosition="fixed"
-                      closeMenuOnScroll={false}
-                      menuShouldScrollIntoView={false}
                       maxMenuHeight={384}
                       menuPlacement="auto"
                       getOptionValue={(opt) => opt.value}
@@ -1081,8 +1049,6 @@ useEffect(() => {
                       filterOption={null}
                       menuPortalTarget={document?.body || undefined}
                       menuPosition="fixed"
-                      closeMenuOnScroll={false}
-                      menuShouldScrollIntoView={false}
                       maxMenuHeight={384}
                       menuPlacement="auto"
                       getOptionValue={(opt) => opt.value}
@@ -1211,15 +1177,7 @@ useEffect(() => {
       </div>
 
       {/* Keep react-select menus above everything */}
-      <style>{`
-        .react-select__menu-portal {
-            z-index: 110001;
-        }
-
-        .react-select__control {
-            overflow: visible;
-        }
-     `}</style>
+      <style>{`.react-select__menu-portal{z-index:100000}`}</style>
     </form>
   );
 }
