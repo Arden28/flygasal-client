@@ -578,7 +578,7 @@ useEffect(() => {
         ...base, 
         padding: 0,
         // add the left spacing here so text/caret area shifts right of the icon
-        paddingLeft: state.selectProps?.iconType ? 44 : 12,
+        paddingLeft: state.selectProps?.iconType ? 24 : 12,
     }),
     indicatorsContainer: (b) => ({ ...b, gap: 6, paddingRight: 6 }),
     dropdownIndicator: (b) => ({ ...b, padding: 8 }),
