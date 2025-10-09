@@ -5,6 +5,7 @@ import { rawCountries } from "./countries";
 
 export const airports = rawAirports;
 export const airlines = rawAirlines;
+export const countries = rawCountries;
 
 export const flights = [
   // Original Flights (updated price and added stops)
@@ -405,5 +406,4 @@ export const flights = [
   },
 ];
 
-export const countries = rawCountries;
 
