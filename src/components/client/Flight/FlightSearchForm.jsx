@@ -190,15 +190,29 @@ export default function FlightSearchForm({
   const handleMenuOpen = (idx, field) =>
     setMenu(menuKey(idx, field), { input: "", options: defaultChunk });
 
-  const handleInputChange =
-    (idx, field) =>
-    (inputValue, meta) => {
-      if (meta?.action === "menu-close") return inputValue;
-      const key = menuKey(idx, field);
-      const results = searchAirports(AIRPORT_INDEX, inputValue, SEARCH_LIMIT);
-      setMenu(key, { input: inputValue, options: results });
-      return inputValue;
-    };
+const handleInputChange =
+  (idx, field) =>
+  (inputValue, meta) => {
+    if (meta?.action !== "input-change") return inputValue; // ignore blur/close events
+    const key = menuKey(idx, field);
+    // Only update state if the results actually changed
+    const results = searchAirports(AIRPORT_INDEX, inputValue, SEARCH_LIMIT);
+    setAirportMenus((prev) => {
+      const prevChunk = prev[key]?.options || [];
+      // shallow compare lengths + first/last id as a cheap guard
+      if (
+        prev[key]?.input === inputValue &&
+        prevChunk.length === results.length &&
+        (prevChunk[0]?.value === results[0]?.value) &&
+        (prevChunk[results.length - 1]?.value === results[results.length - 1]?.value)
+      ) {
+        return prev;
+      }
+      return { ...prev, [key]: { input: inputValue, options: results } };
+    });
+    return inputValue;
+  };
+
 
   /* ---- state ---- */
   const [tripType, setTripType] = useState("oneway"); // 'oneway' | 'return' | 'multi'
@@ -552,7 +566,7 @@ useEffect(() => {
     control: (base, state) => ({
       ...base,
       position: "relative",
-      zIndex: 100000,
+      zIndex: 110000,
       borderRadius: 12,
       minHeight: 54,
       borderColor: state.isFocused ? "#94a3b8" : "#e5e7eb",
@@ -578,7 +592,7 @@ useEffect(() => {
         ...base, 
         padding: 0,
         // add the left spacing here so text/caret area shifts right of the icon
-        paddingLeft: state.selectProps?.iconType ? 24 : 12,
+        paddingLeft: state.selectProps?.iconType ? 44 : 12,
     }),
     indicatorsContainer: (b) => ({ ...b, gap: 6, paddingRight: 6 }),
     dropdownIndicator: (b) => ({ ...b, padding: 8 }),
@@ -588,7 +602,7 @@ useEffect(() => {
       borderRadius: 14,
       overflow: "hidden",
       boxShadow: "0 18px 40px rgba(2,6,23,.18)",
-      zIndex: 10000,
+      zIndex: 110001,
       maxWidth: "min(96vw, 560px)",
     }),
     menuPortal: (b) => ({ ...b, zIndex: 10000 }),
@@ -807,6 +821,8 @@ useEffect(() => {
                 filterOption={null}
                 menuPortalTarget={document?.body || undefined}
                 menuPosition="fixed"
+                closeMenuOnScroll={false}
+                menuShouldScrollIntoView={false}
                 maxMenuHeight={384}
                 menuPlacement="auto"
                 getOptionValue={(opt) => opt.value}
@@ -847,6 +863,8 @@ useEffect(() => {
                 filterOption={null}
                 menuPortalTarget={document?.body || undefined}
                 menuPosition="fixed"
+                closeMenuOnScroll={false}
+                menuShouldScrollIntoView={false}
                 maxMenuHeight={384}
                 menuPlacement="auto"
                 getOptionValue={(opt) => opt.value}
@@ -1021,6 +1039,8 @@ useEffect(() => {
                       filterOption={null}
                       menuPortalTarget={document?.body || undefined}
                       menuPosition="fixed"
+                      closeMenuOnScroll={false}
+                      menuShouldScrollIntoView={false}
                       maxMenuHeight={384}
                       menuPlacement="auto"
                       getOptionValue={(opt) => opt.value}
@@ -1061,6 +1081,8 @@ useEffect(() => {
                       filterOption={null}
                       menuPortalTarget={document?.body || undefined}
                       menuPosition="fixed"
+                      closeMenuOnScroll={false}
+                      menuShouldScrollIntoView={false}
                       maxMenuHeight={384}
                       menuPlacement="auto"
                       getOptionValue={(opt) => opt.value}
@@ -1189,7 +1211,15 @@ useEffect(() => {
       </div>
 
       {/* Keep react-select menus above everything */}
-      <style>{`.react-select__menu-portal{z-index:100000}`}</style>
+      <style>{`
+        .react-select__menu-portal {
+            z-index: 110001;
+        }
+
+        .react-select__control {
+            overflow: visible;
+        }
+     `}</style>
     </form>
   );
 }
