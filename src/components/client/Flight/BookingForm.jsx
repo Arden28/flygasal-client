@@ -323,4 +323,4 @@ const BookingForm = ({
   );
 };
 
-export default React.memo(BookingForm);
+export default BookingForm;
