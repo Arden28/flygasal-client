@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { airports, airlines } from "../../../data/fakeData";
 import FilterSidebar from "../../../components/client/Flight/FilterSidebar";
@@ -123,7 +123,7 @@ const FlightPage = () => {
 
   // Core search state
   const [searchParams, setSearchParams] = useState(null);
-  const [searchKey, setSearchKey] = useState(null);
+  // const [searchKey, setSearchKey] = useState(null);
   const [availableFlights, setAvailableFlights] = useState([]);
   const [returnFlights, setReturnFlights] = useState([]);
   const [selectedCabins, setSelectedCabins] = useState([]); // empty = all
@@ -231,35 +231,36 @@ const FlightPage = () => {
     return Math.round(mins);
   };
 
-  const stopTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-  const startTimer = () => {
-    stopTimer();
-    setTimeRemaining(900);
-    setIsExpired(false);
-    timerRef.current = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
-          stopTimer();
-          setIsExpired(true);
-          setAvailableFlights([]);
-          setReturnFlights([]);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
+  // const stopTimer = () => {
+  //   if (timerRef.current) {
+  //     clearInterval(timerRef.current);
+  //     timerRef.current = null;
+  //   }
+  // };
+  // const startTimer = () => {
+  //   stopTimer();
+  //   setTimeRemaining(900);
+  //   setIsExpired(false);
+  //   timerRef.current = setInterval(() => {
+  //     setTimeRemaining((prev) => {
+  //       if (prev <= 1) {
+  //         stopTimer();
+  //         setIsExpired(true);
+  //         setAvailableFlights([]);
+  //         setReturnFlights([]);
+  //         return 0;
+  //       }
+  //       return prev - 1;
+  //     });
+  //   }, 1000);
+  // };
 
   // ---- Return-offer carving helpers (for suppliers that return both legs in one offer) ----
   const norm3 = (s = "") =>
     String(s).trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3);
 
-  const normalizeSegsForCarve = (flightLike) => {
+  // Stable identity: pure utility, keeps deps empty.
+  const normalizeSegsForCarve = useCallback((flightLike) => {
     const raw =
       Array.isArray(flightLike?.segments) && flightLike.segments.length ? flightLike.segments : [flightLike];
 
@@ -277,9 +278,10 @@ const FlightPage = () => {
       }))
       .filter((s) => s.departureAt && s.arrivalAt)
       .sort((a, b) => new Date(a.departureAt) - new Date(b.departureAt));
-  };
+  }, []);
 
-  const findContiguousChain = (segs, ORIGIN, DEST, { prefer = "earliest", notBefore } = {}) => {
+  // Stable identity: pure utility, keeps deps empty.
+  const findContiguousChain = useCallback((segs, ORIGIN, DEST, { prefer = "earliest", notBefore } = {}) => {
     const O = norm3(ORIGIN),
       D = norm3(DEST);
     if (!O || !D || !segs?.length) return null;
@@ -310,9 +312,10 @@ const FlightPage = () => {
       return chains.reduce((best, c) => (new Date(c[0].departureAt) > new Date(best[0].departureAt) ? c : best));
     }
     return chains.reduce((best, c) => (new Date(c[0].departureAt) < new Date(best[0].departureAt) ? c : best));
-  };
+  }, []);
 
-  const carveReturnFromSingleOffer = (offer, { origin, destination }) => {
+  //Stable identity: depends on the two helpers above.
+  const carveReturnFromSingleOffer = useCallback((offer, { origin, destination }) => {
     const segs = normalizeSegsForCarve(offer);
     const out = findContiguousChain(segs, origin, destination, { prefer: "earliest" }) || [];
     const outArr = out[out.length - 1]?.arrivalAt || null;
@@ -347,7 +350,20 @@ const FlightPage = () => {
     };
 
     return { outbound: wrap(out), ret: wrap(ret) };
-  };
+  }, [normalizeSegsForCarve, findContiguousChain]);
+
+  /* ============================================================
+   * NEW helper: carriers **per leg** (prevents cross-leg bleed)
+   * ============================================================ */
+  const carriersOfLeg = (leg) =>
+    Array.from(
+      new Set(
+        (leg?.segments || [])
+          .map((s) => s?.airline)
+          .filter(Boolean)
+          .map((c) => String(c).toUpperCase())
+      )
+    );
 
   // ---------- Fetch flights ----------
   useEffect(() => {
@@ -458,69 +474,72 @@ const FlightPage = () => {
           outbounds = Array.from(multiSet.values());
           returns = [];
         } else if (tripType === "return") {
+          /* -----------------------------------------------------------
+           * CHANGE: Split return offers using server-normalized legs
+           * (summary.legs[0] outbound, summary.legs[1] return).
+           * This avoids wrong ordering & "half-slice" issues.
+           * ----------------------------------------------------------- */
           for (const offer of offers) {
-            const fids = Array.isArray(offer?.flightIds) ? offer.flightIds.filter(Boolean) : [];
-            const segs = Array.isArray(offer?.segments) ? offer.segments : [];
-
-            const buildLegFromSegments = (baseOffer, segs, suffix) => {
-              const firstSeg = segs[0];
-              const lastSeg = segs[segs.length - 1];
-
-              const originalTotal =
-                baseOffer?.priceBreakdown?.total ??
-                (baseOffer?.priceBreakdown?.base || 0) +
-                  (baseOffer?.priceBreakdown?.taxes || 0) +
-                  (baseOffer?.priceBreakdown?.qCharge || 0) +
-                  (baseOffer?.priceBreakdown?.tktFee || 0);
-
-              const perLegTotal = Math.round((originalTotal / 2) * 100) / 100;
-
-              return {
-                id: `${baseOffer.id}-${suffix}`,
-                solutionId: baseOffer.solutionId,
-                marketingCarriers: baseOffer.marketingCarriers || [],
-                operatingCarriers: baseOffer.operatingCarriers || [],
-                platingCarrier: baseOffer.platingCarrier,
-                isVI: !!baseOffer.isVI,
-                cabin: baseOffer.cabin,
-                bookingCode: baseOffer.bookingCode,
-
-                origin: firstSeg?.departure || baseOffer.origin,
-                destination: lastSeg?.arrival || baseOffer.destination,
-                departureTime: firstSeg?.departureDate || baseOffer.departureTime,
-                arrivalTime: lastSeg?.arrivalDate || baseOffer.arrivalTime,
-                segments: segs.slice(),
-                equipment: baseOffer.equipment,
-
-                stops: Math.max(0, (segs?.length || 1) - 1),
-                transferCount: baseOffer.transferCount,
-
-                priceBreakdown: {
-                  ...baseOffer.priceBreakdown,
-                  total: perLegTotal,
-                },
-
-                rules: baseOffer.rules,
-                availabilityCount: baseOffer.availabilityCount,
-                expired: baseOffer.expired,
-                flightNumber: baseOffer.flightNumber,
-                journeyTime: baseOffer.journeyTime,
-              };
-            };
-
+            const legs = offer?.summary?.legs || [];
             let outLeg, retLeg;
 
-            if (fids.length >= 2) {
-              const segsOut = segs.filter((s) => s.flightId === fids[0]);
-              const segsRet = segs.filter((s) => s.flightId === fids[1]);
+            if (legs.length >= 2) {
+              const buildLegFromNormalized = (baseOffer, leg, suffix) => {
+                const firstSeg = leg.segments?.[0] || {};
+                const lastSeg  = leg.segments?.[leg.segments.length - 1] || {};
+                const originalTotal =
+                  baseOffer?.priceBreakdown?.total ??
+                  (baseOffer?.priceBreakdown?.base || 0) +
+                    (baseOffer?.priceBreakdown?.taxes || 0) +
+                    (baseOffer?.priceBreakdown?.qCharge || 0) +
+                    (baseOffer?.priceBreakdown?.tktFee || 0);
 
-              const half = Math.floor(segs.length / 2) || 1;
-              const finalOutSegs = segsOut.length ? segsOut : segs.slice(0, half);
-              const finalRetSegs = segsRet.length ? segsRet : segs.slice(half);
+                // NOTE: keep full fare on offer; we only show per-leg meta; if you want 50/50 split, keep as-is.
+                const perLegTotal = Math.round((originalTotal / 2) * 100) / 100;
 
-              outLeg = buildLegFromSegments(offer, finalOutSegs, "OUT");
-              retLeg = buildLegFromSegments(offer, finalRetSegs, "RET");
+                return {
+                  id: `${baseOffer.id || baseOffer.solutionId || "OFF"}-${suffix}`,
+                  solutionId: baseOffer.solutionId,
+                  platingCarrier: baseOffer.platingCarrier,
+                  isVI: !!baseOffer.isVI,
+
+                  // Per-leg carriers (no cross-leg bleed)
+                  marketingCarriers: carriersOfLeg(leg),
+                  operatingCarriers: [],
+
+                  cabin: baseOffer.cabin || firstSeg.cabinClass,
+                  bookingCode: firstSeg.bookingCode,
+
+                  origin: leg.origin,
+                  destination: leg.destination,
+                  departureTime: leg.departureTime,
+                  arrivalTime: leg.arrivalTime,
+
+                  segments: (leg.segments || []).map((s) => ({
+                    ...s,
+                    // keep both names compatible with rest of code
+                    departureDate: s.departureDate ?? s.departureTime,
+                    arrivalDate: s.arrivalDate ?? s.arrivalTime,
+                  })),
+
+                  stops: Math.max(0, (leg.segments?.length || 1) - 1),
+                  transferCount: leg.transferCount ?? Math.max(0, (leg.segments?.length || 1) - 1),
+                  journeyTime: leg.journeyTime,
+
+                  priceBreakdown: { ...baseOffer.priceBreakdown, total: perLegTotal },
+
+                  rules: baseOffer.rules,
+                  availabilityCount: baseOffer.availabilityCount,
+                  expired: baseOffer.expired,
+                  flightNumber: `${firstSeg.airline || ""}${firstSeg.flightNum || ""}`,
+                  equipment: firstSeg.equipment,
+                };
+              };
+
+              outLeg = buildLegFromNormalized(offer, legs[0], "OUT");
+              retLeg = buildLegFromNormalized(offer, legs[1], "RET");
             } else {
+              // Fallback if legs are absent (rare)
               const { outbound, ret } = carveReturnFromSingleOffer(offer, {
                 origin: params.origin,
                 destination: params.destination,
@@ -531,6 +550,7 @@ const FlightPage = () => {
 
             if (!outLeg || !retLeg) continue;
 
+            // Dedup keys
             const outKey = onewayKey(outLeg, outLeg.cabin);
             if (!seenOneWay.has(outKey) || priceOf(outLeg) < priceOf(seenOneWay.get(outKey))) {
               seenOneWay.set(outKey, outLeg);
@@ -591,7 +611,7 @@ const FlightPage = () => {
       abort.abort();
       // stopTimer();
     };
-  }, [location.search]);
+  }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- Derive display helpers ----------
   const makeBaggageLabel = (offer) => {
@@ -615,14 +635,6 @@ const FlightPage = () => {
     if (!searchParams) return [];
 
     const cabinOf = (x) => x?.cabin || x?.segments?.[0]?.cabinClass || "Economy";
-    const carriers = (o) =>
-      Array.from(
-        new Set(
-          (o?.marketingCarriers || [])
-            .concat(o?.operatingCarriers || [])
-            .concat(o?.segments?.map((s) => s?.airline).filter(Boolean) || [])
-        )
-      ).filter(Boolean);
 
     // MULTI
     if (searchParams.tripType === "multi") {
@@ -631,7 +643,9 @@ const FlightPage = () => {
         if (!Array.isArray(m?.legs) || !m.legs.length) continue;
         const key = multiKey(m.legs, m.cabin);
         const totalStops = m.totalStops ?? m.legs.reduce((acc, l) => acc + (l.stops || 0), 0);
-        const airlines = m.airlines?.length ? m.airlines : Array.from(new Set(m.legs.flatMap(carriers)));
+        const airlines = m.airlines?.length
+          ? m.airlines
+          : Array.from(new Set(m.legs.flatMap((l) => carriersOfLeg(l))));
 
         const rec = {
           id: m.id,
@@ -672,7 +686,8 @@ const FlightPage = () => {
             return: rt,
             totalPrice: priceOf(out),
             totalStops: (ob.stops || 0) + (rt.stops || 0),
-            airlines: Array.from(new Set([...carriers(ob), ...carriers(rt)])),
+            // ----- CHANGE: airlines computed per leg, then merged -----
+            airlines: Array.from(new Set([...carriersOfLeg(ob), ...carriersOfLeg(rt)])),
             cabin: cabinOf(ob),
             baggage: makeBaggageLabel(ob),
             refundable: false,
@@ -702,7 +717,8 @@ const FlightPage = () => {
             return: rt,
             totalPrice: total,
             totalStops: (out.stops || 0) + (rt.stops || 0),
-            airlines: Array.from(new Set([...carriers(out), ...carriers(rt)])),
+            // ----- CHANGE: airlines computed per leg, then merged -----
+            airlines: Array.from(new Set([...carriersOfLeg(out), ...carriersOfLeg(rt)])),
             cabin: cabinOf(out),
             baggage: makeBaggageLabel(out),
             refundable: false,
@@ -729,7 +745,8 @@ const FlightPage = () => {
         return: null,
         totalPrice: Number(priceOf(f)),
         totalStops: f.stops || 0,
-        airlines: carriers(f),
+        // ----- CHANGE: carriers from the (only) leg -----
+        airlines: carriersOfLeg(f),
         cabin: cabinOf(f),
         baggage: makeBaggageLabel(f),
         refundable: false,
@@ -739,7 +756,8 @@ const FlightPage = () => {
       if (oneDedup.size >= MAX_RESULTS) break;
     }
     return Array.from(oneDedup.values()).sort((a, b) => a.totalPrice - b.totalPrice);
-  }, [searchParams, availableFlights, returnFlights]);
+  // include carved helper to satisfy exhaustive-deps
+  }, [searchParams, availableFlights, returnFlights, carveReturnFromSingleOffer]);
 
   // ======= Recompute price bounds from actual itineraries =======
   useEffect(() => {
@@ -774,20 +792,22 @@ const FlightPage = () => {
         const stopClass = stopsCount >= 2 ? "oneway_2" : `oneway_${stopsCount}`;
         const stopsOk = currentStop === "mix" || currentStop === stopClass;
 
-        // outbound vs return airline filters
-        const obCode =
-          it.outbound?.marketingCarriers?.[0] || it.outbound?.segments?.[0]?.airline || "";
-        const rtCode =
-          it.return?.marketingCarriers?.[0] || it.return?.segments?.[0]?.airline || "";
+        /* -----------------------------------------------------------
+         * CHANGE: outbound/return airline filters:
+         * we match if **any** carrier on that leg is selected
+         * (instead of only the first marketing/segment carrier).
+         * ----------------------------------------------------------- */
+        const obCarriers = carriersOfLeg(it.outbound || it.legs?.[0] || null);
+        const rtCarriers = it.return ? carriersOfLeg(it.return) : [];
 
         const owOk =
           checkedOnewayValue.length === 0 ||
-          (obCode && checkedOnewayValue.includes(`oneway_${obCode}`));
+          obCarriers.some((code) => checkedOnewayValue.includes(`oneway_${code}`));
 
         const rtOk =
           !it.return ||
           checkedReturnValue.length === 0 ||
-          (rtCode && checkedReturnValue.includes(`return_${rtCode}`));
+          rtCarriers.some((code) => checkedReturnValue.includes(`return_${code}`));
 
         // time windows
         const owDep = getHour(it.outbound?.segments?.[0]?.departureDate || it.outbound?.departureTime);
@@ -840,12 +860,14 @@ const FlightPage = () => {
   ]);
 
   // Primary codes (exactly like your filter uses)
+  /* -----------------------------------------------------------
+   * CHANGE: Sidebar airline lists from **leg carriers**.
+   * ----------------------------------------------------------- */
   const outboundPrimary = useMemo(() => {
     const set = new Set();
     itineraries.forEach((it) => {
-      const code =
-        (it.outbound?.marketingCarriers?.[0] || it.outbound?.segments?.[0]?.airline || "").toUpperCase();
-      if (code) set.add(code);
+      const carriers = carriersOfLeg(it.outbound || it.legs?.[0]);
+      carriers.forEach((c) => set.add(c));
     });
     return Array.from(set).sort();
   }, [itineraries]);
@@ -854,21 +876,21 @@ const FlightPage = () => {
     const set = new Set();
     itineraries.forEach((it) => {
       if (!it.return) return;
-      const code =
-        (it.return?.marketingCarriers?.[0] || it.return?.segments?.[0]?.airline || "").toUpperCase();
-      if (code) set.add(code);
+      carriersOfLeg(it.return).forEach((c) => set.add(c));
     });
     return Array.from(set).sort();
   }, [itineraries]);
 
   // Live counts (optional but enables “Hide 0” + disables non-matching)
+  /* -----------------------------------------------------------
+   * CHANGE: counts from **leg carriers** (accurate badges).
+   * ----------------------------------------------------------- */
   const airlineCountsOutbound = useMemo(() => {
     const m = {};
     itineraries.forEach((it) => {
-      const code =
-        (it.outbound?.marketingCarriers?.[0] || it.outbound?.segments?.[0]?.airline || "").toUpperCase();
-      if (!code) return;
-      m[code] = (m[code] || 0) + 1;
+      carriersOfLeg(it.outbound || it.legs?.[0]).forEach((code) => {
+        m[code] = (m[code] || 0) + 1;
+      });
     });
     return m;
   }, [itineraries]);
@@ -877,10 +899,9 @@ const FlightPage = () => {
     const m = {};
     itineraries.forEach((it) => {
       if (!it.return) return;
-      const code =
-        (it.return?.marketingCarriers?.[0] || it.return?.segments?.[0]?.airline || "").toUpperCase();
-      if (!code) return;
-      m[code] = (m[code] || 0) + 1;
+      carriersOfLeg(it.return).forEach((code) => {
+        m[code] = (m[code] || 0) + 1;
+      });
     });
     return m;
   }, [itineraries]);
