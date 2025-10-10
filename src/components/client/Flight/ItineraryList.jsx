@@ -7,6 +7,57 @@ import { formatDuration } from "../../../lib/helper";
 const money = (n, currency = "USD") =>
   (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
 
+/* ==== pricing helpers that understand totals { base, taxes, fees, grand } ==== */
+const normalizePriceBreakdown = (o = {}) => {
+  const currency = o?.priceBreakdown?.currency || o.currency || "USD";
+  const existingTotals = o?.priceBreakdown?.totals;
+
+  if (
+    existingTotals &&
+    ["base", "taxes", "fees", "grand"].every((k) =>
+      Object.prototype.hasOwnProperty.call(existingTotals, k)
+    )
+  ) {
+    return {
+      currency,
+      totals: {
+        base: Number(existingTotals.base || 0),
+        taxes: Number(existingTotals.taxes || 0),
+        fees: Number(existingTotals.fees || 0),
+        grand: Number(existingTotals.grand || 0),
+      },
+    };
+  }
+
+  const legacy = o?.priceBreakdown || {};
+  const base = Number(legacy.base || 0);
+  const taxes = Number(legacy.taxes || 0);
+  const feesDetail = {
+    qCharge: Number(legacy.qCharge || o.qCharge || 0),
+    tktFee: Number(legacy.tktFee || o.tktFee || 0),
+    platformServiceFee: Number(legacy.platformServiceFee || o.platformServiceFee || 0),
+    merchantFee: Number(legacy.merchantFee || o.merchantFee || 0),
+  };
+  const fees = Object.values(feesDetail).reduce((a, b) => a + b, 0);
+  const grand = Number(legacy.total != null ? legacy.total : base + taxes + fees);
+
+  return { currency, totals: { base, taxes, fees, grand } };
+};
+
+const sumTotals = (legs = []) => {
+  return legs.reduce(
+    (acc, leg) => {
+      const t = normalizePriceBreakdown(leg).totals;
+      acc.base += t.base || 0;
+      acc.taxes += t.taxes || 0;
+      acc.fees += t.fees || 0;
+      acc.grand += t.grand || 0;
+      return acc;
+    },
+    { base: 0, taxes: 0, fees: 0, grand: 0 }
+  );
+};
+
 const Pill = ({ children, tone = "slate" }) => {
   const tones = {
     blue: "bg-blue-50 text-blue-700 border-blue-200",
@@ -48,7 +99,6 @@ const computeItinKey = (it) => {
     : "OW";
   return `${outKey}|${retKey}|${it.totalPrice}`;
 };
-
 
 const Chevron = ({ open }) => (
   <motion.svg
@@ -187,93 +237,91 @@ const ItineraryList = ({
     return { start, end, total: totalCount };
   }, [totalCount, currentPage, pageSize]);
 
-const selectItinerary = (itinerary) => {
-  const isMulti = (searchParams?.tripType || "").toLowerCase() === "multi" || (Array.isArray(itinerary.legs) && itinerary.legs.length > 0);
-  const params = new URLSearchParams();
+  const selectItinerary = (itinerary) => {
+    const isMulti = (searchParams?.tripType || "").toLowerCase() === "multi" || (Array.isArray(itinerary.legs) && itinerary.legs.length > 0);
+    const params = new URLSearchParams();
 
-  if (isMulti) {
-    params.set("tripType", "multi");
-    params.set("solutionId", itinerary.solutionId || itinerary.legs?.[0]?.solutionId || "");
-    params.set("cabin", itinerary.cabin || itinerary.legs?.[0]?.cabin || "Economy");
-  } else {
-    const out = itinerary.outbound || {};
-    params.set("solutionKey", out.solutionKey || "");
-    params.set("solutionId", out.solutionId || "");
-    params.set("tripType", itinerary.return ? "return" : "oneway");
-    if (itinerary.return?.segments?.[0]?.departureTime) {
-      params.set("returnDate", formatToYMD(itinerary.return.segments[0].departureTime));
+    if (isMulti) {
+      params.set("tripType", "multi");
+      params.set("solutionId", itinerary.solutionId || itinerary.legs?.[0]?.solutionId || "");
+      params.set("cabin", itinerary.cabin || itinerary.legs?.[0]?.cabin || "Economy");
+    } else {
+      const out = itinerary.outbound || {};
+      params.set("solutionKey", out.solutionKey || "");
+      params.set("solutionId", out.solutionId || "");
+      params.set("tripType", itinerary.return ? "return" : "oneway");
+      if (itinerary.return?.segments?.[0]?.departureTime) {
+        params.set("returnDate", formatToYMD(itinerary.return.segments[0].departureTime));
+      }
+      params.set("cabin", itinerary.outbound?.cabin || "Economy");
+      params.set("flightId", itinerary.outbound?.id || "");
+      params.set("returnFlightId", itinerary.return ? itinerary.return.id : "");
+      params.set("flightNumber", itinerary.outbound?.flightNumber || "");
     }
-    params.set("cabin", itinerary.outbound?.cabin || "Economy");
-    params.set("flightId", itinerary.outbound?.id || "");
-    params.set("returnFlightId", itinerary.return ? itinerary.return.id : "");
-    params.set("flightNumber", itinerary.outbound?.flightNumber || "");
-  }
 
-  params.set("adults", `${searchParams?.adults || 1}`);
-  params.set("children", `${searchParams?.children || 0}`);
-  params.set("infants", `${searchParams?.infants || 0}`);
+    params.set("adults", `${searchParams?.adults || 1}`);
+    params.set("children", `${searchParams?.children || 0}`);
+    params.set("infants", `${searchParams?.infants || 0}`);
 
-  // ---- Write segments into flights[i] ----
-  let idx = 0;
+    // ---- Write segments into flights[i] ----
+    let idx = 0;
 
-  const writeSeg = (seg) => {
-    params.set(`flights[${idx}][origin]`, seg.departure);
-    params.set(`flights[${idx}][destination]`, seg.arrival);
-    params.set(`flights[${idx}][airline]`, seg.airline);
-    params.set(`flights[${idx}][flightNum]`, seg.flightNum);
-    params.set(`flights[${idx}][arrival]`, seg.arrival);
-    params.set(`flights[${idx}][arrivalDate]`, seg.strArrivalDate || seg.arrivalDate || "");
-    params.set(`flights[${idx}][arrivalTime]`, seg.strArrivalTime || seg.arrivalTime || "");
-    params.set(`flights[${idx}][departure]`, seg.departure);
-    params.set(`flights[${idx}][departureDate]`, seg.strDepartureDate || seg.departureDate || "");
-    params.set(`flights[${idx}][departureTime]`, seg.strDepartureTime || seg.departureTime || "");
-    params.set(`flights[${idx}][bookingCode]`, seg.bookingCode || "");
-    idx += 1;
-  };
+    const writeSeg = (seg) => {
+      params.set(`flights[${idx}][origin]`, seg.departure);
+      params.set(`flights[${idx}][destination]`, seg.arrival);
+      params.set(`flights[${idx}][airline]`, seg.airline);
+      params.set(`flights[${idx}][flightNum]`, seg.flightNum);
+      params.set(`flights[${idx}][arrival]`, seg.arrival);
+      params.set(`flights[${idx}][arrivalDate]`, seg.strArrivalDate || seg.arrivalDate || "");
+      params.set(`flights[${idx}][arrivalTime]`, seg.strArrivalTime || seg.arrivalTime || "");
+      params.set(`flights[${idx}][departure]`, seg.departure);
+      params.set(`flights[${idx}][departureDate]`, seg.strDepartureDate || seg.departureDate || "");
+      params.set(`flights[${idx}][departureTime]`, seg.strDepartureTime || seg.departureTime || "");
+      params.set(`flights[${idx}][bookingCode]`, seg.bookingCode || "");
+      idx += 1;
+    };
 
-  if (isMulti) {
-    // Flatten all legs' segments in order
-    (itinerary.legs || []).forEach((leg) => {
-      (leg.segments || []).forEach(writeSeg);
-    });
-  } else {
-    // Outbound segments
-    (itinerary.outbound?.segments || []).forEach(writeSeg);
-    // Return segments
-    (itinerary.return?.segments || []).forEach(writeSeg);
-  }
+    if (isMulti) {
+      // Flatten all legs' segments in order
+      (itinerary.legs || []).forEach((leg) => {
+        (leg.segments || []).forEach(writeSeg);
+      });
+    } else {
+      // Outbound segments
+      (itinerary.outbound?.segments || []).forEach(writeSeg);
+      // Return segments
+      (itinerary.return?.segments || []).forEach(writeSeg);
+    }
 
-  // ---- Pricing/markup ----
-  const base = Number(itinerary.totalPrice) || 0;
-  const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
-  const total = +(base + markup).toFixed(2);
-  params.set("basePrice", String(base));
-  params.set("agentMarkupPercent", String(agentMarkupPercent));
-  params.set("agentMarkupAmount", String(markup));
-  params.set("totalWithMarkup", String(total));
-  params.set("currency", currency);
+    // ---- Pricing/markup ----
+    const base = Number(itinerary.totalPrice) || 0;
+    const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
+    const total = +(base + markup).toFixed(2);
+    params.set("basePrice", String(base));
+    params.set("agentMarkupPercent", String(agentMarkupPercent));
+    params.set("agentMarkupAmount", String(markup));
+    params.set("totalWithMarkup", String(total));
+    params.set("currency", currency);
 
-  console.info('Itinerary: ', itinerary);
-  const flights = {};
+    console.info('Itinerary: ', itinerary);
+    const flights = {};
 
-  for (const [key, value] of params.entries()) {
-    if (key.startsWith("flights[")) {
-      // Match something like flights[0][origin]
-      const match = key.match(/flights\[(\d+)\]\[(.+)\]/);
-      if (match) {
-        const [, index, field] = match;
-        flights[index] = flights[index] || {};
-        flights[index][field] = value;
+    for (const [key, value] of params.entries()) {
+      if (key.startsWith("flights[")) {
+        // Match something like flights[0][origin]
+        const match = key.match(/flights\[(\d+)\]\[(.+)\]/);
+        if (match) {
+          const [, index, field] = match;
+          flights[index] = flights[index] || {};
+          flights[index][field] = value;
+        }
       }
     }
-  }
 
-  console.log(flights);
+    console.log(flights);
 
-  navigate(`/flight/booking/details?${params.toString()}`);
-};
-
-
+    navigate(`/flight/booking/details?${params.toString()}`);
+  };
 
   const pax = useMemo(() => {
     const a = Number(searchParams?.adults || 1);
@@ -284,17 +332,39 @@ const selectItinerary = (itinerary) => {
     return { adults: a, children: c, infants: i, paying, total };
   }, [searchParams?.adults, searchParams?.children, searchParams?.infants]);
 
-  
-  // console.info("Rendering ItineraryList with itineraries:", paginatedItineraries);
-
   const priceBreakdown = (it) => {
-    const base = isNaN(Number(it.totalPrice)) ? 0 : Number(it.totalPrice);
-    const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
+    // Determine which legs contribute to the fare
+    const isMulti =
+      (Array.isArray(it.legs) && it.legs.length > 0) ||
+      (searchParams?.tripType || "").toLowerCase() === "multi";
+
+    const legs = isMulti
+      ? it.legs || []
+      : [it.outbound, ...(it.return ? [it.return] : [])].filter(Boolean);
+
+    // Per-traveler totals from legs (grand already includes base+taxes+fees)
+    const per = sumTotals(legs); // { base, taxes, fees, grand }
+
+    // Apply markup on the per-traveler grand
+    const perMarkup = +((per.grand || 0) * (agentMarkupPercent / 100)).toFixed(2);
+    const perTotal = +((per.grand || 0) + perMarkup).toFixed(2);
+
+    // Scale up by paying pax
+    const paying = Math.max(1, (Number(searchParams?.adults || 1) + Number(searchParams?.children || 0)));
+    const base = +((per.grand || 0) * paying).toFixed(2); // "Base" in UI = airfare incl. taxes & fees, pre-markup
+    const markup = +(perMarkup * paying).toFixed(2);
     const total = +(base + markup).toFixed(2);
-    const perBase = +(base / pax.paying).toFixed(2);
-    const perMarkup = +(markup / pax.paying).toFixed(2);
-    const perTotal = +(base / pax.paying).toFixed(2);
-    return { base, markup, total, perBase, perMarkup, perTotal };
+
+    // Also expose taxes/fees lines (useful for UI rows)
+    const taxes = +((per.taxes || 0) * paying).toFixed(2);
+    const fees = +((per.fees || 0) * paying).toFixed(2);
+    const perTaxes = +(per.taxes || 0).toFixed(2);
+    const perFees = +(per.fees || 0).toFixed(2);
+
+    // Keep original compatibility field used by UI
+    const perBase = +((per.grand || 0)).toFixed(2);
+
+    return { base, markup, total, perBase, perMarkup, perTotal, taxes, fees, perTaxes, perFees };
   };
 
   const isOpen = (id) => openDetailsId === id;
@@ -322,13 +392,11 @@ const selectItinerary = (itinerary) => {
         <AnimatePresence mode="sync" initial={false}>
           {paginatedItineraries.map((itinerary) => {
             const key = computeItinKey(itinerary);
-            const { base, markup, total, perBase, perMarkup, perTotal } = priceBreakdown(itinerary);
+            const { base, markup, total, perBase, perMarkup, perTotal, taxes, fees, perTaxes, perFees } = priceBreakdown(itinerary);
             const direct = itinerary.totalStops === 0;
             const airlines = itinerary.airlines || [];
             const isMulti = (searchParams?.tripType || "").toLowerCase() === "multi" || (Array.isArray(itinerary.legs) && itinerary.legs.length > 0);
             const isRoundTrip = !isMulti && !!itinerary.return;
-            
-            // console.info("Itinerary:", itinerary);
 
             let durText = "";
             if (isMulti) {
@@ -432,7 +500,6 @@ const selectItinerary = (itinerary) => {
                       </>
                     )}
 
-
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
                       <Pill tone={direct ? "green" : "blue"}>
                         {direct ? "Direct" : `${itinerary.totalStops} stop${itinerary.totalStops > 1 ? "s" : ""}`}
@@ -483,7 +550,9 @@ const selectItinerary = (itinerary) => {
                     )}
 
                     <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-                      <Row label="Base" value={money(base, currency)} />
+                      <Row label="Base (incl. taxes & fees)" value={money(base, currency)} />
+                      <Row label="— Taxes (incl.)" value={money(taxes, currency)} subtle />
+                      <Row label="— Fees (incl.)" value={money(fees, currency)} subtle />
                       <Row label={`Agent markup (${agentMarkupPercent}%)`} value={money(markup, currency)} />
                       <div className="mt-1 border-t border-slate-200 pt-1">
                         <Row label="Total" value={money(total, currency)} bold />
@@ -543,10 +612,14 @@ const selectItinerary = (itinerary) => {
                                   label={`Per traveler${pax.infants > 0 ? " (excl. infants)" : ""}`}
                                   value={money(perTotal, currency)}
                                 />
+                                <Row label="— Taxes (incl.)" value={money(perTaxes, currency)} subtle />
+                                <Row label="— Fees (incl.)" value={money(perFees, currency)} subtle />
                                 <div className="my-2 border-t border-slate-200" />
                               </>
                             )}
-                            <Row label="Base" value={money(base, currency)} />
+                            <Row label="Base (incl. taxes & fees)" value={money(base, currency)} />
+                            <Row label="— Taxes (incl.)" value={money(taxes, currency)} subtle />
+                            <Row label="— Fees (incl.)" value={money(fees, currency)} subtle />
                             <Row label={`Agent markup (${agentMarkupPercent}%)`} value={money(markup, currency)} />
                             <div className="mt-2 border-t border-slate-200 pt-2">
                               <Row label="Estimated total" value={money(total, currency)} bold />
@@ -607,7 +680,10 @@ const selectItinerary = (itinerary) => {
                             <div className="space-y-2 text-xs">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <Icon name="shield" className={`h-4 w-4 ${itinerary.refundable ? "text-emerald-700" : "text-rose-700"}`} />
+                                  <Icon
+                                    name="shield"
+                                    className={`h-4 w-4 ${itinerary.refundable ? "text-emerald-700" : "text-rose-700"}`}
+                                  />
                                   <span className="text-slate-600">Refundability</span>
                                 </div>
                                 <span className={`font-medium ${itinerary.refundable ? "text-emerald-700" : "text-rose-700"}`}>
