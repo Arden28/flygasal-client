@@ -820,7 +820,8 @@ const FlightPage = () => {
 
     return itineraries
       .filter((it) => {
-        const priceOk = it.totalPrice >= low && it.totalPrice <= high;
+        // const priceOk = it.totalPrice >= low && it.totalPrice <= high;
+        const priceOk = it?.priceBreakdown?.totals?.grand >= low && it?.priceBreakdown?.totals?.grand <= high;
 
         // normalize stops: 0 / 1 / 2+
         const stopsCount = Math.max(0, Number.isFinite(it.totalStops) ? it.totalStops : 0);
