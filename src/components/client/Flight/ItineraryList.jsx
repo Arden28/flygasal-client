@@ -458,6 +458,8 @@ const ItineraryList = ({
             const detailsId = `fare-details-${key.replace(/[^a-zA-Z0-9]/g, "")}`;
             const open = isOpen(key);
 
+            console.info('Itinerary: ', itinerary);
+
             return (
               <motion.li
                 key={key}
