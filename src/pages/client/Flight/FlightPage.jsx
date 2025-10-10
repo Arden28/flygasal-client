@@ -474,7 +474,7 @@ const FlightPage = () => {
                     (baseOffer?.priceBreakdown?.tktFee || 0);
 
                 // NOTE: keep full fare on offer; we only show per-leg meta; if you want 50/50 split, keep as-is.
-                const perLegTotal = Math.round((originalTotal / 2) * 100) / 100;
+                const perLegTotal = originalTotal;
 
                 return {
                   id: `${baseOffer.id || baseOffer.solutionId || "OFF"}-${suffix}`,
