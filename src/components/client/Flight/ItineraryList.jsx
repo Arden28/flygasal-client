@@ -288,7 +288,7 @@ const selectItinerary = (itinerary) => {
   // console.info("Rendering ItineraryList with itineraries:", paginatedItineraries);
 
   const priceBreakdown = (it) => {
-    const base = isNaN(Number(it.totalPrice)) ? 0 : Number(it.totalPrice) * pax.paying;
+    const base = isNaN(Number(it.totalPrice)) ? 0 : Number(it.totalPrice);
     const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
     const total = +(base + markup).toFixed(2);
     const perBase = +(base / pax.paying).toFixed(2);
