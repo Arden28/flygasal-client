@@ -123,7 +123,7 @@ const FlightPage = () => {
 
   // Core search state
   const [searchParams, setSearchParams] = useState(null);
-  // const [searchKey, setSearchKey] = useState(null);
+  const [searchKey, setSearchKey] = useState(null);
   const [availableFlights, setAvailableFlights] = useState([]);
   const [returnFlights, setReturnFlights] = useState([]);
   const [selectedCabins, setSelectedCabins] = useState([]); // empty = all
@@ -231,29 +231,29 @@ const FlightPage = () => {
     return Math.round(mins);
   };
 
-  // const stopTimer = () => {
-  //   if (timerRef.current) {
-  //     clearInterval(timerRef.current);
-  //     timerRef.current = null;
-  //   }
-  // };
-  // const startTimer = () => {
-  //   stopTimer();
-  //   setTimeRemaining(900);
-  //   setIsExpired(false);
-  //   timerRef.current = setInterval(() => {
-  //     setTimeRemaining((prev) => {
-  //       if (prev <= 1) {
-  //         stopTimer();
-  //         setIsExpired(true);
-  //         setAvailableFlights([]);
-  //         setReturnFlights([]);
-  //         return 0;
-  //       }
-  //       return prev - 1;
-  //     });
-  //   }, 1000);
-  // };
+  const stopTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+  const startTimer = () => {
+    stopTimer();
+    setTimeRemaining(900);
+    setIsExpired(false);
+    timerRef.current = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          stopTimer();
+          setIsExpired(true);
+          setAvailableFlights([]);
+          setReturnFlights([]);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   // ---- Return-offer carving helpers (for suppliers that return both legs in one offer) ----
   const norm3 = (s = "") =>
