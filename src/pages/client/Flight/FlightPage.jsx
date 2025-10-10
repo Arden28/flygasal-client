@@ -146,7 +146,7 @@ const FlightPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   // UI
-  the const [openDetailsId, setOpenDetailsId] = useState(null);
+  const [openDetailsId, setOpenDetailsId] = useState(null);
   const [isSearchFormVisible, setIsSearchFormVisible] = useState(false);
   const [filtersOpenMobile, setFiltersOpenMobile] = useState(false);
   const [loading, setLoading] = useState(false);
