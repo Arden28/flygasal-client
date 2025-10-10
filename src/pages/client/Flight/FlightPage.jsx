@@ -437,6 +437,8 @@ const FlightPage = () => {
           const newKey = data?.searchKey || null;
           offers = flygasal.transformPKFareData(data) || [];
 
+          console.info('Offers 2: ', offers);
+
           displayCurrency = offers[0]?.priceBreakdown?.currency || "USD";
           if (newKey) {
             qp.set("searchKey", newKey);
