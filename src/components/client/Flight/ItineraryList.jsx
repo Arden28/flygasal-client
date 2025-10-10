@@ -438,7 +438,7 @@ const selectItinerary = (itinerary) => {
                         {direct ? "Direct" : `${itinerary.totalStops} stop${itinerary.totalStops > 1 ? "s" : ""}`}
                       </Pill>
                       <Pill tone="slate">
-                        Duration: <span className="ml-1 font-medium">{formatDuration(itinerary?.journeyTime)}</span>
+                        Duration: <span className="ml-1 font-medium">{formatDuration(itinerary.journeyTime)}</span>
                       </Pill>
                       {itinerary.cabin && (
                         <Pill tone="slate">
