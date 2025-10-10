@@ -331,7 +331,6 @@ const ItineraryList = ({
       idx += 1;
     };
 
-    const isMulti = (searchParams?.tripType || "").toLowerCase() === "multi" || (Array.isArray(itinerary.legs) && itinerary.legs.length > 0);
     if (isMulti) {
       // Flatten all legs' segments in order
       (itinerary.legs || []).forEach((leg) => {
@@ -457,6 +456,8 @@ const ItineraryList = ({
 
             const detailsId = `fare-details-${key.replace(/[^a-zA-Z0-9]/g, "")}`;
             const open = isOpen(key);
+
+            console.info('Itinerary: ', itinerary);
 
             return (
               <motion.li
