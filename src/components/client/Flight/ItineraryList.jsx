@@ -29,7 +29,7 @@ const normalizePriceBreakdown = (o = {}) => {
     };
   }
 
-  // Legacy fallback (unlikely here, but keep it safe)
+  // Legacy fallback (defensive)
   const legacy = o?.priceBreakdown || {};
   const base = Number(legacy.base || 0);
   const taxes = Number(legacy.taxes || 0);
@@ -45,67 +45,40 @@ const normalizePriceBreakdown = (o = {}) => {
   return { currency, totals: { base, taxes, fees, grand } };
 };
 
-// Sum a list of totals objects
-const addTotals = (a, b) => ({
-  base: (a.base || 0) + (b.base || 0),
-  taxes: (a.taxes || 0) + (b.taxes || 0),
-  fees: (a.fees || 0) + (b.fees || 0),
-  grand: (a.grand || 0) + (b.grand || 0),
-});
-
 // Prefer extracting totals from a leg/offer if available
 const extractTotals = (obj) => (obj ? normalizePriceBreakdown(obj).totals : null);
 
-// Aggregate backend totals for a frontend itinerary:
-//  - Multi (single offer carved into legs): take totals from the first leg
-//  - Return combined from two offers: sum outbound + return totals
-//  - Oneway: take outbound totals
-// Fallback to itinerary.totalPrice when detailed totals are missing.
+/**
+ * Aggregate backend totals for a frontend itinerary WITHOUT summing return:
+ *  - Multi: use totals from the FIRST leg (same solution).
+ *  - Return: treat like oneway and use OUTBOUND totals only.
+ *  - Oneway: use OUTBOUND totals.
+ *  - Fallback to itinerary.priceBreakdown.totals or itinerary.totalPrice.
+ */
 const aggregateItineraryTotals = (itinerary) => {
-  // MULTI
+  // MULTI → use first leg totals
   if (Array.isArray(itinerary.legs) && itinerary.legs.length) {
     const t0 = extractTotals(itinerary.legs[0]);
     if (t0) return t0;
-    return {
-      base: 0,
-      taxes: 0,
-      fees: 0,
-      grand: Number(itinerary.totalPrice || 0),
-    };
   }
 
-  // ONEWAY / RETURN
-  const parts = [itinerary.outbound, itinerary.return].filter(Boolean);
-  let sum = { base: 0, taxes: 0, fees: 0, grand: 0 };
-  let hadDetail = false;
-
-  for (const p of parts) {
-    const t = extractTotals(p);
-    if (t) {
-      sum = addTotals(sum, t);
-      hadDetail = true;
-    } else {
-      // fallback if no detailed totals on this part
-      const g =
-        Number(
-          p?.priceBreakdown?.totals?.grand ??
-            p?.priceBreakdown?.grand ??
-            p?.priceBreakdown?.total ??
-            0
-        ) || 0;
-      sum = addTotals(sum, { base: g, taxes: 0, fees: 0, grand: g });
-    }
+  // OUTBOUND (covers oneway + return)
+  if (itinerary.outbound) {
+    const tOut = extractTotals(itinerary.outbound);
+    if (tOut) return tOut;
   }
 
-  if (!parts.length || (!hadDetail && sum.grand === 0)) {
-    return {
-      base: Number(itinerary.totalPrice || 0),
-      taxes: 0,
-      fees: 0,
-      grand: Number(itinerary.totalPrice || 0),
-    };
-  }
-  return sum;
+  // Top-level fallback (if present)
+  const tTop = extractTotals(itinerary);
+  if (tTop) return tTop;
+
+  // Last resort: use totalPrice as grand
+  return {
+    base: Number(itinerary.totalPrice || 0),
+    taxes: 0,
+    fees: 0,
+    grand: Number(itinerary.totalPrice || 0),
+  };
 };
 
 const Pill = ({ children, tone = "slate" }) => {
@@ -288,7 +261,10 @@ const ItineraryList = ({
   }, [totalCount, currentPage, pageSize]);
 
   const selectItinerary = (itinerary) => {
-    const isMulti = (searchParams?.tripType || "").toLowerCase() === "multi" || (Array.isArray(itinerary.legs) && itinerary.legs.length > 0);
+    const isMulti =
+      (searchParams?.tripType || "").toLowerCase() === "multi" ||
+      (Array.isArray(itinerary.legs) && itinerary.legs.length > 0);
+
     const params = new URLSearchParams();
 
     if (isMulti) {
@@ -345,22 +321,21 @@ const ItineraryList = ({
 
     // ---- Pricing/markup ----
     const paying = Math.max(1, (Number(searchParams?.adults || 1) + Number(searchParams?.children || 0)));
-    const totalsAll = aggregateItineraryTotals(itinerary); // backend grand = all pax incl. fees
+    const totalsAll = aggregateItineraryTotals(itinerary); // OUTBOUND (or first leg) only
     const markup = +((totalsAll.grand || 0) * (agentMarkupPercent / 100)).toFixed(2);
     const totalWithMarkup = +((totalsAll.grand || 0) + markup).toFixed(2);
 
-    params.set("basePrice", String(totalsAll.grand || 0)); // "base" here = backend grand pre-markup
+    params.set("basePrice", String(totalsAll.grand || 0)); // backend grand (no re-multiplying)
     params.set("agentMarkupPercent", String(agentMarkupPercent));
     params.set("agentMarkupAmount", String(markup));
     params.set("totalWithMarkup", String(totalWithMarkup));
     params.set("currency", currency);
 
-    console.info('Itinerary: ', itinerary);
+    console.info("Itinerary: ", itinerary);
     const flights = {};
 
     for (const [key, value] of params.entries()) {
       if (key.startsWith("flights[")) {
-        // Match something like flights[0][origin]
         const match = key.match(/flights\[(\d+)\]\[(.+)\]/);
         if (match) {
           const [, index, field] = match;
@@ -384,30 +359,41 @@ const ItineraryList = ({
     return { adults: a, children: c, infants: i, paying, total };
   }, [searchParams?.adults, searchParams?.children, searchParams?.infants]);
 
-  // Use backend totals; divide for per-traveler; apply markup once.
+  // Use backend totals (OUTBOUND/first-leg only); divide for per-traveler; apply markup once.
   const priceBreakdown = (it) => {
-    const totalsAll = aggregateItineraryTotals(it); // { base, taxes, fees, grand } for ALL paying pax + fees
+    const totalsAll = aggregateItineraryTotals(it); // { base, taxes, fees, grand } for primary leg
     const paying = Math.max(1, (Number(searchParams?.adults || 1) + Number(searchParams?.children || 0)));
 
     const grandAll = Number(totalsAll.grand || 0);
     const taxesAll = Number(totalsAll.taxes || 0);
-    const feesAll  = Number(totalsAll.fees  || 0);
+    const feesAll = Number(totalsAll.fees || 0);
 
-    const perFare   = +(grandAll / paying).toFixed(2);
-    const perTaxes  = +(taxesAll / paying).toFixed(2);
-    const perFees   = +(feesAll  / paying).toFixed(2);
+    const perFare = +(grandAll / paying).toFixed(2);
+    const perTaxes = +(taxesAll / paying).toFixed(2);
+    const perFees = +(feesAll / paying).toFixed(2);
 
-    const markupAll = +((grandAll) * (agentMarkupPercent / 100)).toFixed(2);
+    const markupAll = +(grandAll * (agentMarkupPercent / 100)).toFixed(2);
     const perMarkup = +(markupAll / paying).toFixed(2);
 
-    const perTotal  = +(perFare + perMarkup).toFixed(2);
-    const total     = +(grandAll + markupAll).toFixed(2);
+    const perTotal = +(perFare + perMarkup).toFixed(2);
+    const total = +(grandAll + markupAll).toFixed(2);
 
     // Keep compatibility fields used by the UI cards
     const base = grandAll; // label shows "(incl. taxes & fees)"
     const markup = markupAll;
 
-    return { base, markup, total, perBase: perFare, perMarkup, perTotal, taxes: taxesAll, fees: feesAll, perTaxes, perFees };
+    return {
+      base,
+      markup,
+      total,
+      perBase: perFare,
+      perMarkup,
+      perTotal,
+      taxes: taxesAll,
+      fees: feesAll,
+      perTaxes,
+      perFees,
+    };
   };
 
   const isOpen = (id) => openDetailsId === id;
@@ -435,10 +421,23 @@ const ItineraryList = ({
         <AnimatePresence mode="sync" initial={false}>
           {paginatedItineraries.map((itinerary) => {
             const key = computeItinKey(itinerary);
-            const { base, markup, total, perBase, perMarkup, perTotal, taxes, fees, perTaxes, perFees } = priceBreakdown(itinerary);
+            const {
+              base,
+              markup,
+              total,
+              perBase,
+              perMarkup,
+              perTotal,
+              taxes,
+              fees,
+              perTaxes,
+              perFees,
+            } = priceBreakdown(itinerary);
             const direct = itinerary.totalStops === 0;
             const airlines = itinerary.airlines || [];
-            const isMulti = (searchParams?.tripType || "").toLowerCase() === "multi" || (Array.isArray(itinerary.legs) && itinerary.legs.length > 0);
+            const isMulti =
+              (searchParams?.tripType || "").toLowerCase() === "multi" ||
+              (Array.isArray(itinerary.legs) && itinerary.legs.length > 0);
             const isRoundTrip = !isMulti && !!itinerary.return;
 
             let durText = "";
@@ -456,8 +455,6 @@ const ItineraryList = ({
 
             const detailsId = `fare-details-${key.replace(/[^a-zA-Z0-9]/g, "")}`;
             const open = isOpen(key);
-
-            console.info('Itinerary: ', itinerary);
 
             return (
               <motion.li
@@ -492,7 +489,6 @@ const ItineraryList = ({
                           <span className="text-[10px] text-slate-500">{code}</span>
                         </div>
                       ))}
-
                     </div>
 
                     {isMulti ? (
