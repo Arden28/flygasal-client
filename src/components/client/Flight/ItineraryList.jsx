@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import FlightSegment from "./FlightSegment";
+import { formatDuration } from "../../../lib/helper";
 
 const money = (n, currency = "USD") =>
   (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
@@ -437,7 +438,7 @@ const selectItinerary = (itinerary) => {
                         {direct ? "Direct" : `${itinerary.totalStops} stop${itinerary.totalStops > 1 ? "s" : ""}`}
                       </Pill>
                       <Pill tone="slate">
-                        Duration: <span className="ml-1 font-medium">{durText}</span>
+                        Duration: <span className="ml-1 font-medium">{formatDuration(itinerary?.journeyTime)}</span>
                       </Pill>
                       {itinerary.cabin && (
                         <Pill tone="slate">
