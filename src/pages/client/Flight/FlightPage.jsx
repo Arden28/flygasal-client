@@ -146,7 +146,7 @@ const FlightPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   // UI
-  const [openDetailsId, setOpenDetailsId] = useState(null);
+  the const [openDetailsId, setOpenDetailsId] = useState(null);
   const [isSearchFormVisible, setIsSearchFormVisible] = useState(false);
   const [filtersOpenMobile, setFiltersOpenMobile] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -353,9 +353,10 @@ const FlightPage = () => {
   }, [normalizeSegsForCarve, findContiguousChain]);
 
   /* ============================================================
-   * NEW helper: carriers **per leg** (prevents cross-leg bleed)
+   * carriers **per leg** (prevents cross-leg bleed)
+   * Stable identity so hooks that depend on it don't warn.
    * ============================================================ */
-  const carriersOfLeg = (leg) =>
+  const carriersOfLeg = useCallback((leg) =>
     Array.from(
       new Set(
         (leg?.segments || [])
@@ -363,7 +364,8 @@ const FlightPage = () => {
           .filter(Boolean)
           .map((c) => String(c).toUpperCase())
       )
-    );
+    ),
+  []);
 
   // ---------- Fetch flights ----------
   useEffect(() => {
@@ -423,31 +425,6 @@ const FlightPage = () => {
         let offers = res.offers || [];
         let displayCurrency = offers[0]?.priceBreakdown?.currency || "USD";
 
-        // if (Array.isArray(res?.offers)) {
-        //   offers = res.offers;
-        //   displayCurrency = offers[0]?.priceBreakdown?.currency || "USD";
-        //   if (res.searchKey) {
-        //     qp.set("searchKey", res.searchKey);
-        //     const newUrl = `${window.location.pathname}?${qp.toString()}`;
-        //     window.history.replaceState(null, "", newUrl);
-        //     setSearchKey(res.searchKey);
-        //   }
-        // } else {
-        //   const data = res?.data;
-        //   const newKey = data?.searchKey || null;
-        //   offers = flygasal.transformPKFareData(data) || [];
-
-        //   console.info('Offers 2: ', offers);
-
-        //   displayCurrency = offers[0]?.priceBreakdown?.currency || "USD";
-        //   if (newKey) {
-        //     qp.set("searchKey", newKey);
-        //     const newUrl = `${window.location.pathname}?${qp.toString()}`;
-        //     window.history.replaceState(null, "", newUrl);
-        //     setSearchKey(newKey);
-        //   }
-        // }
-
         /* ---- Build outbounds/returns with dedupe & multi aware ---- */
         let outbounds = [];
         let returns = [];
@@ -477,7 +454,7 @@ const FlightPage = () => {
           returns = [];
         } else if (tripType === "return") {
           /* -----------------------------------------------------------
-           * CHANGE: Split return offers using server-normalized legs
+           * Split return offers using server-normalized legs
            * (summary.legs[0] outbound, summary.legs[1] return).
            * This avoids wrong ordering & "half-slice" issues.
            * ----------------------------------------------------------- */
@@ -688,7 +665,7 @@ const FlightPage = () => {
             return: rt,
             totalPrice: priceOf(out),
             totalStops: (ob.stops || 0) + (rt.stops || 0),
-            // ----- CHANGE: airlines computed per leg, then merged -----
+            // compute per-leg carriers, then merge
             airlines: Array.from(new Set([...carriersOfLeg(ob), ...carriersOfLeg(rt)])),
             cabin: cabinOf(ob),
             baggage: makeBaggageLabel(ob),
@@ -719,7 +696,7 @@ const FlightPage = () => {
             return: rt,
             totalPrice: total,
             totalStops: (out.stops || 0) + (rt.stops || 0),
-            // ----- CHANGE: airlines computed per leg, then merged -----
+            // compute per-leg carriers, then merge
             airlines: Array.from(new Set([...carriersOfLeg(out), ...carriersOfLeg(rt)])),
             cabin: cabinOf(out),
             baggage: makeBaggageLabel(out),
@@ -747,7 +724,7 @@ const FlightPage = () => {
         return: null,
         totalPrice: Number(priceOf(f)),
         totalStops: f.stops || 0,
-        // ----- CHANGE: carriers from the (only) leg -----
+        // carriers from the (only) leg
         airlines: carriersOfLeg(f),
         cabin: cabinOf(f),
         baggage: makeBaggageLabel(f),
@@ -758,8 +735,8 @@ const FlightPage = () => {
       if (oneDedup.size >= MAX_RESULTS) break;
     }
     return Array.from(oneDedup.values()).sort((a, b) => a.totalPrice - b.totalPrice);
-  // include carved helper to satisfy exhaustive-deps
-  }, [searchParams, availableFlights, returnFlights, carveReturnFromSingleOffer]);
+// include carved helper + carriersOfLeg to satisfy exhaustive-deps
+  }, [searchParams, availableFlights, returnFlights, carveReturnFromSingleOffer, carriersOfLeg]);
 
   // ======= Recompute price bounds from actual itineraries =======
   useEffect(() => {
@@ -794,11 +771,9 @@ const FlightPage = () => {
         const stopClass = stopsCount >= 2 ? "oneway_2" : `oneway_${stopsCount}`;
         const stopsOk = currentStop === "mix" || currentStop === stopClass;
 
-        /* -----------------------------------------------------------
-         * CHANGE: outbound/return airline filters:
-         * we match if **any** carrier on that leg is selected
-         * (instead of only the first marketing/segment carrier).
-         * ----------------------------------------------------------- */
+        /* Outbound/return airline filters:
+         * match if ANY carrier on that leg is selected (not just first carrier)
+         */
         const obCarriers = carriersOfLeg(it.outbound || it.legs?.[0] || null);
         const rtCarriers = it.return ? carriersOfLeg(it.return) : [];
 
@@ -859,12 +834,11 @@ const FlightPage = () => {
     baggageOnly,
     sortOrder,
     selectedCabins,
+    carriersOfLeg, // <- include helper as dep
   ]);
 
   // Primary codes (exactly like your filter uses)
-  /* -----------------------------------------------------------
-   * CHANGE: Sidebar airline lists from **leg carriers**.
-   * ----------------------------------------------------------- */
+  /* Sidebar airline lists from **leg carriers**. */
   const outboundPrimary = useMemo(() => {
     const set = new Set();
     itineraries.forEach((it) => {
@@ -872,7 +846,7 @@ const FlightPage = () => {
       carriers.forEach((c) => set.add(c));
     });
     return Array.from(set).sort();
-  }, [itineraries]);
+  }, [itineraries, carriersOfLeg]);
 
   const returnPrimary = useMemo(() => {
     const set = new Set();
@@ -881,12 +855,9 @@ const FlightPage = () => {
       carriersOfLeg(it.return).forEach((c) => set.add(c));
     });
     return Array.from(set).sort();
-  }, [itineraries]);
+  }, [itineraries, carriersOfLeg]);
 
-  // Live counts (optional but enables “Hide 0” + disables non-matching)
-  /* -----------------------------------------------------------
-   * CHANGE: counts from **leg carriers** (accurate badges).
-   * ----------------------------------------------------------- */
+  // Live counts (accurate badges).
   const airlineCountsOutbound = useMemo(() => {
     const m = {};
     itineraries.forEach((it) => {
@@ -895,7 +866,7 @@ const FlightPage = () => {
       });
     });
     return m;
-  }, [itineraries]);
+  }, [itineraries, carriersOfLeg]);
 
   const airlineCountsReturn = useMemo(() => {
     const m = {};
@@ -906,7 +877,7 @@ const FlightPage = () => {
       });
     });
     return m;
-  }, [itineraries]);
+  }, [itineraries, carriersOfLeg]);
 
   // Cabin handlers
   const toggleCabin = (key) => {
