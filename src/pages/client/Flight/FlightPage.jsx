@@ -420,33 +420,33 @@ const FlightPage = () => {
         
         console.info('Search Results: ', res);
 
-        let offers = [];
-        let displayCurrency = "USD";
+        let offers = res.offers || [];
+        let displayCurrency = offers[0]?.priceBreakdown?.currency || "USD";
 
-        if (Array.isArray(res?.offers)) {
-          offers = res.offers;
-          displayCurrency = offers[0]?.priceBreakdown?.currency || "USD";
-          if (res.searchKey) {
-            qp.set("searchKey", res.searchKey);
-            const newUrl = `${window.location.pathname}?${qp.toString()}`;
-            window.history.replaceState(null, "", newUrl);
-            setSearchKey(res.searchKey);
-          }
-        } else {
-          const data = res?.data;
-          const newKey = data?.searchKey || null;
-          offers = flygasal.transformPKFareData(data) || [];
+        // if (Array.isArray(res?.offers)) {
+        //   offers = res.offers;
+        //   displayCurrency = offers[0]?.priceBreakdown?.currency || "USD";
+        //   if (res.searchKey) {
+        //     qp.set("searchKey", res.searchKey);
+        //     const newUrl = `${window.location.pathname}?${qp.toString()}`;
+        //     window.history.replaceState(null, "", newUrl);
+        //     setSearchKey(res.searchKey);
+        //   }
+        // } else {
+        //   const data = res?.data;
+        //   const newKey = data?.searchKey || null;
+        //   offers = flygasal.transformPKFareData(data) || [];
 
-          console.info('Offers 2: ', offers);
+        //   console.info('Offers 2: ', offers);
 
-          displayCurrency = offers[0]?.priceBreakdown?.currency || "USD";
-          if (newKey) {
-            qp.set("searchKey", newKey);
-            const newUrl = `${window.location.pathname}?${qp.toString()}`;
-            window.history.replaceState(null, "", newUrl);
-            setSearchKey(newKey);
-          }
-        }
+        //   displayCurrency = offers[0]?.priceBreakdown?.currency || "USD";
+        //   if (newKey) {
+        //     qp.set("searchKey", newKey);
+        //     const newUrl = `${window.location.pathname}?${qp.toString()}`;
+        //     window.history.replaceState(null, "", newUrl);
+        //     setSearchKey(newKey);
+        //   }
+        // }
 
         /* ---- Build outbounds/returns with dedupe & multi aware ---- */
         let outbounds = [];
