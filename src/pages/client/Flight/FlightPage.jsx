@@ -52,51 +52,51 @@ const multiKey = (legs, cabin) =>
   )}`;
 
 /* ---------- NEW: price breakdown normalizer + priceOf() ---------- */
-const normalizePriceBreakdown = (o = {}) => {
-  const currency = o?.priceBreakdown?.currency || o.currency || "USD";
+  const normalizePriceBreakdown = (o = {}) => {
+    const currency = o?.priceBreakdown?.currency || o.currency || "USD";
 
-  // Try to read precomputed totals if already present
-  const existingTotals = o?.priceBreakdown?.totals;
-  if (
-    existingTotals &&
-    ["base", "taxes", "fees", "grand"].every((k) =>
-      Object.prototype.hasOwnProperty.call(existingTotals, k)
-    )
-  ) {
-    return {
-      ...o.priceBreakdown,
-      currency,
-      totals: {
-        base: Number(existingTotals.base || 0),
-        taxes: Number(existingTotals.taxes || 0),
-        fees: Number(existingTotals.fees || 0),
-        grand: Number(existingTotals.grand || 0),
-      },
+    // Try to read precomputed totals if already present
+    const existingTotals = o?.priceBreakdown?.totals;
+    if (
+      existingTotals &&
+      ["base", "taxes", "fees", "grand"].every((k) =>
+        Object.prototype.hasOwnProperty.call(existingTotals, k)
+      )
+    ) {
+      return {
+        ...o.priceBreakdown,
+        currency,
+        totals: {
+          base: Number(existingTotals.base || 0),
+          taxes: Number(existingTotals.taxes || 0),
+          fees: Number(existingTotals.fees || 0),
+          grand: Number(existingTotals.grand || 0),
+        },
+      };
+    }
+
+    // Legacy fields fallback
+    const legacy = o?.priceBreakdown || {};
+    const base = Number(legacy.base || 0);
+    const taxes = Number(legacy.taxes || 0);
+
+    // Collect known fee-like fields (legacy or side fields on offer)
+    const feesDetail = {
+      qCharge: Number(legacy.qCharge || o.qCharge || 0),
+      tktFee: Number(legacy.tktFee || o.tktFee || 0),
+      platformServiceFee: Number(legacy.platformServiceFee || o.platformServiceFee || 0),
+      merchantFee: Number(legacy.merchantFee || o.merchantFee || 0),
     };
-  }
+    const fees = Object.values(feesDetail).reduce((a, b) => a + b, 0);
 
-  // Legacy fields fallback
-  const legacy = o?.priceBreakdown || {};
-  const base = Number(legacy.base || 0);
-  const taxes = Number(legacy.taxes || 0);
+    // If legacy total exists, prefer it as grand; else compute
+    const grand = Number(legacy.total != null ? legacy.total : base + taxes + fees);
 
-  // Collect known fee-like fields (legacy or side fields on offer)
-  const feesDetail = {
-    qCharge: Number(legacy.qCharge || o.qCharge || 0),
-    tktFee: Number(legacy.tktFee || o.tktFee || 0),
-    platformServiceFee: Number(legacy.platformServiceFee || o.platformServiceFee || 0),
-    merchantFee: Number(legacy.merchantFee || o.merchantFee || 0),
+    return {
+      currency,
+      totals: { base, taxes, fees, grand },
+    };
   };
-  const fees = Object.values(feesDetail).reduce((a, b) => a + b, 0);
-
-  // If legacy total exists, prefer it as grand; else compute
-  const grand = Number(legacy.total != null ? legacy.total : base + taxes + fees);
-
-  return {
-    currency,
-    totals: { base, taxes, fees, grand },
-  };
-};
 
 
 const priceOf = (o) => {
