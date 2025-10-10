@@ -793,6 +793,7 @@ const FlightPage = () => {
     return Array.from(oneDedup.values()).sort((a, b) => a.totalPrice - b.totalPrice);
 // include carved helper + carriersOfLeg to satisfy exhaustive-deps
   }, [searchParams, availableFlights, returnFlights, carveReturnFromSingleOffer, carriersOfLeg]);
+  
 
   // ======= Recompute price bounds from actual itineraries =======
   useEffect(() => {
@@ -820,8 +821,8 @@ const FlightPage = () => {
 
     return itineraries
       .filter((it) => {
-        // const priceOk = it.totalPrice >= low && it.totalPrice <= high;
-        const priceOk = it?.priceBreakdown?.totals?.grand >= low && it?.priceBreakdown?.totals?.grand <= high;
+        const priceOk = it.totalPrice >= low && it.totalPrice <= high;
+        // const priceOk = it?.priceBreakdown?.totals?.grand >= low && it?.priceBreakdown?.totals?.grand <= high;
 
         // normalize stops: 0 / 1 / 2+
         const stopsCount = Math.max(0, Number.isFinite(it.totalStops) ? it.totalStops : 0);
