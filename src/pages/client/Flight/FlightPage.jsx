@@ -58,6 +58,13 @@ const priceOf = (o) => {
   return Number(grand || 0);
 };
 
+/* ---------- Small helper: drop any visible priceBreakdown field from leg/offer objects when embedding ---------- */
+const stripPB = (obj) => {
+  if (!obj) return obj;
+  const { priceBreakdown, ...rest } = obj; // keep __sourcePB if present
+  return rest;
+};
+
 /* ---------- Multi carving (respect requested legs order) ---------- */
 const carveLegsForMulti = (offer, requestedLegs = [], normalizeSegsForCarve, findContiguousChain) => {
   const segs = normalizeSegsForCarve(offer);
@@ -95,8 +102,8 @@ const carveLegsForMulti = (offer, requestedLegs = [], normalizeSegsForCarve, fin
         refundable: s.refundable,
       })),
       stops: Math.max(0, chain.length - 1),
-      // NOTE: offer.priceBreakdown exists here, but we won't let it leak into itineraries on legs
-      priceBreakdown: offer.priceBreakdown,
+      // keep raw backend PB hidden here for itinerary to reuse
+      __sourcePB: offer.priceBreakdown,
     });
 
     notBefore = last.arrivalAt; // next leg cannot depart before previous arrives
@@ -354,8 +361,8 @@ const FlightPage = () => {
         destination: last.arrival,
         departureTime: first.departureAt,
         arrivalTime: last.arrivalAt,
-        // NOTE: leg-level PB exists here for compatibility, but we'll strip it in itineraries
-        priceBreakdown: offer.priceBreakdown,
+        // Keep raw backend PB on a private field for the itinerary
+        __sourcePB: offer.priceBreakdown,
       };
     };
 
@@ -429,11 +436,11 @@ const FlightPage = () => {
         setSearchParams(params);
 
         const res = await flygasal.searchFlights(params, { signal: abort.signal });
-        
+
         console.info('Search Results: ', res);
 
-        // Use offers exactly as provided by backend (keep priceBreakdown raw)
-        let offers = res.offers || [];
+        // Keep offers as-is, but stash a raw copy on __sourcePB for safety
+        let offers = (res.offers || []).map((o) => ({ ...o, __sourcePB: o.priceBreakdown }));
         let displayCurrency =
           offers[0]?.priceBreakdown?.currency || offers[0]?.currency || "USD";
 
@@ -468,7 +475,6 @@ const FlightPage = () => {
           /* -----------------------------------------------------------
            * Split return offers using server-normalized legs
            * (summary.legs[0] outbound, summary.legs[1] return).
-           * This avoids wrong ordering & "half-slice" issues.
            * ----------------------------------------------------------- */
           for (const offer of offers) {
             const legs = offer?.summary?.legs || [];
@@ -507,8 +513,8 @@ const FlightPage = () => {
                   transferCount: leg.transferCount ?? Math.max(0, (leg.segments?.length || 1) - 1),
                   journeyTime: leg.journeyTime,
 
-                  // keep backend priceBreakdown raw on each leg (we will strip later at itinerary level)
-                  priceBreakdown: baseOffer.priceBreakdown,
+                  // keep raw backend PB hidden for itinerary
+                  __sourcePB: baseOffer.priceBreakdown,
 
                   rules: baseOffer.rules,
                   availabilityCount: baseOffer.availabilityCount,
@@ -612,15 +618,6 @@ const FlightPage = () => {
     return both || null;
   };
 
-  /* ============================================================
-   * Remove priceBreakdown from any leg-like object we embed
-   * ============================================================ */
-  const stripPB = (obj) => {
-    if (!obj) return obj;
-    const { priceBreakdown, ...rest } = obj;
-    return rest;
-  };
-
   // ---------- Build itineraries from normalized offers ----------
   const itineraries = useMemo(() => {
     if (!searchParams) return [];
@@ -640,15 +637,15 @@ const FlightPage = () => {
 
         const rec = {
           id: m.id,
-          legs: m.legs.map(stripPB), // strip PB from legs
+          legs: m.legs.map(stripPB), // ensure legs[] have no PB
           totalPrice: Number(m.totalPrice || 0),
           totalStops,
           airlines,
           cabin: m.cabin || cabinOf(m.legs?.[0]),
           baggage: null,
           refundable: false,
-          // itinerary-level priceBreakdown from the offer (raw)
-          priceBreakdown: m.priceBreakdown || m.legs?.[0]?.priceBreakdown || null,
+          // itinerary-level priceBreakdown: prefer container's, else from first leg's __sourcePB
+          priceBreakdown: m.priceBreakdown || m.legs?.[0]?.__sourcePB || null,
         };
 
         const exist = dedup.get(key);
@@ -675,17 +672,17 @@ const FlightPage = () => {
 
           items.push({
             id: `${ob.id}-${rt.id}`,
-            outbound: stripPB(ob), // strip PB from leg
-            return: stripPB(rt),   // strip PB from leg
-            totalPrice: priceOf(out), // like oneway — take offer's grand
+            outbound: stripPB(ob),
+            return: stripPB(rt),
+            totalPrice: priceOf(out), // take offer's grand (no sums)
             totalStops: (ob.stops || 0) + (rt.stops || 0),
             // compute per-leg carriers, then merge
             airlines: Array.from(new Set([...carriersOfLeg(ob), ...carriersOfLeg(rt)])),
             cabin: cabinOf(ob),
             baggage: makeBaggageLabel(ob),
             refundable: false,
-            // Raw breakdown from the same source offer (outbound/offer)
-            priceBreakdown: out?.priceBreakdown || ob?.priceBreakdown || null,
+            // Always prefer the raw backend PB stashed on the outbound leg/offer
+            priceBreakdown: ob?.__sourcePB || out?.__sourcePB || out?.priceBreakdown || null,
           });
           if (items.length >= MAX_RESULTS) break;
         }
@@ -698,7 +695,7 @@ const FlightPage = () => {
         return Array.from(final.values());
       }
 
-      // When returns are provided separately, still treat like oneway
+      // When returns are provided separately, still treat like oneway for totals
       const sortedReturns = [...returnFlights].sort((a, b) => priceOf(a) - priceOf(b));
       const final = new Map();
 
@@ -708,8 +705,8 @@ const FlightPage = () => {
           const rt = sortedReturns[i];
           const rec = {
             id: `${out.id}-${rt.id}`,
-            outbound: stripPB(out), // strip PB from leg
-            return: stripPB(rt),    // strip PB from leg
+            outbound: stripPB(out),
+            return: stripPB(rt),
             totalPrice: priceOf(out), // DO NOT SUM out+ret
             totalStops: (out.stops || 0) + (rt.stops || 0),
             // compute per-leg carriers, then merge
@@ -717,8 +714,8 @@ const FlightPage = () => {
             cabin: cabinOf(out),
             baggage: makeBaggageLabel(out),
             refundable: false,
-            // Raw backend breakdown from outbound/offer only
-            priceBreakdown: out.priceBreakdown || null,
+            // Raw backend breakdown from outbound offer only
+            priceBreakdown: out.__sourcePB || out.priceBreakdown || null,
           };
           const k = returnKey(rec.outbound, rec.return, rec.cabin);
           if (!final.has(k) || rec.totalPrice < final.get(k).totalPrice) {
@@ -738,7 +735,7 @@ const FlightPage = () => {
     for (const f of availableFlights || []) {
       const rec = {
         id: f.id,
-        outbound: stripPB(f), // strip PB from leg
+        outbound: stripPB(f),
         return: null,
         totalPrice: Number(priceOf(f)), // from f.priceBreakdown.totals.grand
         totalStops: f.stops || 0,
@@ -748,16 +745,15 @@ const FlightPage = () => {
         baggage: makeBaggageLabel(f),
         refundable: false,
         // pass raw backend breakdown up to itinerary
-        priceBreakdown: f.priceBreakdown || null,
+        priceBreakdown: f.__sourcePB || f.priceBreakdown || null,
       };
       const k = onewayKey(rec.outbound, rec.cabin);
       if (!oneDedup.has(k) || rec.totalPrice < oneDedup.get(k).totalPrice) oneDedup.set(k, rec);
       if (oneDedup.size >= MAX_RESULTS) break;
     }
     return Array.from(oneDedup.values()).sort((a, b) => a.totalPrice - b.totalPrice);
-// include carved helper + carriersOfLeg to satisfy exhaustive-deps
+  // include carved helper + carriersOfLeg to satisfy exhaustive-deps
   }, [searchParams, availableFlights, returnFlights, carveReturnFromSingleOffer, carriersOfLeg]);
-  
 
   // ======= Recompute price bounds from actual itineraries =======
   useEffect(() => {
@@ -808,13 +804,15 @@ const FlightPage = () => {
           rtCarriers.some((code) => checkedReturnValue.includes(`return_${code}`));
 
         // time windows
-        const owDep = getHour(it.outbound?.segments?.[0]?.departureDate || it.outbound?.departureTime);
-        const owTimeOk = owDep >= depTimeRange[0] && owDep <= depTimeRange[1];
+        const owDep = new Date(it.outbound?.segments?.[0]?.departureDate || it.outbound?.departureTime);
+        const owHour = Number.isNaN(owDep.getTime()) ? 0 : owDep.getHours();
+        const owTimeOk = owHour >= depTimeRange[0] && owHour <= depTimeRange[1];
 
         let rtTimeOk = true;
         if (it.return) {
-          const rtDep = getHour(it.return?.segments?.[0]?.departureDate || it.return?.departureTime);
-          rtTimeOk = rtDep >= retTimeRange[0] && rtDep <= retTimeRange[1];
+          const rtDep = new Date(it.return?.segments?.[0]?.departureDate || it.return?.departureTime);
+          const rtHour = Number.isNaN(rtDep.getTime()) ? 0 : rtDep.getHours();
+          rtTimeOk = rtHour >= retTimeRange[0] && rtHour <= retTimeRange[1];
         }
 
         // CABIN FILTER
