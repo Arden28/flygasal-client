@@ -1257,7 +1257,7 @@ export const rawAirlines = [
   { code: 'CO', name: 'Continental Airlines', logo: '/assets/img/airlines/CO.png' },
   { code: 'CS', name: 'Continental Micronesia', logo: '/assets/img/airlines/CS.png' },
   { code: 'DL', name: 'Delta Air Lines', logo: '/assets/img/airlines/DL.png' },
-  { code: 'KP', name: 'Dense Airways', logo: '/assets/img/airlines/KP.png' },
+  { code: 'KP', name: 'Asky Airlines', logo: '/assets/img/airlines/KP.png' },
   { code: 'KZ', name: 'Dense Connection', logo: '/assets/img/airlines/KZ.png' },
   { code: '13', name: 'Eastern Atlantic Virtual Airlines', logo: '/assets/img/airlines/13.png' },
   { code: 'FA', name: 'Epic Holiday', logo: '/assets/img/airlines/FA.png' },
