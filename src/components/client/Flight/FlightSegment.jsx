@@ -413,7 +413,8 @@ const FlightSegment = ({
               <span className="border rounded-5 px-3 text-capitalize">
                 {segment.refundable ? "Refundable" : "Non-refundable"}
               </span>
-              {segment.bookingCode ? <span className="border rounded-5 px-3">Class: {segment.bookingCode}</span> : null}
+              {segment.bookingCode ? <span className="border rounded-5 px-3">Booking Code: {segment.bookingCode}</span> : null}
+              {segment.availabilityCount ? <span className="border rounded-5 px-3">Available Seats: {segment.availabilityCount}</span> : null}
             </div>
           </div>
         </div>
