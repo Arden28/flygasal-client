@@ -7,13 +7,13 @@ export default function PriceBreakdownCard({
   isAgent,
   agentMarkupPercent,
   currency,
-  priceBreakdownRaw,    // NEW: pass the raw backend priceBreakdown if available
+  priceBreakdown,    // raw backend priceBreakdown object
 }) {
   const money = (n, ccy = "USD") =>
     (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency: ccy });
 
   // Use backend raw breakdown without normalization
-  const pb = priceBreakdownRaw || {};
+  const pb = priceBreakdown || {};
   const pbCurrency = pb?.currency || currency || "USD";
   const totals = pb?.totals || {};
   const fees = pb?.fees || {};
@@ -25,7 +25,7 @@ export default function PriceBreakdownCard({
   const backendFees = Number(totals.fees || fees.total || 0);
 
   // Fallback grand to totalPrice prop if totals.grand not present
-  const backendGrand = Number(totals.grand != null ? totals.grand : totalPrice || 0);
+  const backendGrand = Number(pb.grandTotal || 0);
 
   // Agent markup computed ONCE on the backend grand total
   const markup = +(backendGrand * (agentMarkupPercent / 100)).toFixed(2);
@@ -147,23 +147,6 @@ export default function PriceBreakdownCard({
               <span className="text-slate-600">Taxes (all pax)</span>
               <span className="text-slate-800">{money(backendTaxes, pbCurrency)}</span>
             </div>
-
-            {/* Fee items (only when non-zero / present) */}
-            {Object.entries(feeItems).filter(([, v]) => Number(v || 0) > 0).length > 0 && (
-              <div className="mt-2">
-                <div className="text-xs text-slate-500 mb-1">Fees</div>
-                <div className="space-y-1">
-                  {Object.entries(feeItems)
-                    .filter(([, v]) => Number(v || 0) > 0)
-                    .map(([k, v]) => (
-                      <div key={`fee-${k}`} className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600">{k}</span>
-                        <span className="text-slate-800">{money(v, pbCurrency)}</span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
 
             {/* Fees total row (shown if any fees exist) */}
             {backendFees > 0 && (
