@@ -297,7 +297,7 @@ const ItineraryList = ({
             const pbTotals = pb.totals || {};
             const pbFees = pb.fees || {};
             const pbFeeItems = (pbFees.items && typeof pbFees.items === "object") ? pbFees.items : {};
-            const perPassenger = (pb.perPassenger && typeof pb.perPassenger === "object") ? pb.perPassenger : {};
+            const perPassengerRaw = (pb.perPassenger && typeof pb.perPassenger === "object") ? pb.perPassenger : {};
 
             const backendBase = Number(pbTotals.base || 0);
             const backendTaxes = Number(pbTotals.taxes || 0);
@@ -307,6 +307,25 @@ const ItineraryList = ({
             // Markup (applied once)
             const markupAmount = +((backendGrand || 0) * (agentMarkupPercent / 100)).toFixed(2);
             const grandWithMarkup = +((backendGrand || 0) + markupAmount).toFixed(2);
+
+            // Sort pax then filter out zero-count buckets
+            const paxEntries = Object.entries(perPassengerRaw)
+              .sort(([a], [b]) => {
+                const ia = PAX_ORDER.indexOf(a);
+                const ib = PAX_ORDER.indexOf(b);
+                if (ia === -1 && ib === -1) return a.localeCompare(b);
+                if (ia === -1) return 1;
+                if (ib === -1) return -1;
+                return ia - ib;
+              })
+              .filter(([, data]) => Number(data?.count || 0) > 0);
+
+            // Compact summary (sidebar) only for non-empty pax types
+            const perTypeSummary = paxEntries.map(([ptype, data]) => {
+              const count = Number(data?.count || 0);
+              const subTot = Number(data?.subtotal?.total || 0);
+              return { ptype, count, subTot };
+            });
 
             const direct = itinerary.totalStops === 0;
             const airlines = itinerary.airlines || [];
@@ -330,23 +349,6 @@ const ItineraryList = ({
 
             const detailsId = `fare-details-${key.replace(/[^a-zA-Z0-9]/g, "")}`;
             const open = isOpen(key);
-
-            // Sorted pax types for display
-            const paxEntries = Object.entries(perPassenger).sort(([a], [b]) => {
-              const ia = PAX_ORDER.indexOf(a);
-              const ib = PAX_ORDER.indexOf(b);
-              if (ia === -1 && ib === -1) return a.localeCompare(b);
-              if (ia === -1) return 1;
-              if (ib === -1) return -1;
-              return ia - ib;
-            });
-
-            // Compact summary (sidebar) for multi-pax
-            const perTypeSummary = paxEntries.map(([ptype, data]) => {
-              const count = Number(data?.count || 0);
-              const subTot = Number(data?.subtotal?.total || 0);
-              return { ptype, count, subTot };
-            });
 
             return (
               <motion.li
@@ -462,7 +464,7 @@ const ItineraryList = ({
                     <div className="text-[12px] text-[#9aa3b2]">Total (incl. taxes & fees)</div>
                     <div className="mt-1 text-2xl font-bold leading-none">{money(grandWithMarkup, pbCurrency)}</div>
 
-                    {/* If multiple pax, show a compact per-type summary */}
+                    {/* If multiple pax types present, show a compact per-type summary */}
                     {perTypeSummary.length > 0 && (
                       <div className="mt-2 space-y-1 text-xs text-slate-700">
                         {perTypeSummary.map(({ ptype, count, subTot }) => (
@@ -538,7 +540,7 @@ const ItineraryList = ({
                           {/* Fare breakdown by passenger type */}
                           <Tile icon="price" title="Per passenger type" hint={`Currency: ${pbCurrency}`}>
                             {pax.total > 1 && paxEntries.length === 0 && (
-                              <div className="text-xs text-slate-600">Pricing details unavailable from source.</div>
+                              <div className="text-xs text-slate-600">No passenger-type pricing to display.</div>
                             )}
 
                             <div className="space-y-3">
@@ -589,14 +591,17 @@ const ItineraryList = ({
 
                           {/* Fees */}
                           <Tile icon="bag" title="Fees">
-                            {Object.keys(pbFeeItems).length === 0 && Number(backendFees) === 0 ? (
+                            {Object.entries(pbFeeItems).filter(([, v]) => Number(v || 0) > 0).length === 0 &&
+                            Number(backendFees) === 0 ? (
                               <div className="text-xs text-slate-600">No additional fees from source.</div>
                             ) : (
                               <>
                                 <div className="space-y-1">
-                                  {Object.entries(pbFeeItems).map(([k, v]) => (
-                                    <Row key={`${detailsId}-fee-${k}`} label={k} value={money(v, pbCurrency)} />
-                                  ))}
+                                  {Object.entries(pbFeeItems)
+                                    .filter(([, v]) => Number(v || 0) > 0)
+                                    .map(([k, v]) => (
+                                      <Row key={`${detailsId}-fee-${k}`} label={k} value={money(v, pbCurrency)} />
+                                    ))}
                                 </div>
                                 <div className="mt-2 border-t border-slate-200 pt-2">
                                   <Row label="Fees total" value={money(backendFees, pbCurrency)} bold />
