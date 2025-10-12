@@ -95,7 +95,7 @@ const carveLegsForMulti = (offer, requestedLegs = [], normalizeSegsForCarve, fin
         refundable: s.refundable,
       })),
       stops: Math.max(0, chain.length - 1),
-      // keep backend priceBreakdown raw at leg level (same solution)
+      // NOTE: offer.priceBreakdown exists here, but we won't let it leak into itineraries on legs
       priceBreakdown: offer.priceBreakdown,
     });
 
@@ -354,7 +354,7 @@ const FlightPage = () => {
         destination: last.arrival,
         departureTime: first.departureAt,
         arrivalTime: last.arrivalAt,
-        // keep backend priceBreakdown raw on each wrapped leg
+        // NOTE: leg-level PB exists here for compatibility, but we'll strip it in itineraries
         priceBreakdown: offer.priceBreakdown,
       };
     };
@@ -507,7 +507,7 @@ const FlightPage = () => {
                   transferCount: leg.transferCount ?? Math.max(0, (leg.segments?.length || 1) - 1),
                   journeyTime: leg.journeyTime,
 
-                  // keep backend priceBreakdown raw on each leg
+                  // keep backend priceBreakdown raw on each leg (we will strip later at itinerary level)
                   priceBreakdown: baseOffer.priceBreakdown,
 
                   rules: baseOffer.rules,
@@ -612,6 +612,15 @@ const FlightPage = () => {
     return both || null;
   };
 
+  /* ============================================================
+   * Remove priceBreakdown from any leg-like object we embed
+   * ============================================================ */
+  const stripPB = (obj) => {
+    if (!obj) return obj;
+    const { priceBreakdown, ...rest } = obj;
+    return rest;
+  };
+
   // ---------- Build itineraries from normalized offers ----------
   const itineraries = useMemo(() => {
     if (!searchParams) return [];
@@ -631,14 +640,14 @@ const FlightPage = () => {
 
         const rec = {
           id: m.id,
-          legs: m.legs,
+          legs: m.legs.map(stripPB), // strip PB from legs
           totalPrice: Number(m.totalPrice || 0),
           totalStops,
           airlines,
           cabin: m.cabin || cabinOf(m.legs?.[0]),
           baggage: null,
           refundable: false,
-          // itinerary-level priceBreakdown from first leg/container (raw)
+          // itinerary-level priceBreakdown from the offer (raw)
           priceBreakdown: m.priceBreakdown || m.legs?.[0]?.priceBreakdown || null,
         };
 
@@ -666,8 +675,8 @@ const FlightPage = () => {
 
           items.push({
             id: `${ob.id}-${rt.id}`,
-            outbound: ob,
-            return: rt,
+            outbound: stripPB(ob), // strip PB from leg
+            return: stripPB(rt),   // strip PB from leg
             totalPrice: priceOf(out), // like oneway — take offer's grand
             totalStops: (ob.stops || 0) + (rt.stops || 0),
             // compute per-leg carriers, then merge
@@ -699,8 +708,8 @@ const FlightPage = () => {
           const rt = sortedReturns[i];
           const rec = {
             id: `${out.id}-${rt.id}`,
-            outbound: out,
-            return: rt,
+            outbound: stripPB(out), // strip PB from leg
+            return: stripPB(rt),    // strip PB from leg
             totalPrice: priceOf(out), // DO NOT SUM out+ret
             totalStops: (out.stops || 0) + (rt.stops || 0),
             // compute per-leg carriers, then merge
@@ -729,7 +738,7 @@ const FlightPage = () => {
     for (const f of availableFlights || []) {
       const rec = {
         id: f.id,
-        outbound: f,
+        outbound: stripPB(f), // strip PB from leg
         return: null,
         totalPrice: Number(priceOf(f)), // from f.priceBreakdown.totals.grand
         totalStops: f.stops || 0,
