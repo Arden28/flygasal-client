@@ -154,7 +154,7 @@ const FlightHeader = ({ onOpen, filteredItineraries = [], searchParams, formatDa
             <button
               type="button"
               onClick={onOpen}
-              className="inline-flex text-black items-center justify-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/40"
+              className="inline-flex block hidden:md text-black items-center justify-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/40"
               aria-label="Open filters"
             >
               <svg
