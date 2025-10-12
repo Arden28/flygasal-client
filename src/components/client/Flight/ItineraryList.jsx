@@ -7,6 +7,80 @@ import { formatDuration } from "../../../lib/helper";
 const money = (n, currency = "USD") =>
   (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
 
+/* ==== pricing helpers that understand totals { base, taxes, fees, grand } ==== */
+const normalizePriceBreakdown = (o = {}) => {
+  const currency = o?.priceBreakdown?.currency || o.currency || "USD";
+  const existingTotals = o?.priceBreakdown?.totals;
+
+  if (
+    existingTotals &&
+    ["base", "taxes", "fees", "grand"].every((k) =>
+      Object.prototype.hasOwnProperty.call(existingTotals, k)
+    )
+  ) {
+    return {
+      currency,
+      totals: {
+        base: Number(existingTotals.base || 0),
+        taxes: Number(existingTotals.taxes || 0),
+        fees: Number(existingTotals.fees || 0),
+        grand: Number(existingTotals.grand || 0),
+      },
+    };
+  }
+
+  // Legacy fallback (defensive)
+  const legacy = o?.priceBreakdown || {};
+  const base = Number(legacy.base || 0);
+  const taxes = Number(legacy.taxes || 0);
+  const feesDetail = {
+    qCharge: Number(legacy.qCharge || o.qCharge || 0),
+    tktFee: Number(legacy.tktFee || o.tktFee || 0),
+    platformServiceFee: Number(legacy.platformServiceFee || o.platformServiceFee || 0),
+    merchantFee: Number(legacy.merchantFee || o.merchantFee || 0),
+  };
+  const fees = Object.values(feesDetail).reduce((a, b) => a + b, 0);
+  const grand = Number(legacy.total != null ? legacy.total : base + taxes + fees);
+
+  return { currency, totals: { base, taxes, fees, grand } };
+};
+
+// Prefer extracting totals from a leg/offer if available
+const extractTotals = (obj) => (obj ? normalizePriceBreakdown(obj).totals : null);
+
+/**
+ * Aggregate backend totals for a frontend itinerary WITHOUT summing return:
+ *  - Multi: use totals from the FIRST leg (same solution).
+ *  - Return: treat like oneway and use OUTBOUND totals only.
+ *  - Oneway: use OUTBOUND totals.
+ *  - Fallback to itinerary.priceBreakdown.totals or itinerary.totalPrice.
+ */
+const aggregateItineraryTotals = (itinerary) => {
+  // MULTI → use first leg totals
+  if (Array.isArray(itinerary.legs) && itinerary.legs.length) {
+    const t0 = extractTotals(itinerary.legs[0]);
+    if (t0) return t0;
+  }
+
+  // OUTBOUND (covers oneway + return)
+  if (itinerary.outbound) {
+    const tOut = extractTotals(itinerary.outbound);
+    if (tOut) return tOut;
+  }
+
+  // Top-level fallback (if present)
+  const tTop = extractTotals(itinerary);
+  if (tTop) return tTop;
+
+  // Last resort: use totalPrice as grand
+  return {
+    base: Number(itinerary.totalPrice || 0),
+    taxes: 0,
+    fees: 0,
+    grand: Number(itinerary.totalPrice || 0),
+  };
+};
+
 const Pill = ({ children, tone = "slate" }) => {
   const tones = {
     blue: "bg-blue-50 text-blue-700 border-blue-200",
@@ -158,8 +232,6 @@ const Tile = ({ icon, title, hint, children }) => (
   </div>
 );
 
-const PAX_ORDER = ["ADT", "CHD", "INF"]; // preferred display order
-
 const ItineraryList = ({
   paginatedItineraries,
   openDetailsId,
@@ -219,6 +291,7 @@ const ItineraryList = ({
 
     // ---- Write segments into flights[i] ----
     let idx = 0;
+
     const writeSeg = (seg) => {
       params.set(`flights[${idx}][origin]`, seg.departure);
       params.set(`flights[${idx}][destination]`, seg.arrival);
@@ -235,24 +308,44 @@ const ItineraryList = ({
     };
 
     if (isMulti) {
-      (itinerary.legs || []).forEach((leg) => (leg.segments || []).forEach(writeSeg));
+      // Flatten all legs' segments in order
+      (itinerary.legs || []).forEach((leg) => {
+        (leg.segments || []).forEach(writeSeg);
+      });
     } else {
+      // Outbound segments
       (itinerary.outbound?.segments || []).forEach(writeSeg);
+      // Return segments
       (itinerary.return?.segments || []).forEach(writeSeg);
     }
 
-    // ---- Pricing/markup (strictly from backend itinerary.priceBreakdown) ----
-    const pb = itinerary.priceBreakdown || {};
-    const pbCurrency = pb.currency || currency;
-    const backendGrand = Number(pb?.totals?.grand || itinerary.totalPrice || 0);
-    const markupAmount = +((backendGrand || 0) * (agentMarkupPercent / 100)).toFixed(2);
-    const totalWithMarkup = +((backendGrand || 0) + markupAmount).toFixed(2);
+    // ---- Pricing/markup ----
+    const paying = Math.max(1, (Number(searchParams?.adults || 1) + Number(searchParams?.children || 0)));
+    const totalsAll = aggregateItineraryTotals(itinerary); // OUTBOUND (or first leg) only
+    const markup = +((totalsAll.grand || 0) * (agentMarkupPercent / 100)).toFixed(2);
+    const totalWithMarkup = +((totalsAll.grand || 0) + markup).toFixed(2);
 
-    params.set("basePrice", String(backendGrand));
+    params.set("basePrice", String(totalsAll.grand || 0)); // backend grand (no re-multiplying)
     params.set("agentMarkupPercent", String(agentMarkupPercent));
-    params.set("agentMarkupAmount", String(markupAmount));
+    params.set("agentMarkupAmount", String(markup));
     params.set("totalWithMarkup", String(totalWithMarkup));
-    params.set("currency", pbCurrency);
+    params.set("currency", currency);
+
+    console.info("Itinerary: ", itinerary);
+    const flights = {};
+
+    for (const [key, value] of params.entries()) {
+      if (key.startsWith("flights[")) {
+        const match = key.match(/flights\[(\d+)\]\[(.+)\]/);
+        if (match) {
+          const [, index, field] = match;
+          flights[index] = flights[index] || {};
+          flights[index][field] = value;
+        }
+      }
+    }
+
+    console.log(flights);
 
     navigate(`/flight/booking/details?${params.toString()}`);
   };
@@ -261,9 +354,47 @@ const ItineraryList = ({
     const a = Number(searchParams?.adults || 1);
     const c = Number(searchParams?.children || 0);
     const i = Number(searchParams?.infants || 0);
+    const paying = Math.max(1, a + c);
     const total = a + c + i;
-    return { adults: a, children: c, infants: i, total };
+    return { adults: a, children: c, infants: i, paying, total };
   }, [searchParams?.adults, searchParams?.children, searchParams?.infants]);
+
+  // Use backend totals (OUTBOUND/first-leg only); divide for per-traveler; apply markup once.
+  const priceBreakdown = (it) => {
+    const totalsAll = aggregateItineraryTotals(it); // { base, taxes, fees, grand } for primary leg
+    const paying = Math.max(1, (Number(searchParams?.adults || 1) + Number(searchParams?.children || 0)));
+
+    const grandAll = Number(totalsAll.grand || 0);
+    const taxesAll = Number(totalsAll.taxes || 0);
+    const feesAll = Number(totalsAll.fees || 0);
+
+    const perFare = +(grandAll / paying).toFixed(2);
+    const perTaxes = +(taxesAll / paying).toFixed(2);
+    const perFees = +(feesAll / paying).toFixed(2);
+
+    const markupAll = +(grandAll * (agentMarkupPercent / 100)).toFixed(2);
+    const perMarkup = +(markupAll / paying).toFixed(2);
+
+    const perTotal = +(perFare + perMarkup).toFixed(2);
+    const total = +(grandAll + markupAll).toFixed(2);
+
+    // Keep compatibility fields used by the UI cards
+    const base = grandAll; // label shows "(incl. taxes & fees)"
+    const markup = markupAll;
+
+    return {
+      base,
+      markup,
+      total,
+      perBase: perFare,
+      perMarkup,
+      perTotal,
+      taxes: taxesAll,
+      fees: feesAll,
+      perTaxes,
+      perFees,
+    };
+  };
 
   const isOpen = (id) => openDetailsId === id;
   const toggleOpen = (id) => setOpenDetailsId(isOpen(id) ? null : id);
@@ -290,43 +421,18 @@ const ItineraryList = ({
         <AnimatePresence mode="sync" initial={false}>
           {paginatedItineraries.map((itinerary) => {
             const key = computeItinKey(itinerary);
-
-            // --- Backend priceBreakdown (raw) ---
-            const pb = itinerary.priceBreakdown || {};
-            const pbCurrency = pb.currency || currency;
-            const pbTotals = pb.totals || {};
-            const pbFees = pb.fees || {};
-            const pbFeeItems = (pbFees.items && typeof pbFees.items === "object") ? pbFees.items : {};
-            const perPassengerRaw = (pb.perPassenger && typeof pb.perPassenger === "object") ? pb.perPassenger : {};
-
-            const backendBase = Number(pbTotals.base || 0);
-            const backendTaxes = Number(pbTotals.taxes || 0);
-            const backendFees = Number(pbTotals.fees || pbFees.total || 0);
-            const backendGrand = Number(pbTotals.grand || itinerary.totalPrice || 0);
-
-            // Markup (applied once)
-            const markupAmount = +((backendGrand || 0) * (agentMarkupPercent / 100)).toFixed(2);
-            const grandWithMarkup = +((backendGrand || 0) + markupAmount).toFixed(2);
-
-            // Sort pax then filter out zero-count buckets
-            const paxEntries = Object.entries(perPassengerRaw)
-              .sort(([a], [b]) => {
-                const ia = PAX_ORDER.indexOf(a);
-                const ib = PAX_ORDER.indexOf(b);
-                if (ia === -1 && ib === -1) return a.localeCompare(b);
-                if (ia === -1) return 1;
-                if (ib === -1) return -1;
-                return ia - ib;
-              })
-              .filter(([, data]) => Number(data?.count || 0) > 0);
-
-            // Compact summary (sidebar) only for non-empty pax types
-            const perTypeSummary = paxEntries.map(([ptype, data]) => {
-              const count = Number(data?.count || 0);
-              const subTot = Number(data?.subtotal?.total || 0);
-              return { ptype, count, subTot };
-            });
-
+            const {
+              base,
+              markup,
+              total,
+              perBase,
+              perMarkup,
+              perTotal,
+              taxes,
+              fees,
+              perTaxes,
+              perFees,
+            } = priceBreakdown(itinerary);
             const direct = itinerary.totalStops === 0;
             const airlines = itinerary.airlines || [];
             const isMulti =
@@ -349,6 +455,8 @@ const ItineraryList = ({
 
             const detailsId = `fare-details-${key.replace(/[^a-zA-Z0-9]/g, "")}`;
             const open = isOpen(key);
+
+            console.info('Itinerary Details: ', itinerary);
 
             return (
               <motion.li
@@ -455,46 +563,48 @@ const ItineraryList = ({
                       <Pill tone={itinerary.refundable ? "green" : "red"}>
                         {itinerary.refundable ? "Refundable" : "Non-refundable"}
                       </Pill>
+                      {/* {itinerary.outbound.solutionKey ?? 'Solution key'} */}
                     </div>
                   </div>
 
                   {/* Right: price & actions */}
                   <div className="col-span-12 md:col-span-3 border-t md:border-t-0 md:border-l border-slate-200 p-3 md:p-4 md:rounded-l-none rounded-t-none md:rounded-r-2xl bg-slate-50">
-                    {/* Main total (backend grand + markup) */}
-                    <div className="text-[12px] text-[#9aa3b2]">Total (incl. taxes & fees)</div>
-                    <div className="mt-1 text-2xl font-bold leading-none">{money(grandWithMarkup, pbCurrency)}</div>
+                    {pax.total > 1 ? (
+                      <>
+                        <div className="text-[12px] text-[#9aa3b2]">Per traveler{pax.infants > 0 ? " *" : ""}</div>
+                        <div className="mt-1 text-2xl font-bold leading-none">{money(perTotal, currency)}</div>
 
-                    {/* If multiple pax types present, show a compact per-type summary */}
-                    {perTypeSummary.length > 0 && (
-                      <div className="mt-2 space-y-1 text-xs text-slate-700">
-                        {perTypeSummary.map(({ ptype, count, subTot }) => (
-                          <div key={`${key}-${ptype}`} className="flex items-center justify-between">
-                            <span className="text-slate-600">{ptype} × {count}</span>
-                            <span className="font-medium">{money(subTot, pbCurrency)}</span>
-                          </div>
-                        ))}
-                        {backendFees > 0 && (
-                          <div className="flex items-center justify-between text-slate-600">
-                            <span>Fees</span>
-                            <span className="font-medium">{money(backendFees, pbCurrency)}</span>
+                        <div className="mt-2 space-y-1 text-xs text-slate-600">
+                          <Row label="Est. total (travellers)" value={`${pax.paying} × ${money(perTotal, currency)}`} subtle />
+                          <Row label="Subtotal" value={money(total, currency)} bold />
+                        </div>
+
+                        {pax.infants > 0 && (
+                          <div className="mt-1 text-[11px] text-slate-500">
+                            *Infants are priced differently and may not be included in the per-traveler estimate.
                           </div>
                         )}
-                      </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-[12px] text-[#9aa3b2]">From</div>
+                        <div className="mt-1 text-2xl font-bold leading-none">{money(total, currency)}</div>
+                      </>
                     )}
 
-                    <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3">
-                      <Row label="Base (all pax)" value={money(backendBase, pbCurrency)} />
-                      <Row label="Taxes (all pax)" value={money(backendTaxes, pbCurrency)} />
-                      <Row label="Fees (all pax)" value={money(backendFees, pbCurrency)} />
-                      <Row label="Agent markup" value={money(markupAmount, pbCurrency)} />
+                    <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                      <Row label="Base (incl. taxes & fees)" value={money(base, currency)} />
+                      <Row label="— Taxes (incl.)" value={money(taxes, currency)} subtle />
+                      <Row label="— Fees (incl.)" value={money(fees, currency)} subtle />
+                      <Row label={`Agent markup (${agentMarkupPercent}%)`} value={money(markup, currency)} />
                       <div className="mt-1 border-t border-slate-200 pt-1">
-                        <Row label="Total to pay" value={money(grandWithMarkup, pbCurrency)} bold />
+                        <Row label="Total" value={money(total, currency)} bold />
                       </div>
                     </div>
 
                     {agentMarkupPercent > 0 && (
                       <div className="mt-2">
-                        <Pill tone="amber">Agent earns {money(markupAmount, pbCurrency)}</Pill>
+                        <Pill tone="amber">Agent earns {money(markup, currency)}</Pill>
                       </div>
                     )}
 
@@ -537,95 +647,102 @@ const ItineraryList = ({
                     >
                       <div className="p-3 md:p-4">
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                          {/* Fare breakdown by passenger type */}
-                          <Tile icon="price" title="Per passenger type" hint={`Currency: ${pbCurrency}`}>
-                            {pax.total > 1 && paxEntries.length === 0 && (
-                              <div className="text-xs text-slate-600">No passenger-type pricing to display.</div>
-                            )}
-
-                            <div className="space-y-3">
-                              {paxEntries.map(([ptype, data]) => {
-                                const count = Number(data?.count || 0);
-                                const unitFare = Number(data?.unit?.fare || 0);
-                                const unitTax = Number(data?.unit?.tax || 0);
-                                const unitTotal = Number(data?.unit?.total || 0);
-                                const subBase = Number(data?.subtotal?.base || 0);
-                                const subTaxes = Number(data?.subtotal?.taxes || 0);
-                                const subTotal = Number(data?.subtotal?.total || 0);
-                                return (
-                                  <div key={`${detailsId}-${ptype}`} className="rounded-lg border border-slate-200 p-2">
-                                    <div className="mb-1 flex items-center justify-between">
-                                      <span className="text-xs font-semibold text-slate-900">
-                                        {ptype} <span className="text-slate-500 font-normal">× {count}</span>
-                                      </span>
-                                      <span className="text-xs font-semibold text-slate-900">{money(subTotal, pbCurrency)}</span>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2 text-xs">
-                                      <div className="rounded border border-slate-200 p-2">
-                                        <div className="text-[11px] text-slate-500 mb-1">Unit</div>
-                                        <Row label="Fare" value={money(unitFare, pbCurrency)} subtle />
-                                        <Row label="Tax" value={money(unitTax, pbCurrency)} subtle />
-                                        <div className="mt-1 border-t border-slate-200 pt-1">
-                                          <Row label="Total" value={money(unitTotal, pbCurrency)} />
-                                        </div>
-                                      </div>
-                                      <div className="rounded border border-slate-200 p-2">
-                                        <div className="text-[11px] text-slate-500 mb-1">Subtotal</div>
-                                        <Row label="Base" value={money(subBase, pbCurrency)} subtle />
-                                        <Row label="Taxes" value={money(subTaxes, pbCurrency)} subtle />
-                                        <div className="mt-1 border-t border-slate-200 pt-1">
-                                          <Row label="Total" value={money(subTotal, pbCurrency)} />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-
-                            <div className="mt-3 border-t border-slate-200 pt-2">
-                              <Row label="All pax base" value={money(backendBase, pbCurrency)} />
-                              <Row label="All pax taxes" value={money(backendTaxes, pbCurrency)} />
-                            </div>
-                          </Tile>
-
-                          {/* Fees */}
-                          <Tile icon="bag" title="Fees">
-                            {Object.entries(pbFeeItems).filter(([, v]) => Number(v || 0) > 0).length === 0 &&
-                            Number(backendFees) === 0 ? (
-                              <div className="text-xs text-slate-600">No additional fees from source.</div>
-                            ) : (
+                          {/* Fare breakdown */}
+                          <Tile icon="price" title="Fare breakdown" hint="Taxes & fees included">
+                            {pax.total > 1 && (
                               <>
-                                <div className="space-y-1">
-                                  {Object.entries(pbFeeItems)
-                                    .filter(([, v]) => Number(v || 0) > 0)
-                                    .map(([k, v]) => (
-                                      <Row key={`${detailsId}-fee-${k}`} label={k} value={money(v, pbCurrency)} />
-                                    ))}
-                                </div>
-                                <div className="mt-2 border-t border-slate-200 pt-2">
-                                  <Row label="Fees total" value={money(backendFees, pbCurrency)} bold />
-                                </div>
+                                <Row
+                                  label={`Per traveler${pax.infants > 0 ? " (excl. infants)" : ""}`}
+                                  value={money(perBase + perMarkup, currency)}
+                                />
+                                <Row label="— Taxes (incl.)" value={money(perTaxes, currency)} subtle />
+                                <Row label="— Fees (incl.)" value={money(perFees, currency)} subtle />
+                                <div className="my-2 border-t border-slate-200" />
                               </>
                             )}
-                          </Tile>
-
-                          {/* Totals & notes */}
-                          <Tile icon="shield" title="Totals & notes">
-                            <div className="space-y-1">
-                              <Row label="Base" value={money(backendBase, pbCurrency)} />
-                              <Row label="Taxes" value={money(backendTaxes, pbCurrency)} />
-                              <Row label="Fees" value={money(backendFees, pbCurrency)} />
-                              <div className="border-t border-slate-200 pt-2">
-                                <Row label="Grand total (source)" value={money(backendGrand, pbCurrency)} bold />
-                              </div>
-                              <Row label={`Agent markup (${agentMarkupPercent}%)`} value={money(markupAmount, pbCurrency)} />
-                              <div className="border-t border-slate-200 pt-2">
-                                <Row label="Estimated total to pay" value={money(grandWithMarkup, pbCurrency)} bold />
-                              </div>
+                            <Row label="Base (incl. taxes & fees)" value={money(base, currency)} />
+                            <Row label="— Taxes (incl.)" value={money(taxes, currency)} subtle />
+                            <Row label="— Fees (incl.)" value={money(fees, currency)} subtle />
+                            <Row label={`Agent markup (${agentMarkupPercent}%)`} value={money(markup, currency)} />
+                            <div className="mt-2 border-t border-slate-200 pt-2">
+                              <Row label="Estimated total" value={money(total, currency)} bold />
+                            </div>
+                            {pax.infants > 0 && (
                               <div className="mt-2 flex items-start gap-2 text-[11px] text-slate-500">
                                 <Icon name="info" className="mt-[2px] h-3.5 w-3.5 text-slate-400" />
-                                <span>Final totals and fare rules are confirmed on the next step.</span>
+                                <span>Infant pricing/policies may differ by airline.</span>
+                              </div>
+                            )}
+                          </Tile>
+
+                          {/* Inclusions */}
+                          <Tile icon="bag" title="Inclusions">
+                            <div className="space-y-2 text-xs">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Icon name="seat" />
+                                  <span className="text-slate-600">Cabin</span>
+                                </div>
+                                <span className="font-medium text-slate-900">
+                                  {itinerary.cabin || "—"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Icon name="bag" />
+                                  <span className="text-slate-600">Baggage</span>
+                                </div>
+                                <span className="font-medium text-slate-900">
+                                  {itinerary.baggage || "—"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Icon name="airline" />
+                                  <span className="text-slate-600">Airlines</span>
+                                </div>
+                                <span className="truncate pl-2 text-right font-medium text-slate-900">
+                                  {(itinerary.airlines || [])
+                                    .map((a) => getAirlineName(a))
+                                    .filter(Boolean)
+                                    .join(", ") || "—"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Icon name="clock" />
+                                  <span className="text-slate-600">Journey time</span>
+                                </div>
+                                <span className="font-medium text-slate-900">{durText}</span>
+                              </div>
+                            </div>
+                          </Tile>
+
+                          {/* Rules & notes */}
+                          <Tile icon="shield" title="Rules & notes">
+                            <div className="space-y-2 text-xs">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Icon
+                                    name="shield"
+                                    className={`h-4 w-4 ${itinerary.refundable ? "text-emerald-700" : "text-rose-700"}`}
+                                  />
+                                  <span className="text-slate-600">Refundability</span>
+                                </div>
+                                <span className={`font-medium ${itinerary.refundable ? "text-emerald-700" : "text-rose-700"}`}>
+                                  {itinerary.refundable ? "Refundable" : "Non-refundable"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Icon name="changes" />
+                                  <span className="text-slate-600">Changes</span>
+                                </div>
+                                <span className="font-medium text-slate-900">Shown at checkout</span>
+                              </div>
+                              <div className="flex items-start gap-2 text-[11px] text-slate-500">
+                                <Icon name="info" className="mt-[2px] h-3.5 w-3.5 text-slate-400" />
+                                <span>Availability can refresh; totals finalize on the next step.</span>
                               </div>
                             </div>
                           </Tile>
