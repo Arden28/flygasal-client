@@ -466,7 +466,7 @@ export const rawAirlines = [
   { code: 'X3', name: 'TUIfly', logo: '/assets/img/airlines/X3.png' },
   { code: '11', name: 'TUIfly (X3)', logo: '/assets/img/airlines/11.png' },
   { code: 'YY', name: 'Virginwings', logo: '/assets/img/airlines/YY.png' },
-  { code: 'X1', name: 'Hahnair', logo: '/assets/img/airlines/X1.png' },
+  { code: 'X1 ', name: 'Hahnair', logo: '/assets/img/airlines/X1.png' },
 
   // -- Ghana --
   { code: 'E2', name: 'Eagle Atlantic Airlines', logo: '/assets/img/airlines/E2.png' },
