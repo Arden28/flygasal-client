@@ -51,10 +51,57 @@ const multiKey = (legs, cabin) =>
     cabin || legs?.[0]?.cabin || legs?.[0]?.segments?.[0]?.cabinClass || ""
   )}`;
 
-/* ---------- priceOf() reads backend totals raw (no normalization) ---------- */
+/* ---------- NEW: price breakdown normalizer + priceOf() ---------- */
+  const normalizePriceBreakdown = (o = {}) => {
+    const currency = o?.priceBreakdown?.currency || o.currency || "USD";
+
+    // Try to read precomputed totals if already present
+    const existingTotals = o?.priceBreakdown?.totals;
+    if (
+      existingTotals &&
+      ["base", "taxes", "fees", "grand"].every((k) =>
+        Object.prototype.hasOwnProperty.call(existingTotals, k)
+      )
+    ) {
+      return {
+        ...o.priceBreakdown,
+        currency,
+        totals: {
+          base: Number(existingTotals.base || 0),
+          taxes: Number(existingTotals.taxes || 0),
+          fees: Number(existingTotals.fees || 0),
+          grand: Number(existingTotals.grand || 0),
+        },
+      };
+    }
+
+    // Legacy fields fallback
+    const legacy = o?.priceBreakdown || {};
+    const base = Number(legacy.base || 0);
+    const taxes = Number(legacy.taxes || 0);
+
+    // Collect known fee-like fields (legacy or side fields on offer)
+    const feesDetail = {
+      qCharge: Number(legacy.qCharge || o.qCharge || 0),
+      tktFee: Number(legacy.tktFee || o.tktFee || 0),
+      platformServiceFee: Number(legacy.platformServiceFee || o.platformServiceFee || 0),
+      merchantFee: Number(legacy.merchantFee || o.merchantFee || 0),
+    };
+    const fees = Object.values(feesDetail).reduce((a, b) => a + b, 0);
+
+    // If legacy total exists, prefer it as grand; else compute
+    const grand = Number(legacy.total != null ? legacy.total : base + taxes + fees);
+
+    return {
+      currency,
+      totals: { base, taxes, fees, grand },
+    };
+  };
+
+
 const priceOf = (o) => {
-  const pb = o?.priceBreakdown;
-  const grand = pb?.totals?.grand ?? pb?.total;
+  const pb = o?.priceBreakdown ? normalizePriceBreakdown(o) : normalizePriceBreakdown({});
+  const grand = pb?.totals?.grand ?? o?.priceBreakdown?.total; // back-compat
   return Number(grand || 0);
 };
 
@@ -95,8 +142,7 @@ const carveLegsForMulti = (offer, requestedLegs = [], normalizeSegsForCarve, fin
         refundable: s.refundable,
       })),
       stops: Math.max(0, chain.length - 1),
-      // keep backend priceBreakdown raw at leg level (same solution)
-      priceBreakdown: offer.priceBreakdown,
+      priceBreakdown: normalizePriceBreakdown(offer), // ensure normalized
     });
 
     notBefore = last.arrivalAt; // next leg cannot depart before previous arrives
@@ -120,8 +166,6 @@ const carveLegsForMulti = (offer, requestedLegs = [], normalizeSegsForCarve, fin
     totalPrice: priceOf(offer),
     airlines,
     cabin: offer.cabin || offer.segments?.[0]?.cabinClass || "Economy",
-    // also keep at the multi container (first leg semantics)
-    priceBreakdown: offer.priceBreakdown,
   };
 };
 
@@ -354,8 +398,6 @@ const FlightPage = () => {
         destination: last.arrival,
         departureTime: first.departureAt,
         arrivalTime: last.arrivalAt,
-        // keep backend priceBreakdown raw on each wrapped leg
-        priceBreakdown: offer.priceBreakdown,
       };
     };
 
@@ -432,8 +474,11 @@ const FlightPage = () => {
         
         console.info('Search Results: ', res);
 
-        // Use offers exactly as provided by backend (keep priceBreakdown raw)
-        let offers = res.offers || [];
+        // Normalize offers to the new totals shape (keeps back-compat if API already sends it)
+        let offers = (res.offers || []).map((o) => ({
+          ...o,
+          priceBreakdown: normalizePriceBreakdown(o),
+        }));
         let displayCurrency =
           offers[0]?.priceBreakdown?.currency || offers[0]?.currency || "USD";
 
@@ -479,6 +524,10 @@ const FlightPage = () => {
                 const firstSeg = leg.segments?.[0] || {};
                 const lastSeg  = leg.segments?.[leg.segments.length - 1] || {};
                 const originalTotal = priceOf(baseOffer);
+                // NOTE: keep full fare on offer; we only show per-leg meta; if you want 50/50 split, change this.
+                const perLegTotal = originalTotal;
+
+                const pb = normalizePriceBreakdown(baseOffer);
 
                 return {
                   id: `${baseOffer.id || baseOffer.solutionId || "OFF"}-${suffix}`,
@@ -509,17 +558,16 @@ const FlightPage = () => {
                   transferCount: leg.transferCount ?? Math.max(0, (leg.segments?.length || 1) - 1),
                   journeyTime: leg.journeyTime,
 
-                  // keep backend priceBreakdown raw on each leg
-                  priceBreakdown: baseOffer.priceBreakdown,
+                  priceBreakdown: {
+                    ...pb,
+                    totals: { ...pb.totals, grand: perLegTotal }, // override only grand total for the leg
+                  },
 
                   rules: baseOffer.rules,
                   availabilityCount: baseOffer.availabilityCount,
                   expired: baseOffer.expired,
                   flightNumber: `${firstSeg.airline || ""}${firstSeg.flightNum || ""}`,
                   equipment: firstSeg.equipment,
-
-                  // for convenience if needed elsewhere
-                  totalPrice: originalTotal,
                 };
               };
 
@@ -531,8 +579,8 @@ const FlightPage = () => {
                 origin: params.origin,
                 destination: params.destination,
               });
-              outLeg = outbound;
-              retLeg = ret;
+              outLeg = outbound && { ...outbound, priceBreakdown: normalizePriceBreakdown(offer) };
+              retLeg = ret && { ...ret, priceBreakdown: normalizePriceBreakdown(offer) };
             }
 
             if (!outLeg || !retLeg) continue;
@@ -643,8 +691,6 @@ const FlightPage = () => {
           cabin: m.cabin || cabinOf(m.legs?.[0]),
           baggage: null,
           refundable: false,
-          // itinerary-level priceBreakdown from first leg/container (raw)
-          priceBreakdown: m.priceBreakdown || m.legs?.[0]?.priceBreakdown || null,
         };
 
         const exist = dedup.get(key);
@@ -680,8 +726,6 @@ const FlightPage = () => {
             cabin: cabinOf(ob),
             baggage: makeBaggageLabel(ob),
             refundable: false,
-            // Treat like oneway: use backend breakdown from the source (outbound/offer)
-            priceBreakdown: ob.priceBreakdown || out?.priceBreakdown || null,
           });
           if (items.length >= MAX_RESULTS) break;
         }
@@ -713,8 +757,6 @@ const FlightPage = () => {
             cabin: cabinOf(out),
             baggage: makeBaggageLabel(out),
             refundable: false,
-            // As requested: handle like oneway → take breakdown from outbound only
-            priceBreakdown: out.priceBreakdown || null,
           };
           const k = returnKey(rec.outbound, rec.return, rec.cabin);
           if (!final.has(k) || rec.totalPrice < final.get(k).totalPrice) {
@@ -743,8 +785,6 @@ const FlightPage = () => {
         cabin: cabinOf(f),
         baggage: makeBaggageLabel(f),
         refundable: false,
-        // pass raw backend breakdown up to itinerary
-        priceBreakdown: f.priceBreakdown || null,
       };
       const k = onewayKey(rec.outbound, rec.cabin);
       if (!oneDedup.has(k) || rec.totalPrice < oneDedup.get(k).totalPrice) oneDedup.set(k, rec);
