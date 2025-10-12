@@ -477,7 +477,6 @@ const FlightPage = () => {
             if (legs.length >= 2) {
               const buildLegFromNormalized = (baseOffer, leg, suffix) => {
                 const firstSeg = leg.segments?.[0] || {};
-                const originalTotal = priceOf(baseOffer);
 
                 return {
                   id: `${baseOffer.id || baseOffer.solutionId || "OFF"}-${suffix}`,
@@ -516,9 +515,6 @@ const FlightPage = () => {
                   expired: baseOffer.expired,
                   flightNumber: `${firstSeg.airline || ""}${firstSeg.flightNum || ""}`,
                   equipment: firstSeg.equipment,
-
-                  // convenience
-                  totalPrice: originalTotal,
                 };
               };
 
@@ -636,13 +632,13 @@ const FlightPage = () => {
         const rec = {
           id: m.id,
           legs: m.legs,
-          totalPrice: Number(m.totalPrice || 0), // already from offer.priceBreakdown.totals.grand
+          totalPrice: Number(m.totalPrice || 0),
           totalStops,
           airlines,
           cabin: m.cabin || cabinOf(m.legs?.[0]),
           baggage: null,
           refundable: false,
-          // itinerary-level raw breakdown from offer / first leg
+          // itinerary-level priceBreakdown from first leg/container (raw)
           priceBreakdown: m.priceBreakdown || m.legs?.[0]?.priceBreakdown || null,
         };
 
@@ -672,14 +668,15 @@ const FlightPage = () => {
             id: `${ob.id}-${rt.id}`,
             outbound: ob,
             return: rt,
-            totalPrice: priceOf(out), // like oneway
+            totalPrice: priceOf(out), // like oneway — take offer's grand
             totalStops: (ob.stops || 0) + (rt.stops || 0),
+            // compute per-leg carriers, then merge
             airlines: Array.from(new Set([...carriersOfLeg(ob), ...carriersOfLeg(rt)])),
             cabin: cabinOf(ob),
             baggage: makeBaggageLabel(ob),
             refundable: false,
-            // itinerary-level breakdown (raw) from the same offer/outbound
-            priceBreakdown: ob.priceBreakdown || out?.priceBreakdown || null,
+            // Raw breakdown from the same source offer (outbound/offer)
+            priceBreakdown: out?.priceBreakdown || ob?.priceBreakdown || null,
           });
           if (items.length >= MAX_RESULTS) break;
         }
@@ -692,6 +689,7 @@ const FlightPage = () => {
         return Array.from(final.values());
       }
 
+      // When returns are provided separately, still treat like oneway
       const sortedReturns = [...returnFlights].sort((a, b) => priceOf(a) - priceOf(b));
       const final = new Map();
 
@@ -703,13 +701,14 @@ const FlightPage = () => {
             id: `${out.id}-${rt.id}`,
             outbound: out,
             return: rt,
-            totalPrice: priceOf(out), // like oneway (do NOT sum out+ret)
+            totalPrice: priceOf(out), // DO NOT SUM out+ret
             totalStops: (out.stops || 0) + (rt.stops || 0),
+            // compute per-leg carriers, then merge
             airlines: Array.from(new Set([...carriersOfLeg(out), ...carriersOfLeg(rt)])),
             cabin: cabinOf(out),
             baggage: makeBaggageLabel(out),
             refundable: false,
-            // itinerary-level breakdown from outbound (raw)
+            // Raw backend breakdown from outbound/offer only
             priceBreakdown: out.priceBreakdown || null,
           };
           const k = returnKey(rec.outbound, rec.return, rec.cabin);
@@ -734,11 +733,12 @@ const FlightPage = () => {
         return: null,
         totalPrice: Number(priceOf(f)), // from f.priceBreakdown.totals.grand
         totalStops: f.stops || 0,
+        // carriers from the (only) leg
         airlines: carriersOfLeg(f),
         cabin: cabinOf(f),
         baggage: makeBaggageLabel(f),
         refundable: false,
-        // itinerary-level raw backend breakdown
+        // pass raw backend breakdown up to itinerary
         priceBreakdown: f.priceBreakdown || null,
       };
       const k = onewayKey(rec.outbound, rec.cabin);
