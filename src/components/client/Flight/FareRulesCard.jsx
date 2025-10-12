@@ -26,6 +26,42 @@ export default function FareRulesCard({
   toggleAccordion,
   getAirportName,
 }) {
+  // Build a flat list of miniRules applicable to a given leg's segments
+  const rulesForLeg = (leg) => {
+    try {
+      if (!flight?.rules?.adt || !Array.isArray(flight.rules.adt)) return [];
+      if (!leg?.segments || !Array.isArray(leg.segments)) return [];
+
+      const segIdsOfLeg = new Set(
+        (leg.segments || [])
+          .map((s) => s?.segmentId)
+          .filter(Boolean)
+      );
+
+      // Pick only rule blocks whose segmentIds intersect with this leg
+      const matchedBlocks = flight.rules.adt.filter((block) => {
+        const ids = Array.isArray(block?.segmentIds) ? block.segmentIds : [];
+        return ids.some((id) => segIdsOfLeg.has(id));
+      });
+
+      // Flatten miniRules and dedupe by penaltyType for readability
+      const all = matchedBlocks
+        .flatMap((b) => Array.isArray(b?.miniRules) ? b.miniRules : [])
+        .filter((r) => r && typeof r === "object");
+
+      const byType = new Map();
+      for (const r of all) {
+        const key = r.penaltyType ?? r.label ?? JSON.stringify(r);
+        if (!byType.has(key)) byType.set(key, r);
+      }
+      return Array.from(byType.values()).sort((a, b) => (a.penaltyType ?? 99) - (b.penaltyType ?? 99));
+    } catch {
+      return [];
+    }
+  };
+
+  const outboundRules = rulesForLeg(outbound);
+  const returnRules = tripType === "return" && returnFlight ? rulesForLeg(returnFlight) : [];
   const outId = `acc-outbound-fare-${outbound?.id ?? "x"}`;
 
   return (
@@ -100,21 +136,26 @@ export default function FareRulesCard({
 
             {/* Dynamic Fare Rules */}
             <dl className="grid grid-cols-1 sm:grid-cols-1 gap-x-6 gap-y-4 text-sm mb-3">
-              {flight?.rules?.adt?.[0]?.miniRules?.length > 0 ? (
-                flight.rules.adt[0].miniRules
-                  .sort((a, b) => a.penaltyType - b.penaltyType)
-                  .map((rule, i) => (
+              {outboundRules.length > 0 ? (
+                outboundRules.map((rule, i) => {
+                  const permitted = rule.isPermited ?? rule.isPermitted ?? null;
+                  const amount = rule.amount ?? rule.maxAmount ?? null;
+                  const ccy = rule.currencyCode ?? rule.currency ?? "";
+                  return (
                     <div key={i}>
                       <dt className="font-medium text-slate-700">
                         {humanizePenaltyType(rule.penaltyType)}
                       </dt>
                       <dd className="mt-1 text-slate-600 pl-2">
-                        {rule.isPermited
-                          ? `${humanizePenaltyType(rule.penaltyType)} allowed with a fee of ${rule.amount} ${rule.currencyCode}.`
-                          : `${humanizePenaltyType(rule.penaltyType)} not permitted.`}
+                        {permitted === true
+                          ? `${humanizePenaltyType(rule.penaltyType)} allowed${amount ? ` with a fee of ${amount} ${ccy}` : ""}.`
+                          : permitted === false
+                          ? `${humanizePenaltyType(rule.penaltyType)} not permitted.`
+                          : rule.label || "Rule applies."}
                       </dd>
                     </div>
-                  ))
+                  );
+                })
               ) : (
                 <div>
                   <dt className="font-medium text-slate-700">No fare rules available</dt>
@@ -140,21 +181,26 @@ export default function FareRulesCard({
                 </h3>
 
                 <dl className="grid grid-cols-1 sm:grid-cols-1 gap-x-6 gap-y-4 text-sm mb-3">
-                  {flight?.rules?.adt?.[0]?.miniRules?.length > 0 ? (
-                    flight.rules.adt[0].miniRules
-                      .sort((a, b) => a.penaltyType - b.penaltyType)
-                      .map((rule, i) => (
+                  {returnRules.length > 0 ? (
+                    returnRules.map((rule, i) => {
+                      const permitted = rule.isPermited ?? rule.isPermitted ?? null;
+                      const amount = rule.amount ?? rule.maxAmount ?? null;
+                      const ccy = rule.currencyCode ?? rule.currency ?? "";
+                      return (
                         <div key={i}>
                           <dt className="font-medium text-slate-700">
                             {humanizePenaltyType(rule.penaltyType)}
                           </dt>
                           <dd className="mt-1 text-slate-600 pl-2">
-                            {rule.isPermited
-                              ? `${humanizePenaltyType(rule.penaltyType)} allowed with a fee of ${rule.amount} ${rule.currencyCode}.`
-                              : `${humanizePenaltyType(rule.penaltyType)} not permitted.`}
+                            {permitted === true
+                              ? `${humanizePenaltyType(rule.penaltyType)} allowed${amount ? ` with a fee of ${amount} ${ccy}` : ""}.`
+                              : permitted === false
+                              ? `${humanizePenaltyType(rule.penaltyType)} not permitted.`
+                              : rule.label || "Rule applies."}
                           </dd>
                         </div>
-                      ))
+                      );
+                    })
                   ) : (
                     <div>
                       <dt className="font-medium text-slate-700">

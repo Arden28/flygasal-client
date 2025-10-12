@@ -586,7 +586,7 @@ const BookingDetail = () => {
 
         // Compute totals from single-offer price breakdown
         const currencyFromOffer = offer?.priceBreakdown?.currency || params.currency || "USD";
-        const totalPrice = Number(offer?.priceBreakdown?.grandTotal || 0);
+        const totalPrice = Number(offer?.priceBreakdown?.grand || 0);
 
         // Build tripDetails from the offer (stop relying on URL past this point)
         setTripDetails({
