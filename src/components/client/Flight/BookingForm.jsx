@@ -50,6 +50,8 @@ const BookingForm = ({
   handlePayment,
   isProcessing,
   currency,
+  /** NEW (optional): can be passed from parent; we’ll also fall back to tripDetails.priceBreakdownRaw */
+  priceBreakdownRaw,
 }) => {
   /* ---------------- Local draft form (prevents parent-driven remounts) ---------------- */
   const [draftForm, setDraftForm] = useState(formData || {});
@@ -63,11 +65,9 @@ const BookingForm = ({
   // debounce helper to push local -> parent
   const flushToParent = useCallback(
     (next) => {
-      // Prefer setFormData if provided; fall back to synthetic event handler if that’s what the parent expects
       if (typeof setFormData === "function") {
         setFormData(next);
       } else if (typeof handleFormChange === "function") {
-        // Send a single "root form" change if parent is built around a synthetic event
         handleFormChange({ target: { name: "__form__", value: next } });
       }
     },
@@ -77,19 +77,15 @@ const BookingForm = ({
   // buffered change handler passed to children
   const bufferedFormChange = useCallback(
     (e) => {
-      // Normalize (supports both {target:{name,value}} and direct object patches)
       if (e && e.target && typeof e.target.name === "string") {
         const { name, value } = e.target;
         const next = { ...draftForm, [name]: value };
         setDraftForm(next);
-
-        // Debounce parent sync (keystroke-safe)
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
         debounceTimer.current = setTimeout(() => flushToParent(next), 300);
         return;
       }
 
-      // Special case: your PassengerDetailsCard calls with { target: { name: "travelers", value: nextArray } }
       if (e && e.target && e.target.name === "travelers") {
         const next = { ...draftForm, travelers: e.target.value };
         setDraftForm(next);
@@ -98,7 +94,6 @@ const BookingForm = ({
         return;
       }
 
-      // If a component passes the whole partial object directly (rare)
       if (e && typeof e === "object" && !e.target) {
         const next = { ...draftForm, ...e };
         setDraftForm(next);
@@ -109,7 +104,6 @@ const BookingForm = ({
     [draftForm, flushToParent]
   );
 
-  // Make sure we don’t leave timers around
   useEffect(() => {
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
@@ -201,6 +195,10 @@ const BookingForm = ({
     return () => window.removeEventListener("keydown", onKey);
   }, [showShare]);
 
+  // Prefer backend currency and raw breakdown from tripDetails (fallback to props)
+  const effectiveCurrency = tripDetails?.currency || currency || "USD";
+  const effectivePriceBreakdownRaw = priceBreakdownRaw || tripDetails?.priceBreakdownRaw || null;
+
   return (
     <div className="px-2 sm:px-4">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 xl:gap-8">
@@ -247,13 +245,14 @@ const BookingForm = ({
             totalPrice={totalPrice}
           />
 
-          {/* Price Breakdown (read-only props) */}
+          {/* Price Breakdown (reads raw backend PB; no normalization) */}
           <PriceBreakdownCard
             formData={draftForm}
-            totalPrice={totalPrice}
+            totalPrice={totalPrice}                 // backend totals.grand already
             isAgent={isAgent}
             agentMarkupPercent={agentMarkupPercent}
-            currency={currency}
+            currency={effectiveCurrency}
+            priceBreakdownRaw={effectivePriceBreakdownRaw}  // <-- pass raw
           />
 
           <p className="mt-1 text-xs sm:text-sm text-slate-500 leading-relaxed">
@@ -267,7 +266,6 @@ const BookingForm = ({
           <FlightDetailsCard
             flight={flight}
             tripDetails={tripDetails}
-            // shareNative={shareNative}
             outbound={outbound}
             returnFlight={returnFlight}
             tripType={tripType}

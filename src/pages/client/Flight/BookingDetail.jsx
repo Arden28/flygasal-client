@@ -9,19 +9,6 @@ import flygasal from "../../../api/flygasalService";
 import { AuthContext } from "../../../context/AuthContext";
 
 /* ----------------------- constants ----------------------- */
-// const countries = [
-//   { code: "US", name: "United States", flag: "/assets/img/flags/us.png" },
-//   { code: "GB", name: "United Kingdom", flag: "/assets/img/flags/gb.png" },
-//   { code: "AE", name: "United Arab Emirates", flag: "/assets/img/flags/ae.png" },
-//   { code: "AU", name: "Australia", flag: "/assets/img/flags/au.png" },
-//   { code: "FR", name: "France", flag: "/assets/img/flags/fr.png" },
-//   { code: "ET", name: "Ethiopia", flag: "/assets/img/flags/et.png" },
-//   { code: "KE", name: "Kenya", flag: "/assets/img/flags/ke.png" },
-//   { code: "ZA", name: "South Africa", flag: "/assets/img/flags/za.png" },
-//   { code: "EG", name: "Egypt", flag: "/assets/img/flags/eg.png" },
-//   { code: "MA", name: "Morocco", flag: "/assets/img/flags/ma.png" },
-// ];
-
 const months = [
   { value: "01", label: "01 January" },
   { value: "02", label: "02 February" },
@@ -115,10 +102,10 @@ const AirLoading = ({ location }) => {
                   animate={{ left: ["-16px", "calc(100% - 16px)"] }}
                   transition={{ duration: 2.6, repeat: Infinity, ease: [0.4, 0.0, 0.2, 1] }}
                 >
-                <svg aria-hidden width="26" height="26"  viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <svg aria-hidden width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                     <path d="M2 16l20-5-2-3-8 2-5-6-2 1 3 7-6 2z" />
                     <path d="M2 19h20" />
-                </svg>
+                  </svg>
                 </motion.div>
               </div>
             </div>
@@ -264,7 +251,8 @@ function buildLegFromSegments(offer, segs) {
       to: last?.arrivalTerminal ?? null,
     },
     segments: segs,
-    priceBreakdown: offer?.priceBreakdown ?? null, // single total still lives on the offer
+    // Keep raw; but we won’t use leg-level pricing for totals any more
+    priceBreakdown: offer?.priceBreakdown ?? null,
     marketingCarriers: offer?.marketingCarriers ?? [],
     operatingCarriers: offer?.operatingCarriers ?? [],
     lastTktTime: offer?.lastTktTime ? new Date(offer.lastTktTime) : null,
@@ -275,10 +263,8 @@ function groupOfferByFlights(offer) {
   const segs = offer?.segments || [];
   if (!segs.length) return [];
 
-  // If we have flightIds, preserve their order. Otherwise, single leg of all segs.
   const fids = Array.isArray(offer?.flightIds) && offer.flightIds.length ? offer.flightIds : [null];
 
-  // Build mapping flightId -> segments (preserve sequence in offer.segments)
   const buckets = new Map(fids.map((fid) => [fid, []]));
   segs.forEach((s) => {
     const fid = s?.flightId ?? null;
@@ -286,7 +272,6 @@ function groupOfferByFlights(offer) {
     buckets.get(fid).push(s);
   });
 
-  // Produce legs in flightIds order (fallback: any remaining buckets in insertion order)
   const legs = [];
   const seen = new Set();
   fids.forEach((fid) => {
@@ -296,7 +281,6 @@ function groupOfferByFlights(offer) {
       seen.add(fid);
     }
   });
-  // Include any buckets not in fids (robustness)
   buckets.forEach((segList, fid) => {
     if (!seen.has(fid) && segList.length) {
       legs.push(buildLegFromSegments(offer, segList));
@@ -380,7 +364,6 @@ const BookingDetail = () => {
     setChildren(childrenCount);
     setInfants(infantsCount);
 
-    // seed travelers only when empty to preserve edits
     setFormData((prev) => {
       if (prev.travelers?.length) return prev;
       const dev = import.meta.env.ENV_MODE === "development";
@@ -499,7 +482,7 @@ const BookingDetail = () => {
       try {
         const sp = new URLSearchParams(location.search);
 
-        // Build request criteria from URL for the API call (source of truth becomes the offer)
+        // Build request criteria from URL for the API call
         const journeysFromUrl = [];
         let idx = 0;
         while (sp.has(`flights[${idx}][origin]`)) {
@@ -543,10 +526,9 @@ const BookingDetail = () => {
           currency: sp.get("currency") || "USD",
         };
 
-        // console.info("Pricing with params", params);
         const priceResp = await flygasal.precisePricing(params);
         console.info("Pricing Resp: ", priceResp);
-        
+
         if (priceResp.errorCode !== "0" || priceResp.errorMsg !== "ok") {
           const msg = priceResp.errorMsg || "We couldn’t confirm pricing for this itinerary.";
           setError(msg);
@@ -562,7 +544,6 @@ const BookingDetail = () => {
           setError("We couldn’t confirm your selected flight. Please try again.");
           return;
         }
-
 
         // Prefer passenger counts from the offer
         if (offer.passengers) {
@@ -584,11 +565,12 @@ const BookingDetail = () => {
 
         console.log({ legs, outbound, returnFlight });
 
-        // Compute totals from single-offer price breakdown
-        const currencyFromOffer = offer?.priceBreakdown?.currency || params.currency || "USD";
-        const totalPrice = Number(offer?.priceBreakdown?.grand || 0);
+        // Read totals & currency from backend raw priceBreakdown
+        const pb = offer?.priceBreakdown || {};
+        const pbCurrency = pb?.currency || params.currency || "USD";
+        const grandTotal = Number(pb?.totals?.grand || 0);
 
-        // Build tripDetails from the offer (stop relying on URL past this point)
+        // Build tripDetails from the offer (source of truth is the offer)
         setTripDetails({
           tripType,
           origin: offer.origin,
@@ -602,16 +584,16 @@ const BookingDetail = () => {
           children: offer?.passengers?.children ?? childrenQ,
           infants: offer?.passengers?.infants ?? infantsQ,
 
-          currency: currencyFromOffer,
+          currency: pbCurrency,
           outbound,
           return: returnFlight,
-          totalPrice,
-          legs, // keep all legs for future multi-city UI
+          totalPrice: grandTotal,          // <- backend totals.grand
+          priceBreakdownRaw: pb,           // <- pass raw through the app
+          legs,
           cancellation_policy:
             "Non-refundable after 24 hours. Cancellations within 24 hours of booking are refundable with a $50 fee.",
         });
 
-        // Backend surfaced errors (mapped to friendly copy)
         const errorCode = priceResp?.data?.errorCode;
         const errorMsg = priceResp?.data?.errorMsg;
         if (errorCode) {
@@ -735,18 +717,13 @@ const BookingDetail = () => {
     try {
       const { outbound, return: rtn, totalPrice, currency } = tripDetails;
 
-      const priceBreakdown = (totalPrice) => {
-        const base = Number(totalPrice) || 0;
-        const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
-        const total = +(base + markup).toFixed(2);
-        return { base, markup, total };
-      };
-
-      const { base, markup, total } = priceBreakdown(totalPrice);
+      // Use backend totalPrice (which we set from priceBreakdown.totals.grand)
+      const base = Number(totalPrice) || 0;
+      const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
+      const total = +(base + markup).toFixed(2);
 
       const bookingDetails = {
         selectedFlight: flight,
-        // selectedFlight: outbound,
         selectedReturnFlight: rtn || undefined,
         solutionId: flight.solutionId || null,
         passengers: formData.travelers.map((t) => ({
@@ -769,7 +746,7 @@ const BookingDetail = () => {
         contactName: formData.full_name,
         contactEmail: formData.email,
         contactPhone: formData.phone,
-        totalPrice: Number(totalPrice || 0) + Number(agentFee || 0),
+        totalPrice: Number(total || 0) + Number(agentFee || 0), // total incl. markup, plus any agent fee line item
         currency: currency || "USD",
         agent_fee: markup || 0,
         payment_method: formData.payment_method || "wallet",
@@ -813,7 +790,8 @@ const BookingDetail = () => {
   }
 
   /* ---------- render ---------- */
-  const { tripType, outbound, return: returnFlight, totalPrice, cancellation_policy, currency } = tripDetails;
+  const { tripType, outbound, return: returnFlight, totalPrice, cancellation_policy, currency, priceBreakdownRaw } =
+    tripDetails;
   const finalPrice = Number(totalPrice || 0) + Number(agentFee || 0);
 
   return (
@@ -888,6 +866,8 @@ const BookingDetail = () => {
             handlePayment={handlePayment}
             holdExpired={holdExpired}
             timeLeftLabel={timeLeftLabel}
+            /* NEW: pass raw backend breakdown through */
+            priceBreakdownRaw={priceBreakdownRaw}
           />
 
           {/* Hidden Inputs */}
@@ -914,9 +894,9 @@ const BookingDetail = () => {
                       }`,
                       class: outbound.cabin || "Economy",
                       img: getAirlineLogo(outbound.airline),
-                      currency: outbound?.priceBreakdown?.currency || currency || "USD",
-                      // Only one grandTotal overall; put it on outbound and 0 on return for display
-                      price: outbound?.priceBreakdown?.grandTotal,
+                      currency: (priceBreakdownRaw?.currency) || currency || "USD",
+                      // Put single grand total on outbound for display (return shows 0)
+                      price: Number(priceBreakdownRaw?.totals?.grand || totalPrice || 0),
                     },
                   ],
                   tripType === "return" && returnFlight
@@ -932,8 +912,8 @@ const BookingDetail = () => {
                           }`,
                           class: returnFlight.cabin || "Economy",
                           img: getAirlineLogo(returnFlight.airline),
-                          currency: returnFlight?.priceBreakdown?.currency || currency || "USD",
-                          price: 0, // single grandTotal already captured on outbound
+                          currency: (priceBreakdownRaw?.currency) || currency || "USD",
+                          price: 0, // we show the single grand on outbound only
                         },
                       ]
                     : [],
