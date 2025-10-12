@@ -249,7 +249,6 @@ const BookingForm = ({
 
           {/* Price Breakdown (read-only props) */}
           <PriceBreakdownCard
-            priceBreakdown={tripDetails?.priceBreakdown || []}
             formData={draftForm}
             totalPrice={totalPrice}
             isAgent={isAgent}

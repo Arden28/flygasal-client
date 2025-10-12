@@ -375,7 +375,6 @@ const BookingDetail = () => {
     const adultsCount = parseInt(sp.get("adults")) || 2;
     const childrenCount = parseInt(sp.get("children")) || 0;
     const infantsCount = parseInt(sp.get("infants")) || 0;
-    const [priceBreakdown, setPriceBreakdown] = useState([]);
 
     setAdults(adultsCount);
     setChildren(childrenCount);
@@ -598,8 +597,6 @@ const BookingDetail = () => {
           returnDate: returnFlight?.departureTime ? toYMD(returnFlight.departureTime) : null,
           fareSourceCode: offer?.solutionId || null,
           solutionId: offer?.solutionId || null,
-
-          priceBreakdown: offer?.priceBreakdown || [],
 
           adults: offer?.passengers?.adults ?? adultsQ,
           children: offer?.passengers?.children ?? childrenQ,

@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function PriceBreakdownCard({
-    priceBreakdown,
+    formData,
+    totalPrice, 
     isAgent,
     agentMarkupPercent,
     currency
@@ -11,18 +13,14 @@ export default function PriceBreakdownCard({
     (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
   
 
-  const markup = +(priceBreakdown.grandTotal * (agentMarkupPercent / 100)).toFixed(2);
-  const total = +(priceBreakdown.grandTotal + markup).toFixed(2);
-
-
-  // const priceBreakdown = (totalPrice) => {
-  //   const base = Number(totalPrice) || 0;
-  //   return { base, markup, total };
-  // };
-
-
+  const priceBreakdown = (totalPrice) => {
+    const base = Number(totalPrice) || 0;
+    const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
+    const total = +(base + markup).toFixed(2);
+    return { base, markup, total };
+  };
   
-  // const { base, markup, total } = priceBreakdown(totalPrice);
+  const { base, markup, total } = priceBreakdown(totalPrice);
   
   return (
           <motion.div
@@ -59,7 +57,7 @@ export default function PriceBreakdownCard({
                         
                         <div className="flex justify-content-between tetx-sm">
                             <span className="align-content-start text-muted font-medium">Flights</span>
-                            <span className="align-content-end text-muted">{money(priceBreakdown?.grandTotal, currency)}</span>
+                            <span className="align-content-end text-muted">{money(base, currency)}</span>
                         </div>
                         {isAgent === true && (
                         <div className="flex justify-content-between tetx-sm mt-2">
