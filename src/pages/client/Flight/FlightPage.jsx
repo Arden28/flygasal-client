@@ -120,7 +120,7 @@ const carveLegsForMulti = (offer, requestedLegs = [], normalizeSegsForCarve, fin
     totalPrice: priceOf(offer),
     airlines,
     cabin: offer.cabin || offer.segments?.[0]?.cabinClass || "Economy",
-    // also keep at the multi container (first leg semantics)
+    // itinerary-level raw breakdown from the offer
     priceBreakdown: offer.priceBreakdown,
   };
 };
@@ -477,7 +477,6 @@ const FlightPage = () => {
             if (legs.length >= 2) {
               const buildLegFromNormalized = (baseOffer, leg, suffix) => {
                 const firstSeg = leg.segments?.[0] || {};
-                const lastSeg  = leg.segments?.[leg.segments.length - 1] || {};
                 const originalTotal = priceOf(baseOffer);
 
                 return {
@@ -518,7 +517,7 @@ const FlightPage = () => {
                   flightNumber: `${firstSeg.airline || ""}${firstSeg.flightNum || ""}`,
                   equipment: firstSeg.equipment,
 
-                  // for convenience if needed elsewhere
+                  // convenience
                   totalPrice: originalTotal,
                 };
               };
@@ -637,13 +636,13 @@ const FlightPage = () => {
         const rec = {
           id: m.id,
           legs: m.legs,
-          totalPrice: Number(m.totalPrice || 0),
+          totalPrice: Number(m.totalPrice || 0), // already from offer.priceBreakdown.totals.grand
           totalStops,
           airlines,
           cabin: m.cabin || cabinOf(m.legs?.[0]),
           baggage: null,
           refundable: false,
-          // itinerary-level priceBreakdown from first leg/container (raw)
+          // itinerary-level raw breakdown from offer / first leg
           priceBreakdown: m.priceBreakdown || m.legs?.[0]?.priceBreakdown || null,
         };
 
@@ -673,14 +672,13 @@ const FlightPage = () => {
             id: `${ob.id}-${rt.id}`,
             outbound: ob,
             return: rt,
-            totalPrice: priceOf(out),
+            totalPrice: priceOf(out), // like oneway
             totalStops: (ob.stops || 0) + (rt.stops || 0),
-            // compute per-leg carriers, then merge
             airlines: Array.from(new Set([...carriersOfLeg(ob), ...carriersOfLeg(rt)])),
             cabin: cabinOf(ob),
             baggage: makeBaggageLabel(ob),
             refundable: false,
-            // Treat like oneway: use backend breakdown from the source (outbound/offer)
+            // itinerary-level breakdown (raw) from the same offer/outbound
             priceBreakdown: ob.priceBreakdown || out?.priceBreakdown || null,
           });
           if (items.length >= MAX_RESULTS) break;
@@ -701,19 +699,17 @@ const FlightPage = () => {
         let added = 0;
         for (let i = 0; i < sortedReturns.length && added < MAX_RETURNS_PER_OUTBOUND; i++) {
           const rt = sortedReturns[i];
-          const total = Number(priceOf(out) + priceOf(rt));
           const rec = {
             id: `${out.id}-${rt.id}`,
             outbound: out,
             return: rt,
-            totalPrice: total,
+            totalPrice: priceOf(out), // like oneway (do NOT sum out+ret)
             totalStops: (out.stops || 0) + (rt.stops || 0),
-            // compute per-leg carriers, then merge
             airlines: Array.from(new Set([...carriersOfLeg(out), ...carriersOfLeg(rt)])),
             cabin: cabinOf(out),
             baggage: makeBaggageLabel(out),
             refundable: false,
-            // As requested: handle like oneway → take breakdown from outbound only
+            // itinerary-level breakdown from outbound (raw)
             priceBreakdown: out.priceBreakdown || null,
           };
           const k = returnKey(rec.outbound, rec.return, rec.cabin);
@@ -736,14 +732,13 @@ const FlightPage = () => {
         id: f.id,
         outbound: f,
         return: null,
-        totalPrice: Number(priceOf(f)),
+        totalPrice: Number(priceOf(f)), // from f.priceBreakdown.totals.grand
         totalStops: f.stops || 0,
-        // carriers from the (only) leg
         airlines: carriersOfLeg(f),
         cabin: cabinOf(f),
         baggage: makeBaggageLabel(f),
         refundable: false,
-        // pass raw backend breakdown up to itinerary
+        // itinerary-level raw backend breakdown
         priceBreakdown: f.priceBreakdown || null,
       };
       const k = onewayKey(rec.outbound, rec.cabin);
@@ -782,7 +777,6 @@ const FlightPage = () => {
     return itineraries
       .filter((it) => {
         const priceOk = it.totalPrice >= low && it.totalPrice <= high;
-        // const priceOk = it?.priceBreakdown?.totals?.grand >= low && it?.priceBreakdown?.totals?.grand <= high;
 
         // normalize stops: 0 / 1 / 2+
         const stopsCount = Math.max(0, Number.isFinite(it.totalStops) ? it.totalStops : 0);
