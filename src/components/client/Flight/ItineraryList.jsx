@@ -257,6 +257,8 @@ const ItineraryList = ({
     params.set("totalWithMarkup", String(totalWithMarkup));
     params.set("currency", pbCurrency);
 
+    console.info("Itinerary", itinerary);
+
     navigate(`/flight/booking/details?${params.toString()}`);
   };
 
