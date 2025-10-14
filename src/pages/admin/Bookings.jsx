@@ -178,8 +178,8 @@ export default function Bookings() {
             supplier: flightSegments.map((seg) => seg.airlineName).filter(Boolean).join(" / ") || "Unknown Airline",
             traveller: passengerNames || "Unknown Traveller",
             email: booking.contactEmail || "unknown@example.com",
-            bookingStatus: booking.status || "Pending",
-            paymentStatus: booking.payment_status || "Unpaid",
+            bookingStatus: booking.status || "pending",
+            paymentStatus: booking.payment_status || "npaid",
             total: Number(booking.total_amount || 0),
             agentFee: Number(booking.agent_fee || 0),
             currency: booking.currency || "USD",
@@ -450,11 +450,11 @@ export default function Bookings() {
 
   const paymentChips = [
     { label: "All", value: "" },
-    { label: "Paid", value: "Paid" },
-    { label: "Refunded", value: "Refunded" },
-    { label: "Disputed", value: "Disputed" },
-    { label: "Failed", value: "Unpaid" },
-    { label: "Uncaptured", value: "Uncaptured" },
+    { label: "Paid", value: "paid" },
+    { label: "Refunded", value: "refunded" },
+    { label: "Disputed", value: "disputed" },
+    { label: "Failed", value: "unpaid" },
+    { label: "Uncaptured", value: "uncaptured" },
   ].map((chip) => ({
     ...chip,
     count: filteredBookings.filter((b) => (chip.value ? b.paymentStatus === chip.value : true)).length,
@@ -654,12 +654,19 @@ export default function Bookings() {
                   <td className={cx("px-3 text-sm text-gray-900 truncate", rowPad)}>{b.traveller}</td>
                   <td className={cx("px-3 text-sm text-gray-700 truncate", rowPad)}>{b.email}</td>
                   <td className={cx("px-3", rowPad)}>
-                    <Badge tone={b.bookingStatus === "Confirmed" ? "green" : b.bookingStatus === "Cancelled" ? "red" : "amber"}>
+                    <Badge 
+                      tone={
+                        b.bookingStatus === "confirmed" || b.bookingStatus === "issued"
+                          ? "green"
+                          : b.bookingStatus === "cancelled"
+                          ? "red"
+                          : "amber"
+                      }>
                       {b.bookingStatus}
                     </Badge>
                   </td>
                   <td className={cx("px-3", rowPad)}>
-                    <Badge tone={b.paymentStatus === "Paid" ? "green" : b.paymentStatus === "Unpaid" ? "red" : "amber"}>
+                    <Badge tone={b.paymentStatus === "paid" ? "green" : b.paymentStatus === "unpaid" ? "red" : "amber"}>
                       {b.paymentStatus}
                     </Badge>
                   </td>
@@ -808,13 +815,20 @@ export default function Bookings() {
               <div className="mt-1 text-xs text-gray-600">Total: {toMoney(b.total, b.currency)}</div>
               <div className="mt-1 text-xs text-gray-600">
                 Status:{" "}
-                <Badge tone={b.bookingStatus === "Confirmed" ? "green" : b.bookingStatus === "Cancelled" ? "red" : "amber"}>
+                <Badge 
+                  tone={
+                    b.bookingStatus === "confirmed" || b.bookingStatus === "issued"
+                      ? "green"
+                      : b.bookingStatus === "cancelled"
+                      ? "red"
+                      : "amber"
+                  }>
                   {b.bookingStatus}
                 </Badge>
               </div>
               <div className="mt-1 text-xs text-gray-600">
                 Payment:{" "}
-                <Badge tone={b.paymentStatus === "Paid" ? "green" : b.paymentStatus === "Unpaid" ? "red" : "amber"}>
+                <Badge tone={b.paymentStatus === "paid" ? "green" : b.paymentStatus === "unpaid" ? "red" : "amber"}>
                   {b.paymentStatus}
                 </Badge>
               </div>
