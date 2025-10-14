@@ -96,10 +96,8 @@ const carveLegsForMulti = (offer, requestedLegs = [], normalizeSegsForCarve, fin
         flightNum: s.flightNo,
         departure: s.departure,
         arrival: s.arrival,
-        departureDate: s.departureDate ?? s.strDepartureDate ?? "",
-        departureTime: s.departureTime ?? s.strDepartureTime ?? "",
-        arrivalDate: s.arrivalDate ?? s.strArrivalDate ?? "",
-        arrivalTime: s.arrivalTime ?? s.strArrivalTime ?? "",
+        departureDate: s.departureAt,
+        arrivalDate: s.arrivalAt,
         bookingCode: s.bookingCode,
         refundable: s.refundable,
       })),
@@ -290,10 +288,6 @@ const FlightPage = () => {
         arrival: s.arrival ?? s.destination ?? s.arrivalAirport ?? "",
         departureAt: s.departureDate ?? s.departureTime ?? s.depTime ?? "",
         arrivalAt: s.arrivalDate ?? s.arrivalTime ?? s.arrTime ?? "",
-        departureDate: s.strDepartureDate ?? "",
-        departureTime: s.strDepartureTime ?? "",
-        arrivalDate: s.strArrivalDate ?? "",
-        arrivalTime: s.strArrivalTime ?? "",
         bookingCode: s.bookingCode ?? s.bookingClass ?? "",
         refundable: !!s.refundable,
       }))
@@ -789,32 +783,10 @@ const FlightPage = () => {
       .filter((it) => {
         const priceOk = it.totalPrice >= low && it.totalPrice <= high;
 
-        // ----- Robust stops across oneway/return/multi -----
-        // Prefer itinerary.totalStops; if missing, derive from segments.
-        const deriveLegStops = (leg) =>
-        Math.max(0,
-            Number.isFinite(leg?.stops)
-            ? leg.stops
-            : Math.max(0, (leg?.segments?.length || 1) - 1)
-        );
-
-        let stopsCount = 0;
-
-        if (Number.isFinite(it.totalStops)) {
-        // trusted field when present
-        stopsCount = Math.max(0, it.totalStops);
-        } else if (Array.isArray(it.legs) && it.legs.length) {
-        // multi: sum per-leg stops
-        stopsCount = it.legs.reduce((acc, l) => acc + deriveLegStops(l), 0);
-        } else {
-        // oneway/return: add outbound (+ return if present)
-        stopsCount = deriveLegStops(it.outbound) + (it.return ? deriveLegStops(it.return) : 0);
-        }
-
-        // Collapse "2 or more" into the UI key we use in the sidebar
+        // normalize stops: 0 / 1 / 2+
+        const stopsCount = Math.max(0, Number.isFinite(it.totalStops) ? it.totalStops : 0);
         const stopClass = stopsCount >= 2 ? "oneway_2" : `oneway_${stopsCount}`;
         const stopsOk = currentStop === "mix" || currentStop === stopClass;
-
 
         /* Outbound/return airline filters:
          * match if ANY carrier on that leg is selected (not just first carrier)
