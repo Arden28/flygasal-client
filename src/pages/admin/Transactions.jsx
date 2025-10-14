@@ -373,32 +373,187 @@ export default function Transactions() {
     }
   };
 
-  const generateInvoicePDF = (t) => {
+
+  // ---- Invoice PDF (minimal, elegant, lightweight) ----
+  const LOGO_URL = "/assets/img/logo/flygasal.png";
+
+  const generateInvoicePDF = async (t) => {
     try {
-      const doc = new jsPDF();
-      doc.setFontSize(16);
-      doc.text("Transaction Invoice", 14, 18);
-      doc.setFontSize(11);
-      const rows = [
-        ["Transaction ID", t.id],
-        ["Date", t.date],
-        ["Type", t.type],
-        ["Amount", money(t.amount, t.currency)],
-        ["Status", titleCase(t.status)],
-        ["Traveller", t.traveller],
-        ["Email", t.email],
-        ["Booking ID", t.bookingId || "N/A"],
-        ["Payment Method", t.paymentMethod],
+      const doc = new jsPDF({ unit: "pt", format: "a4" }); // points for precise spacing
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margin = 40;
+      let y = margin;
+
+      // Helper: load logo as data URL (works with dev/prod bundlers)
+      const loadDataURL = async (url) => {
+        try {
+          const res = await fetch(url, { cache: "reload" });
+          const blob = await res.blob();
+          return await new Promise((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload = () => resolve(fr.result);
+            fr.onerror = reject;
+            fr.readAsDataURL(blob);
+          });
+        } catch {
+          return null; // fail silently if image not found
+        }
+      };
+
+      // Header
+      const logoData = await loadDataURL(LOGO_URL);
+      const headerH = 60;
+      if (logoData) {
+        // logo left
+        const logoW = 120;
+        const logoH = 34;
+        doc.addImage(logoData, "PNG", margin, y, logoW, logoH);
+      }
+      // company name/right side title
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      const title = "Transaction Invoice";
+      const titleW = doc.getTextWidth(title);
+      doc.text(title, pageW - margin - titleW, y + 22);
+
+      y += headerH;
+
+      // Thin divider
+      doc.setDrawColor(230);
+      doc.line(margin, y, pageW - margin, y);
+      y += 18;
+
+      // Invoice meta block (right) + Bill to (left)
+      doc.setFontSize(10);
+      doc.setTextColor(120);
+      doc.text("BILL TO", margin, y);
+      doc.setTextColor(20);
+      doc.setFont("helvetica", "bold");
+      doc.text(safeStr(t.traveller || "N/A"), margin, y + 16);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(80);
+      doc.text(safeStr(t.email || "N/A"), margin, y + 30);
+
+      // Right column meta
+      const rightX = pageW - margin - 220;
+      const meta = [
+        ["Invoice No.", `INV-${t.id}`],
+        ["Date", safeStr(t.date || "")],
+        ["Transaction ID", safeStr(t.id)],
+        ["Booking ID", safeStr(t.bookingId || "N/A")],
       ];
-      let y = 30;
-      rows.forEach(([k, v]) => {
-        doc.text(`${k}:`, 14, y);
-        doc.text(String(v), 70, y);
-        y += 8;
+      doc.setTextColor(120);
+      doc.text("INVOICE", rightX, y);
+      doc.setTextColor(20);
+      y += 16;
+      meta.forEach(([k, v], i) => {
+        const rowY = y + i * 16;
+        doc.setFont("helvetica", "bold");
+        doc.text(`${k}:`, rightX, rowY);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(60);
+        doc.text(String(v), rightX + 90, rowY);
+        doc.setTextColor(20);
       });
+      y += meta.length * 16 + 20;
+
+      // Section: Payment details
+      doc.setTextColor(120);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text("Payment Details", margin, y);
+      y += 12;
+
+      // subtle box
+      const boxY = y;
+      const boxH = 96;
+      doc.setDrawColor(235);
+      doc.setFillColor(249, 250, 251); // slate-50 vibe
+      doc.roundedRect(margin, boxY, pageW - margin * 2, boxH, 6, 6, "F");
+
+      // Left column key-values
+      doc.setFontSize(10);
+      doc.setTextColor(80);
+      const leftPairs = [
+        ["Type", safeStr(t.type)],
+        ["Payment Method", safeStr(t.paymentMethod)],
+      ];
+      let kvY = boxY + 20;
+      leftPairs.forEach(([k, v]) => {
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(60);
+        doc.text(`${k}`, margin + 16, kvY);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(30);
+        doc.text(String(v), margin + 130, kvY);
+        kvY += 18;
+      });
+
+      // Right column: Amount + Status chip
+      const rX = pageW - margin - 260;
+      const amountLabel = "Amount";
+      const amountVal = money(t.amount, t.currency);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(60);
+      doc.text(amountLabel, rX, boxY + 20);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(20);
+      doc.text(amountVal, rX + 90, boxY + 20);
+      doc.setFontSize(10);
+
+      // Status chip
+      const status = titleCase(t.status);
+      const chipX = rX;
+      const chipY = boxY + 48;
+      const chipPadX = 8;
+      const chipPadY = 5;
+      const chipTextW = doc.getTextWidth(status);
+      const chipW = chipTextW + chipPadX * 2;
+      const chipH = 20;
+      const tone =
+        t.status === "completed" ? { fill: [236, 253, 245], stroke: [209, 250, 229], text: [4, 120, 87] } : // emerald
+        t.status === "failed"    ? { fill: [254, 242, 242], stroke: [254, 226, 226], text: [185, 28, 28] } :  // rose
+                                   { fill: [255, 251, 235], stroke: [254, 243, 199], text: [146, 64, 14] };   // amber
+      doc.setDrawColor(...tone.stroke);
+      doc.setFillColor(...tone.fill);
+      doc.roundedRect(chipX, chipY, chipW, chipH, 10, 10, "FD");
+      doc.setTextColor(...tone.text);
+      doc.setFont("helvetica", "bold");
+      doc.text(status, chipX + chipPadX, chipY + chipH - chipPadY - 3);
+
+      y = boxY + boxH + 24;
+
+      // Notes
+      doc.setTextColor(120);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Notes", margin, y);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(80);
+      doc.text(
+        "Thank you for your business. This document serves as a receipt for the transaction listed above.",
+        margin,
+        y + 16
+      );
+
+      // Footer
+      const footerY = pageH - margin + 6;
+      doc.setDrawColor(235);
+      doc.line(margin, footerY - 22, pageW - margin, footerY - 22);
+      doc.setFontSize(9);
+      doc.setTextColor(120);
+      doc.text("FlyGasal · www.flygasal.com", margin, footerY);
+      const pg = `Page 1 / 1`;
+      const pgW = doc.getTextWidth(pg);
+      doc.text(pg, pageW - margin - pgW, footerY);
+
+      // Save
       doc.save(`invoice_${t.id}.pdf`);
       toast.success("Invoice downloaded.");
-    } catch {
+    } catch (e) {
+      console.error(e);
       toast.error("Failed to generate PDF.");
     }
   };
