@@ -196,6 +196,49 @@ export default function FilterSidebar({
   const [airlineSearchOW, setAirlineSearchOW] = useState("");
   const [airlineSearchRT, setAirlineSearchRT] = useState("");
 
+  // --- Price drafts (so typing isn't clamped on each keystroke)
+  const [minDraft, setMinDraft] = useState(clamped[0]);
+  const [maxDraft, setMaxDraft] = useState(clamped[1]);
+
+  // Keep drafts in sync when bounds or external range changes
+  React.useEffect(() => {
+    setMinDraft(clamped[0]);
+    setMaxDraft(clamped[1]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clamped[0], clamped[1]]);
+
+  // Normalize and commit to parent
+  const commitPrice = () => {
+    const isNum = (v) => Number.isFinite(Number(v));
+    let lo = isNum(minDraft) ? Number(minDraft) : absMin;
+    let hi = isNum(maxDraft) ? Number(maxDraft) : absMax;
+
+    // swap if inverted
+    if (lo > hi) [lo, hi] = [hi, lo];
+
+    // clamp to absolute bounds
+    lo = Math.max(absMin, Math.min(absMax, lo));
+    hi = Math.max(absMin, Math.min(absMax, hi));
+
+    // Only notify parent if changed
+    if (lo !== currMin || hi !== currMax) {
+      handlePriceChange([lo, hi]);
+    }
+
+    // snap drafts to normalized values
+    setMinDraft(lo);
+    setMaxDraft(hi);
+  };
+
+  // Convenience: commit on Enter
+  const onPriceKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commitPrice();
+    }
+  };
+
+
   /* Build name/logo meta once per code for stable, alphabetical lists */
   const toMeta = (code) => ({
     code,
@@ -327,15 +370,18 @@ export default function FilterSidebar({
         </div>
       </Section>
 
-      {/* Price (kept simple input pill instead of slider UI per your request to simplify look) */}
-      <Section title={`Price (${/* currency visual only */ "USD"})`}>
+      {/* Price */}
+      <Section title={`Price (${/* purely visual label; keep as-is */ "USD"})`}>
         <div className="grid grid-cols-2 gap-2 sm:gap-3">
           <div className="relative">
             <span className="pointer-events-none absolute left-3 top-2 text-xs text-slate-500">Min</span>
             <input
               type="number"
-              value={clamped[0]}
-              onChange={(e) => handlePriceChange([Number(e.target.value || 0), clamped[1]])}
+              inputMode="numeric"
+              value={minDraft}
+              onChange={(e) => setMinDraft(e.target.value)}
+              onBlur={commitPrice}
+              onKeyDown={onPriceKeyDown}
               className="mt-5 h-10 w-full rounded-xl ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
             />
           </div>
@@ -343,13 +389,21 @@ export default function FilterSidebar({
             <span className="pointer-events-none absolute left-3 top-2 text-xs text-slate-500">Max</span>
             <input
               type="number"
-              value={clamped[1]}
-              onChange={(e) => handlePriceChange([clamped[0], Number(e.target.value || 0)])}
+              inputMode="numeric"
+              value={maxDraft}
+              onChange={(e) => setMaxDraft(e.target.value)}
+              onBlur={commitPrice}
+              onKeyDown={onPriceKeyDown}
               className="mt-5 h-10 w-full rounded-xl ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
             />
           </div>
         </div>
+        {/* Optional tiny helper text (no behavior change) */}
+        <div className="mt-2 text-[11px] text-slate-500">
+          Press Enter or leave the field to apply. Range is {absMin}–{absMax}.
+        </div>
       </Section>
+
 
       {/* Time windows — outbound (chips only, no slider) */}
       <Section title="Departure time (outbound)">
