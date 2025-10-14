@@ -217,9 +217,8 @@ const ItineraryList = ({
     params.set("children", `${searchParams?.children || 0}`);
     params.set("infants", `${searchParams?.infants || 0}`);
 
-    // ---- Write segments into flights[i] ----
+    // ---- Write segments into flights[i], tagging journeyIndex ----
     let idx = 0;
-
     const writeSeg = (seg, ji = 0) => {
       params.set(`flights[${idx}][origin]`, seg.departure);
       params.set(`flights[${idx}][destination]`, seg.arrival);
@@ -232,25 +231,20 @@ const ItineraryList = ({
       params.set(`flights[${idx}][departureDate]`, seg.strDepartureDate || seg.departureDate || "");
       params.set(`flights[${idx}][departureTime]`, seg.strDepartureTime || seg.departureTime || "");
       params.set(`flights[${idx}][bookingCode]`, seg.bookingCode || "");
-      // NEW: keep track of which journey this segment belongs to
-      params.set(`flights[${idx}][journeyIndex]`, String(ji));
+      params.set(`flights[${idx}][journeyIndex]`, String(ji)); // <-- important
       idx += 1;
     };
 
     if (isMulti) {
-      // Multi-city: each leg is its own journey (0,1,2,…)
       (itinerary.legs || []).forEach((leg, ji) => {
         (leg.segments || []).forEach((seg) => writeSeg(seg, ji));
       });
     } else {
-      // Oneway: all segments belong to journey 0
       (itinerary.outbound?.segments || []).forEach((seg) => writeSeg(seg, 0));
-      // Return: return segments belong to journey 1
       (itinerary.return?.segments || []).forEach((seg) => writeSeg(seg, 1));
     }
 
-
-    // ---- Pricing/markup (strictly from backend itinerary.priceBreakdown) ----
+    // ---- Pricing/markup (use backend totals only; do NOT normalize) ----
     const pb = itinerary.priceBreakdown || {};
     const pbCurrency = pb.currency || currency;
     const backendGrand = Number(pb?.totals?.grand || itinerary.totalPrice || 0);
@@ -262,8 +256,6 @@ const ItineraryList = ({
     params.set("agentMarkupAmount", String(markupAmount));
     params.set("totalWithMarkup", String(totalWithMarkup));
     params.set("currency", pbCurrency);
-
-    console.info("All flights params:", [...params.entries()]);
 
     navigate(`/flight/booking/details?${params.toString()}`);
   };
@@ -278,6 +270,24 @@ const ItineraryList = ({
 
   const isOpen = (id) => openDetailsId === id;
   const toggleOpen = (id) => setOpenDetailsId(isOpen(id) ? null : id);
+
+  // --- helpers for duration label (works for multi/return/oneway) ---
+  const totalDurationText = (it) => {
+    if (Array.isArray(it.legs) && it.legs.length) {
+      const first = it.legs[0];
+      const last = it.legs[it.legs.length - 1];
+      const dep = first?.departureTime || first?.segments?.[0]?.departureDate;
+      const arr = last?.arrivalTime || last?.segments?.slice(-1)?.[0]?.arrivalDate;
+      return dep && arr ? `${calculateDuration(dep, arr)}` : "—";
+    }
+    if (it.return && it.outbound) {
+      return `${calculateDuration(it.outbound.departureTime, it.return?.arrivalTime)}`;
+    }
+    if (it.outbound) {
+      return `${calculateDuration(it.outbound.departureTime, it.outbound.arrivalTime)}`;
+    }
+    return "—";
+  };
 
   if (!paginatedItineraries || paginatedItineraries.length === 0) {
     return (
@@ -315,11 +325,9 @@ const ItineraryList = ({
             const backendFees = Number(pbTotals.fees || pbFees.total || 0);
             const backendGrand = Number(pbTotals.grand || itinerary.totalPrice || 0);
 
-            // Markup (applied once)
             const markupAmount = +((backendGrand || 0) * (agentMarkupPercent / 100)).toFixed(2);
             const grandWithMarkup = +((backendGrand || 0) + markupAmount).toFixed(2);
 
-            // Sort pax then filter out zero-count buckets
             const paxEntries = Object.entries(perPassengerRaw)
               .sort(([a], [b]) => {
                 const ia = PAX_ORDER.indexOf(a);
@@ -331,33 +339,20 @@ const ItineraryList = ({
               })
               .filter(([, data]) => Number(data?.count || 0) > 0);
 
-            // Compact summary (sidebar) only for non-empty pax types
             const perTypeSummary = paxEntries.map(([ptype, data]) => {
               const count = Number(data?.count || 0);
               const subTot = Number(data?.subtotal?.total || 0);
               return { ptype, count, subTot };
             });
 
-            const direct = itinerary.totalStops === 0;
+            const direct = Number(itinerary.totalStops || 0) === 0;
             const airlines = itinerary.airlines || [];
             const isMulti =
               (searchParams?.tripType || "").toLowerCase() === "multi" ||
               (Array.isArray(itinerary.legs) && itinerary.legs.length > 0);
             const isRoundTrip = !isMulti && !!itinerary.return;
 
-            let durText = "";
-            if (isMulti) {
-              const first = itinerary.legs?.[0];
-              const last = itinerary.legs?.[itinerary.legs.length - 1];
-              const dep = first?.departureTime || first?.segments?.[0]?.departureDate;
-              const arr = last?.arrivalTime || last?.segments?.slice(-1)?.[0]?.arrivalDate;
-              durText = dep && arr ? `${calculateDuration(dep, arr)}` : "—";
-            } else if (isRoundTrip) {
-              durText = `${calculateDuration(itinerary.outbound.departureTime, itinerary.return?.arrivalTime)}`;
-            } else {
-              durText = `${calculateDuration(itinerary.outbound.departureTime, itinerary.outbound.arrivalTime)}`;
-            }
-
+            const durText = totalDurationText(itinerary);
             const detailsId = `fare-details-${key.replace(/[^a-zA-Z0-9]/g, "")}`;
             const open = isOpen(key);
 
@@ -451,7 +446,7 @@ const ItineraryList = ({
                         {direct ? "Direct" : `${itinerary.totalStops} stop${itinerary.totalStops > 1 ? "s" : ""}`}
                       </Pill>
                       <Pill tone="slate">
-                        Duration: <span className="ml-1 font-medium">{formatDuration(itinerary?.outbound.journeyTime)}</span>
+                        Duration: <span className="ml-1 font-medium">{durText}</span>
                       </Pill>
                       {itinerary.cabin && (
                         <Pill tone="slate">
