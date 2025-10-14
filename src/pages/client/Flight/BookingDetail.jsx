@@ -498,12 +498,13 @@ const BookingDetail = () => {
       setError(null);
       try {
         const sp = new URLSearchParams(location.search);
-
-        // Build request criteria from URL for the API call (source of truth becomes the offer)
-        const journeysFromUrl = [];
+        
+        // Build request criteria from URL, grouped by journeyIndex (0,1,2,...)
+        const journeysBuckets = new Map(); // journeyIndex -> segment[]
         let idx = 0;
         while (sp.has(`flights[${idx}][origin]`)) {
-          journeysFromUrl.push({
+          const ji = parseInt(sp.get(`flights[${idx}][journeyIndex]`) || "0", 10) || 0;
+          const seg = {
             airline: sp.get(`flights[${idx}][airline]`),
             flightNum: sp.get(`flights[${idx}][flightNum]`),
             arrival: sp.get(`flights[${idx}][arrival]`),
@@ -515,20 +516,29 @@ const BookingDetail = () => {
             bookingCode: sp.get(`flights[${idx}][bookingCode]`),
             destination: sp.get(`flights[${idx}][arrival]`),
             origin: sp.get(`flights[${idx}][departure]`),
-          });
+          };
+          if (!journeysBuckets.has(ji)) journeysBuckets.set(ji, []);
+          journeysBuckets.get(ji).push(seg);
           idx++;
         }
+
+        // Flatten to Array<Array<segment>> in ascending journey index order
+        const journeys = Array.from(journeysBuckets.keys())
+          .sort((a, b) => a - b)
+          .map((k) => journeysBuckets.get(k));
 
         const tripType = sp.get("tripType") || "oneway";
         const cabinType = sp.get("flightType") || sp.get("cabin") || "Economy";
         const adultsQ = parseInt(sp.get("adults")) || 1;
         const childrenQ = parseInt(sp.get("children")) || 0;
         const infantsQ = parseInt(sp.get("infants")) || 0;
-        const departureDateQ = sp.get("depart") || journeysFromUrl[0]?.departureDate || null;
+
+        const firstSeg = journeys[0]?.[0] || null;
+        const departureDateQ = sp.get("depart") || firstSeg?.departureDate || null;
         const returnDateQ = sp.get("returnDate") || null;
 
         const params = {
-          journeys: journeysFromUrl,
+          journeys, // NESTED journeys: [[...outboundSegs], [...returnSegs], ...]
           tripType,
           cabinType,
           adults: adultsQ,
@@ -538,10 +548,11 @@ const BookingDetail = () => {
           returnDate: returnDateQ,
           solutionId: sp.get("solutionId") || null,
           solutionKey: sp.get("solutionKey") || null,
-          origin: sp.get("origin") || journeysFromUrl[0]?.origin || "",
-          destination: sp.get("destination") || journeysFromUrl[0]?.destination || "",
+          origin: sp.get("origin") || firstSeg?.origin || "",
+          destination: sp.get("destination") || firstSeg?.destination || "",
           currency: sp.get("currency") || "USD",
         };
+
 
         // console.info("Pricing with params", params);
         const priceResp = await flygasal.precisePricing(params);

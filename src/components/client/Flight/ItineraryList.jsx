@@ -219,7 +219,8 @@ const ItineraryList = ({
 
     // ---- Write segments into flights[i] ----
     let idx = 0;
-    const writeSeg = (seg) => {
+
+    const writeSeg = (seg, ji = 0) => {
       params.set(`flights[${idx}][origin]`, seg.departure);
       params.set(`flights[${idx}][destination]`, seg.arrival);
       params.set(`flights[${idx}][airline]`, seg.airline);
@@ -231,15 +232,23 @@ const ItineraryList = ({
       params.set(`flights[${idx}][departureDate]`, seg.strDepartureDate || seg.departureDate || "");
       params.set(`flights[${idx}][departureTime]`, seg.strDepartureTime || seg.departureTime || "");
       params.set(`flights[${idx}][bookingCode]`, seg.bookingCode || "");
+      // NEW: keep track of which journey this segment belongs to
+      params.set(`flights[${idx}][journeyIndex]`, String(ji));
       idx += 1;
     };
 
     if (isMulti) {
-      (itinerary.legs || []).forEach((leg) => (leg.segments || []).forEach(writeSeg));
+      // Multi-city: each leg is its own journey (0,1,2,…)
+      (itinerary.legs || []).forEach((leg, ji) => {
+        (leg.segments || []).forEach((seg) => writeSeg(seg, ji));
+      });
     } else {
-      (itinerary.outbound?.segments || []).forEach(writeSeg);
-      (itinerary.return?.segments || []).forEach(writeSeg);
+      // Oneway: all segments belong to journey 0
+      (itinerary.outbound?.segments || []).forEach((seg) => writeSeg(seg, 0));
+      // Return: return segments belong to journey 1
+      (itinerary.return?.segments || []).forEach((seg) => writeSeg(seg, 1));
     }
+
 
     // ---- Pricing/markup (strictly from backend itinerary.priceBreakdown) ----
     const pb = itinerary.priceBreakdown || {};
@@ -255,7 +264,7 @@ const ItineraryList = ({
     params.set("currency", pbCurrency);
 
     console.info("All flights params:", [...params.entries()]);
-    
+
     navigate(`/flight/booking/details?${params.toString()}`);
   };
 
