@@ -709,11 +709,15 @@ const FlightPage = () => {
         let added = 0;
         for (let i = 0; i < sortedReturns.length && added < MAX_RETURNS_PER_OUTBOUND; i++) {
           const rt = sortedReturns[i];
+          // Use a pair price so Price filter & bounds behave correctly.
+          // If a supplier already embeds full roundtrip price in both legs,
+          // this still yields a consistent upper bound.
+          const pairTotalPrice = (Number(priceOf(out)) || 0) + (Number(priceOf(rt)) || 0);
           const rec = {
             id: `${out.id}-${rt.id}`,
             outbound: stripPB(out),
             return: stripPB(rt),
-            totalPrice: priceOf(out), // DO NOT SUM out+ret
+            totalPrice: pairTotalPrice,
             totalStops: (out.stops || 0) + (rt.stops || 0),
             // compute per-leg carriers, then merge
             airlines: Array.from(new Set([...carriersOfLeg(out), ...carriersOfLeg(rt)])),
