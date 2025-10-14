@@ -589,6 +589,8 @@ const FlightPage = () => {
         setAvailableFlights(outbounds);
         setReturnFlights(returns);
         setCurrency(displayCurrency);
+        startTimer(); // reset & start the 15-min timer whenever we load fresh results
+
       } catch (err) {
         if (err?.name === "AbortError") return;
         console.error("Failed to fetch flights:", err);
@@ -603,7 +605,8 @@ const FlightPage = () => {
     fetchFlights();
     return () => {
       abort.abort();
-      // stopTimer();
+      stopTimer();
+
     };
   }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1284,11 +1287,44 @@ const FlightPage = () => {
                 </div>
               )}
 
-              {isExpired && !loading ? (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center text-yellow-800">
-                  Search results have expired. Please modify your search above.
-                </div>
-              ) : (
+
+                {isExpired && !loading ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 text-amber-900"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="shrink-0 grid h-10 w-10 place-items-center rounded-xl bg-amber-100 border border-amber-200">
+                        {/* clock icon */}
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="9"></circle>
+                          <path d="M12 7v5l3 3"></path>
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-semibold">Your search results expired</h4>
+                        <p className="mt-1 text-sm text-amber-800/90">
+                          Fares refresh frequently. Run the search again to see live availability and prices.
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 text-white px-3 py-1.5 text-sm hover:bg-blue-700"
+                            onClick={() => window.location.reload()}
+                          >
+                            Refresh results
+                          </button>
+                          <button
+                            className="inline-flex items-center gap-2 rounded-lg ring-1 ring-slate-300 px-3 py-1.5 text-sm hover:bg-white"
+                            onClick={() => setIsSearchFormVisible(true)}
+                          >
+                            Modify search
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : (
                 <>
                   {/* Header */}
                   {loading ? (
