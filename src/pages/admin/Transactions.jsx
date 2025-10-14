@@ -365,7 +365,7 @@ export default function Transactions() {
     setEditTransaction(null);
   };
 
-  const handleInvoice = (t) => {
+  const handleInvoice = async (t) => {
     if (t.type === "booking") {
       navigate(`/flight/booking/invoice/${t.bookingId || t.order_num}`);
     } else {
@@ -620,7 +620,7 @@ export default function Transactions() {
           <div className="flex overflow-x-auto gap-2">
             {[
               { label: "All Types", value: "" },
-              { label: "Booking", value: "booking" },
+              { label: "Booking", value: "booking_payment" },
               { label: "Refund", value: "refund" },
               { label: "Wallet Deposit", value: "wallet_topup" },
             ].map(({ label, value }) => (
