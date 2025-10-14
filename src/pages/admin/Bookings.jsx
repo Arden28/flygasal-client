@@ -698,7 +698,7 @@ export default function Bookings() {
                   <td className={cx("px-3", rowPad)}>
                     <div className="flex flex-wrap items-center gap-2">
                       <Link
-                        to={`/flight/boking/invoice/${b.orderNum}`}
+                        to={`/flight/booking/invoice/${b.orderNum}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
