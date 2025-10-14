@@ -698,7 +698,9 @@ export default function Bookings() {
                   <td className={cx("px-3", rowPad)}>
                     <div className="flex flex-wrap items-center gap-2">
                       <Link
-                        to={`/admin/flights/bookings/${b.id}`}
+                        to={`/flight/boking/invoice/${b.orderNum}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
                         aria-label={`View ${b.orderNum}`}
                       >
@@ -854,7 +856,9 @@ export default function Bookings() {
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
                 <Link
-                  to={`/admin/flights/bookings/${b.id}`}
+                  to={`/flight/booking/invoice/${b.orderNum}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
                 >
                   <EyeIcon className="h-4 w-4" />
