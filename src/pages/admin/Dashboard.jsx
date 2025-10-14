@@ -61,7 +61,7 @@ export default function Dashboard() {
     setRefreshing(true);
     setError("");
     try {
-      const res = await apiService.get("/dashboard/summary", { params: { range } });
+      const res = await apiService.get("/admin/dashboard/summary", { params: { range } });
       const data = res?.data?.data;
       if (!data) throw new Error("Invalid dashboard payload");
       setSummary(data);
@@ -144,6 +144,7 @@ export default function Dashboard() {
             </div>
             <button
               onClick={handleRefresh}
+              disabled={refreshing}
               className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50"
               aria-live="polite"
             >
