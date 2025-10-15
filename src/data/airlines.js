@@ -565,7 +565,7 @@ export const rawAirlines = [
   { code: 'EP', name: 'Iran Aseman Airlines', logo: '/assets/img/airlines/EP.png' },
   { code: 'Y9', name: 'Kish Air', logo: '/assets/img/airlines/Y9.png' },
   { code: 'W5', name: 'Mahan Air', logo: '/assets/img/airlines/W5.png' },
-  { code: 'PA', name: 'Parmiss Airlines (IPV)', logo: '/assets/img/airlines/PA.png' },
+  { code: 'PA', name: 'Air Blue', logo: '/assets/img/airlines/PA.png' },
 
   // -- Iraq --
   { code: 'NA', name: 'Al-Naser Airlines', logo: '/assets/img/airlines/NA.png' },

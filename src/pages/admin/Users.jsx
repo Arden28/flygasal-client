@@ -18,6 +18,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import apiService from "../../api/apiService";
 import TopUpWalletModal from "../../components/admin/Account/TopUpWalletModal";
+import DeductWalletModal from "../../components/admin/Account/DeductWalletModal";
 
 /* ----------------------------- small helpers ----------------------------- */
 const cx = (...c) => c.filter(Boolean).join(" ");
@@ -139,6 +140,9 @@ export default function Users() {
 
   // top up wallet
   const [topUpFor, setTopUpFor] = useState(null); // { id, name } | null
+
+  // deduct from wallet
+  const [deductFor, setDeductFor] = useState(null); // { id, name } | null
 
   // ui states
   const [loading, setLoading] = useState(true);
@@ -627,14 +631,6 @@ export default function Users() {
                   <td className={cx("px-3 text-sm text-gray-900", rowPad)}>{toCurrency(u.walletBalance)}</td>
                   <td className={cx("px-3", rowPad)}>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Link
-                        to={`/admin/users/${u.id}`}
-                        className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                        aria-label={`View ${u.name}`}
-                      >
-                        <EyeIcon className="h-4 w-4" />
-                        View
-                      </Link>
                       <button
                         onClick={() => handleEdit(u)}
                         className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
@@ -659,6 +655,13 @@ export default function Users() {
                         aria-label={`Top up ${u.name}`}
                       >
                         + Top up
+                      </button>
+                      <button
+                        onClick={() => setDeductFor({ id: u.id, name: u.name })}
+                        className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                        aria-label={`Deduct from ${u.name}`}
+                      >
+                        – Deduct
                       </button>
                       <button
                         onClick={() => setShowDeleteModal(u.id)}
@@ -740,14 +743,6 @@ export default function Users() {
               </div>
               <div className="mt-1 text-xs text-gray-600">Balance: {toCurrency(u.walletBalance)}</div>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Link
-                  to={`/admin/users/${u.id}`}
-                  className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                  aria-label={`View ${u.name}`}
-                >
-                  <EyeIcon className="h-4 w-4" />
-                  View
-                </Link>
                 <button
                   onClick={() => handleEdit(u)}
                   className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
@@ -772,6 +767,13 @@ export default function Users() {
                   aria-label={`Top up ${u.name}`}
                 >
                   + Top up
+                </button>
+                <button
+                  onClick={() => setDeductFor({ id: u.id, name: u.name })}
+                  className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                  aria-label={`Deduct from ${u.name}`}
+                >
+                  – Deduct
                 </button>
                 <button
                   onClick={() => setShowDeleteModal(u.id)}
@@ -1314,6 +1316,27 @@ export default function Users() {
             ...log,
             {
               action: `Admin top-up ${amount} ${currency} for user ${userId} (trx: ${trx || "n/a"})`,
+              timestamp: new Date().toISOString(),
+            },
+          ]);
+        }}
+      />
+
+      <DeductWalletModal
+        open={!!deductFor}
+        onClose={() => setDeductFor(null)}
+        userId={deductFor?.id}
+        userName={deductFor?.name}
+        onSuccess={({ userId, amount, balanceAfter, currency, trx }) => {
+          // optimistic UI: update the table balance
+          setUsers((list) =>
+            list.map((x) => (x.id === userId ? { ...x, walletBalance: Number(balanceAfter ?? x.walletBalance) } : x))
+          );
+          // audit trail
+          setAuditLog((log) => [
+            ...log,
+            {
+              action: `Admin debit ${amount} ${currency} for user ${userId} (trx: ${trx || "n/a"})`,
               timestamp: new Date().toISOString(),
             },
           ]);
