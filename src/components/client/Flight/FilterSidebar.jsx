@@ -447,7 +447,8 @@ export default function FilterSidebar({
 
       {/* Airlines — outbound */}
       <Section title="Airlines (outbound)">
-        <div className="mb-2 flex items-center justify-between gap-2">
+        {/* Search: full width */}
+        <div className="mb-2">
           <input
             type="text"
             placeholder="Search airline name or code…"
@@ -455,7 +456,8 @@ export default function FilterSidebar({
             onChange={(e) => setAirlineSearchOW(e.target.value)}
             className="h-9 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
           />
-          <div className="whitespace-nowrap text-xs flex items-center gap-2">
+          {/* Pills: moved below the input */}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <button
               type="button"
               className="rounded-full ring-1 ring-slate-300 px-3 py-1 hover:bg-slate-50"
@@ -473,13 +475,8 @@ export default function FilterSidebar({
           </div>
         </div>
 
-        <div
-          className={[
-            "space-y-1 pr-1",
-            "max-h-[28vh] md:max-h-64 xl:max-h-72",
-            "overflow-y-auto overscroll-contain",
-          ].join(" ")}
-        >
+        {/* Full list (no scroll, no overflow) */}
+        <div className="space-y-1 pr-1">
           {filteredOnewayAirlines.map(({ code }) => {
             const count = getCountOW(code);
             const disabled = typeof count === "number" && count <= 0;
@@ -499,10 +496,12 @@ export default function FilterSidebar({
         </div>
       </Section>
 
+
       {/* Airlines — return */}
       {returnFlights?.length > 0 && (
         <Section title="Airlines (return)">
-          <div className="mb-2 flex items-center justify-between gap-2">
+          {/* Search: full width */}
+          <div className="mb-2">
             <input
               type="text"
               placeholder="Search airline name or code…"
@@ -510,7 +509,8 @@ export default function FilterSidebar({
               onChange={(e) => setAirlineSearchRT(e.target.value)}
               className="h-9 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
             />
-            <div className="whitespace-nowrap text-xs flex items-center gap-2">
+            {/* Pills: moved below the input */}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 className="rounded-full ring-1 ring-slate-300 px-3 py-1 hover:bg-slate-50"
@@ -528,13 +528,8 @@ export default function FilterSidebar({
             </div>
           </div>
 
-          <div
-            className={[
-              "space-y-1 pr-1",
-              "max-h-[28vh] md:max-h-64 xl:max-h-72",
-              "overflow-y-auto overscroll-contain",
-            ].join(" ")}
-          >
+          {/* Full list (no scroll, no overflow) */}
+          <div className="space-y-1 pr-1">
             {filteredReturnAirlines.map(({ code }) => {
               const count = getCountRT(code);
               const disabled = typeof count === "number" && count <= 0;
@@ -554,6 +549,7 @@ export default function FilterSidebar({
           </div>
         </Section>
       )}
+
 
       {/* Footer actions */}
       <div className="lg:pt-1">
