@@ -875,7 +875,7 @@ const FlightPage = () => {
 
         return priceOk && stopsOk && owOk && rtOk && owTimeOk && rtTimeOk && durationOk && bagOk && cabinOk;
       })
-      .sort((a, b) => (sortOrder === "asc" ? a.totalPrice - b.totalPrice : b.totalPrice - a.totalPrice));
+      .sort((a, b) => (sortOrder === "asc" ? a.priceBreakdown.totals.grand - b.priceBreakdown.totals.grand : b.priceBreakdown.totals.grand - a.priceBreakdown.totals.grand));
   }, [
     itineraries,
     minPrice,
