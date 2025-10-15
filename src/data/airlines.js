@@ -974,7 +974,7 @@ export const rawAirlines = [
   { code: 'АЯ', name: 'Аэросервис', logo: '/assets/img/airlines/АЯ.png' },
 
   // -- Rwanda --
-  { code: 'WB', name: 'Rwandair Express', logo: '/assets/img/airlines/WB.png' },
+  { code: 'WB', name: 'Rwandair', logo: '/assets/img/airlines/WB.png' },
 
   // -- Samoa --
   { code: 'PH', name: 'Polynesian Airlines', logo: '/assets/img/airlines/PH.png' },
