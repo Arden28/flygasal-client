@@ -10,7 +10,9 @@ const SortNavigation = ({ sortOrder, handleSortChange, isSearchFormVisible, togg
             className={`nav-link px-0 rounded-5 ${isSearchFormVisible ? 'active' : 'active'}`}
             onClick={toggleSearchForm}
           >
-            <span className={`d-block w-100 fw-bold ${isSearchFormVisible ? 'text-black' : 'text-black'} d-flex align-items-center justify-content-center gap-2`}>
+            <span className={`d-block w-100 fw-bold ${isSearchFormVisible ? 'text-black' : 'text-black'} d-flex align-items-center justify-content-center gap-2`}
+              style={{ fontSize: '0.855rem' }}
+            >
               {isSearchFormVisible ? (
                 <>
                   <svg
@@ -56,7 +58,9 @@ const SortNavigation = ({ sortOrder, handleSortChange, isSearchFormVisible, togg
             className={`nav-link px-0 rounded-5 ${sortOrder === 'asc' ? 'active' : ''}`}
             onClick={() => handleSortChange('asc')}
           >
-            <span className={`d-block w-100 ${sortOrder === 'asc' ? 'text-black' : ''} d-flex align-items-center justify-content-center gap-2`}>
+            <span className={`d-block w-100 ${sortOrder === 'asc' ? 'text-black' : ''} d-flex align-items-center justify-content-center gap-2`}
+              style={{ fontSize: '0.855rem' }}
+            >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="21"
@@ -83,7 +87,7 @@ const SortNavigation = ({ sortOrder, handleSortChange, isSearchFormVisible, togg
             onClick={() => handleSortChange('desc')}
           >
             <span className={`d-block w-100 ${sortOrder === 'desc' ? 'text-black' : ''} d-flex align-items-center justify-content-center gap-2`}
-              style={{ fontSize: '0.775rem' }}
+              style={{ fontSize: '0.855rem' }}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
