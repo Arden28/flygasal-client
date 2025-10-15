@@ -507,6 +507,7 @@ export const rawAirlines = [
   { code: 'CX', name: 'Cathay Pacific', logo: '/assets/img/airlines/CX.png' },
   { code: 'HX', name: 'Hong Kong Airlines', logo: '/assets/img/airlines/HX.png' },
   { code: 'UO', name: 'Hong Kong Express Airways', logo: '/assets/img/airlines/UO.png' },
+  { code: 'HB', name: 'Greater Bay Airlines', logo: '/assets/img/airlines/HB.png' },
 
   // -- Hungary --
   { code: 'MA', name: 'Malév', logo: '/assets/img/airlines/MA.png' },
