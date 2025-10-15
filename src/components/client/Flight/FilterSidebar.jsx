@@ -447,7 +447,6 @@ export default function FilterSidebar({
 
       {/* Airlines — outbound */}
       <Section title="Airlines (outbound)">
-        {/* Search: full width */}
         <div className="mb-2">
           <input
             type="text"
@@ -456,18 +455,18 @@ export default function FilterSidebar({
             onChange={(e) => setAirlineSearchOW(e.target.value)}
             className="h-9 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
           />
-          {/* Pills: moved below the input */}
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          {/* Small pills in a flex div */}
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <button
               type="button"
-              className="rounded-full ring-1 ring-slate-300 px-3 py-1 hover:bg-slate-50"
+              className="rounded-full ring-1 ring-slate-300 px-2.5 py-1 text-xs hover:bg-slate-50"
               onClick={() => bulkToggle("oneway", filteredOnewayAirlines)(true)}
             >
               Select visible
             </button>
             <button
               type="button"
-              className="rounded-full ring-1 ring-slate-300 px-3 py-1 hover:bg-slate-50"
+              className="rounded-full ring-1 ring-slate-300 px-2.5 py-1 text-xs hover:bg-slate-50"
               onClick={() => bulkToggle("oneway", filteredOnewayAirlines)(false)}
             >
               Clear visible
@@ -497,10 +496,10 @@ export default function FilterSidebar({
       </Section>
 
 
+
       {/* Airlines — return */}
       {returnFlights?.length > 0 && (
         <Section title="Airlines (return)">
-          {/* Search: full width */}
           <div className="mb-2">
             <input
               type="text"
@@ -509,18 +508,18 @@ export default function FilterSidebar({
               onChange={(e) => setAirlineSearchRT(e.target.value)}
               className="h-9 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
             />
-            {/* Pills: moved below the input */}
-            <div className="mt-2 flex flex-wrap items-center gap-2">
+            {/* Small pills in a flex div */}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <button
                 type="button"
-                className="rounded-full ring-1 ring-slate-300 px-3 py-1 hover:bg-slate-50"
+                className="rounded-full ring-1 ring-slate-300 px-2.5 py-1 text-xs hover:bg-slate-50"
                 onClick={() => bulkToggle("return", filteredReturnAirlines)(true)}
               >
                 Select visible
               </button>
               <button
                 type="button"
-                className="rounded-full ring-1 ring-slate-300 px-3 py-1 hover:bg-slate-50"
+                className="rounded-full ring-1 ring-slate-300 px-2.5 py-1 text-xs hover:bg-slate-50"
                 onClick={() => bulkToggle("return", filteredReturnAirlines)(false)}
               >
                 Clear visible
@@ -549,6 +548,7 @@ export default function FilterSidebar({
           </div>
         </Section>
       )}
+
 
 
       {/* Footer actions */}
