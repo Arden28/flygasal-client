@@ -695,11 +695,11 @@ const FlightPage = () => {
           });
           if (items.length >= MAX_RESULTS) break;
         }
-        items.sort((a, b) => a.totalPrice - b.totalPrice);
+        items.sort((a, b) => a.priceBreakdown.totals.grand - b.priceBreakdown.totals.grand);
         const final = new Map();
         for (const it of items) {
           const k = returnKey(it.outbound, it.return, it.cabin);
-          if (!final.has(k) || it.totalPrice < final.get(k).totalPrice) final.set(k, it);
+          if (!final.has(k) || it.priceBreakdown.totals.grand < final.get(k).priceBreakdown.totals.grand) final.set(k, it);
         }
         return Array.from(final.values());
       }
@@ -795,7 +795,8 @@ const FlightPage = () => {
 
     return itineraries
       .filter((it) => {
-        const priceOk = it.totalPrice >= low && it.totalPrice <= high;
+        // const priceOk = it.totalPrice >= low && it.totalPrice <= high;
+        const priceOk = it.priceBreakdown.totals.grand >= low && it.priceBreakdown.totals.grand <= high;
 
             // ----- Robust stops across oneway/return/multi -----
             // Prefer itinerary.totalStops; if missing, derive from segments.
