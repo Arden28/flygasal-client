@@ -82,7 +82,7 @@ const SortNavigation = ({ sortOrder, handleSortChange, isSearchFormVisible, togg
             className={`nav-link px-0 rounded-5 ${sortOrder === 'desc' ? 'active' : ''}`}
             onClick={() => handleSortChange('desc')}
           >
-            <span className={`d-block w-100 ${sortOrder === 'desc' ? 'text-black' : ''} d-flex align-items-center justify-content-center gap-2`}>
+            <span className={`d-block w-100 fs-5 ${sortOrder === 'desc' ? 'text-black' : ''} d-flex align-items-center justify-content-center gap-2`}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="21"
