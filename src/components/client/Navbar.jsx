@@ -22,7 +22,7 @@ export default function Navbar() {
 
   const navLinks = useMemo(
     () => [
-      { to: "/flight/availability", label: "Flights" },
+      { to: "/", label: "Flights" },
       { to: "/hotel/availability", label: "Hotels" },
     ],
     []
