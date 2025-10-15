@@ -1083,42 +1083,39 @@ useEffect(() => {
                     <AnimatePresence>
                       {openCal?.type === "depart" && openCal?.idx === idx && rectForThisLeg && (
                         <Portal>
+                          {/* Backdrop for outside-click close */}
+                          <div
+                            className="fixed inset-0 z-[99990]"
+                            onMouseDown={() => setOpenCal(null)}
+                          />
+
                           <motion.div
-                            initial={{ opacity: 0, y: -6 }}
+                            initial={{ opacity: 0, y: -8 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -6 }}
+                            exit={{ opacity: 0, y: -8 }}
                             transition={{ duration: 0.18 }}
+                            onMouseDown={(e) => e.stopPropagation()}
                             style={{
                               position: "fixed",
-                              top: pos.top,
-                              left: pos.left,
-                              width: pos.width,
+                              top: calcCalendarPosition(departRect).top,
+                              left: calcCalendarPosition(departRect).left,
+                              width: calcCalendarPosition(departRect).width,
                               zIndex: 100000,
                             }}
                           >
-                            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-2xl">
-                              <div className="px-2 pt-1 pb-2 text-xs font-medium text-slate-600">
-                                Departure (Leg {idx + 1})
-                              </div>
+                            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
+                              <div className="px-2 pt-1 pb-1 text-xs font-medium text-slate-600">Departure</div>
                               <Calendar
-                                date={leg.dateRange.startDate}
-                                onChange={(d) => handleDepartPick(idx, d)}
+                                date={flightsState[0]?.dateRange?.startDate}
+                                onChange={(d) => handleDepartPick(0, d)}
                                 minDate={today}
                                 months={1}
                                 showMonthAndYearPickers
                               />
-                              <div className="p-2 pt-0 flex justify-end">
-                                <button
-                                  type="button"
-                                  className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs text-white hover:bg-black"
-                                  onClick={() => setOpenCal(null)}
-                                >
-                                  Done
-                                </button>
-                              </div>
                             </div>
                           </motion.div>
                         </Portal>
+
                       )}
                     </AnimatePresence>
                   </div>
