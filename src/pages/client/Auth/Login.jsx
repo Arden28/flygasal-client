@@ -142,7 +142,7 @@ const handleTelegramLogin = () => {
   const s = document.createElement("script");
   s.async = true;
   s.src = "https://telegram.org/js/telegram-widget.js?22";
-  s.setAttribute("data-telegram-login", "flygasal_Bot"); // your bot username
+  s.setAttribute("data-telegram-login", "Arden28_bot"); // your bot username
   s.setAttribute("data-size", "large");
   s.setAttribute("data-userpic", "false");
   s.setAttribute("data-onauth", cbName); // calls window[cbName](user)

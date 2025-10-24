@@ -22,6 +22,15 @@ const auth = {
         return response.data;
     },
 
+    telegram: async (credentials) => {
+        const response = await apiService.post('/telegram', credentials);
+        const { access_token: token } = response.data;
+        // console.log('Login successful, token:', response.data);
+        apiService.setToken(token);
+
+        return response.data;
+    },
+
     register: async (userData) => {
         const response = await apiService.post('/register', userData);
         const { access_token: token } = response.data;
