@@ -2,6 +2,7 @@ import { useState } from "react";
 import jsPDF from "jspdf";
 import { formatDate, formatTime } from "../utils/dateFormatter";
 
+/* ---------------- utils ---------------- */
 const hexToRGB = (hex) => {
   const h = String(hex || "").replace("#", "");
   const s = h.length === 3 ? h.split("").map(c => c + c).join("") : h;
@@ -12,6 +13,7 @@ const hexToRGB = (hex) => {
 const money = (n, c = "USD") =>
   (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency: c });
 
+/** Renders an image onto a white canvas to strip alpha (prevents black boxes in PDFs). */
 const toScaledPNG = (url, maxW = 260, maxH = 120) =>
   new Promise((resolve) => {
     if (!url) return resolve(null);
@@ -37,10 +39,49 @@ const toScaledPNG = (url, maxW = 260, maxH = 120) =>
     img.src = url;
   });
 
+/** Circular crop + white background for airline logos. */
+const toCirclePNG = (url, diameter = 28) =>
+  new Promise((resolve) => {
+    if (!url) return resolve(null);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = function () {
+      try {
+        const c = document.createElement("canvas");
+        c.width = diameter; c.height = diameter;
+        const ctx = c.getContext("2d");
+        // white base to avoid alpha artifacts
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, diameter, diameter);
+        // circular clip
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(diameter/2, diameter/2, diameter/2, 0, Math.PI*2);
+        ctx.closePath();
+        ctx.clip();
+        // cover-fit image
+        const rW = this.naturalWidth || this.width;
+        const rH = this.naturalHeight || this.height;
+        const scale = Math.max(diameter / rW, diameter / rH);
+        const w = rW * scale;
+        const h = rH * scale;
+        ctx.drawImage(this, (diameter - w)/2, (diameter - h)/2, w, h);
+        ctx.restore();
+        resolve(c.toDataURL("image/png"));
+      } catch { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+
+/* -------------- hook -------------- */
 export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
-  const downloadETicket = async ({ bookingData, qrCodeUrl, user, getAirlineLogo, getAirlineName, getAirportName }) => {
+  const downloadETicket = async ({
+    bookingData, qrCodeUrl, user,
+    getAirlineLogo, getAirlineName, getAirportName
+  }) => {
     if (!bookingData) return;
     setIsDownloadingPdf(true);
     try {
@@ -75,10 +116,11 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
         : "—";
       const paid = (bookingData?.payStatus || "").toLowerCase() === "paid";
 
+      // assets (white-canvas PNGs)
       const logo = await toScaledPNG("/assets/img/logo/flygasal.png", 320, 120);
       const qrPng = await toScaledPNG(qrCodeUrl, 220, 220);
 
-      // Header
+      /* ---------- Header ---------- */
       if (logo) {
         doc.setFillColor(...rgb.wash);
         doc.setDrawColor(...rgb.line);
@@ -89,6 +131,7 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
       doc.setFont("helvetica", "bold"); doc.setTextColor(...rgb.text);
       doc.setFontSize(18);
       doc.text("E-TICKET", rightX, y + 7);
+
       const chip = (txt, x, y0) => {
         doc.setFont("helvetica", "bold"); doc.setFontSize(8);
         const padX = 3.4, r = 2.2;
@@ -103,7 +146,9 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
       let cx = rightX;
       cx = chip(`ORDER: ${orderRef}`, cx, y + 10.5);
       chip(`PNR: ${pnr}`, cx, y + 10.5);
+
       if (qrPng) doc.addImage(qrPng, "PNG", page.w - M - 22, y + 1.5, 22, 22);
+
       doc.setDrawColor(...rgb.brand);
       doc.setLineWidth(0.9);
       doc.line(M, y + 24.5, page.w - M, y + 24.5);
@@ -112,7 +157,7 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
 
       const ensure = (need) => { if (y + need > page.h - M) { doc.addPage(); y = M; } };
 
-      // Passengers + Amount
+      /* ---------- Passengers + Amount ---------- */
       ensure(20);
       doc.setFillColor(...rgb.wash);
       doc.setDrawColor(...rgb.line);
@@ -134,13 +179,15 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
       doc.text(money(amountDue, currency), M + W - 7, y + 12.6, { align: "right" });
       y += 24;
 
-      // Contact Info
+      /* ---------- Contact Info ---------- */
       ensure(26);
       doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(...rgb.text);
       doc.text("Contact Info", M, y);
       doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(71,85,105);
+
       const c1 = [`Name: ${user?.name || "—"}`, `Email: ${user?.email || "—"}`, `Phone: ${user?.phone_number || "—"}`];
       const c2 = [`Issued: ${createdStr}`, `Support: support@flygasal.com`, `Ref: ${orderRef} / ${pnr}`];
+
       const colW = W / 2 - 6;
       const c1Wrapped = doc.splitTextToSize(c1.join("\n"), colW);
       const c2Wrapped = doc.splitTextToSize(c2.join("\n"), colW);
@@ -148,7 +195,7 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
       doc.text(c2Wrapped, M + colW + 12, y + 5);
       y += Math.max(c1Wrapped.length, c2Wrapped.length) * 4.6 + 10;
 
-      // Segments (minimal)
+      /* ---------- Segments (dynamic height; circular airline logo) ---------- */
       const drawBarcode = (x, y, w = 30, h = 9, seed = 11) => {
         doc.setDrawColor(15, 23, 42);
         doc.setFillColor(15, 23, 42);
@@ -162,16 +209,73 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
 
       for (const j of (journeys || [])) {
         for (const seg of (j?.segments || [])) {
-          const tH = 54, stubW = 34;
+          // layout constants
+          const stubW = 34;
+          const bodyX = M + 10;
+          const bodyW = W - stubW - 20;
+          const topY  = y + 16;
+
+          // prepare wraps to compute dynamic height BEFORE ensure()
+          const depDate = formatDate(seg?.departureDate);
+          const depTime = seg?.departureTime || "—";
+          const depCode = seg?.departure || "—";
+          const depAirport = getAirportName(depCode) || depCode;
+          const depLine = `${depDate} • ${depAirport}`;
+          const depWrap = doc.splitTextToSize(depLine, bodyW * 0.6);
+
+          const arrDate = formatDate(seg?.arrivalDate);
+          const arrTime = seg?.arrivalTime || "—";
+          const arrCode = seg?.arrival || "—";
+          const arrAirport = getAirportName(arrCode) || arrCode;
+          const arrLine = `${arrDate} • ${arrAirport}`;
+          const arrWrap = doc.splitTextToSize(arrLine, bodyW * 0.6);
+
+          const extras = [
+            seg?.cabinBaggage ? `Cabin: ${seg.cabinBaggage}` : null,
+            seg?.checkedBaggage ? `Baggage: ${seg.checkedBaggage}` : null,
+          ].filter(Boolean).join("   •   ");
+          const extrasWrap = extras ? doc.splitTextToSize(extras, bodyW) : [];
+
+          // vertical math (line heights ~4.6mm for wrapped text)
+          const depBlockBottom = topY + 11 + depWrap.length * 4.6;      // time@+6 + text starts @+11
+          const arrY           = topY + 14.5;                            // time baseline
+          const arrBlockBottom = arrY + 11 + arrWrap.length * 4.6;       // time + wrapped
+          const mainBottom     = Math.max(depBlockBottom, arrBlockBottom);
+
+          const extrasY = mainBottom + (extrasWrap.length ? 3.5 : 0);
+          const afterExtras = extrasY + (extrasWrap.length ? extrasWrap.length * 4.6 + 2 : 0);
+
+          const labelsY = afterExtras + 6.5;
+          const valuesY = labelsY + 5.1 + 6.5; // label ~8pt then a gap then value ~10.2pt
+
+          // ticket height with breathing room
+          const contentBottom = Math.max(valuesY, afterExtras);
+          const tH = Math.max(54, (contentBottom - y) + 10);
+
+          // now ensure we have space
           ensure(tH + 6);
+
+          // card container
           doc.setDrawColor(...rgb.line);
           doc.setFillColor(255,255,255);
           doc.roundedRect(M, y, W, tH, 4, 4, "S");
 
-          // airline strip
+          // header strip
           doc.setFillColor(...rgb.wash);
           doc.rect(M, y, W - stubW, 12, "F");
-          const alName = getAirlineName(seg?.airline) || seg?.airline || "—";
+
+          // circular airline logo (with white plate to avoid edges)
+          const circleLogo = await toCirclePNG(
+            `/assets/img/airlines/${getAirlineLogo(seg?.airline)}.png`,
+            20
+          );
+          doc.setDrawColor(...rgb.line);
+          doc.setFillColor(255,255,255);
+          doc.circle(M + 10, y + 6, 6.8, "FD");
+          if (circleLogo) doc.addImage(circleLogo, "PNG", M + 3.5, y + 0.5, 13, 13);
+
+          // airline name + flight code
+          const alName = (getAirlineName(seg?.airline) || seg?.airline || "—").trim();
           const flightCode = `${seg?.type || ""} ${seg?.flightNum || ""}`.trim();
           doc.setFont("helvetica", "bold"); doc.setTextColor(...rgb.text);
           doc.setFontSize(10.2);
@@ -194,66 +298,69 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
           };
           dash(perfX, y + 4, perfX, y + tH - 4);
 
-          // staggered info
-          const bodyX = M + 10, bodyW = W - stubW - 20, topY = y + 16;
-          const depDate = formatDate(seg?.departureDate);
-          const depTime = seg?.departureTime || "—";
-          const depCode = seg?.departure || "—";
-          const depAirport = getAirportName(depCode) || depCode;
-
+          // departure block
           doc.setFont("helvetica", "bold"); doc.setTextColor(...rgb.text);
-          doc.setFontSize(13); doc.text(depTime, bodyX, topY + 6);
+          doc.setFontSize(13);
+          doc.text(depTime, bodyX, topY + 6);
           doc.setFont("helvetica", "normal"); doc.setFontSize(8.6); doc.setTextColor(...rgb.sub);
-          doc.text(`${depDate} • ${depAirport}`, bodyX, topY + 11);
+          doc.text(depWrap, bodyX, topY + 11);
 
-          const arrDate = formatDate(seg?.arrivalDate);
-          const arrTime = seg?.arrivalTime || "—";
-          const arrCode = seg?.arrival || "—";
-          const arrAirport = getAirportName(arrCode) || arrCode;
-          const arrY = topY + 14.5;
-
+          // arrival block (right)
           doc.setFont("helvetica", "bold"); doc.setTextColor(...rgb.text);
-          doc.setFontSize(13); doc.text(arrTime, bodyX + bodyW, arrY + 6, { align: "right" });
+          doc.setFontSize(13);
+          doc.text(arrTime, bodyX + bodyW, arrY + 6, { align: "right" });
           doc.setFont("helvetica", "normal"); doc.setFontSize(8.6); doc.setTextColor(...rgb.sub);
-          doc.text(`${arrDate} • ${arrAirport}`, bodyX + bodyW, arrY + 11, { align: "right" });
+          const arrWrapY = arrY + 11;
+          // draw wrapped lines right-aligned
+          let yy = arrWrapY;
+          arrWrap.forEach((line) => {
+            doc.text(line, bodyX + bodyW, yy, { align: "right" });
+            yy += 4.6;
+          });
 
-          // extras
-          const extrasY = topY + 28;
-          const extras = [
-            seg?.cabinBaggage ? `Cabin: ${seg.cabinBaggage}` : null,
-            seg?.checkedBaggage ? `Baggage: ${seg.checkedBaggage}` : null,
-          ].filter(Boolean).join("   •   ");
-          if (extras) {
+          // extras (if any)
+          if (extrasWrap.length) {
             doc.setFont("helvetica", "normal"); doc.setFontSize(8.6); doc.setTextColor(...rgb.sub);
-            doc.text(extras, bodyX, extrasY);
+            yy = extrasY;
+            extrasWrap.forEach((line) => {
+              doc.text(line, bodyX, yy);
+              yy += 4.6;
+            });
           }
 
+          // passenger / ticket lines below everything
           const pax = passengers[0];
           const paxName = pax ? [pax.firstName, pax.lastName].filter(Boolean).join(" ") : "—";
           const ticketNum = pax?.ticketNum || "—";
+
           doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(71,85,105);
-          doc.text("Passenger", bodyX, extrasY + 6.5);
-          doc.text("Ticket", bodyX + bodyW, extrasY + 6.5, { align: "right" });
+          doc.text("Passenger", bodyX, labelsY);
+          doc.text("Ticket", bodyX + bodyW, labelsY, { align: "right" });
+
           doc.setFont("helvetica", "normal"); doc.setFontSize(10.2); doc.setTextColor(...rgb.text);
-          doc.text(paxName, bodyX, extrasY + 11.6);
-          doc.text(ticketNum, bodyX + bodyW, extrasY + 11.6, { align: "right" });
+          doc.text(paxName, bodyX, valuesY);
+          doc.text(ticketNum, bodyX + bodyW, valuesY, { align: "right" });
 
           // stub with barcode
           const stubX = perfX, stubY = y, stubH = tH;
-          doc.setFillColor(...rgb.wash2); doc.rect(stubX, stubY, stubW, stubH, "F");
+          doc.setFillColor(...rgb.wash2);
+          doc.rect(stubX, stubY, stubW, stubH, "F");
+
           doc.setFont("helvetica", "bold"); doc.setFontSize(9.6); doc.setTextColor(...rgb.text);
           doc.text(depCode, stubX + stubW / 2, stubY + 9, { align: "center" });
           doc.setFont("helvetica", "normal"); doc.setFontSize(7.6); doc.setTextColor(71,85,105);
           doc.text("to", stubX + stubW / 2, stubY + 13, { align: "center" });
           doc.setFont("helvetica", "bold"); doc.setFontSize(9.6); doc.setTextColor(...rgb.text);
           doc.text(arrCode, stubX + stubW / 2, stubY + 17, { align: "center" });
+
           drawBarcode(stubX + 3.5, stubY + stubH - 13, stubW - 7, 9, 13);
 
+          // advance cursor
           y += tH + 10;
         }
       }
 
-      // Fare (simple)
+      /* ---------- Fare ---------- */
       if (solutions0) {
         ensure(20);
         doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(...rgb.text);
@@ -263,7 +370,7 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
         y += 16;
       }
 
-      // Terms + footer
+      /* ---------- Terms + footer ---------- */
       const terms =
         "This e-ticket must be presented with a valid ID at check-in. Baggage allowances and fare rules vary by airline and fare class. For changes or refunds, contact support with your Order Reference and PNR.";
       const wrap = (t, w) => doc.splitTextToSize(t, w);
