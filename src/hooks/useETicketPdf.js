@@ -40,7 +40,7 @@ const toScaledPNG = (url, maxW = 260, maxH = 120) =>
   });
 
 /** Circular crop + white background for airline logos (oversampled for sharpness). */
-const toCirclePNG = (url, diameter = 16, oversample = 3) =>
+const toCirclePNG = (url, diameter = 12, oversample = 3) =>
   new Promise((resolve) => {
     if (!url) return resolve(null);
     const img = new Image();
@@ -196,7 +196,7 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
       doc.text(c2Wrapped, M + colW + 12, y + 5);
       y += Math.max(c1Wrapped.length, c2Wrapped.length) * 4.6 + 10;
 
-      /* ---------- Segments (dynamic height; crisp circular airline logo) ---------- */
+      /* ---------- Segments (dynamic height; smaller crisp circular airline logo) ---------- */
       for (const j of (journeys || [])) {
         for (const seg of (j?.segments || [])) {
           // layout constants
@@ -226,23 +226,21 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
           ].filter(Boolean).join("   •   ");
           const extrasWrap = extras ? doc.splitTextToSize(extras, bodyW) : [];
 
-          // vertical math (line heights ~4.6mm for wrapped text)
-          const depBlockBottom = topY + 11 + depWrap.length * 4.6;      // time@+6 + text starts @+11
-          const arrY           = topY + 14.5;                            // time baseline
-          const arrBlockBottom = arrY + 11 + arrWrap.length * 4.6;       // time + wrapped
+          // vertical math
+          const depBlockBottom = topY + 11 + depWrap.length * 4.6;
+          const arrY           = topY + 14.5;
+          const arrBlockBottom = arrY + 11 + arrWrap.length * 4.6;
           const mainBottom     = Math.max(depBlockBottom, arrBlockBottom);
 
           const extrasY = mainBottom + (extrasWrap.length ? 3.5 : 0);
           const afterExtras = extrasY + (extrasWrap.length ? extrasWrap.length * 4.6 + 2 : 0);
 
           const labelsY = afterExtras + 6.5;
-          const valuesY = labelsY + 5.1 + 6.5; // label ~8pt then a gap then value ~10.2pt
+          const valuesY = labelsY + 5.1 + 6.5;
 
-          // ticket height with breathing room
           const contentBottom = Math.max(valuesY, afterExtras);
           const tH = Math.max(54, (contentBottom - y) + 10);
 
-          // now ensure we have space
           ensure(tH + 6);
 
           // card container
@@ -254,30 +252,28 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
           doc.setFillColor(...rgb.wash);
           doc.rect(M, y, W - stubW, 12, "F");
 
-          // circular airline logo (oversampled + smaller placement for sharpness)
+          // smaller circular airline logo (plate ~11.6mm, image ~9mm)
           const circleLogo = await toCirclePNG(
             `/assets/img/airlines/${getAirlineLogo(seg?.airline)}.png`,
-            16, // visual diameter
-            3   // oversample
+            12, // visual diameter
+            3
           );
-          // white plate to keep edges clean
           doc.setDrawColor(...rgb.line);
           doc.setFillColor(255,255,255);
-          doc.circle(M + 10, y + 6, 6.5, "FD");
+          doc.circle(M + 9, y + 6, 5.8, "FD"); // plate radius 5.8mm
           if (circleLogo) {
-            // ~12x12mm inside the plate
-            doc.addImage(circleLogo, "PNG", M + 4, y + 0.2, 12, 12);
+            doc.addImage(circleLogo, "PNG", M + 4.5, y + 1.1, 9, 9); // crisp + smaller
           }
 
-          // airline name + flight code (tiny spacing tweaks)
+          // airline name + flight code
           const alName = (getAirlineName(seg?.airline) || seg?.airline || "—").trim();
           const flightCode = `${seg?.type || ""} ${seg?.flightNum || ""}`.trim();
           doc.setFont("helvetica", "bold"); doc.setTextColor(...rgb.text);
           doc.setFontSize(10.2);
-          doc.text(alName, M + 20, y + 7.6);
-          doc.setTextColor(...rgb.brand); doc.setFontSize(9.4);
+          doc.text(alName, M + 18, y + 7.4);
+          doc.setTextColor(...rgb.brand); doc.setFontSize(9.2);
           const nameW = doc.getTextWidth(alName);
-          doc.text(flightCode || "—", M + 20 + nameW + 4, y + 7.6);
+          doc.text(flightCode || "—", M + 18 + nameW + 4, y + 7.4);
 
           // perforation (vertical dashed)
           doc.setDrawColor(203,213,225);
@@ -308,16 +304,15 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
           doc.setFontSize(13);
           doc.text(arrTime, bodyX + bodyW, arrY + 6, { align: "right" });
           doc.setFont("helvetica", "normal"); doc.setFontSize(8.6); doc.setTextColor(...rgb.sub);
-          const arrWrapY = arrY + 11;
-          // draw wrapped lines right-aligned
-          let yy = arrWrapY;
+          let yy = arrY + 11;
           arrWrap.forEach((line) => {
             doc.text(line, bodyX + bodyW, yy, { align: "right" });
             yy += 4.6;
           });
 
           // extras (if any)
-          if (extrasWrap.length) {
+          const extrasWrapLen = extrasWrap.length;
+          if (extrasWrapLen) {
             doc.setFont("helvetica", "normal"); doc.setFontSize(8.6); doc.setTextColor(...rgb.sub);
             yy = extrasY;
             extrasWrap.forEach((line) => {
@@ -339,7 +334,7 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
           doc.text(paxName, bodyX, valuesY);
           doc.text(ticketNum, bodyX + bodyW, valuesY, { align: "right" });
 
-          // stub (no barcode; light dashed guide at bottom to avoid black rectangles)
+          // stub (no barcode; light dashed guide at bottom)
           const stubX = perfX, stubY = y, stubH = tH;
           doc.setFillColor(...rgb.wash2);
           doc.rect(stubX, stubY, stubW, stubH, "F");
@@ -351,7 +346,6 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
           doc.setFont("helvetica", "bold"); doc.setFontSize(9.6); doc.setTextColor(...rgb.text);
           doc.text(arrCode, stubX + stubW / 2, stubY + 17, { align: "center" });
 
-          // subtle dashed line near bottom of stub (stroke-only, light gray)
           doc.setDrawColor(226, 232, 240);
           dash(stubX + 3, stubY + stubH - 6, stubX + stubW - 3, stubY + stubH - 6, 1.2, 1.4);
 
