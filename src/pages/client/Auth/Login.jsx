@@ -252,7 +252,7 @@ const handleTelegramLogin = () => {
                       rel="noopener noreferrer"
                     >
                       <i className="bi bi-telegram fs-4"></i>
-                      <span>Continue with Telegram</span>
+                      <span>Continue on Telegram</span>
                     </a>
                   </div>
                 </div>

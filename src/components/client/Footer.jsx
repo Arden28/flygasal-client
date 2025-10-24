@@ -39,13 +39,6 @@ export default function Footer() {
         <div>
           <h5 className="font-semibold">Book with us</h5>
           <ul style={{ color: "#fff" }} className="mt-3 space-y-2 text-white">
-            <li><a href="#" className="text-white hover:text-gray-300">Airlines we ticket</a></li>
-            <li><a href="#" className="text-white hover:text-gray-300">Buy now, pay later</a></li>
-            <li><a href="#" className="text-white hover:text-gray-300">Pay the way you want</a></li>
-            <li><a href="#" className="text-white hover:text-gray-300">You're protected</a></li>
-            <li><a href="#" className="text-white hover:text-gray-300">Our customer service</a></li>
-            <li><a href="#" className="text-white hover:text-gray-300">Travel agents</a></li>
-            <li><a href="#" className="text-white hover:text-gray-300">Best Fare Finder</a></li>
             <li><a href="#" className="text-white hover:text-gray-300">Search &amp; book</a></li>
             <li><a href="#" className="text-white hover:text-gray-300">Multi stop search</a></li>
           </ul>
