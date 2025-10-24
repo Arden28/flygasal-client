@@ -295,7 +295,7 @@ const ItineraryList = ({
     return (
       <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white py-10">
         <img src="/assets/img/flights_search.gif" alt="No flights" style={{ width: 220 }} />
-        <div className="text-slate-700">No results match your filters.</div>
+        <div className="text-slate-700">No results match your search or filters.</div>
       </div>
     );
   }

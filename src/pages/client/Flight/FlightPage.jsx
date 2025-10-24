@@ -1400,7 +1400,7 @@ const FlightPage = () => {
                     />
                   ) : (
                     <div className="rounded-xl border border-gray-200 bg-white p-6 text-center text-gray-600">
-                      No results match your filters. Try widening time windows or clearing some filters.
+                      No results match your search or filters. Try widening time windows or clearing some filters.
                     </div>
                   )}
 
