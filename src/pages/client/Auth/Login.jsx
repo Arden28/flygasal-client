@@ -244,14 +244,16 @@ const handleTelegramLogin = () => {
                 <div className="mt-3 row text-center">
                   <hr />
                   <div className="bg-light p-3 rounded-3 border">
-                    <button
+                    <a
                       type="button"
                       className="btn btn-primary w-100 h-[44px] d-flex align-items-center justify-content-center gap-2"
-                      onClick={handleTelegramLogin}
+                      href="https://t.me/flygasal_Bot" 
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
                       <i className="bi bi-telegram fs-4"></i>
                       <span>Continue with Telegram</span>
-                    </button>
+                    </a>
                   </div>
                 </div>
               </div>
