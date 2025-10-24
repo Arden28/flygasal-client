@@ -56,7 +56,7 @@ export default function ClientLayout() {
   }
 
   return (
-    <div id="fadein">
+    <div className="flex flex-col min-h-screen" id="fadein">
       <Navbar />
       <SpinnerOrbit />
       <Outlet />
