@@ -367,6 +367,7 @@ const FlightPage = () => {
         destination: last.arrival,
         departureTime: first.departureAt,
         arrivalTime: last.arrivalAt,
+        journeyTime: offer?.journeyTime ?? 0,
         // Keep raw backend PB on a private field for the itinerary
         __sourcePB: offer.priceBreakdown,
       };
