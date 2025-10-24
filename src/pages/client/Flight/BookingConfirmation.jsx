@@ -8,6 +8,7 @@ import { Check } from "lucide-react";
 import jsPDF from "jspdf";
 import DepositModal from "../../../components/client/Account/DepositModal";
 import apiService from "../../../api/apiService";
+import useETicketPdf from "../../../hooks/useETicketPdf";
 
 /* ---------------- Payment Gateways ---------------- */
 const paymentGateways = [
@@ -114,7 +115,7 @@ const BookingConfirmation = ({
   const [searchTerm, setSearchTerm] = useState("");
 
   const [qrCodeUrl, setQrCodeUrl] = useState("");
-  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  // const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   // Wallet modal state
   const [showPayModal, setShowPayModal] = useState(false);
@@ -525,6 +526,10 @@ const BookingConfirmation = ({
   };
 
 /* ---------------- PDF: premium E-TICKET (refined header, staggered segments) ---------------- */
+
+  // PDF
+const { downloadETicket, isDownloadingPdf } = useETicketPdf({ brandColor });
+
 const handleDownloadPdf = async () => {
   if (!bookingData) return;
 
