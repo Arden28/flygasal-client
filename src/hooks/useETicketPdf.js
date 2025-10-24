@@ -115,7 +115,7 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
       const createdStr = bookingData?.createdTime
         ? `${formatDate(bookingData.createdTime)} ${formatTime(bookingData.createdTime)}`
         : "—";
-      const paid = (bookingData?.payStatus || "").toLowerCase() === "paid";
+      const paid = (bookingData?.payStatus || "").toLowerCase() === "paid" ;
 
       // assets (white-canvas PNGs)
       const logo = await toScaledPNG("/assets/img/logo/flygasal.png", 320, 120);

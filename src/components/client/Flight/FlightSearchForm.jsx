@@ -380,7 +380,8 @@ useEffect(() => {
         return { ...f, dateRange: { ...f.dateRange, startDate: start, endDate: end } };
       })
     );
-    if (isMobile) setOpenCal(null);
+    // close calendar after selecting a date
+    setOpenCal(null);
   };
 
   const handleReturnPick = (idx, date) => {
@@ -393,7 +394,8 @@ useEffect(() => {
         return { ...f, dateRange: { ...f.dateRange, endDate: end } };
       })
     );
-    if (isMobile) setOpenCal(null);
+    // close calendar after selecting a date
+    setOpenCal(null);
   };
 
   const swapPlaces = (idx) =>
