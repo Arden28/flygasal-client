@@ -39,33 +39,34 @@ const toScaledPNG = (url, maxW = 260, maxH = 120) =>
     img.src = url;
   });
 
-/** Circular crop + white background for airline logos. */
-const toCirclePNG = (url, diameter = 28) =>
+/** Circular crop + white background for airline logos (oversampled for sharpness). */
+const toCirclePNG = (url, diameter = 16, oversample = 3) =>
   new Promise((resolve) => {
     if (!url) return resolve(null);
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = function () {
       try {
+        const d = diameter * oversample;
         const c = document.createElement("canvas");
-        c.width = diameter; c.height = diameter;
+        c.width = d; c.height = d;
         const ctx = c.getContext("2d");
         // white base to avoid alpha artifacts
         ctx.fillStyle = "#fff";
-        ctx.fillRect(0, 0, diameter, diameter);
+        ctx.fillRect(0, 0, d, d);
         // circular clip
         ctx.save();
         ctx.beginPath();
-        ctx.arc(diameter/2, diameter/2, diameter/2, 0, Math.PI*2);
+        ctx.arc(d/2, d/2, d/2, 0, Math.PI*2);
         ctx.closePath();
         ctx.clip();
         // cover-fit image
         const rW = this.naturalWidth || this.width;
         const rH = this.naturalHeight || this.height;
-        const scale = Math.max(diameter / rW, diameter / rH);
+        const scale = Math.max(d / rW, d / rH);
         const w = rW * scale;
         const h = rH * scale;
-        ctx.drawImage(this, (diameter - w)/2, (diameter - h)/2, w, h);
+        ctx.drawImage(this, (d - w)/2, (d - h)/2, w, h);
         ctx.restore();
         resolve(c.toDataURL("image/png"));
       } catch { resolve(null); }
@@ -195,18 +196,7 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
       doc.text(c2Wrapped, M + colW + 12, y + 5);
       y += Math.max(c1Wrapped.length, c2Wrapped.length) * 4.6 + 10;
 
-      /* ---------- Segments (dynamic height; circular airline logo) ---------- */
-      const drawBarcode = (x, y, w = 30, h = 9, seed = 11) => {
-        doc.setDrawColor(15, 23, 42);
-        doc.setFillColor(15, 23, 42);
-        const bars = 38, step = w / bars;
-        for (let i = 0; i < bars; i++) {
-          const thick = ((i * seed) % 9) > 4 ? 1.05 : 0.55;
-          const bx = x + i * step + (step - thick) / 2;
-          doc.rect(bx, y, thick, h, "F");
-        }
-      };
-
+      /* ---------- Segments (dynamic height; crisp circular airline logo) ---------- */
       for (const j of (journeys || [])) {
         for (const seg of (j?.segments || [])) {
           // layout constants
@@ -264,36 +254,44 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
           doc.setFillColor(...rgb.wash);
           doc.rect(M, y, W - stubW, 12, "F");
 
-          // circular airline logo (with white plate to avoid edges)
+          // circular airline logo (oversampled + smaller placement for sharpness)
           const circleLogo = await toCirclePNG(
             `/assets/img/airlines/${getAirlineLogo(seg?.airline)}.png`,
-            20
+            16, // visual diameter
+            3   // oversample
           );
+          // white plate to keep edges clean
           doc.setDrawColor(...rgb.line);
           doc.setFillColor(255,255,255);
-          doc.circle(M + 10, y + 6, 6.8, "FD");
-          if (circleLogo) doc.addImage(circleLogo, "PNG", M + 3.5, y + 0.5, 13, 13);
+          doc.circle(M + 10, y + 6, 6.5, "FD");
+          if (circleLogo) {
+            // ~12x12mm inside the plate
+            doc.addImage(circleLogo, "PNG", M + 4, y + 0.2, 12, 12);
+          }
 
-          // airline name + flight code
+          // airline name + flight code (tiny spacing tweaks)
           const alName = (getAirlineName(seg?.airline) || seg?.airline || "—").trim();
           const flightCode = `${seg?.type || ""} ${seg?.flightNum || ""}`.trim();
           doc.setFont("helvetica", "bold"); doc.setTextColor(...rgb.text);
           doc.setFontSize(10.2);
-          doc.text(alName, M + 18, y + 7.5);
-          doc.setTextColor(...rgb.brand); doc.setFontSize(9.6);
-          doc.text(flightCode || "—", M + 18 + doc.getTextWidth(alName) + 5, y + 7.5);
+          doc.text(alName, M + 20, y + 7.6);
+          doc.setTextColor(...rgb.brand); doc.setFontSize(9.4);
+          const nameW = doc.getTextWidth(alName);
+          doc.text(flightCode || "—", M + 20 + nameW + 4, y + 7.6);
 
-          // perforation
+          // perforation (vertical dashed)
           doc.setDrawColor(203,213,225);
           const perfX = M + W - stubW;
           const dash = (x1, y1, x2, y2, d = 1.6, g = 1.6) => {
             const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy);
-            const n = Math.floor(len / (d + g));
+            if (len <= 0) return;
             const ux = dx / len, uy = dy / len;
-            for (let i = 0; i < n; i++) {
-              const sx = x1 + (d + g) * i * ux;
-              const sy = y1 + (d + g) * i * uy;
-              doc.line(sx, sy, sx + d * ux, sy + d * uy);
+            let t = 0;
+            while (t + d <= len) {
+              const sx = x1 + t * ux, sy = y1 + t * uy;
+              const ex = sx + d * ux, ey = sy + d * uy;
+              doc.line(sx, sy, ex, ey);
+              t += d + g;
             }
           };
           dash(perfX, y + 4, perfX, y + tH - 4);
@@ -341,7 +339,7 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
           doc.text(paxName, bodyX, valuesY);
           doc.text(ticketNum, bodyX + bodyW, valuesY, { align: "right" });
 
-          // stub with barcode
+          // stub (no barcode; light dashed guide at bottom to avoid black rectangles)
           const stubX = perfX, stubY = y, stubH = tH;
           doc.setFillColor(...rgb.wash2);
           doc.rect(stubX, stubY, stubW, stubH, "F");
@@ -349,11 +347,13 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
           doc.setFont("helvetica", "bold"); doc.setFontSize(9.6); doc.setTextColor(...rgb.text);
           doc.text(depCode, stubX + stubW / 2, stubY + 9, { align: "center" });
           doc.setFont("helvetica", "normal"); doc.setFontSize(7.6); doc.setTextColor(71,85,105);
-          doc.text("to", stubX + stubW / 2, stubY + 13, { align: "center" });
+          doc.text("to",   stubX + stubW / 2, stubY + 13, { align: "center" });
           doc.setFont("helvetica", "bold"); doc.setFontSize(9.6); doc.setTextColor(...rgb.text);
           doc.text(arrCode, stubX + stubW / 2, stubY + 17, { align: "center" });
 
-          drawBarcode(stubX + 3.5, stubY + stubH - 13, stubW - 7, 9, 13);
+          // subtle dashed line near bottom of stub (stroke-only, light gray)
+          doc.setDrawColor(226, 232, 240);
+          dash(stubX + 3, stubY + stubH - 6, stubX + stubW - 3, stubY + stubH - 6, 1.2, 1.4);
 
           // advance cursor
           y += tH + 10;
