@@ -292,8 +292,8 @@ const BookingForm = ({
           <div className="checkout-btn mb-1">
             <button
               type="button"
-              onClick={() => handlePayment(draftForm.payment_method)}
-              disabled={!isFormValid || !draftForm.payment_method || isProcessing}
+              onClick={() => handlePayment(draftForm)}
+              disabled={!draftForm?.travelers?.length || !draftForm.payment_method || isProcessing}
               className="btn w-full bg-[#0ea5e9] text-white font-semibold py-3 px-4 rounded-2xl hover:bg-[#1982FF] transition duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {isProcessing ? (

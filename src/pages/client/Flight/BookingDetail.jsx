@@ -315,6 +315,11 @@ const BookingDetail = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // cleanup useEffect
+  useEffect(() => {
+    localStorage.removeItem("bookingFormDraft"); // legacy key cleanup
+  }, []);
+
   const [tripDetails, setTripDetails] = useState(null);
   const [flight, setFlight] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -350,8 +355,14 @@ const BookingDetail = () => {
   /* ---------- Agency Markup ---------- */
   const agentMarkupPercent = user?.agency_markup || 0;
 
+  const draftKey = useMemo(() => {
+     const sp = new URLSearchParams(location.search);
+     // include identifiers that change per selection
+     return `bookingFormDraft:${sp.get("solutionId") || ""}:${sp.get("flightId") || ""}:${sp.get("returnFlightId") || ""}`;
+  }, [location.search]);
+
   const [formData, setFormData] = useState(() => {
-    const cached = localStorage.getItem("bookingFormDraft");
+     const cached = localStorage.getItem(draftKey);
     return (
       (cached && JSON.parse(cached)) || {
         full_name: "",
@@ -415,8 +426,8 @@ const BookingDetail = () => {
 
   /* ---------- form autosave ---------- */
   useEffect(() => {
-    localStorage.setItem("bookingFormDraft", JSON.stringify(formData));
-  }, [formData]);
+    localStorage.setItem(draftKey, JSON.stringify(formData));
+  }, [formData, draftKey]);
 
   /* ---------- validation ---------- */
   useEffect(() => {
@@ -735,12 +746,15 @@ const BookingDetail = () => {
 
   const typeMap = { adult: "ADT", child: "CHD", infant: "INF" };
 
-  const handlePayment = async () => {
+  const handlePayment = async (formOverride) => {
     if (holdExpired) {
       setError("Your fare hold has expired. Tap Reprice to refresh availability and pricing.");
       return;
     }
-    if (!isFormValid || !tripDetails) return;
+    if (!tripDetails) return;
+
+    // prefer the live on-screen draft from BookingForm
+    const workingForm = formOverride ?? formData;
 
     setIsProcessing(true);
     try {
@@ -760,7 +774,7 @@ const BookingDetail = () => {
         // selectedFlight: outbound,
         selectedReturnFlight: rtn || undefined,
         solutionId: flight.solutionId || null,
-        passengers: formData.travelers.map((t) => ({
+        passengers: (workingForm.travelers || []).map((t) => ({
           firstName: t.first_name,
           lastName: t.last_name,
           nationality: t.nationality,
@@ -778,13 +792,13 @@ const BookingDetail = () => {
                 ).padStart(2, "0")}`
               : null,
         })),
-        contactName: formData.full_name,
-        contactEmail: formData.email,
-        contactPhone: formData.phone,
+        contactName: workingForm.full_name,
+        contactEmail: workingForm.email,
+        contactPhone: workingForm.phone,
         totalPrice: Number(totalPrice || 0) + Number(agentFee || 0),
         currency: currency || "USD",
         agent_fee: markup || 0,
-        payment_method: formData.payment_method || "wallet",
+        payment_method: workingForm.payment_method || "wallet",
       };
       console.log("Booking with details:", bookingDetails);
 
