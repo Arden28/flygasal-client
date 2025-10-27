@@ -763,6 +763,7 @@ const BookingDetail = () => {
         passengers: formData.travelers.map((t) => ({
           firstName: t.first_name,
           lastName: t.last_name,
+          nationality: t.nationality,
           type: typeMap[t.type?.toLowerCase()] || "ADT",
           dob:
             t.dob_year && t.dob_month && t.dob_day

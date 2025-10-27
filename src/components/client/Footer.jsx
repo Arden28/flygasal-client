@@ -49,7 +49,6 @@ export default function Footer() {
             <li><a href="/bookings" className="text-white hover:text-gray-300">Manage my booking</a></li>
             <li><a href="#" className="text-white hover:text-gray-300">Help centre</a></li>
             <li><a href="#" className="text-white hover:text-gray-300">Contact us</a></li>
-            <li><a href="#" className="text-white hover:text-gray-300">Travel advice</a></li>
           </ul>
         </div>
         <div>
@@ -58,9 +57,6 @@ export default function Footer() {
             <li><a href="/about" className="text-white hover:text-gray-300">About us</a></li>
             <li><a href="#" className="text-white hover:text-gray-300">Reviews</a></li>
             <li><a href="#" className="text-white hover:text-gray-300">Blog</a></li>
-            <li><a href="#" className="text-white hover:text-gray-300">Media centre</a></li>
-            <li><a href="#" className="text-white hover:text-gray-300">Careers</a></li>
-            <li><a href="#" className="text-white hover:text-gray-300">Modern Slavery</a></li>
           </ul>
         </div>
       </div>
