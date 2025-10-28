@@ -79,7 +79,7 @@ const SortNavigation = ({
   );
 
   return (
-    <nav className="w-full">
+    <nav className="w-full mb-3">
       <div className="w-full overflow-hidden rounded-2xl ring-1 ring-slate-200">
         <div className="grid grid-cols-1 sm:grid-cols-3">
           {order.map((key, idx) => {
@@ -158,3 +158,4 @@ const SortNavigation = ({
 };
 
 export default SortNavigation;
+
