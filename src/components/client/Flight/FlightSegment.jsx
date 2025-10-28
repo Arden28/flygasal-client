@@ -321,16 +321,7 @@ const FlightSegment = ({
         {/* notes + select CTA */}
         <div className="mt-6 flex items-center justify-between">
           <div className="text-[11px] text-slate-500">* All times are local</div>
-          <button
-            type="button"
-            onClick={() => (typeof onSelect === "function" ? onSelect() : null)}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#5A46E0] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#4b3acb] transition"
-          >
-            Select this flight
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
+          <span>&nbsp;</span>
         </div>
       </div>
     </div>
