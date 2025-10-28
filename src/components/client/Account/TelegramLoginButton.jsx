@@ -3,34 +3,41 @@ import React, { useEffect, useRef } from "react";
 
 export default function TelegramLoginButton({ botUsername, onAuth }) {
   const containerRef = useRef(null);
-  const callbackNameRef = useRef("");
+  // Generate a stable callback name ONCE (not per effect run)
+  const cbNameRef = useRef(
+    "__tgAuthCB_" + Math.random().toString(36).slice(2)
+  );
 
   useEffect(() => {
-    if (!botUsername) return;
+    if (!botUsername || !containerRef.current) return;
 
-    // define unique global callback (Telegram requires a global function)
-    const cbName = "__tgAuthCB_" + Math.random().toString(36).slice(2);
-    callbackNameRef.current = cbName;
-    window[cbName] = (tgUser) => onAuth?.(tgUser);
+    const cbName = cbNameRef.current;
 
-    // inject script
+    // Define/refresh the global callback (idempotent)
+    window[cbName] = (tgUser) => {
+      try { onAuth?.(tgUser); } catch {}
+    };
+
+    // Guard: if Telegram script already inserted, clear container once
+    containerRef.current.innerHTML = "";
+
     const script = document.createElement("script");
     script.async = true;
     script.src = "https://telegram.org/js/telegram-widget.js?22";
-    script.setAttribute("data-telegram-login", botUsername);
+    script.setAttribute("data-telegram-login", botUsername); // EXACT username, no @
     script.setAttribute("data-size", "large");
-    script.setAttribute("data-userpic", "true");
+    script.setAttribute("data-userpic", "false");
     script.setAttribute("data-onauth", cbName);
     script.setAttribute("data-request-access", "write");
 
-    containerRef.current?.appendChild(script);
+    containerRef.current.appendChild(script);
 
+    // IMPORTANT: do NOT delete the global callback on cleanup in dev,
+    // because StrictMode mounts -> unmounts -> mounts again.
+    // Just remove the script node; keep the callback alive.
     return () => {
-      // cleanup
-      try { delete window[cbName]; } catch {}
-      if (script && containerRef.current) {
-        containerRef.current.innerHTML = "";
-      }
+      if (containerRef.current) containerRef.current.innerHTML = "";
+      // leave window[cbName] in place to survive StrictMode double-mount
     };
   }, [botUsername, onAuth]);
 
