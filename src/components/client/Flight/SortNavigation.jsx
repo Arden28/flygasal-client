@@ -6,35 +6,36 @@ import React from "react";
  * - No "modify search" button
  * - Active segment = solid color with white text
  * - Inactive segments = subtle light background
- * - Shows title, price and average duration (pass via props or relies on sensible defaults)
+ * - Shows title, price and average duration
+ * - Skeleton loading for price & duration (global `loading` or per-tab)
  *
  * Props:
  *   sortOrder: "recommended" | "cheapest" | "quickest"
  *   handleSortChange: (key) => void
+ *   loading?: boolean
  *   summaries?: {
- *     recommended?: { price?: string, duration?: string },
- *     cheapest?: { price?: string, duration?: string },
- *     quickest?: { price?: string, duration?: string },
+ *     recommended?: { price?: string, duration?: string, loading?: boolean },
+ *     cheapest?:    { price?: string, duration?: string, loading?: boolean },
+ *     quickest?:    { price?: string, duration?: string, loading?: boolean },
  *   }
  */
 const SortNavigation = ({
   sortOrder = "recommended",
   handleSortChange = () => {},
+  loading = false,
   summaries = {},
 }) => {
-  const data = {
+  const tabs = {
     recommended: {
       title: "Recommended",
       price: summaries?.recommended?.price ?? "€1 141",
       duration: summaries?.recommended?.duration ?? "16h 13m (average)",
-      // Active purple approximating AA’s tone
       activeBg: "bg-[#5A46E0]",
       inactiveBg: "bg-slate-50",
       activeText: "text-white",
       inactiveText: "text-slate-800",
-      leftRounded: true,
-      rightRounded: false,
       showInfo: true,
+      loading: !!summaries?.recommended?.loading,
     },
     cheapest: {
       title: "Cheapest",
@@ -44,9 +45,8 @@ const SortNavigation = ({
       inactiveBg: "bg-white",
       activeText: "text-white",
       inactiveText: "text-slate-800",
-      leftRounded: false,
-      rightRounded: false,
       showInfo: false,
+      loading: !!summaries?.cheapest?.loading,
     },
     quickest: {
       title: "Quickest",
@@ -56,34 +56,48 @@ const SortNavigation = ({
       inactiveBg: "bg-white",
       activeText: "text-white",
       inactiveText: "text-slate-800",
-      leftRounded: false,
-      rightRounded: true,
       showInfo: false,
+      loading: !!summaries?.quickest?.loading,
     },
   };
 
-  const tabs = ["recommended", "cheapest", "quickest"];
+  const order = ["recommended", "cheapest", "quickest"];
+
+  // Skeleton block (width variants to avoid uniform look)
+  const Skel = ({ active, w = "w-24", h = "h-4", className = "" }) => (
+    <span
+      className={[
+        "inline-block rounded",
+        h,
+        w,
+        "animate-pulse",
+        active ? "bg-white/40" : "bg-slate-200",
+        className,
+      ].join(" ")}
+      aria-hidden
+    />
+  );
 
   return (
     <nav className="w-full">
-      {/* Outer shell: rounded, subtle border, no shadow */}
       <div className="w-full overflow-hidden rounded-2xl ring-1 ring-slate-200">
         <div className="grid grid-cols-1 sm:grid-cols-3">
-          {tabs.map((key, idx) => {
+          {order.map((key, idx) => {
             const isActive = sortOrder === key;
-            const t = data[key];
+            const t = tabs[key];
 
-            // Corner rounding is on the outer shell; keep buttons square.
-            // Use separators between middle cells.
-            const separator =
-              idx > 0
-                ? "sm:border-l sm:border-slate-200"
-                : "";
+            const separator = idx > 0 ? "sm:border-l sm:border-slate-200" : "";
 
             const bg = isActive ? t.activeBg : t.inactiveBg;
             const text = isActive ? t.activeText : t.inactiveText;
             const priceText = isActive ? "text-white/95" : "text-slate-900";
             const durationText = isActive ? "text-white/90" : "text-slate-500";
+
+            const tabLoading =
+              loading ||
+              t.loading ||
+              !summaries?.[key]?.price ||
+              !summaries?.[key]?.duration;
 
             return (
               <button
@@ -108,9 +122,7 @@ const SortNavigation = ({
                       <svg
                         aria-hidden
                         viewBox="0 0 24 24"
-                        className={`h-4 w-4 ${
-                          isActive ? "text-white/90" : "text-[#5A46E0]"
-                        }`}
+                        className={`h-4 w-4 ${isActive ? "text-white/90" : "text-[#5A46E0]"}`}
                         fill="currentColor"
                       >
                         <path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Zm-.75-11.5h1.5V17h-1.5v-6.5Zm0-3h1.5V9h-1.5V7.5Z" />
@@ -118,11 +130,23 @@ const SortNavigation = ({
                     )}
                   </div>
                 </div>
-                <div className={`mt-2 text-sm font-semibold ${priceText}`}>
-                  {t.price}
+
+                {/* Price */}
+                <div className="mt-2">
+                  {tabLoading ? (
+                    <Skel active={isActive} w="w-20" h="h-4" />
+                  ) : (
+                    <div className={`text-sm font-semibold ${priceText}`}>{t.price}</div>
+                  )}
                 </div>
-                <div className={`mt-3 text-xs ${durationText}`}>
-                  {t.duration}
+
+                {/* Duration */}
+                <div className="mt-3">
+                  {tabLoading ? (
+                    <Skel active={isActive} w="w-32" h="h-3" />
+                  ) : (
+                    <div className={`text-xs ${durationText}`}>{t.duration}</div>
+                  )}
                 </div>
               </button>
             );
