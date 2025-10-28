@@ -2,7 +2,7 @@ import React, { useContext, useState } from 'react';
 // import API from '../../api/auth'; // Import the Axios instance
 import { AuthContext } from '../../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import TelegramLoginButton from '../../../components/client/Account/TelegramLoginButton';
+import TelegramLoginButton from "react-telegram-login";
 
 // Mock translation object to replace PHP T::
 const T = {
@@ -88,18 +88,11 @@ const Login = ({
     // }
   };
 
-  const handleTelegramAuth = async (tgUser) => {
+  const handleTelegramAuth = async (user) => {
     try {
-      // Use the AuthContext telegramLogin() method we added earlier
-      console.log("TG payload:", tgUser);
-      const userResponse = await telegramLogin(tgUser);
-
-      // Redirect based on user role
-      if (userResponse.role === "admin") {
-        navigate("/admin");
-      } else {
-        navigate("/dashboard");
-      }
+      // Telegram gives: {id, first_name, username, auth_date, hash, ...}
+      const userResponse = await telegramLogin(user); // uses your AuthContext method
+      navigate(userResponse.role === "admin" ? "/admin" : "/dashboard");
     } catch (err) {
       setError(err.message || "Telegram login failed");
     }
@@ -197,7 +190,12 @@ const Login = ({
                 <div className="mt-3 row text-center">
                   <hr />
                   <div className="bg-light p-3 rounded-3 border">
-                    <TelegramLoginButton botUsername="FlygasalOfiicial_bot" onAuth={handleTelegramAuth} />
+                    <TelegramLoginButton
+                      botName="FlygasalOfiicial_bot"         // your bot username, no @
+                      dataOnauth={handleTelegramAuth} // callback function
+                      buttonSize="large"              // optional: 'large' | 'medium' | 'small'
+                      requestAccess="write"           // optional
+                    />
                   </div>
                 </div>
               </div>
