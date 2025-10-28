@@ -11,18 +11,49 @@ const TIME_BUCKETS = [
   { key: "evening", label: "Evening", range: [18, 24] },
 ];
 
-/* ---------- Section (minimal; no card look) ---------- */
-const Section = ({ title, children }) => (
-  <section className="pt-3 first:pt-0">
-    <header className="pb-2">
-      <h3 className="text-[13px] font-semibold tracking-wide text-slate-900 uppercase">
-        {title}
-      </h3>
-    </header>
-    {children}
-    <div className="my-4 h-px bg-slate-200/70 last:hidden" />
-  </section>
-);
+/* ---------- Collapsible Section (no shadows) ---------- */
+const CollapsibleSection = ({ title, children, defaultOpen = true }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  const id = `sec-${title.replace(/\s+/g, "-").toLowerCase()}`;
+
+  return (
+    <section className="py-2 first:pt-0">
+      {/* Header */}
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between rounded-xl px-2 py-2 hover:bg-slate-50"
+      >
+        <h3 className="text-[13px] font-semibold tracking-wide text-slate-900 uppercase">
+          {title}
+        </h3>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          className={`text-slate-500 transition-transform ${open ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {/* Body */}
+      {open && (
+        <div id={id} className="px-1 pt-2 pb-3">
+          {children}
+        </div>
+      )}
+
+      {/* Divider between sections */}
+      <div className="my-3 h-px bg-slate-200/80 last:hidden" />
+    </section>
+  );
+};
 
 /* ---------- Airline row ---------- */
 const AirlineRow = ({
@@ -40,7 +71,7 @@ const AirlineRow = ({
   return (
     <label
       className={[
-        "flex items-center gap-3 rounded-lg px-2 py-2",
+        "flex items-center gap-3 rounded-lg px-2.5 py-2",
         disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-slate-50 cursor-pointer",
         "transition-colors",
       ].join(" ")}
@@ -116,8 +147,6 @@ export default function FilterSidebar({
   airlineCountsOutbound,
   airlineCountsReturn,
   onCloseMobile,
-  tripType = "oneway",
-  legsCount = 1,
 }) {
   const [absMin, absMax] = priceBounds || [100, 4000];
   const [currMin, currMax] = priceRange || [absMin, absMax];
@@ -156,7 +185,6 @@ export default function FilterSidebar({
     }
   };
 
-  /* Cabin - render compact checkbox list instead of cards */
   const CABINS = [
     { key: "ECONOMY", label: "Economy" },
     { key: "PREMIUM_ECONOMY", label: "Premium Economy" },
@@ -164,7 +192,6 @@ export default function FilterSidebar({
     { key: "FIRST", label: "First" },
   ];
 
-  /* Build airline meta */
   const toMeta = (code) => ({
     code,
     name: (getAirlineName?.(code) || code).trim(),
@@ -220,7 +247,6 @@ export default function FilterSidebar({
   const getCountRT = (code) =>
     airlineCountsReturn ? airlineCountsReturn[code] || 0 : undefined;
 
-  /* For checkbox-style single-select time & stops */
   const activeDepBucket =
     TIME_BUCKETS.find(
       (b) => b.range[0] === depTimeRange?.[0] && b.range[1] === depTimeRange?.[1]
@@ -234,16 +260,19 @@ export default function FilterSidebar({
   return (
     <aside
       className={[
-        "w-full rounded-3xl bg-white/70 backdrop-blur",
-        "p-3 sm:p-4 lg:p-5",
+        "w-full rounded-3xl bg-white",
+        "ring-1 ring-slate-200",
+        "p-4 sm:p-5 lg:p-6",
       ].join(" ")}
     >
-      {/* Header (mobile) */}
-      <div className="mb-2 flex items-center justify-between sm:mb-3 lg:mb-4 lg:hidden">
-        <h2 className="text-base font-semibold text-slate-900">Filters</h2>
+      {/* Top meta */}
+      <div className="mb-3 sm:mb-4 flex items-center justify-between">
+        <div className="text-[12px] font-medium text-slate-700">
+          Showing <span className="font-semibold">25</span> results
+        </div>
         {onCloseMobile && (
           <button
-            className="inline-flex h-9 items-center justify-center rounded-lg ring-1 ring-slate-300 px-3 text-sm hover:bg-white"
+            className="inline-flex h-9 items-center justify-center rounded-lg ring-1 ring-slate-300 px-3 text-sm hover:bg-white lg:hidden"
             onClick={onCloseMobile}
           >
             Close
@@ -251,9 +280,9 @@ export default function FilterSidebar({
         )}
       </div>
 
-      {/* Cabin (checkbox list) */}
-      <Section title="Cabin class">
-        <div className="grid grid-cols-1 gap-1.5">
+      {/* Cabin */}
+      <CollapsibleSection title="Cabin class" defaultOpen>
+        <div className="grid grid-cols-1 gap-2">
           {CABINS.map((c) => {
             const checked = selectedCabins.includes(c.key);
             return (
@@ -272,7 +301,7 @@ export default function FilterSidebar({
             );
           })}
         </div>
-        <div className="mt-2 flex items-center justify-between">
+        <div className="mt-3 flex items-center justify-between">
           <button
             type="button"
             className="rounded-full ring-1 ring-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
@@ -286,11 +315,11 @@ export default function FilterSidebar({
             </span>
           )}
         </div>
-      </Section>
+      </CollapsibleSection>
 
-      {/* Stops — checkbox look (single-select logic preserved) */}
-      <Section title="Stops">
-        <div className="grid grid-cols-1 gap-1.5">
+      {/* Stops (single-select via checkboxes) */}
+      <CollapsibleSection title="Stops" defaultOpen>
+        <div className="grid grid-cols-1 gap-2">
           {[
             { value: "mix", label: "All" },
             { value: "oneway_0", label: "Direct" },
@@ -311,11 +340,11 @@ export default function FilterSidebar({
             </label>
           ))}
         </div>
-      </Section>
+      </CollapsibleSection>
 
       {/* Price */}
-      <Section title={`Price (USD)`}>
-        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+      <CollapsibleSection title="Price (USD)" defaultOpen>
+        <div className="grid grid-cols-2 gap-3">
           <div className="relative">
             <span className="pointer-events-none absolute left-3 top-2 text-xs text-slate-500">
               Min
@@ -327,7 +356,7 @@ export default function FilterSidebar({
               onChange={(e) => setMinDraft(e.target.value)}
               onBlur={commitPrice}
               onKeyDown={onPriceKeyDown}
-              className="mt-5 h-10 w-full rounded-xl ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="mt-5 h-11 w-full rounded-xl ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
             />
           </div>
           <div className="relative">
@@ -341,18 +370,18 @@ export default function FilterSidebar({
               onChange={(e) => setMaxDraft(e.target.value)}
               onBlur={commitPrice}
               onKeyDown={onPriceKeyDown}
-              className="mt-5 h-10 w-full rounded-xl ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="mt-5 h-11 w-full rounded-xl ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
             />
           </div>
         </div>
         <p className="mt-2 text-[11px] text-slate-500">
           Press Enter or leave the field to apply. Range is {absMin}–{absMax}.
         </p>
-      </Section>
+      </CollapsibleSection>
 
-      {/* Departure time — outbound (checkbox look; single-select under the hood) */}
-      <Section title="Departure time (outbound)">
-        <div className="grid grid-cols-1 gap-1.5">
+      {/* Departure time — outbound */}
+      <CollapsibleSection title="Departure time (outbound)" defaultOpen>
+        <div className="grid grid-cols-1 gap-2">
           {TIME_BUCKETS.map((b) => {
             const checked = activeDepBucket === b.key;
             return (
@@ -377,12 +406,12 @@ export default function FilterSidebar({
             );
           })}
         </div>
-      </Section>
+      </CollapsibleSection>
 
       {/* Departure time — return */}
       {returnFlights?.length > 0 && (
-        <Section title="Departure time (return)">
-          <div className="grid grid-cols-1 gap-1.5">
+        <CollapsibleSection title="Departure time (return)" defaultOpen>
+          <div className="grid grid-cols-1 gap-2">
             {TIME_BUCKETS.map((b) => {
               const checked = activeRetBucket === b.key;
               return (
@@ -407,11 +436,11 @@ export default function FilterSidebar({
               );
             })}
           </div>
-        </Section>
+        </CollapsibleSection>
       )}
 
       {/* Max duration */}
-      <Section title="Max total duration">
+      <CollapsibleSection title="Max total duration" defaultOpen>
         <div className="flex items-center gap-3">
           <input
             type="number"
@@ -419,14 +448,14 @@ export default function FilterSidebar({
             max={72}
             value={maxDurationHours}
             onChange={(e) => onMaxDurationChange(Number(e.target.value || 0))}
-            className="h-10 w-28 rounded-xl ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
+            className="h-11 w-28 rounded-xl ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
           />
           <span className="text-sm text-slate-600">hours</span>
         </div>
-      </Section>
+      </CollapsibleSection>
 
       {/* Baggage */}
-      <Section title="Baggage">
+      <CollapsibleSection title="Baggage" defaultOpen>
         <label className="inline-flex items-center gap-2 text-sm text-slate-700">
           <input
             type="checkbox"
@@ -434,19 +463,19 @@ export default function FilterSidebar({
             checked={!!baggageOnly}
             onChange={(e) => onBaggageOnlyChange(e.target.checked)}
           />
-          <span>Show only fares with baggage included</span>
+        <span>Show only fares with baggage included</span>
         </label>
-      </Section>
+      </CollapsibleSection>
 
       {/* Airlines — outbound */}
-      <Section title="Airlines (outbound)">
+      <CollapsibleSection title="Airlines (outbound)" defaultOpen>
         <div className="mb-2">
           <input
             type="text"
             placeholder="Search airline name or code…"
             value={airlineSearchOW}
             onChange={(e) => setAirlineSearchOW(e.target.value)}
-            className="h-9 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
+            className="h-10 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
           />
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <button
@@ -484,18 +513,18 @@ export default function FilterSidebar({
             );
           })}
         </div>
-      </Section>
+      </CollapsibleSection>
 
       {/* Airlines — return */}
       {returnFlights?.length > 0 && (
-        <Section title="Airlines (return)">
+        <CollapsibleSection title="Airlines (return)" defaultOpen>
           <div className="mb-2">
             <input
               type="text"
               placeholder="Search airline name or code…"
               value={airlineSearchRT}
               onChange={(e) => setAirlineSearchRT(e.target.value)}
-              className="h-9 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="h-10 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
             />
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <button
@@ -533,11 +562,12 @@ export default function FilterSidebar({
               );
             })}
           </div>
-        </Section>
+        </CollapsibleSection>
+
       )}
 
       {/* Footer actions */}
-      <div className="pt-1">
+      <div className="pt-2">
         <div className="flex items-center justify-between gap-3">
           <button
             type="button"
