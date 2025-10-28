@@ -71,7 +71,7 @@ const SearchTabs = () => {
                 onClick={() => setActiveTab(tab.id)}
                 role="tab"
                 aria-selected={isActive}
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                className={`inline-flex items-center text-white gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                   isActive
                     ? "bg-[#F58220] text-white"
                     : "text-gray-800 hover:bg-white/70"
