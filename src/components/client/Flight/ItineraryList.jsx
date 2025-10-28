@@ -412,7 +412,7 @@ const ItineraryList = ({
                 </div>
 
                 {/* SEGMENTS */}
-                <div className="px-0 pb-2 md:pb-3 space-y-2">
+                <div className="px-3 py-2 space-y-2">
                   {/* Outbound */}
                   {itinerary.outbound && (
                     <SegmentBlock

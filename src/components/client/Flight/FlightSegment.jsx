@@ -232,7 +232,7 @@ const FlightSegment = ({
       </div>
 
       {/* body */}
-      <div className="relative px-5 pb-5 pt-3">
+      <div className="relative px-3 pb-3 pt-3">
         {/* right-corner duration (like the mock card top-right small meta) */}
         <div className="absolute right-5 top-3 text-xs text-slate-500">{durationText}</div>
 
