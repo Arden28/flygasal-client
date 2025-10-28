@@ -91,6 +91,7 @@ const Login = ({
   const handleTelegramAuth = async (tgUser) => {
     try {
       // Use the AuthContext telegramLogin() method we added earlier
+      console.log("TG payload:", tgUser);
       const userResponse = await telegramLogin(tgUser);
 
       // Redirect based on user role
