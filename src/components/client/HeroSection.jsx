@@ -10,6 +10,8 @@ const HeroSection = () => {
                 <h1 className="text-4xl sm:text-6xl font-bold tracking-tight">Discover Your Next Adventure</h1>
                 <p className="mt-3 text-lg sm:text-xl text-white/90">Book your perfect flight with confidence.</p>
             </div>
+            {/* Search Tabs */}
+            <SearchTabs />
 
             {/* Trust line */}
             <div className="mt-7 text-center text-white/90">
