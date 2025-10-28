@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import FlightSegment from "./FlightSegment";
 import { formatDuration } from "../../../lib/helper";
+import { getAirportName } from "../../../utils/utils";
 
 /* -------------------- tiny utils -------------------- */
 const money = (n, currency = "USD") =>
@@ -113,11 +114,6 @@ const SegmentBlock = ({
       {/* Summary row (matches screenshot layout) */}
       <div className="px-4 md:px-5">
         <div className="grid grid-cols-12 items-center gap-3 py-3">
-          {/* checkbox stub */}
-          <div className="col-span-1 hidden sm:flex justify-center">
-            <span className="h-4 w-4 rounded border border-slate-300 bg-white inline-block" />
-          </div>
-
           {/* Airline logo + carrier + (left column date/time/city) */}
           <div className="col-span-12 sm:col-span-3 md:col-span-3 flex items-center gap-3">
             <img
@@ -133,7 +129,12 @@ const SegmentBlock = ({
               <div className="text-xs text-slate-500">{depDateText}</div>
               <div className="text-slate-900 font-semibold leading-5 tabular-nums">{depTime}</div>
               <div className="text-xs text-slate-600 truncate">{depCity}</div>
-              <div className="text-[11px] text-slate-500 truncate">{depAirport}</div>
+              <div
+                className="text-[11px] text-slate-500 truncate max-w-[120px]"
+                title={getAirportName(depAirport)}
+              >
+                {getAirportName(depAirport)}
+              </div>
             </div>
           </div>
 
