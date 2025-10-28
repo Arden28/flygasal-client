@@ -168,6 +168,7 @@ export default function FlightSearchForm({
   const location = useLocation();
   const isMobile = useMedia("(max-width: 640px)");
   // lock which UI to render for travellers while open to avoid breakpoint flicker
+  const [isTravellersOpen, setIsTravellersOpen] = useState(false);
   const [travellersMode, setTravellersMode] = useState(null); // 'mobile' | 'desktop' | null
   const AIRPORT_INDEX = useAirportIndex();
 
@@ -212,7 +213,6 @@ export default function FlightSearchForm({
   const [children, setChildren] = useState(0);
   const [infants, setInfants] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [isTravellersOpen, setIsTravellersOpen] = useState(false);
   const [errors, setErrors] = useState([]);
 
   // seed menus for existing legs
