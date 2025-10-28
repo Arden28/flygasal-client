@@ -6,6 +6,8 @@ import { formatDuration } from "../../../lib/helper";
 import { getAirportName, getCityName } from "../../../utils/utils";
 import { FaPersonWalking } from "react-icons/fa6";
 import { MdLuggage } from "react-icons/md";
+import { FaPlaneDeparture } from "react-icons/fa";
+import { FaPlaneArrival, FaInfo } from "react-icons/fa";
 
 /* -------------------- tiny utils -------------------- */
 const money = (n, currency = "USD") =>
@@ -42,21 +44,15 @@ const Icon = ({ name, className = "h-4 w-4" }) => {
   switch (name) {
     case "info":
       return (
-        <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-          <path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Zm-.75-11.5h1.5V17h-1.5v-6.5Zm0-3h1.5V9h-1.5V7.5Z" />
-        </svg>
+        <FaInfo />
       );
     case "takeoff":
       return (
-        <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-          <path d="M2 19h20v2H2zM2.7 9.7l1.1-.3 4.5 3 4.1-1.1L9 5.5l1.4-.4 5.7 4.8 4.3-1.2c1-.3 2 .3 2.3 1.3.3 1-.3 2-1.3 2.3l-6.2 1.7-6.5-1.1L2.7 9.7z" />
-        </svg>
+        <FaPlaneDeparture />
       );
     case "landing":
       return (
-        <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-          <path d="M2 19h20v2H2zM3 5l1.4.4 3.1 8.8 9.4 2.5c1 .3 2-.3 2.3-1.3.3-1-.3-2-1.3-2.3l-7.7-2.1L7.1 5.8 3 5z" />
-        </svg>
+        <FaPlaneArrival />
       );
     default:
       return null;
