@@ -2,7 +2,7 @@ import React, { useContext, useState } from 'react';
 // import API from '../../api/auth'; // Import the Axios instance
 import { AuthContext } from '../../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import TelegramLoginButton from "react-telegram-login";
+import TelegramLoginButton from '../../../components/client/Account/TelegramLoginButton';
 
 // Mock translation object to replace PHP T::
 const T = {
