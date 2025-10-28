@@ -167,6 +167,8 @@ export default function FlightSearchForm({
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useMedia("(max-width: 640px)");
+  // lock which UI to render for travellers while open to avoid breakpoint flicker
+  const [travellersMode, setTravellersMode] = useState(null); // 'mobile' | 'desktop' | null
   const AIRPORT_INDEX = useAirportIndex();
 
   // anchors for top-level calendars & travellers (legal hook usage)
@@ -176,7 +178,7 @@ export default function FlightSearchForm({
 
   const [openCal, setOpenCal] = useState(null); // {type:'depart'|'return', idx:number, rect?:DOMRectLike} | null
 
-  const travellersRect = useAnchorRect(travellersBtnRef, true);
+  const travellersRect = useAnchorRect(travellersBtnRef, isTravellersOpen);
   const departRect = useAnchorRect(departBtnRef, openCal?.type === "depart" && (openCal?.idx ?? 0) === 0);
   const returnRect = useAnchorRect(returnBtnRef, openCal?.type === "return" && (openCal?.idx ?? 0) === 0);
 
@@ -227,6 +229,19 @@ export default function FlightSearchForm({
       return next;
     });
   }, [flightsState.length, defaultChunk]);
+
+  // ESC to close Travellers
+  useEffect(() => {
+    if (!isTravellersOpen) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        setIsTravellersOpen(false);
+        setTravellersMode(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isTravellersOpen]);
 
 /* -------- hydrate from URL or props (trust tripType, then verify legs) -------- */
 useEffect(() => {
@@ -665,7 +680,14 @@ useEffect(() => {
         <button
           ref={travellersBtnRef}
           type="button"
-          onClick={() => setIsTravellersOpen((v) => !v)}
+             onClick={() => {
+                setIsTravellersOpen((v) => {
+                  const next = !v;
+                  if (next) setTravellersMode(isMobile ? "mobile" : "desktop");
+                  else setTravellersMode(null);
+                  return next;
+                });
+              }}
           className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-800 hover:bg-gray-200"
           aria-expanded={isTravellersOpen}
         >
@@ -680,11 +702,11 @@ useEffect(() => {
 
         <AnimatePresence>
           {isTravellersOpen &&
-            (isMobile ? (
+            (travellersMode === "mobile" ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100000] flex flex-col bg-white">
                 <div className="flex items-center justify-between border-b border-slate-200 p-3">
                   <div className="text-sm font-medium text-slate-800">Travellers & cabin</div>
-                  <span className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800 cursor-pointer" onClick={() => setIsTravellersOpen(false)}>Close</span>
+                  <span className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800 cursor-pointer" onClick={() => { setIsTravellersOpen(false); setTravellersMode(null); }}>Close</span>
                 </div>
                 <div className="flex-1 overflow-auto p-4">
                   {[
@@ -717,14 +739,19 @@ useEffect(() => {
                   </div>
                 </div>
                 <div className="border-t border-slate-200 p-3">
-                  <span className="w-full cursor-pointer rounded-lg bg-slate-900 py-2 text-sm text-white" onClick={() => setIsTravellersOpen(false)}>Done</span>
+                  <span className="w-full cursor-pointer rounded-lg bg-slate-900 py-2 text-sm text-white" onClick={() => { setIsTravellersOpen(false); setTravellersMode(null); }}>Done</span>
                 </div>
               </motion.div>
             ) : (
               travellersRect && (
                 <Portal>
+                  <div
+                    className="fixed inset-0 z-[99990]"
+                    onMouseDown={() => { setIsTravellersOpen(false); setTravellersMode(null); }}
+                  />
                   <motion.div
                     initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
+                    onMouseDown={(e) => e.stopPropagation()}
                     style={{ position: "fixed", top: travellersRect.bottom + 8, left: Math.min(travellersRect.left, Math.max(16, window.innerWidth - 352 - 16)), width: "min(96vw, 22rem)", zIndex: 100000 }}
                   >
                     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-2xl">
@@ -751,12 +778,12 @@ useEffect(() => {
                           {CABIN_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
                         </select>
                       </div>
-                      <span className="mt-3 w-full inline-block cursor-pointer text-center rounded-lg bg-slate-900 px-6 py-2 text-sm text-white hover:bg-black" onClick={() => setIsTravellersOpen(false)}>Done</span>
+                      <span className="mt-3 w-full inline-block cursor-pointer text-center rounded-lg bg-slate-900 px-6 py-2 text-sm text-white hover:bg-black" onClick={() => { setIsTravellersOpen(false); setTravellersMode(null); }}>Done</span>
                     </div>
                   </motion.div>
                 </Portal>
               )
-            ))}
+          ))}
         </AnimatePresence>
       </div>
     </div>
