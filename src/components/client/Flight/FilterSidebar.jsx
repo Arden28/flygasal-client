@@ -272,7 +272,7 @@ export default function FilterSidebar({
   return (
     <aside
       className={[
-        "w-full rounded-3xl bg-white",
+        "w-full rounded-2xl bg-white",
         "ring-1 ring-slate-200",
         "p-4 sm:p-5 lg:p-6",
       ].join(" ")}
@@ -280,7 +280,7 @@ export default function FilterSidebar({
       {/* Top meta */}
       <div className="mb-3 sm:mb-4 flex items-center justify-between">
         {pageSummary && (
-          <div className="text-[12px] font-medium text-slate-700" aria-live="polite">
+          <div className="text-[14px] font-medium text-slate-700" aria-live="polite">
             Showing <span className="font-medium text-slate-800">{pageSummary.start}–{pageSummary.end}</span> of{" "}
             <span className="font-medium text-slate-800">{pageSummary.total}</span> results
           </div>
