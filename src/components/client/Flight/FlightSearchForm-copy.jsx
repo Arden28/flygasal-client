@@ -9,10 +9,7 @@ import { airports, flights } from "../../../data/fakeData";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, addDays, startOfToday, isValid } from "date-fns";
 
-/* -------------------------------------------------------------------------- */
-/*                               Portal Helpers                               */
-/* -------------------------------------------------------------------------- */
-
+/* --------------------- portal + anchor rect helpers --------------------- */
 function Portal({ children }) {
   const [mountNode, setMountNode] = useState(null);
   useEffect(() => {
@@ -29,14 +26,7 @@ function useAnchorRect(ref, enabled) {
       const el = ref.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      setRect({
-        top: r.top,
-        left: r.left,
-        right: r.right,
-        bottom: r.bottom,
-        width: r.width,
-        height: r.height,
-      });
+      setRect({ top: r.top, left: r.left, right: r.right, bottom: r.bottom, width: r.width, height: r.height });
     };
     update();
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
@@ -52,10 +42,7 @@ function useAnchorRect(ref, enabled) {
   return rect;
 }
 
-/* -------------------------------------------------------------------------- */
-/*                                 Utilities                                  */
-/* -------------------------------------------------------------------------- */
-
+/* --------------------- utils --------------------- */
 const MAX_TRAVELLERS = 9;
 const DEFAULT_MENU_COUNT = 30;
 const SEARCH_LIMIT = 120;
@@ -92,17 +79,9 @@ const useMedia = (query) => {
     if (typeof window === "undefined" || !window.matchMedia) return;
     const mql = window.matchMedia(query);
     const handler = (e) => setMatches(e.matches);
-    try {
-      mql.addEventListener("change", handler);
-    } catch {
-      mql.addListener(handler);
-    }
+    try { mql.addEventListener("change", handler); } catch { mql.addListener(handler); }
     return () => {
-      try {
-        mql.removeEventListener("change", handler);
-      } catch {
-        mql.removeListener(handler);
-      }
+      try { mql.removeEventListener("change", handler); } catch { mql.removeListener(handler); }
     };
   }, [query]);
   return matches;
@@ -129,10 +108,7 @@ function searchAirports(index, rawQuery, limit = SEARCH_LIMIT) {
   const scored = [];
   for (const a of index) {
     let ok = true;
-    for (const p of parts) if (!a._s.includes(p)) {
-        ok = false;
-        break;
-      }
+    for (const p of parts) if (!a._s.includes(p)) { ok = false; break; }
     if (!ok) continue;
     let score = 0;
     if (a._v.startsWith(q)) score += 120;
@@ -146,10 +122,7 @@ function searchAirports(index, rawQuery, limit = SEARCH_LIMIT) {
   return scored.slice(0, limit).map((t) => t[1]);
 }
 
-/* -------------------------------------------------------------------------- */
-/*                               Small UI Bits                                */
-/* -------------------------------------------------------------------------- */
-
+/* --------------------- small UI bits --------------------- */
 const IATAPill = ({ code }) => (
   <span className="ml-auto inline-flex items-center rounded-full border border-slate-300 px-2 py-[2px] text-[11px] font-medium text-slate-700">
     {code}
@@ -161,9 +134,7 @@ const AirportSingleValue = (props) => {
   return (
     <components.SingleValue {...props}>
       <div className="flex min-w-0 items-center gap-2">
-        <div className="truncate text-[14px] font-medium text-slate-900">
-          {a.label}
-        </div>
+        <div className="truncate text-[14px] font-medium text-slate-900">{a.label}</div>
         <IATAPill code={a.value} />
       </div>
     </components.SingleValue>
@@ -174,13 +145,9 @@ const AirportOption = (props) => {
   const a = props.data;
   return (
     <components.Option {...props} className="!p-0">
-      <div
-        className={`flex items-center gap-3 px-3 py-2.5 ${props.isFocused ? "bg-slate-50" : "bg-white"}`}
-      >
+      <div className={`flex items-center gap-3 px-3 py-2.5 ${props.isFocused ? "bg-slate-50" : "bg-white"}`}>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[14px] font-medium text-slate-900">
-            {a.label}
-          </div>
+          <div className="truncate text-[14px] font-medium text-slate-900">{a.label}</div>
           <div className="truncate text-xs text-slate-500">
             {a.city ? `${a.city}, ${a.country}` : a.country}
           </div>
@@ -191,11 +158,12 @@ const AirportOption = (props) => {
   );
 };
 
-/* -------------------------------------------------------------------------- */
-/*                              Main Component                                */
-/* -------------------------------------------------------------------------- */
-
-export default function FlightSearchForm({ searchParams, setAvailableFlights, setReturnFlights }) {
+/* ===================== Component ===================== */
+export default function FlightSearchForm({
+  searchParams,
+  setAvailableFlights,
+  setReturnFlights,
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useMedia("(max-width: 640px)");
@@ -212,14 +180,8 @@ export default function FlightSearchForm({ searchParams, setAvailableFlights, se
   const [openCal, setOpenCal] = useState(null); // {type:'depart'|'return', idx:number, rect?:DOMRectLike} | null
 
   const travellersRect = useAnchorRect(travellersBtnRef, isTravellersOpen);
-  const departRect = useAnchorRect(
-    departBtnRef,
-    openCal?.type === "depart" && (openCal?.idx ?? 0) === 0
-  );
-  const returnRect = useAnchorRect(
-    returnBtnRef,
-    openCal?.type === "return" && (openCal?.idx ?? 0) === 0
-  );
+  const departRect = useAnchorRect(departBtnRef, openCal?.type === "depart" && (openCal?.idx ?? 0) === 0);
+  const returnRect = useAnchorRect(returnBtnRef, openCal?.type === "return" && (openCal?.idx ?? 0) === 0);
 
   // ---- simple Select handling: we only manage options per field
   const [airportMenus, setAirportMenus] = useState({});
@@ -245,15 +207,7 @@ export default function FlightSearchForm({ searchParams, setAvailableFlights, se
   const [tripType, setTripType] = useState("oneway"); // 'oneway' | 'return' | 'multi'
   const [flightType, setFlightType] = useState("ECONOMY");
   const [flightsState, setFlightsState] = useState([
-    {
-      origin: null,
-      destination: null,
-      dateRange: {
-        startDate: today,
-        endDate: addDays(today, 5),
-        key: "selection",
-      },
-    },
+    { origin: null, destination: null, dateRange: { startDate: today, endDate: addDays(today, 5), key: "selection" } },
   ]);
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
@@ -289,186 +243,130 @@ export default function FlightSearchForm({ searchParams, setAvailableFlights, se
     return () => window.removeEventListener("keydown", onKey);
   }, [isTravellersOpen]);
 
-  /* -------- hydrate from URL or props (trust tripType, then verify legs) -------- */
-  useEffect(() => {
-    const qp = new URLSearchParams(location.search);
+/* -------- hydrate from URL or props (trust tripType, then verify legs) -------- */
+useEffect(() => {
+  const qp = new URLSearchParams(location.search);
 
-    // 1) Always parse legs from URL (accept a leg if any of the 3 fields exists)
-    const legsFromUrl = [];
-    for (let i = 0; ; i++) {
-      const hasAny =
-        qp.has(`flights[${i}][origin]`) ||
-        qp.has(`flights[${i}][destination]`) ||
-        qp.has(`flights[${i}][depart]`);
-      if (!hasAny) break;
-      legsFromUrl.push({
-        origin: qp.get(`flights[${i}][origin]`) || null,
-        destination: qp.get(`flights[${i}][destination]`) || null,
-        depart: qp.get(`flights[${i}][depart]`) || null,
-      });
-    }
-
-    // 2) Trip type: prefer prop, fall back to URL
-    const rawTripProp = (searchParams?.tripType || "").toLowerCase();
-    const rawTripUrl = (qp.get("tripType") || "").toLowerCase();
-    const tripFromProp =
-      rawTripProp === "multi"
-        ? "multi"
-        : rawTripProp === "return"
-        ? "return"
-        : rawTripProp
-        ? "oneway"
-        : null;
-    const tripFromUrl =
-      rawTripUrl === "multi"
-        ? "multi"
-        : rawTripUrl === "return"
-        ? "return"
-        : "oneway";
-
-    const tripTypeEff = tripFromProp || tripFromUrl;
-
-    // 3) Legs: start from props if present, but if MULTI + URL has ≥2 legs, prefer URL
-    const legsFromProp = Array.isArray(searchParams?.flights) ? searchParams.flights : [];
-    let legsEff =
-      tripTypeEff === "multi" && legsFromUrl.length >= 2
-        ? legsFromUrl
-        : legsFromProp.length
-        ? legsFromProp
-        : legsFromUrl;
-
-    // Fallbacks if still empty
-    if (!legsEff.length) {
-      legsEff = [
-        {
-          origin: "JFK",
-          destination: "LAX",
-          depart: format(today, "yyyy-MM-dd"),
-        },
-      ];
-    }
-    if (tripTypeEff === "multi" && legsEff.length < 2) {
-      // ensure at least two legs visible in the form
-      const firstDate = clampToToday(safeParseDate(legsEff[0].depart));
-      legsEff = [
-        legsEff[0],
-        {
-          origin: null,
-          destination: null,
-          depart: format(addDays(firstDate, 1), "yyyy-MM-dd"),
-        },
-      ];
-    } else if (tripTypeEff !== "multi" && legsEff.length > 1) {
-      // oneway/return: keep only first leg
-      legsEff = [legsEff[0]];
-    }
-
-    // 4) Other params (prefer props, then URL)
-    const flightTypeRaw = searchParams?.flightType || qp.get("flightType") || "Economy";
-    const retDateRaw =
-      tripTypeEff === "return"
-        ? searchParams?.returnDate || qp.get("returnDate") || format(addDays(today, 5), "yyyy-MM-dd")
-        : null;
-
-    const adultsVal = Number.parseInt(searchParams?.adults ?? qp.get("adults") ?? "1", 10) || 1;
-    const childrenVal = Number.parseInt(searchParams?.children ?? qp.get("children") ?? "0", 10) || 0;
-    const infantsVal = Number.parseInt(searchParams?.infants ?? qp.get("infants") ?? "0", 10) || 0;
-
-    // 5) Apply top-level state
-    setTripType(tripTypeEff);
-    setFlightType(toCabinCode(flightTypeRaw));
-
-    // 6) Normalize legs for component state
-    const normSegments = legsEff.map((f, i) => {
-      const start = clampToToday(safeParseDate(f?.depart));
-      let end = start;
-      if (tripTypeEff === "return" && i === 0) {
-        const fallback = addDays(start, 5);
-        const rtn = clampToToday(safeParseDate(retDateRaw, fallback));
-        end = rtn < start ? start : rtn;
-      }
-      const originObj = f?.origin ? airports.find((a) => a.value === f.origin) || null : null;
-      const destObj = f?.destination ? airports.find((a) => a.value === f.destination) || null : null;
-      return {
-        origin: originObj,
-        destination: destObj,
-        dateRange: { startDate: start, endDate: end, key: "selection" },
-      };
+  // 1) Always parse legs from URL (accept a leg if any of the 3 fields exists)
+  const legsFromUrl = [];
+  for (let i = 0; ; i++) {
+    const hasAny =
+      qp.has(`flights[${i}][origin]`) ||
+      qp.has(`flights[${i}][destination]`) ||
+      qp.has(`flights[${i}][depart]`);
+    if (!hasAny) break;
+    legsFromUrl.push({
+      origin: qp.get(`flights[${i}][origin]`) || null,
+      destination: qp.get(`flights[${i}][destination]`) || null,
+      depart: qp.get(`flights[${i}][depart]`) || null,
     });
+  }
 
-    setFlightsState(
-      normSegments.length
-        ? normSegments
-        : [
-            {
-              origin: null,
-              destination: null,
-              dateRange: { startDate: today, endDate: today, key: "selection" },
-            },
-          ]
-    );
+  // 2) Trip type: prefer prop, fall back to URL
+  const rawTripProp = (searchParams?.tripType || "").toLowerCase();
+  const rawTripUrl = (qp.get("tripType") || "").toLowerCase();
+  const tripFromProp =
+    rawTripProp === "multi" ? "multi" : rawTripProp === "return" ? "return" : rawTripProp ? "oneway" : null;
+  const tripFromUrl =
+    rawTripUrl === "multi" ? "multi" : rawTripUrl === "return" ? "return" : "oneway";
 
-    setAdults(adultsVal);
-    setChildren(childrenVal);
-    setInfants(infantsVal);
-  }, [searchParams, location.search]);
+  const tripTypeEff = tripFromProp || tripFromUrl;
+
+  // 3) Legs: start from props if present, but if MULTI + URL has ≥2 legs, prefer URL
+  const legsFromProp = Array.isArray(searchParams?.flights) ? searchParams.flights : [];
+  let legsEff =
+    tripTypeEff === "multi" && legsFromUrl.length >= 2
+      ? legsFromUrl
+      : legsFromProp.length
+      ? legsFromProp
+      : legsFromUrl;
+
+  // Fallbacks if still empty
+  if (!legsEff.length) {
+    legsEff = [{ origin: "JFK", destination: "LAX", depart: format(today, "yyyy-MM-dd") }];
+  }
+  if (tripTypeEff === "multi" && legsEff.length < 2) {
+    // ensure at least two legs visible in the form
+    const firstDate = clampToToday(safeParseDate(legsEff[0].depart));
+    legsEff = [
+      legsEff[0],
+      { origin: null, destination: null, depart: format(addDays(firstDate, 1), "yyyy-MM-dd") },
+    ];
+  } else if (tripTypeEff !== "multi" && legsEff.length > 1) {
+    // oneway/return: keep only first leg
+    legsEff = [legsEff[0]];
+  }
+
+  // 4) Other params (prefer props, then URL)
+  const flightTypeRaw = searchParams?.flightType || qp.get("flightType") || "Economy";
+  const retDateRaw =
+    tripTypeEff === "return"
+      ? searchParams?.returnDate || qp.get("returnDate") || format(addDays(today, 5), "yyyy-MM-dd")
+      : null;
+
+  const adults = Number.parseInt(searchParams?.adults ?? qp.get("adults") ?? "1", 10) || 1;
+  const children = Number.parseInt(searchParams?.children ?? qp.get("children") ?? "0", 10) || 0;
+  const infants = Number.parseInt(searchParams?.infants ?? qp.get("infants") ?? "0", 10) || 0;
+
+  // 5) Apply top-level state
+  setTripType(tripTypeEff);
+  setFlightType(toCabinCode(flightTypeRaw));
+
+  // 6) Normalize legs for component state
+  const normSegments = legsEff.map((f, i) => {
+    const start = clampToToday(safeParseDate(f?.depart));
+    let end = start;
+    if (tripTypeEff === "return" && i === 0) {
+      const fallback = addDays(start, 5);
+      const rtn = clampToToday(safeParseDate(retDateRaw, fallback));
+      end = rtn < start ? start : rtn;
+    }
+    const originObj = f?.origin ? airports.find((a) => a.value === f.origin) || null : null;
+    const destObj = f?.destination ? airports.find((a) => a.value === f.destination) || null : null;
+    return { origin: originObj, destination: destObj, dateRange: { startDate: start, endDate: end, key: "selection" } };
+  });
+
+  setFlightsState(
+    normSegments.length
+      ? normSegments
+      : [{ origin: null, destination: null, dateRange: { startDate: today, endDate: today, key: "selection" } }]
+  );
+
+  setAdults(adults);
+  setChildren(children);
+  setInfants(infants);
+}, [searchParams, location.search]);
+
 
   useEffect(() => {
     setOpenCal(null);
     if (tripType === "oneway") {
       setFlightsState((prev) => {
-        const first = {
-          ...(prev[0] || {
-            origin: null,
-            destination: null,
-            dateRange: { startDate: today, endDate: today, key: "selection" },
-          }),
-        };
+        const first = { ...(prev[0] || {
+          origin: null, destination: null, dateRange: { startDate: today, endDate: today, key: "selection" }
+        }) };
         first.dateRange = { ...first.dateRange, endDate: first.dateRange.startDate };
         return [first];
       });
     } else if (tripType === "return") {
       setFlightsState((prev) => {
-        const first = {
-          ...(prev[0] || {
-            origin: null,
-            destination: null,
-            dateRange: { startDate: today, endDate: addDays(today, 5), key: "selection" },
-          }),
-        };
-        if (
-          (first.dateRange.endDate || first.dateRange.startDate) < first.dateRange.startDate
-        ) {
+        const first = { ...(prev[0] || {
+          origin: null, destination: null, dateRange: { startDate: today, endDate: addDays(today, 5), key: "selection" }
+        }) };
+        if ((first.dateRange.endDate || first.dateRange.startDate) < first.dateRange.startDate) {
           first.dateRange.endDate = first.dateRange.startDate;
         }
         return [first];
       });
     } else if (tripType === "multi") {
       setFlightsState((prev) => {
-        const base = prev.length
-          ? prev
-          : [
-              {
-                origin: null,
-                destination: null,
-                dateRange: { startDate: today, endDate: today, key: "selection" },
-              },
-              {
-                origin: null,
-                destination: null,
-                dateRange: {
-                  startDate: addDays(today, 1),
-                  endDate: addDays(today, 1),
-                  key: "selection",
-                },
-              },
-            ];
+        const base = prev.length ? prev : [
+          { origin: null, destination: null, dateRange: { startDate: today, endDate: today, key: "selection" } },
+          { origin: null, destination: null, dateRange: { startDate: addDays(today, 1), endDate: addDays(today, 1), key: "selection" } },
+        ];
         return base.map((f) => ({
           ...f,
-          dateRange: {
-            ...f.dateRange,
-            endDate: f.dateRange.startDate || today,
-          },
+          dateRange: { ...f.dateRange, endDate: f.dateRange.startDate || today },
         }));
       });
     }
@@ -493,16 +391,8 @@ export default function FlightSearchForm({ searchParams, setAvailableFlights, se
     setFlightsState((prev) =>
       prev.map((f, i) => {
         if (i !== idx) return f;
-        const end =
-          tripType === "return" && idx === 0
-            ? f.dateRange.endDate < start
-              ? start
-              : f.dateRange.endDate
-            : start;
-        return {
-          ...f,
-          dateRange: { ...f.dateRange, startDate: start, endDate: end },
-        };
+        const end = tripType === "return" && idx === 0 ? (f.dateRange.endDate < start ? start : f.dateRange.endDate) : start;
+        return { ...f, dateRange: { ...f.dateRange, startDate: start, endDate: end } };
       })
     );
     // close calendar after selecting a date
@@ -562,12 +452,10 @@ export default function FlightSearchForm({ searchParams, setAvailableFlights, se
       if (!f.dateRange.startDate) errs.push(`Flight ${i + 1}: Please select a departure date`);
       if (tripType === "return" && i === 0) {
         if (!f.dateRange.endDate) errs.push(`Flight 1: Please select a return date`);
-        if (f.dateRange.endDate < f.dateRange.startDate)
-          errs.push(`Flight 1: Return date must be after departure date`);
+        if (f.dateRange.endDate < f.dateRange.startDate) errs.push(`Flight 1: Return date must be after departure date`);
       }
     });
-    if (tripType === "multi" && flightsState.length < 2)
-      errs.push("Please add at least 2 flights for Multi-city");
+    if (tripType === "multi" && flightsState.length < 2) errs.push("Please add at least 2 flights for Multi-city");
     if (totalTravellers === 0) errs.push("At least one traveller is required");
     if (infants > adults) errs.push("Number of infants cannot exceed number of adults");
     return errs;
@@ -576,10 +464,7 @@ export default function FlightSearchForm({ searchParams, setAvailableFlights, se
   const handleSubmit = (e) => {
     e.preventDefault();
     const v = validateForm();
-    if (v.length) {
-      setErrors(v);
-      return;
-    }
+    if (v.length) { setErrors(v); return; }
     setErrors([]);
     setIsLoading(true);
 
@@ -591,17 +476,11 @@ export default function FlightSearchForm({ searchParams, setAvailableFlights, se
     flightsState.forEach((f, idx) => {
       queryParams.set(`flights[${idx}][origin]`, f.origin?.value || "");
       queryParams.set(`flights[${idx}][destination]`, f.destination?.value || "");
-      queryParams.set(
-        `flights[${idx}][depart]`,
-        f.dateRange.startDate ? format(f.dateRange.startDate, "yyyy-MM-dd") : ""
-      );
+      queryParams.set(`flights[${idx}][depart]`, f.dateRange.startDate ? format(f.dateRange.startDate, "yyyy-MM-dd") : "");
     });
 
     if (tripType === "return" && flightsState[0]?.dateRange.endDate) {
-      queryParams.set(
-        "returnDate",
-        format(flightsState[0].dateRange.endDate, "yyyy-MM-dd")
-      );
+      queryParams.set("returnDate", format(flightsState[0].dateRange.endDate, "yyyy-MM-dd"));
     }
 
     queryParams.set("adults", String(adults));
@@ -613,8 +492,7 @@ export default function FlightSearchForm({ searchParams, setAvailableFlights, se
         (f) =>
           f.origin?.value === fl.origin &&
           f.destination?.value === fl.destination &&
-          new Date(f.dateRange.startDate).toDateString() ===
-            new Date(fl.departureTime).toDateString()
+          new Date(f.dateRange.startDate).toDateString() === new Date(fl.departureTime).toDateString()
       )
     );
 
@@ -624,8 +502,7 @@ export default function FlightSearchForm({ searchParams, setAvailableFlights, se
         (fl) =>
           fl.origin === flightsState[0].destination?.value &&
           fl.destination === flightsState[0].origin?.value &&
-          new Date(flightsState[0].dateRange.endDate).toDateString() ===
-            new Date(fl.departureTime).toDateString()
+          new Date(flightsState[0].dateRange.endDate).toDateString() === new Date(fl.departureTime).toDateString()
       );
     }
 
@@ -638,70 +515,56 @@ export default function FlightSearchForm({ searchParams, setAvailableFlights, se
     }, 350);
   };
 
-  /* Icons for trip controls */
-  const PlaneTakeoff = (props) => (
-    <svg
-      aria-hidden
-      {...props}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-    >
-      <path d="M2 16l20-5-2-3-8 2-5-6-2 1 3 7-6 2z" />
-      <path d="M2 19h20" />
+    /* Plane icons */
+    const PlaneTakeoff = (props) => (
+    <svg aria-hidden {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <path d="M2 16l20-5-2-3-8 2-5-6-2 1 3 7-6 2z" />
+        <path d="M2 19h20" />
     </svg>
-  );
+    );
 
-  const PlaneLanding = (props) => (
-    <svg
-      aria-hidden
-      {...props}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-    >
-      <path d="M2 19h20" />
-      <path d="M22 16l-20-5 2-3 8 2 5-6 2 1-3 7 6 2z" />
+    const PlaneLanding = (props) => (
+    <svg aria-hidden {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <path d="M2 19h20" />
+        <path d="M22 16l-20-5 2-3 8 2 5-6 2 1-3 7 6 2z" />
     </svg>
-  );
+    );
 
-  /* Control with a left icon (takeoff/landing) */
-  const ControlWithIcon = (props) => {
+    /* Control with a left icon (takeoff/landing) */
+    const ControlWithIcon = (props) => {
     const { children, innerProps, selectProps } = props;
     const { iconType } = selectProps; // "from" | "to" | undefined
 
     return (
-      <components.Control {...props}>
+        <components.Control {...props}>
         {/* left icon (absolute so it doesn't change layout) */}
         {iconType && (
-          <span
+            <span
             style={{
-              position: "absolute",
-              left: 10,
-              top: "50%",
-              transform: "translateY(-50%)",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 18,
-              height: 18,
-              color: "#64748b", // slate-500
-              pointerEvents: "none",
+                position: "absolute",
+                left: 10,
+                top: "50%",
+                transform: "translateY(-50%)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 18,
+                height: 18,
+                color: "#64748b", // slate-500
+                pointerEvents: "none",
             }}
-          >
+            >
             {iconType === "from" ? (
-              <PlaneTakeoff width={18} height={18} />
+                <PlaneTakeoff width={18} height={18} />
             ) : (
-              <PlaneLanding width={18} height={18} />
+                <PlaneLanding width={18} height={18} />
             )}
-          </span>
+            </span>
         )}
         {children}
-      </components.Control>
+        </components.Control>
     );
-  };
+    };
 
   /* —— STYLE TWEAKS —— */
   const selectStyles = {
@@ -745,9 +608,7 @@ export default function FlightSearchForm({ searchParams, setAvailableFlights, se
 
   const menuOptions = (idx, field) => ensureMenu(menuKey(idx, field)).options;
   const noOptionsMessage = ({ inputValue }) =>
-    inputValue && inputValue.length > 1
-      ? "No airports match your search"
-      : "Type to search airports";
+    inputValue && inputValue.length > 1 ? "No airports match your search" : "Type to search airports";
 
   // compact calendar visuals
   const datePickerStyles = `
@@ -784,60 +645,53 @@ export default function FlightSearchForm({ searchParams, setAvailableFlights, se
     return { top, left, width };
   };
 
-  /* ------------------------------------------------------------------------ */
-  /*                               Top Controls                               */
-  /* ------------------------------------------------------------------------ */
-const TopControls = () => {
-  return (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-      {/* Trip type buttons */}
-      <div className="inline-flex rounded-full bg-white/90 shadow-md p-1">
-        {[
-          { label: "One way", value: "oneway" },
-          { label: "Return", value: "return" },
-          { label: "Multi-city", value: "multi" },
-        ].map((type) => (
-          <button
-            key={type.value}
-            type="button"
-            className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-              tripType === type.value
-                ? "bg-[#F58220] text-white"
-                : "text-gray-800 hover:bg-gray-100"
-            }`}
-            onClick={() => setTripType(type.value)}
-            aria-pressed={tripType === type.value}
-          >
-            {type.label}
-          </button>
-        ))}
+  /* ------- Top controls ------- */
+  const TopControls = () => (
+    <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+      <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1">
+        <button
+          type="button"
+          className={`rounded-lg px-3 py-2 text-sm ${tripType === "oneway" ? "bg-blue-600 text-white" : "text-gray-800 hover:bg-gray-50"}`}
+          onClick={() => setTripType("oneway")}
+          aria-pressed={tripType === "oneway"}
+        >
+          One way
+        </button>
+        <button
+          type="button"
+          className={`rounded-lg px-3 py-2 text-sm ${tripType === "return" ? "bg-blue-600 text-white" : "text-gray-800 hover:bg-gray-50"}`}
+          onClick={() => setTripType("return")}
+          aria-pressed={tripType === "return"}
+        >
+          Return
+        </button>
+        <button
+          type="button"
+          className={`rounded-lg px-3 py-2 text-sm ${tripType === "multi" ? "bg-blue-600 text-white" : "text-gray-800 hover:bg-gray-50"}`}
+          onClick={() => setTripType("multi")}
+          aria-pressed={tripType === "multi"}
+        >
+          Multi-city
+        </button>
       </div>
 
-      {/* Travellers button */}
+      {/* Travellers */}
       <div className="relative text-black">
         <button
           ref={travellersBtnRef}
           type="button"
-          onClick={() => {
-            setIsTravellersOpen((v) => {
-              const next = !v;
-              if (next) setTravellersMode(isMobile ? "mobile" : "desktop");
-              else setTravellersMode(null);
-              return next;
-            });
-          }}
-          className="inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-gray-800 shadow-md hover:bg-gray-100"
+             onClick={() => {
+                setIsTravellersOpen((v) => {
+                  const next = !v;
+                  if (next) setTravellersMode(isMobile ? "mobile" : "desktop");
+                  else setTravellersMode(null);
+                  return next;
+                });
+              }}
+          className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-800 hover:bg-gray-200"
           aria-expanded={isTravellersOpen}
         >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className="text-slate-800"
-          >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-800">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
             <circle cx="9" cy="7" r="4" />
             <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -849,28 +703,11 @@ const TopControls = () => {
         <AnimatePresence>
           {isTravellersOpen &&
             (travellersMode === "mobile" ? (
-              // MOBILE TRAVELLERS MODAL
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[100000] flex flex-col bg-white"
-              >
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100000] flex flex-col bg-white">
                 <div className="flex items-center justify-between border-b border-slate-200 p-3">
-                  <div className="text-sm font-medium text-slate-800">
-                    Travellers & cabin
-                  </div>
-                  <span
-                    className="cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800"
-                    onClick={() => {
-                      setIsTravellersOpen(false);
-                      setTravellersMode(null);
-                    }}
-                  >
-                    Close
-                  </span>
+                  <div className="text-sm font-medium text-slate-800">Travellers & cabin</div>
+                  <span className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800 cursor-pointer" onClick={() => { setIsTravellersOpen(false); setTravellersMode(null); }}>Close</span>
                 </div>
-
                 <div className="flex-1 overflow-auto p-4">
                   {[
                     { key: "Adults", sub: "+12 years", value: adults, set: setAdults, min: 1 },
@@ -883,89 +720,39 @@ const TopControls = () => {
                         <div className="text-xs text-slate-500">{row.sub}</div>
                       </div>
                       <div className="inline-flex items-center gap-3">
-                        <button
-                          type="button"
-                          className="h-10 w-10 rounded-full border border-slate-300 text-slate-800"
-                          onClick={() =>
-                            setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)
-                          }
-                        >
-                          –
-                        </button>
-                        <span className="w-8 text-center text-sm text-slate-800">
-                          {row.value}
-                        </span>
-                        <button
-                          type="button"
-                          className="h-10 w-10 rounded-full border border-slate-300 text-slate-800"
-                          onClick={() =>
-                            setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)
-                          }
-                        >
-                          +
-                        </button>
+                        <button type="button" className="h-10 w-10 rounded-full border border-slate-300 text-slate-800" onClick={() => setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)}>–</button>
+                        <span className="w-8 text-center text-sm text-slate-800">{row.value}</span>
+                        <button type="button" className="h-10 w-10 rounded-full border border-slate-300 text-slate-800" onClick={() => setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)}>+</button>
                       </div>
                     </div>
                   ))}
-
                   <div className="mt-2">
-                    <label htmlFor="flight_type" className="mb-1 block text-sm text-slate-700">
-                      Cabin class
-                    </label>
+                    <label htmlFor="flight_type" className="mb-1 block text-sm text-slate-700">Cabin class</label>
                     <select
                       id="flight_type"
                       className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
                       value={flightType}
                       onChange={(e) => setFlightType(toCabinCode(e.target.value))}
                     >
-                      {CABIN_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
+                      {CABIN_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
                     </select>
                   </div>
                 </div>
-
                 <div className="border-t border-slate-200 p-3">
-                  <span
-                    className="w-full cursor-pointer rounded-lg bg-slate-900 py-2 text-center text-sm text-white"
-                    onClick={() => {
-                      setIsTravellersOpen(false);
-                      setTravellersMode(null);
-                    }}
-                  >
-                    Done
-                  </span>
+                  <span className="w-full cursor-pointer rounded-lg bg-slate-900 py-2 text-sm text-white" onClick={() => { setIsTravellersOpen(false); setTravellersMode(null); }}>Done</span>
                 </div>
               </motion.div>
             ) : (
-              // DESKTOP TRAVELLERS POPOVER
               travellersRect && (
                 <Portal>
                   <div
                     className="fixed inset-0 z-[99990]"
-                    onMouseDown={() => {
-                      setIsTravellersOpen(false);
-                      setTravellersMode(null);
-                    }}
+                    onMouseDown={() => { setIsTravellersOpen(false); setTravellersMode(null); }}
                   />
                   <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.18 }}
+                    initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
                     onMouseDown={(e) => e.stopPropagation()}
-                    style={{
-                      position: "fixed",
-                      top: travellersRect.bottom + 8,
-                      left: Math.min(
-                        travellersRect.left,
-                        Math.max(16, window.innerWidth - 352 - 16)
-                      ),
-                      width: "min(96vw, 22rem)",
-                      zIndex: 100000,
-                    }}
+                    style={{ position: "fixed", top: travellersRect.bottom + 8, left: Math.min(travellersRect.left, Math.max(16, window.innerWidth - 352 - 16)), width: "min(96vw, 22rem)", zIndex: 100000 }}
                   >
                     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-2xl">
                       {[
@@ -979,98 +766,51 @@ const TopControls = () => {
                             <div className="text-xs text-slate-500">{row.sub}</div>
                           </div>
                           <div className="inline-flex items-center gap-2">
-                            <button
-                              type="button"
-                              className="h-8 w-8 rounded-full border border-slate-300 text-slate-800 hover:bg-slate-50"
-                              onClick={() =>
-                                setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)
-                              }
-                            >
-                              –
-                            </button>
-                            <span className="w-8 text-center text-sm text-slate-800">
-                              {row.value}
-                            </span>
-                            <button
-                              type="button"
-                              className="h-8 w-8 rounded-full border border-slate-300 text-slate-800 hover:bg-slate-50"
-                              onClick={() =>
-                                setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)
-                              }
-                            >
-                              +
-                            </button>
+                            <button type="button" className="h-8 w-8 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-800" onClick={() => setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)}>–</button>
+                            <span className="w-8 text-center text-sm text-slate-800">{row.value}</span>
+                            <button type="button" className="h-8 w-8 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-800" onClick={() => setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)}>+</button>
                           </div>
                         </div>
                       ))}
-
                       <div className="mt-2 mb-2">
-                        <label htmlFor="flight_type" className="sr-only">
-                          Cabin class
-                        </label>
-                        <select
-                          id="flight_type"
-                          className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
-                          value={flightType}
-                          onChange={(e) => setFlightType(toCabinCode(e.target.value))}
-                        >
-                          {CABIN_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>
-                              {o.label}
-                            </option>
-                          ))}
+                        <label htmlFor="flight_type" className="sr-only">Cabin class</label>
+                        <select id="flight_type" className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-slate-500 focus:ring-2 focus:ring-slate-200" value={flightType} onChange={(e) => setFlightType(toCabinCode(e.target.value))}>
+                          {CABIN_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
                         </select>
                       </div>
-
-                      <span
-                        className="mt-3 inline-block w-full cursor-pointer rounded-lg bg-slate-900 px-6 py-2 text-center text-sm text-white hover:bg-black"
-                        onClick={() => {
-                          setIsTravellersOpen(false);
-                          setTravellersMode(null);
-                        }}
-                      >
-                        Done
-                      </span>
+                      <span className="mt-3 w-full inline-block cursor-pointer text-center rounded-lg bg-slate-900 px-6 py-2 text-sm text-white hover:bg-black" onClick={() => { setIsTravellersOpen(false); setTravellersMode(null); }}>Done</span>
                     </div>
                   </motion.div>
                 </Portal>
               )
-            ))}
+          ))}
         </AnimatePresence>
       </div>
     </div>
   );
-};
 
-
-  /* ------------------------------------------------------------------------ */
-  /*                               Render Form                               */
-  /* ------------------------------------------------------------------------ */
+  /* --------- Render --------- */
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full">
       <style>{datePickerStyles}</style>
 
       {!!errors.length && (
         <div className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-          <ul className="list-disc space-y-1 pl-5">
-            {errors.map((e, i) => (
-              <li key={i}>{e}</li>
-            ))}
+          <ul className="list-disc pl-5 space-y-1">
+            {errors.map((e, i) => (<li key={i}>{e}</li>))}
           </ul>
         </div>
       )}
 
       <div className="relative">
-        {/* Top controls for trip type and travellers */}
+        {/* Top controls */}
         <TopControls />
 
         {/* Main rows */}
         {tripType !== "multi" ? (
-          <div
-            className="grid gap-0 divide-x divide-gray-200 rounded-full border border-gray-200 bg-white/90 shadow-lg overflow-hidden lg:grid-cols-[1.2fr_auto_1.2fr_auto_auto_auto] lg:items-center md:grid-cols-[1.2fr_auto_1.2fr_auto_auto_auto]"
-          >
+          <div className="grid gap-2 lg:grid-cols-[1.2fr_auto_1.2fr_auto_auto_auto] lg:items-center md:grid-cols-[1.2fr_auto_1.2fr_auto_auto_auto]">
             {/* From */}
-            <div className="z-[200] bg-transparent">
+            <div className="z-[200] bg-white">
               <Select
                 classNamePrefix="react-select"
                 options={menuOptions(0, "origin")}
@@ -1078,9 +818,9 @@ const TopControls = () => {
                 onChange={(v) => handleFlightChange(0, "origin", v)}
                 onMenuOpen={() => handleMenuOpen(0, "origin")}
                 onInputChange={handleInputChange(0, "origin")}
-                components={{ Option: AirportOption, SingleValue: AirportSingleValue, Control: ControlWithIcon }}
+                components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
                 styles={selectStyles}
-                placeholder="Where from?"
+                placeholder="City or airport"
                 isSearchable
                 filterOption={null}
                 menuPortalTarget={document?.body || undefined}
@@ -1089,12 +829,11 @@ const TopControls = () => {
                 menuPlacement="auto"
                 getOptionValue={(opt) => opt.value}
                 noOptionsMessage={noOptionsMessage}
-                iconType="from"
               />
             </div>
 
             {/* Swap */}
-            <div className="flex items-center justify-center md:-mx-5">
+            <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100000 }}>
               <button
                 type="button"
                 onClick={() => swapPlaces(0)}
@@ -1102,15 +841,7 @@ const TopControls = () => {
                 aria-label="Swap origin and destination"
                 title="Swap"
               >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="transform rotate-90 xs:rotate-0 transition-transform"
-                >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="transform rotate-90 xs:rotate-0 transition-transform">
                   <path d="M3 7h13l-4-4" />
                   <path d="M21 17H8l4 4" />
                 </svg>
@@ -1118,7 +849,7 @@ const TopControls = () => {
             </div>
 
             {/* To */}
-            <div className="relative z-[200] bg-transparent">
+            <div className="relative z-[200] bg-white">
               <Select
                 classNamePrefix="react-select"
                 options={menuOptions(0, "destination")}
@@ -1126,9 +857,9 @@ const TopControls = () => {
                 onChange={(v) => handleFlightChange(0, "destination", v)}
                 onMenuOpen={() => handleMenuOpen(0, "destination")}
                 onInputChange={handleInputChange(0, "destination")}
-                components={{ Option: AirportOption, SingleValue: AirportSingleValue, Control: ControlWithIcon }}
+                components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
                 styles={selectStyles}
-                placeholder="Where to?"
+                placeholder="City or airport"
                 isSearchable
                 filterOption={null}
                 menuPortalTarget={document?.body || undefined}
@@ -1137,7 +868,6 @@ const TopControls = () => {
                 menuPlacement="auto"
                 getOptionValue={(opt) => opt.value}
                 noOptionsMessage={noOptionsMessage}
-                iconType="to"
               />
             </div>
 
@@ -1150,22 +880,14 @@ const TopControls = () => {
                   departBtnRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
                   setOpenCal((oc) => (oc && oc.type === "depart" ? null : { type: "depart", idx: 0 }));
                 }}
-                className="flex h-[58px] w-full items-center justify-between bg-white/0 px-4 text-left text-sm focus:outline-none"
+                className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none text-slate-800"
                 aria-expanded={openCal?.type === "depart"}
               >
                 <div className="min-w-0 truncate">
                   <div className="text-[11px] tracking-wide text-slate-500">Departure</div>
                   <div className="truncate text-slate-800">{departLabel0}</div>
                 </div>
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="text-slate-500"
-                >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
                   <path d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
@@ -1174,10 +896,12 @@ const TopControls = () => {
               <AnimatePresence>
                 {openCal?.type === "depart" && departRect && (
                   <Portal>
+                    
                     <div
                       className="fixed inset-0 z-[99990]"
                       onMouseDown={() => setOpenCal(null)}
                     />
+
                     <motion.div
                       initial={{ opacity: 0, y: -8 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -1193,9 +917,7 @@ const TopControls = () => {
                       }}
                     >
                       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
-                        <div className="px-2 pt-1 pb-1 text-xs font-medium text-slate-600">
-                          Departure
-                        </div>
+                        <div className="px-2 pt-1 pb-1 text-xs font-medium text-slate-600">Departure</div>
                         <Calendar
                           date={flightsState[0]?.dateRange?.startDate}
                           onChange={(d) => handleDepartPick(0, d)}
@@ -1218,26 +940,16 @@ const TopControls = () => {
                   type="button"
                   onClick={() => {
                     returnBtnRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
-                    setOpenCal((oc) =>
-                      oc && oc.type === "return" ? null : { type: "return", idx: 0 }
-                    );
+                    setOpenCal((oc) => (oc && oc.type === "return" ? null : { type: "return", idx: 0 }));
                   }}
-                  className="flex h-[58px] w-full items-center justify-between bg-white/0 px-4 text-left text-sm focus:outline-none"
+                  className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none text-slate-800"
                   aria-expanded={openCal?.type === "return"}
                 >
                   <div className="min-w-0 truncate">
                     <div className="text-[11px] tracking-wide text-slate-500">Return</div>
                     <div className="truncate text-slate-800">{returnLabel0}</div>
                   </div>
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className="text-slate-500"
-                  >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
                     <path d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
@@ -1246,10 +958,12 @@ const TopControls = () => {
                 <AnimatePresence>
                   {openCal?.type === "return" && returnRect && (
                     <Portal>
+                      
                       <div
                         className="fixed inset-0 z-[99990]"
                         onMouseDown={() => setOpenCal(null)}
                       />
+
                       <motion.div
                         initial={{ opacity: 0, y: -8 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -1265,9 +979,7 @@ const TopControls = () => {
                         }}
                       >
                         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
-                          <div className="px-2 pt-1 pb-1 text-xs font-medium text-slate-600">
-                            Return
-                          </div>
+                          <div className="px-2 pt-1 pb-1 text-xs font-medium text-slate-600">Return</div>
                           <Calendar
                             date={flightsState[0]?.dateRange?.endDate}
                             onChange={(d) => handleReturnPick(0, d)}
@@ -1285,45 +997,26 @@ const TopControls = () => {
               <div />
             )}
 
-            {/* Search button */}
-            <div className="flex items-center justify-end px-3">
+            {/* Search */}
+            <div className="flex items-center justify-end">
               <button
                 type="submit"
                 disabled={isLoading}
-                className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#F58220] text-white shadow-md hover:bg-[#d46b15] disabled:opacity-60"
+                className="inline-flex h-12 items-center gap-2 rounded-full bg-slate-900 px-6 font-medium text-white shadow-sm hover:bg-black disabled:opacity-60"
               >
                 {isLoading ? (
-                  <svg
-                    className="h-5 w-5 animate-spin"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z"
-                    />
+                  <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z" />
                   </svg>
                 ) : (
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
+                  <>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    Search
+                  </>
                 )}
               </button>
             </div>
@@ -1332,20 +1025,14 @@ const TopControls = () => {
           <div>
             {/* MULTI-CITY: no hooks in the loop; measure rect on click */}
             {flightsState.map((leg, idx) => {
-              const legDateLabel = leg?.dateRange?.startDate
-                ? format(leg.dateRange.startDate, "EEE d MMM")
-                : "Select date";
-              const rectForThisLeg =
-                openCal?.type === "depart" && openCal?.idx === idx ? openCal.rect : null;
+              const legDateLabel = leg?.dateRange?.startDate ? format(leg.dateRange.startDate, "EEE d MMM") : "Select date";
+              const rectForThisLeg = openCal?.type === "depart" && openCal?.idx === idx ? openCal.rect : null;
               const pos = rectForThisLeg && calcCalendarPosition(rectForThisLeg);
 
               return (
-                <div
-                  key={`leg-${idx}`}
-                  className="grid gap-0 divide-x divide-gray-200 rounded-full border border-gray-200 bg-white/90 shadow-lg overflow-hidden md:grid-cols-[1.2fr_auto_1.2fr_auto_auto] lg:grid-cols-[1.2fr_auto_1.2fr_auto_auto_auto] lg:items-center mb-2"
-                >
+                <div key={`leg-${idx}`} className="grid gap-2 md:grid-cols-[1.2fr_auto_1.2fr_auto_auto] lg:grid-cols-[1.2fr_auto_1.2fr_auto_auto_auto] lg:items-center mb-2">
                   {/* From */}
-                  <div className="z-[200] bg-transparent">
+                  <div className="z-[200] bg-white">
                     <Select
                       classNamePrefix="react-select"
                       options={menuOptions(idx, "origin")}
@@ -1353,9 +1040,9 @@ const TopControls = () => {
                       onChange={(v) => handleFlightChange(idx, "origin", v)}
                       onMenuOpen={() => handleMenuOpen(idx, "origin")}
                       onInputChange={handleInputChange(idx, "origin")}
-                      components={{ Option: AirportOption, SingleValue: AirportSingleValue, Control: ControlWithIcon }}
+                      components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
                       styles={selectStyles}
-                      placeholder="Where from?"
+                      placeholder="City or airport"
                       isSearchable
                       filterOption={null}
                       menuPortalTarget={document?.body || undefined}
@@ -1364,12 +1051,11 @@ const TopControls = () => {
                       menuPlacement="auto"
                       getOptionValue={(opt) => opt.value}
                       noOptionsMessage={noOptionsMessage}
-                      iconType="from"
                     />
                   </div>
 
                   {/* Swap */}
-                  <div className="flex items-center justify-center md:-mx-5">
+                  <div className="flex items-center justify-center md:-mx-5" style={{ zIndex: 100000 }}>
                     <button
                       type="button"
                       onClick={() => swapPlaces(idx)}
@@ -1377,15 +1063,7 @@ const TopControls = () => {
                       aria-label="Swap origin and destination"
                       title="Swap"
                     >
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        className="transform rotate-90 xs:rotate-0 transition-transform"
-                      >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="transform rotate-90 xs:rotate-0 transition-transform">
                         <path d="M3 7h13l-4-4" />
                         <path d="M21 17H8l4 4" />
                       </svg>
@@ -1393,7 +1071,7 @@ const TopControls = () => {
                   </div>
 
                   {/* To */}
-                  <div className="relative z-[200] bg-transparent">
+                  <div className="relative z-[200] bg-white">
                     <Select
                       classNamePrefix="react-select"
                       options={menuOptions(idx, "destination")}
@@ -1401,9 +1079,9 @@ const TopControls = () => {
                       onChange={(v) => handleFlightChange(idx, "destination", v)}
                       onMenuOpen={() => handleMenuOpen(idx, "destination")}
                       onInputChange={handleInputChange(idx, "destination")}
-                      components={{ Option: AirportOption, SingleValue: AirportSingleValue, Control: ControlWithIcon }}
+                      components={{ Option: AirportOption, SingleValue: AirportSingleValue }}
                       styles={selectStyles}
-                      placeholder="Where to?"
+                      placeholder="City or airport"
                       isSearchable
                       filterOption={null}
                       menuPortalTarget={document?.body || undefined}
@@ -1412,7 +1090,6 @@ const TopControls = () => {
                       menuPlacement="auto"
                       getOptionValue={(opt) => opt.value}
                       noOptionsMessage={noOptionsMessage}
-                      iconType="to"
                     />
                   </div>
 
@@ -1429,24 +1106,14 @@ const TopControls = () => {
                             : { type: "depart", idx, rect }
                         );
                       }}
-                      className="flex h-[58px] w-full items-center justify-between bg-white/0 px-4 text-left text-sm focus:outline-none"
+                      className="flex h-[58px] w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm hover:border-slate-400 focus:border-slate-400 focus:outline-none text-slate-800"
                       aria-expanded={openCal?.type === "depart" && openCal?.idx === idx}
                     >
                       <div className="min-w-0 truncate">
-                        <div className="text-[11px] tracking-wide text-slate-500">
-                          Departure (Leg {idx + 1})
-                        </div>
+                        <div className="text-[11px] tracking-wide text-slate-500">Departure</div>
                         <div className="truncate text-slate-800">{legDateLabel}</div>
                       </div>
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        className="text-slate-500"
-                      >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
                         <path d="M19 9l-7 7-7-7" />
                       </svg>
                     </button>
@@ -1455,10 +1122,12 @@ const TopControls = () => {
                     <AnimatePresence>
                       {openCal?.type === "depart" && openCal?.idx === idx && rectForThisLeg && (
                         <Portal>
+                          
                           <div
                             className="fixed inset-0 z-[99990]"
                             onMouseDown={() => setOpenCal(null)}
                           />
+
                           <motion.div
                             initial={{ opacity: 0, y: -6 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -1492,7 +1161,7 @@ const TopControls = () => {
                   </div>
 
                   {/* Remove leg */}
-                  <div className="flex items-center justify-end px-3">
+                  <div className="flex items-center justify-end">
                     <button
                       type="button"
                       onClick={() => removeLeg(idx)}
@@ -1511,47 +1180,29 @@ const TopControls = () => {
               <button
                 type="button"
                 onClick={addLeg}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-800 hover:bg-slate-50"
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 hover:bg-slate-50"
               >
                 + Add another flight
               </button>
+
               <button
                 type="submit"
                 disabled={isLoading}
-                className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#F58220] text-white shadow-md hover:bg-[#d46b15] disabled:opacity-60"
+                className="inline-flex h-12 items-center gap-2 rounded-full bg-slate-900 px-6 font-medium text-white shadow-sm hover:bg-black disabled:opacity-60"
               >
                 {isLoading ? (
-                  <svg
-                    className="h-5 w-5 animate-spin"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z"
-                    />
+                  <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z" />
                   </svg>
                 ) : (
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
+                  <>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    Search
+                  </>
                 )}
               </button>
             </div>

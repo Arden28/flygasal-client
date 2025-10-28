@@ -22,7 +22,7 @@ const Home = () => {
 
         {/* Hero content */}
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 sm:py-28 text-center text-white">
-          <h1 className="text-4xl sm:text-6xl font-bold tracking-wide drop-shadow-md">
+          <h1 className="text-4xl sm:text-6xl font-semibold tracking-wide drop-shadow-md">
             Discover Your Next Adventure
           </h1>
           <p className="mt-4 text-lg sm:text-2xl opacity-90 max-w-2xl mx-auto drop-shadow-sm">
@@ -128,7 +128,7 @@ const Home = () => {
           </div>
           {/* Text content */}
           <div className="md:w-1/2">
-            <h3 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-4">
+            <h3 className="text-3xl sm:text-4xl font-semibold text-slate-900 mb-4">
               Delay payments, not your plans
             </h3>
             <p className="text-slate-600 mb-6">
@@ -163,7 +163,7 @@ const Home = () => {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 flex flex-col md:flex-row items-center gap-12">
           {/* Text content */}
           <div className="md:w-1/2 order-2 md:order-1">
-            <h3 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-4">
+            <h3 className="text-3xl sm:text-4xl font-semibold text-slate-900 mb-4">
               Protection that puts you in control
             </h3>
             <p className="text-slate-600 mb-6">
@@ -204,7 +204,7 @@ const Home = () => {
       {/* Trusted Customers Section */}
       <section className="bg-orange-50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
-          <h3 className="text-center text-3xl sm:text-4xl font-extrabold text-slate-900 mb-10">
+          <h3 className="text-center text-3xl sm:text-4xl font-semibold text-slate-900 mb-10">
             Trusted by customers all around the world
           </h3>
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -255,7 +255,7 @@ const Home = () => {
       {/* Destinations Section */}
       <section className="bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
-          <h3 className="text-center text-3xl sm:text-4xl font-extrabold text-slate-900 mb-10">
+          <h3 className="text-center text-3xl sm:text-4xl font-semibold text-slate-900 mb-10">
             Destinations ready for you to explore
           </h3>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -332,7 +332,7 @@ const Home = () => {
       {/* Airlines Section */}
       <section className="bg-orange-50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
-          <h3 className="text-center text-3xl sm:text-4xl font-extrabold text-slate-900 mb-10">
+          <h3 className="text-center text-3xl sm:text-4xl font-semibold text-slate-900 mb-10">
             Access airlines all around the world
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
@@ -396,7 +396,7 @@ const Home = () => {
       {/* Help Cards Section */}
       <section className="bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
-          <h3 className="text-center text-3xl sm:text-4xl font-extrabold text-slate-900 mb-10">
+          <h3 className="text-center text-3xl sm:text-4xl font-semibold text-slate-900 mb-10">
             We're with you every step of the way
           </h3>
           <div className="grid gap-8 sm:grid-cols-3">
