@@ -117,6 +117,7 @@ const AirlineRow = ({
 /*                              SIDEBAR                               */
 /* ================================================================== */
 export default function FilterSidebar({
+  count,
   currentStop,
   handleStopChange,
   priceRange,
@@ -268,7 +269,7 @@ export default function FilterSidebar({
       {/* Top meta */}
       <div className="mb-3 sm:mb-4 flex items-center justify-between">
         <div className="text-[12px] font-medium text-slate-700">
-          Showing <span className="font-semibold">25</span> results
+          Showing <span className="font-semibold">{count}</span> results
         </div>
         {onCloseMobile && (
           <button

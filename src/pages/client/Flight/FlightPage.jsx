@@ -181,6 +181,7 @@ const FlightPage = () => {
   // Markup
   const agentMarkupPercent = user?.agency_markup || 0;
 
+
   // ---------- Helpers ----------
   const formatTimer = (s) => {
     const m = Math.floor(s / 60);
@@ -998,6 +999,16 @@ const FlightPage = () => {
     ]
   );
 
+  
+  // Count Label
+  const countLabel = useMemo(() => {
+    const n = filteredItineraries.length || 0;
+    if (loading) return "Searching flights…";
+    const noun = tripType === "return" ? "Itinerar" : "Flight";
+    // Itineraries vs Flights pluralization
+    return `${n} ${tripType === "return" ? `${noun}${n === 1 ? "y" : "ies"}` : `${noun}${n === 1 ? "" : "s"}`} Found`;
+  }, [filteredItineraries.length, loading, tripType]);
+
   // ---------- Smooth scrolling + details reset ----------
   const scrollToList = () => {
     const el = document.getElementById("flight--list-targets");
@@ -1171,6 +1182,7 @@ const FlightPage = () => {
                   >
                     <div className="rounded-2xl border border-gray-200 bg-white/60 backdrop-blur p-3">
                       <FilterSidebar
+                        count={countLabel}
                         currentStop={currentStop}
                         handleStopChange={handleStopChange}
                         priceRange={[minPrice, maxPrice]}
