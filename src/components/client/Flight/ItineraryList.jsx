@@ -1,11 +1,13 @@
 import React, { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import FlightDetails from "./FlightSegment"; // ⬅️ alias the old details component
+import FlightSegment from "./FlightSegment";
 import { formatDuration } from "../../../lib/helper";
 import { getAirportName, getCityName } from "../../../utils/utils";
 import { FaPersonWalking } from "react-icons/fa6";
 import { MdLuggage } from "react-icons/md";
+import { FaPlaneDeparture } from "react-icons/fa";
+import { FaPlaneArrival, FaInfo } from "react-icons/fa";
 
 /* -------------------- tiny utils -------------------- */
 const money = (n, currency = "USD") =>
@@ -42,151 +44,162 @@ const Icon = ({ name, className = "h-4 w-4" }) => {
   switch (name) {
     case "info":
       return (
-        <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-          <path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Zm-.75-11.5h1.5V17h-1.5v-6.5Zm0-3h1.5V9h-1.5V7.5Z" />
-        </svg>
+        <FaInfo className="h-3 w-3" />
+      );
+    case "takeoff":
+      return (
+        <FaPlaneDeparture />
+      );
+    case "landing":
+      return (
+        <FaPlaneArrival />
       );
     default:
       return null;
   }
 };
 
-/* -------------------- flight segment CARD (new) -------------------- */
-const FlightSegment = ({
+/* -------------------- middle band -------------------- */
+const RailBand = ({
+  progress = 0.62,
+  durationText = "",
+  stopsText = "",
+  depCode = "",
+  arrCode = "",
+  onClick,
+  open,
+}) => {
+  const width = `${Math.min(100, Math.max(0, progress * 100))}%`;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={open}
+      className="col-span-12 sm:col-span-6 md:col-span-6 grid w-full text-left"
+      style={{ gridTemplateRows: "auto auto auto" }}
+    >
+      {/* top row: plane icons + duration */}
+      <div className="flex items-center justify-between text-[11px] leading-none text-slate-600 mb-1">
+        <Icon name="takeoff" className="h-3.5 w-3.5 opacity-70" />
+        <div className="text-xs font-medium text-slate-700">{durationText}</div>
+        <Icon name="landing" className="h-3.5 w-3.5 opacity-70" />
+      </div>
+
+      {/* middle row: the rail */}
+      <div className="relative h-1.5 rounded-full bg-slate-200">
+        <div className="absolute left-0 top-0 h-1.5 rounded-full bg-[#5A46E0]" style={{ width }} />
+        {/* end caps */}
+        <span className="absolute left-0 -top-[3px] h-2.5 w-2.5 rounded-full bg-[#5A46E0]" />
+        <span className="absolute right-0 -top-[3px] h-2.5 w-2.5 rounded-full bg-slate-300" />
+      </div>
+
+      {/* bottom row: codes + stops */}
+      <div className="mt-1 flex items-center justify-between text-[11px] leading-none text-slate-600">
+        <span className="font-semibold tracking-wide">{depCode || "—"}</span>
+        <span className="text-slate-500">{stopsText}</span>
+        <span className="font-semibold tracking-wide">{arrCode || "—"}</span>
+      </div>
+    </button>
+  );
+};
+
+/* -------------------- segment block -------------------- */
+const SegmentBlock = ({
   id,
   openId,
   setOpenId,
-  // header (route)
   titleLeft,
   titleRight,
-  // airline avatar
   logoSrc,
   logoAlt,
-  // left (departure)
+
   depDateText,
   depTime,
   depCity,
   depAirport,
-  // middle summary
+
   durationText,
   stopsText,
-  // right (arrival)
+
   arrDateText,
   arrTime,
   arrCity,
   arrAirport,
-  // extras (optional – show if provided)
-  fareText,
-  aircraftText,
-  baggage = { personal: null, carry: null, checked: null },
-  // details body
+
   body,
 }) => {
   const open = openId === id;
   const toggle = () => setOpenId(open ? null : id);
 
-  const leftIata = (depAirport || "").slice(0, 3).toUpperCase();
-  const rightIata = (arrAirport || "").slice(0, 3).toUpperCase();
+  // guess a simple progress: 60% so the bar looks alive even w/o true time ratio
+  const progress = 0.62;
 
   return (
     <div className="overflow-hidden bg-white">
-      {/* top route bar */}
+      {/* Route bar */}
       <div className="flex items-center justify-between bg-slate-100 px-4 py-2.5 md:px-5 text-sm">
         <div className="flex items-center gap-2 text-slate-700">
           <span className="font-medium">{titleLeft}</span>
+          <span className="ml-2 h-2 w-2 rounded-full bg-emerald-500" />
         </div>
         {titleRight && <div className="text-slate-600">{titleRight}</div>}
       </div>
 
-      {/* main row */}
-      <div className="px-4 md:px-5 py-4">
-        <div className="grid grid-cols-[auto_1fr_auto] gap-4">
-          {/* airline bubble */}
-          <div className="pt-1">
+      {/* Summary row */}
+      <div className="px-4 md:px-5">
+        <div className="grid grid-cols-12 items-center gap-3 py-3">
+          {/* left column */}
+          <div className="col-span-12 sm:col-span-3 md:col-span-3 flex items-center gap-3">
             <img
               src={logoSrc}
               alt={logoAlt}
-              className="h-10 w-10 rounded-full object-contain ring-1 ring-slate-200 bg-white"
+              className="h-9 w-9 rounded-full object-contain ring-1 ring-slate-200 bg-white"
               onError={(e) => {
                 e.currentTarget.onerror = null;
                 e.currentTarget.src = "/assets/img/airlines/placeholder.png";
               }}
             />
-            <div className="sr-only">Airline</div>
-          </div>
-
-          {/* timeline column */}
-          <div className="relative">
-            {/* vertical rail */}
-            <div className="absolute left-[6px] top-2 bottom-2 w-0.5 bg-slate-200" />
-
-            {/* departure dot */}
-            <div className="relative pl-6">
-              <span className="absolute left-0 top-1.5 h-3 w-3 rounded-full bg-[#6C54FF]" />
-              <div className="text-xl font-semibold text-slate-900 leading-5 tabular-nums">
-                {depTime || "—"}
+            <div className="min-w-0">
+              <div className="text-[11px] text-slate-500">{depDateText}</div>
+              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{depTime}</div>
+              <div className="text-[11px] text-slate-600 truncate">{depCity}</div>
+              <div
+                className="text-[11px] text-slate-500 truncate max-w-[120px]"
+                title={getCityName(depAirport)}
+              >
+                {getCityName(depAirport)}
               </div>
-              <div className="text-[11px] text-slate-500">{depDateText || ""}</div>
-              <div className="mt-1 text-slate-900">{getAirportName(depAirport) || depCity || ""}</div>
-              <div className="text-xs text-slate-500">Terminal</div>
-
-              {/* badges row */}
-              <div className="mt-3 flex flex-wrap gap-2">
-                {fareText && (
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
-                    Fare: {fareText}
-                  </span>
-                )}
-                {aircraftText && (
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
-                    {aircraftText}
-                  </span>
-                )}
-                {baggage?.personal && (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
-                    <MdLuggage className="opacity-70" /> Personal Item {baggage.personal}
-                  </span>
-                )}
-                {baggage?.carry && (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
-                    <MdLuggage className="opacity-70" /> Carry on bag {baggage.carry}
-                  </span>
-                )}
-                {baggage?.checked && (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
-                    <MdLuggage className="opacity-70" /> Checked bag {baggage.checked}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* arrival block */}
-            <div className="relative mt-6 pl-6">
-              <span className="absolute left-[3px] -top-3 h-3 w-3 rounded-full bg-[#6C54FF]" />
-              <div className="text-xl font-semibold text-slate-900 leading-5 tabular-nums">
-                {arrTime || "—"}
-              </div>
-              <div className="text-[11px] text-slate-500">{arrDateText || ""}</div>
-              <div className="mt-1 text-slate-900">{getAirportName(arrAirport) || arrCity || ""}</div>
-              <div className="text-xs text-slate-500">Terminal</div>
             </div>
           </div>
 
-          {/* right rail: summary + cta */}
-          <div className="flex flex-col items-end gap-2">
-            <span className="rounded-full bg-violet-50 px-3 py-1 text-xs text-violet-700">
-              Inflight experience
-            </span>
+          {/* middle band */}
+          <RailBand
+            progress={progress}
+            durationText={durationText}
+            stopsText={stopsText}
+            depCode={(depAirport || "").slice(0, 3).toUpperCase()}
+            arrCode={(arrAirport || "").slice(0, 3).toUpperCase()}
+            onClick={toggle}
+            open={open}
+          />
 
-            <div className="mt-2 text-right">
-              <div className="text-sm text-slate-600">{stopsText || "—"}</div>
-              <div className="text-sm font-medium text-slate-900">{durationText || ""}</div>
+          {/* right column */}
+          <div className="col-span-12 sm:col-span-3 md:col-span-3 ml-auto flex items-center justify-end gap-3">
+            <div className="min-w-0 text-right">
+              <div className="text-[11px] text-rose-600">{arrDateText}</div>
+              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{arrTime}</div>
+              <div
+                className="text-[11px] text-slate-500 truncate max-w-[120px]"
+                title={getCityName(arrAirport)}
+              >
+                {getCityName(arrAirport)}
+              </div>
             </div>
 
             <button
               type="button"
               onClick={toggle}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-700"
+              className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-700"
             >
               Details
               <motion.svg
@@ -203,17 +216,11 @@ const FlightSegment = ({
                 <path d="M6 9l6 6 6-6" />
               </motion.svg>
             </button>
-
-            {/* IATA codes under button */}
-            <div className="mt-4 text-[11px] text-slate-500">
-              <span className="font-semibold text-slate-700">{leftIata}</span> —{" "}
-              <span className="font-semibold text-slate-700">{rightIata}</span>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* collapsible body */}
+      {/* Collapsible body */}
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
@@ -399,7 +406,7 @@ const ItineraryList = ({
                   <div className="inline-flex items-center gap-2 text-xl md:text-2xl font-bold text-slate-900">
                     {money(grandWithMarkup, pbCurrency)}
                     <span className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-600">
-                      <Icon name="info" className="h-3.5 w-3.5" />
+                      <Icon name="info" className="h-1 w-1" />
                     </span>
                   </div>
                 </div>
@@ -408,7 +415,7 @@ const ItineraryList = ({
                 <div className="px-0 pb-2 md:pb-3 space-y-2">
                   {/* Outbound */}
                   {itinerary.outbound && (
-                    <FlightSegment
+                    <SegmentBlock
                       id={`${key}-out`}
                       openId={openDetailsId}
                       setOpenId={setOpen}
@@ -447,12 +454,8 @@ const ItineraryList = ({
                       arrCity={(itinerary.outbound.destination || outSegLast?.arrival || "—")}
                       arrAirport={(itinerary.outbound.destination || outSegLast?.arrival || "—")}
 
-                      // optional extras (pass if you have them)
-                      fareText={itinerary?.outbound?.fareClassLabel}
-                      aircraftText={itinerary?.outbound?.aircraftModel}
-
                       body={
-                        <FlightDetails
+                        <FlightSegment
                           flight={itinerary.outbound}
                           segmentType="Outbound"
                           formatDate={formatDate}
@@ -470,7 +473,7 @@ const ItineraryList = ({
 
                   {/* Return */}
                   {isRoundTrip && itinerary.return && (
-                    <FlightSegment
+                    <SegmentBlock
                       id={`${key}-ret`}
                       openId={openDetailsId}
                       setOpenId={setOpen}
@@ -509,11 +512,8 @@ const ItineraryList = ({
                       arrCity={(itinerary.return.destination || retSegLast?.arrival || "—")}
                       arrAirport={(itinerary.return.destination || retSegLast?.arrival || "—")}
 
-                      fareText={itinerary?.return?.fareClassLabel}
-                      aircraftText={itinerary?.return?.aircraftModel}
-
                       body={
-                        <FlightDetails
+                        <FlightSegment
                           flight={itinerary.return}
                           segmentType="Return"
                           formatDate={formatDate}
@@ -541,7 +541,7 @@ const ItineraryList = ({
                       const logoSrc = logoCode ? `/assets/img/airlines/${logoCode}.png` : "/assets/img/airlines/placeholder.png";
                       const aName = logoCode ? (typeof getAirlineName === "function" ? getAirlineName(logoCode) : logoCode) : "Airline";
                       return (
-                        <FlightSegment
+                        <SegmentBlock
                           key={`${key}-leg-${li}`}
                           id={`${key}-leg-${li}`}
                           openId={openDetailsId}
@@ -566,7 +566,7 @@ const ItineraryList = ({
                           arrAirport={(leg.destination || segLast?.arrival || "—")}
 
                           body={
-                            <FlightDetails
+                            <FlightSegment
                               flight={leg}
                               segmentType={`Leg ${li + 1}`}
                               formatDate={formatDate}
