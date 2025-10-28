@@ -165,9 +165,9 @@ const SegmentBlock = ({
               <div className="text-[11px] text-slate-600 truncate">{depCity}</div>
               <div
                 className="text-[11px] text-slate-500 truncate max-w-[120px]"
-                title={getCityName(depAirport)}
+                title={getAirportName(depAirport)}
               >
-                {getCityName(depAirport)}
+                {getAirportName(depAirport)}
               </div>
             </div>
           </div>
@@ -190,9 +190,9 @@ const SegmentBlock = ({
               <div className="text-slate-900 font-semibold leading-5 tabular-nums">{arrTime}</div>
               <div
                 className="text-[11px] text-slate-500 truncate max-w-[120px]"
-                title={getCityName(arrAirport)}
+                title={getAirportName(arrAirport)}
               >
-                {getCityName(arrAirport)}
+                {getAirportName(arrAirport)}
               </div>
             </div>
 
@@ -382,7 +382,7 @@ const ItineraryList = ({
             const retSeg0 = itinerary?.return?.segments?.[0];
             const retSegLast = itinerary?.return?.segments?.slice(-1)?.[0];
             const retLeft = itinerary?.return
-              ? `${(itinerary.return.origin || retSeg0?.departure) ?? "—"} → ${(itinerary.return.destination || retSegLast?.arrival) ?? "—"}`
+              ? `${(getCityName(itinerary.return.origin) || getCityName(retSeg0?.departure)) ?? "—"} → ${(getCityName(itinerary.return.destination) || getCityName(retSegLast?.arrival)) ?? "—"}`
               : "—";
             const retDateRight = retSeg0?.departureTime || itinerary?.return?.departureTime;
 
