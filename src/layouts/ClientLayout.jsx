@@ -249,7 +249,7 @@ export default function ClientLayout() {
                   Exclusive flight tips, fare drops & product updates.
                 </h4>
                 <p className="mt-1 text-white/70 text-sm">
-                  No spam. Just useful stuff from Fly Gasal — unsubscribe anytime.
+                  No spam. Just useful stuff from Fly Gasal, unsubscribe anytime.
                 </p>
               </div>
 
@@ -287,7 +287,7 @@ export default function ClientLayout() {
                 <img src={logo} alt="FlyGasal" className="h-8 w-auto" />
               </Link>
               <p className="text-sm text-white/70">
-                Your one stop travel solutions — simple, flexible and reliable.
+                Your one stop travel solutions, simple, flexible and reliable.
               </p>
             </div>
 
@@ -302,10 +302,10 @@ export default function ClientLayout() {
               <span>© {new Date().getFullYear()} Fly Gasal.</span>
               <span className="hidden sm:inline">All rights reserved.</span>
             </div>
-            <ul className="flex items-center gap-4">
-              <li><a href="#" className="hover:text-white">Terms</a></li>
-              <li><a href="#" className="hover:text-white">Privacy</a></li>
-              <li><a href="#" className="hover:text-white">Cookies</a></li>
+            <ul className="flex items-center gap-4  text-white/70">
+              <li><a href="#" className=" text-white/70">Terms</a></li>
+              <li><a href="#" className=" text-white/70">Privacy</a></li>
+              <li><a href="#" className=" text-white/70">Cookies</a></li>
             </ul>
           </div>
         </div>
@@ -318,10 +318,10 @@ function FooterColumn({ title, links }) {
   return (
     <div>
       <h5 className="text-sm font-semibold tracking-wide text-white/90">{title}</h5>
-      <ul className="mt-3 space-y-2">
+      <ul className="mt-3 space-y-2 text-white/70">
         {links.map((text) => (
-          <li key={text}>
-            <a href="#" className="text-white/70 hover:text-white">
+          <li key={text} className="text-white/70">
+            <a href="#" className="text-white/70">
               {text}
             </a>
           </li>
