@@ -23,7 +23,7 @@ const Home = () => {
         {/* Hero content */}
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 sm:py-28 text-center text-white">
           <h1 className="text-4xl sm:text-6xl font-bold tracking-wide drop-shadow-md">
-            Book flights. Pay later.
+            Discover Your Next Adventure
           </h1>
           <p className="mt-4 text-lg sm:text-2xl opacity-90 max-w-2xl mx-auto drop-shadow-sm">
             Book your perfect flight with confidence.
@@ -48,7 +48,7 @@ const Home = () => {
       {/* Benefits Section */}
       <section className="bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
-          <h2 className="text-center text-3xl sm:text-4xl font-bold text-slate-900 mb-12">
+          <h2 className="text-center text-3xl sm:text-4xl font-semibold text-slate-900 mb-12">
             The future of flight booking has landed
           </h2>
           <div className="grid gap-8 sm:grid-cols-3">
