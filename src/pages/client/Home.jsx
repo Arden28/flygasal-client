@@ -22,7 +22,7 @@ const Home = () => {
 
         {/* Hero content */}
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 sm:py-28 text-center text-white">
-          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight drop-shadow-md">
+          <h1 className="text-4xl sm:text-6xl font-bold tracking-wide drop-shadow-md">
             Book flights. Pay later.
           </h1>
           <p className="mt-4 text-lg sm:text-2xl opacity-90 max-w-2xl mx-auto drop-shadow-sm">
