@@ -91,7 +91,7 @@ const SegmentBlock = ({
   const toggle = () => setOpenId(open ? null : id);
 
   return (
-    <div className="rounded-2xl ring-1 ring-slate-200 overflow-hidden bg-white">
+    <div className="overflow-hidden bg-white">
       {/* Route bar */}
       <div className="flex items-center justify-between bg-slate-50/80 px-4 py-2.5 md:px-5 text-sm">
         <div className="flex items-center gap-2 text-slate-700">
@@ -351,7 +351,7 @@ const ItineraryList = ({
                 </div>
 
                 {/* SEGMENTS */}
-                <div className="px-4 pb-4 md:px-5 md:pb-5 space-y-3">
+                <div className="px-0 pb-4 md:pb-5 space-y-3">
                   {/* Outbound */}
                   {itinerary.outbound && (
                     <SegmentBlock
