@@ -296,7 +296,7 @@ export default function FilterSidebar({
       </div>
 
       {/* Cabin */}
-      <CollapsibleSection title="Cabin class" defaultOpen>
+      {/* <CollapsibleSection title="Cabin class" defaultOpen>
         <div className="grid grid-cols-1 gap-2">
           {CABINS.map((c) => {
             const checked = selectedCabins.includes(c.key);
@@ -330,7 +330,7 @@ export default function FilterSidebar({
             </span>
           )}
         </div>
-      </CollapsibleSection>
+      </CollapsibleSection> */}
 
       {/* Stops (single-select via checkboxes) */}
       <CollapsibleSection title="Stops" defaultOpen>

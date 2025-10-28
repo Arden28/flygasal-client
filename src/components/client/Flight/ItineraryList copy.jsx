@@ -437,7 +437,6 @@ const ItineraryList = ({
                       </>
                     )}
 
-                    {/* Flight Details */}
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
                       <Pill tone={direct ? "green" : "blue"}>
                         {direct ? "Direct" : `${itinerary.totalStops} stop${itinerary.totalStops > 1 ? "s" : ""}`}
@@ -510,10 +509,133 @@ const ItineraryList = ({
                         <span>Select flight</span>
                         <i className="bi bi-arrow-right" />
                       </button>
+
+                      <button
+                        type="button"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-3 border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50"
+                        onClick={() => toggleOpen(key)}
+                        aria-expanded={open}
+                        aria-controls={detailsId}
+                      >
+                        {open ? "Hide fare details" : "Show fare details"}
+                        <Chevron open={open} />
+                      </button>
                     </div>
                   </div>
                 </div>
 
+                {/* Fare details */}
+                <AnimatePresence initial={false}>
+                  {open && (
+                    <motion.div
+                      id={detailsId}
+                      layout="position"
+                      presenceAffectsLayout={false}
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="border-t border-slate-200 bg-white"
+                    >
+                      <div className="p-3 md:p-4">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                          {/* Fare breakdown by passenger type */}
+                          <Tile icon="price" title="Per passenger type" hint={`Currency: ${pbCurrency}`}>
+                            {pax.total > 1 && paxEntries.length === 0 && (
+                              <div className="text-xs text-slate-600">No passenger-type pricing to display.</div>
+                            )}
+
+                            <div className="space-y-3">
+                              {paxEntries.map(([ptype, data]) => {
+                                const count = Number(data?.count || 0);
+                                const unitFare = Number(data?.unit?.fare || 0);
+                                const unitTax = Number(data?.unit?.tax || 0);
+                                const unitTotal = Number(data?.unit?.total || 0);
+                                const subBase = Number(data?.subtotal?.base || 0);
+                                const subTaxes = Number(data?.subtotal?.taxes || 0);
+                                const subTotal = Number(data?.subtotal?.total || 0);
+                                return (
+                                  <div key={`${detailsId}-${ptype}`} className="rounded-lg border border-slate-200 p-2">
+                                    <div className="mb-1 flex items-center justify-between">
+                                      <span className="text-xs font-semibold text-slate-900">
+                                        {ptype} <span className="text-slate-500 font-normal">× {count}</span>
+                                      </span>
+                                      <span className="text-xs font-semibold text-slate-900">{money(subTotal, pbCurrency)}</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                      <div className="rounded border border-slate-200 p-2">
+                                        <div className="text-[11px] text-slate-500 mb-1">Unit</div>
+                                        <Row label="Fare" value={money(unitFare, pbCurrency)} subtle />
+                                        <Row label="Tax" value={money(unitTax, pbCurrency)} subtle />
+                                        <div className="mt-1 border-t border-slate-200 pt-1">
+                                          <Row label="Total" value={money(unitTotal, pbCurrency)} />
+                                        </div>
+                                      </div>
+                                      <div className="rounded border border-slate-200 p-2">
+                                        <div className="text-[11px] text-slate-500 mb-1">Subtotal</div>
+                                        <Row label="Base" value={money(subBase, pbCurrency)} subtle />
+                                        <Row label="Taxes" value={money(subTaxes, pbCurrency)} subtle />
+                                        <div className="mt-1 border-t border-slate-200 pt-1">
+                                          <Row label="Total" value={money(subTotal, pbCurrency)} />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            <div className="mt-3 border-t border-slate-200 pt-2">
+                              <Row label="All pax base" value={money(backendBase, pbCurrency)} />
+                              <Row label="All pax taxes" value={money(backendTaxes, pbCurrency)} />
+                            </div>
+                          </Tile>
+
+                          {/* Fees */}
+                          <Tile icon="bag" title="Fees">
+                            {Object.entries(pbFeeItems).filter(([, v]) => Number(v || 0) > 0).length === 0 &&
+                            Number(backendFees) === 0 ? (
+                              <div className="text-xs text-slate-600">No additional fees from source.</div>
+                            ) : (
+                              <>
+                                <div className="space-y-1">
+                                  {Object.entries(pbFeeItems)
+                                    .filter(([, v]) => Number(v || 0) > 0)
+                                    .map(([k, v]) => (
+                                      <Row key={`${detailsId}-fee-${k}`} label={k} value={money(v, pbCurrency)} />
+                                    ))}
+                                </div>
+                                <div className="mt-2 border-t border-slate-200 pt-2">
+                                  <Row label="Fees total" value={money(backendFees, pbCurrency)} bold />
+                                </div>
+                              </>
+                            )}
+                          </Tile>
+
+                          {/* Totals & notes */}
+                          <Tile icon="shield" title="Totals & notes">
+                            <div className="space-y-1">
+                              <Row label="Base" value={money(backendBase, pbCurrency)} />
+                              <Row label="Taxes" value={money(backendTaxes, pbCurrency)} />
+                              <Row label="Fees" value={money(backendFees, pbCurrency)} />
+                              <div className="border-t border-slate-200 pt-2">
+                                <Row label="Grand total (source)" value={money(backendGrand, pbCurrency)} bold />
+                              </div>
+                              <Row label={`Agent markup (${agentMarkupPercent}%)`} value={money(markupAmount, pbCurrency)} />
+                              <div className="border-t border-slate-200 pt-2">
+                                <Row label="Estimated total to pay" value={money(grandWithMarkup, pbCurrency)} bold />
+                              </div>
+                              <div className="mt-2 flex items-start gap-2 text-[11px] text-slate-500">
+                                <Icon name="info" className="mt-[2px] h-3.5 w-3.5 text-slate-400" />
+                                <span>Final totals and fare rules are confirmed on the next step.</span>
+                              </div>
+                            </div>
+                          </Tile>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.li>
             );
           })}
