@@ -1223,7 +1223,7 @@ const FlightPage = () => {
 
               {/* Desktop sticky sidebar */}
               <div className="hidden lg:block lg:top-28">
-                <div className="bg-white">
+                <div className="bg-white rounded-2xl">
                   <FilterSidebar
                     currentStop={currentStop}
                     handleStopChange={handleStopChange}

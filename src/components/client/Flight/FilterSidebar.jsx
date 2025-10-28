@@ -271,11 +271,7 @@ export default function FilterSidebar({
 
   return (
     <aside
-      className={[
-        "w-full rounded-2xl bg-white",
-        "ring-1 ring-slate-200",
-        "p-4 sm:p-5 lg:p-6",
-      ].join(" ")}
+      className="w-full rounded-2xl bg-white ring-1 ring-slate-200 p-4 sm:p-5 lg:p-6"
     >
       {/* Top meta */}
       <div className="mb-3 sm:mb-4 flex items-center justify-between">
