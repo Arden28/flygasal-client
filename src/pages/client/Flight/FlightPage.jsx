@@ -1333,37 +1333,6 @@ const FlightPage = () => {
                   </motion.div>
                 ) : (
                 <>
-                  {/* Header */}
-                  {loading ? (
-                    <HeaderSkeleton />
-                  ) : (
-                    <FlightHeader
-                      onOpen={() => setFiltersOpenMobile(true)}
-                      filteredItineraries={filteredItineraries}
-                      searchParams={searchParams}
-                      formatDate={formatDate}
-                      loading={loading}
-                    />
-                  )}
-
-                  {/* Timer */}
-                  <motion.div
-                    className="flex items-center justify-between gap-3 bg-white border border-gray-300 rounded-lg py-2 px-4 mb-4 text-sm text-gray-700"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <span className="text-start">
-                      <i className="bi bi-clock" /> Time Remaining
-                    </span>
-                    <div className="flex-1 mx-3 h-2 bg-gray-200 rounded overflow-hidden">
-                      <div
-                        className="h-full bg-blue-600"
-                        style={{ width: `${(timeRemaining / 900) * 100}%`, transition: "width 1s linear" }}
-                      />
-                    </div>
-                    <span className="text-end fw-bold">{formatTimer(timeRemaining)}</span>
-                  </motion.div>
 
                   {/* Sort */}
                   <SortNavigation

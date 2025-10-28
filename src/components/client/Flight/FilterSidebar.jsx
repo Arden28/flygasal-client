@@ -281,8 +281,8 @@ export default function FilterSidebar({
       <div className="mb-3 sm:mb-4 flex items-center justify-between">
         {pageSummary && (
           <div className="text-[14px] font-medium text-slate-700" aria-live="polite">
-            Showing <span className="font-medium text-slate-800">{pageSummary.start}–{pageSummary.end}</span> of{" "}
-            <span className="font-medium text-slate-800">{pageSummary.total}</span> results
+            Showing <span className="font-semibold text-slate-800">{pageSummary.start}–{pageSummary.end}</span> of{" "}
+            <span className="font-semibold text-slate-800">{pageSummary.total}</span> results
           </div>
         )}
         {onCloseMobile && (
