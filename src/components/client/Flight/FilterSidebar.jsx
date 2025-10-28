@@ -296,7 +296,7 @@ export default function FilterSidebar({
   return (
     <aside
       className={[
-        "w-full rounded-3xl bg-slate-50/70 backdrop-blur",
+        "w-full rounded-3xl bg-white backdrop-blur",
         "p-3 lg:p-4 xl:p-5",
         "space-y-3 lg:space-y-4",
         "ring-1 ring-slate-200/60",
