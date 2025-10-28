@@ -95,12 +95,12 @@ export default function ClientLayout() {
   if (isNoLayout) return <Outlet />;
 
   return (
-    <div className="flex min-h-screen flex-col" id="fadein">
+    <div className="flex min-h-screen flex-col">
       {/* --- NAVBAR --- */}
       {/* Navbar */}
       <header
         ref={rootRef}
-        className="top-0 z-[250] backdrop-blur-md"
+        className="z-[250] backdrop-blur-md"
       >
         <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
           <div className="flex h-14 items-center justify-between">
