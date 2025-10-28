@@ -1,10 +1,10 @@
-import React, { useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   getAirlineLogo as utilsGetAirlineLogo,
   getAirlineName as utilsGetAirlineName,
 } from "../../../utils/utils";
 
-/* ---------------- helpers (kept from your version) ---------------- */
+/* ---------------- helpers ---------------- */
 const norm = (s = "") =>
   String(s).trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3);
 
@@ -32,7 +32,6 @@ const byDepTime = (a, b) => {
   return ta - tb;
 };
 
-// normalize any supplier shape into a consistent array of segments
 const normalizeSegments = (flightLike) => {
   const raw =
     Array.isArray(flightLike?.segments) && flightLike.segments.length
@@ -83,6 +82,59 @@ const normalizeSegments = (flightLike) => {
 
   return segs;
 };
+
+const findLeg = (segs, ORIGIN, DEST, { prefer = "earliest", notBefore } = {}) => {
+  const O = norm(ORIGIN);
+  const D = norm(DEST);
+  if (!O || !D || !segs?.length) return null;
+
+  const chains = [];
+  for (let i = 0; i < segs.length; i++) {
+    if (norm(segs[i].departure) !== O) continue;
+    if (notBefore && new Date(segs[i].departureAt) < new Date(notBefore)) continue;
+
+    const chain = [segs[i]];
+    if (norm(segs[i].arrival) === D) {
+      chains.push(chain.slice());
+      continue;
+    }
+    for (let j = i + 1; j < segs.length; j++) {
+      const prev = chain[chain.length - 1];
+      const cur = segs[j];
+      if (norm(cur.departure) !== norm(prev.arrival)) break;
+      chain.push(cur);
+      if (norm(cur.arrival) === D) {
+        chains.push(chain.slice());
+        break;
+      }
+    }
+  }
+
+  if (!chains.length) return null;
+
+  return chains.reduce((best, c) => {
+    const tBest = new Date(best[0].departureAt || 0);
+    const tCur = new Date(c[0].departureAt || 0);
+    return prefer === "latest" ? (tCur > tBest ? c : best) : tCur < tBest ? c : best;
+  });
+};
+
+const guessFirstChain = (segs) => {
+  if (!segs?.length) return null;
+  const chain = [segs[0]];
+  for (let i = 1; i < segs.length; i++) {
+    const prev = chain[chain.length - 1];
+    const cur = segs[i];
+    if (norm(cur.departure) !== norm(prev.arrival)) break;
+    chain.push(cur);
+  }
+  return {
+    chain,
+    origin: chain[0]?.departure || "",
+    destination: chain[chain.length - 1]?.arrival || "",
+  };
+};
+
 
 /* ---------------- component ---------------- */
 const FlightSegment = ({
