@@ -88,11 +88,18 @@ const Login = ({
     // }
   };
 
-  const handleTelegramAuth = async (user) => {
+  const handleTelegramAuth = async (tgUser) => {
     try {
-      // Telegram gives: {id, first_name, username, auth_date, hash, ...}
-      const userResponse = await telegramLogin(user); // uses your AuthContext method
-      navigate(userResponse.role === "admin" ? "/admin" : "/dashboard");
+      // Use the AuthContext telegramLogin() method we added earlier
+      console.log("TG payload:", tgUser);
+      const userResponse = await telegramLogin(tgUser);
+
+      // Redirect based on user role
+      if (userResponse.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
       setError(err.message || "Telegram login failed");
     }
@@ -190,12 +197,7 @@ const Login = ({
                 <div className="mt-3 row text-center">
                   <hr />
                   <div className="bg-light p-3 rounded-3 border">
-                    <TelegramLoginButton
-                      botName="FlygasalOfiicial_bot"         // your bot username, no @
-                      dataOnauth={handleTelegramAuth} // callback function
-                      buttonSize="large"              // optional: 'large' | 'medium' | 'small'
-                      requestAccess="write"           // optional
-                    />
+                    <TelegramLoginButton botUsername="FlygasalOfiicial_bot" onAuth={handleTelegramAuth} />
                   </div>
                 </div>
               </div>
