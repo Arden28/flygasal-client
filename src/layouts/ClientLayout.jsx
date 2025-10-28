@@ -100,7 +100,7 @@ export default function ClientLayout() {
       {/* Navbar */}
       <header
         ref={rootRef}
-        className="top-0 left-0 w-full z-[250] bg-white/20 backdrop-blur-md border-b border-white/10"
+        className="relative z-[250] bg-transparent backdrop-blur-md"
       >
         <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
           <div className="flex h-14 items-center justify-between">
