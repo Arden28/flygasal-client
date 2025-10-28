@@ -650,7 +650,7 @@ useEffect(() => {
     <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
 
       {/* Trip type buttons */}
-      <div className="inline-flex rounded-full bg-white/90 shadow-md p-1">
+      <div className="inline-flex rounded-full bg-white/90 p-1">
         {[
           { label: "One way", value: "oneway" },
           { label: "Return", value: "return" },
