@@ -12,20 +12,35 @@ const Home = () => {
 
       {/* Hero Section */}
       <section className="relative w-full overflow-hidden">
-        {/* Gradient background updated to match Gasal colours (warm orange palette) */}
-        <div className="absolute inset-0 bg-gradient-to-b from-orange-400 via-orange-500 to-orange-600" />
+        {/* Background image instead of gradient */}
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage: "url('/assets/img/visitor.jpg')",
+          }}
+        />
+
+        {/* Optional dark overlay for better text contrast */}
+        <div className="absolute inset-0 bg-black/40" />
+
+        {/* Hero content */}
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 sm:py-28 text-center text-white">
-          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight">
+          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight drop-shadow-md">
             Book flights. Pay later.
           </h1>
-          <p className="mt-4 text-lg sm:text-2xl opacity-90 max-w-2xl mx-auto">
+          <p className="mt-4 text-lg sm:text-2xl opacity-90 max-w-2xl mx-auto drop-shadow-sm">
             Book your perfect flight with confidence.
           </p>
+
           {/* Search form intentionally omitted – integrate your own form here */}
+
           <div className="mt-10 inline-flex items-center gap-2 mx-auto">
             <span className="inline-flex items-center gap-1 bg-white/20 rounded-full px-3 py-1 text-sm sm:text-base">
-              {/* Trustpilot 5‑star badge */}
-              <img src="/assets/img/trustpilot-5star.svg" alt="Trustpilot rating" className="h-5" />
+              <img
+                src="/assets/img/trustpilot-5star.svg"
+                alt="Trustpilot rating"
+                className="h-5"
+              />
               <span>Trusted by 100,000+ customers</span>
             </span>
           </div>
