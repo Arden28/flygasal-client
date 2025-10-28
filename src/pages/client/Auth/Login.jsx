@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react';
 // import API from '../../api/auth'; // Import the Axios instance
 import { AuthContext } from '../../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import TelegramLoginButton from '../../../components/client/Account/TelegramLoginButton';
 
 // Mock translation object to replace PHP T::
 const T = {
@@ -87,69 +88,31 @@ const Login = ({
     // }
   };
 
-// in your React component
-const handleTelegramLogin = () => {
-  const cbName = "__tgAuthCB_" + Math.random().toString(36).slice(2);
-  window[cbName] = async (tgUser) => {
-    try {
-      const res = await fetch("/api/auth/telegram", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(tgUser), // {id, username, auth_date, hash, ...}
-        credentials: "include",       // if you use Sanctum cookies
-      });
-      const data = await res.json();
+const handleTelegramAuth = async (tgUser) => {
+  try {
+    const res = await fetch("/api/auth/telegram", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include", // if using Sanctum session cookie
+      body: JSON.stringify(tgUser), // Telegram sends {id, first_name, username, auth_date, hash, ...}
+    });
+    const data = await res.json();
 
-      if (data.status === "ok") {
-        // If you return a token (Passport/Sanctum tokens), store & login:
-        // localStorage.setItem("token", data.token);
-        await login({ provider: "telegram", token: data.token, profile: data.user });
-        navigate(data.user?.role === "admin" ? "/admin" : "/dashboard");
-      } else if (data.status === "pending") {
-        setError("Your account is pending approval.");
-      } else if (data.status === "no_account") {
-        setError("Your Telegram isn’t linked to any account. Contact admin.");
-      } else {
-        setError(data.error || "Telegram login failed");
-      }
-    } catch (e) {
-      setError(e.message || "Telegram login failed");
-    } finally {
-      try { delete window[cbName]; } catch {}
+    if (data.status === "ok") {
+      // if you return a token instead of cookie-session:
+      // localStorage.setItem("token", data.token);
+      await login({ provider: "telegram", token: data.token, profile: data.user });
+      navigate(data.user?.role === "admin" ? "/admin" : "/dashboard");
+    } else if (data.status === "pending") {
+      setError("Your account is pending approval.");
+    } else if (data.status === "no_account") {
+      setError("Your Telegram isn’t linked to any account. Contact admin.");
+    } else {
+      setError(data.error || "Telegram login failed");
     }
-  };
-
-  const mount = document.createElement("div");
-  mount.style.position = "fixed";
-  mount.style.inset = "0";
-  mount.style.display = "flex";
-  mount.style.alignItems = "center";
-  mount.style.justifyContent = "center";
-  mount.style.background = "rgba(0,0,0,.4)";
-  mount.style.zIndex = 2147483647;
-  mount.addEventListener("mousedown", (e) => { if (e.target === mount) mount.remove(); });
-
-  const card = document.createElement("div");
-  card.style.background = "#fff";
-  card.style.border = "1px solid #e5e7eb";
-  card.style.borderRadius = "12px";
-  card.style.padding = "16px 18px";
-  card.style.boxShadow = "0 18px 40px rgba(2,6,23,.18)";
-  card.style.minWidth = "260px";
-  card.style.textAlign = "center";
-  mount.appendChild(card);
-
-  const s = document.createElement("script");
-  s.async = true;
-  s.src = "https://telegram.org/js/telegram-widget.js?22";
-  s.setAttribute("data-telegram-login", "Arden28_bot"); // your bot username
-  s.setAttribute("data-size", "large");
-  s.setAttribute("data-userpic", "false");
-  s.setAttribute("data-onauth", cbName); // calls window[cbName](user)
-  s.setAttribute("data-request-access", "write");
-
-  card.appendChild(s);
-  document.body.appendChild(mount);
+  } catch (e) {
+    setError(e.message || "Telegram login failed");
+  }
 };
 
 
@@ -244,16 +207,7 @@ const handleTelegramLogin = () => {
                 <div className="mt-3 row text-center">
                   <hr />
                   <div className="bg-light p-3 rounded-3 border">
-                    <a
-                      type="button"
-                      className="btn btn-primary w-100 h-[44px] d-flex align-items-center justify-content-center gap-2"
-                      href="https://t.me/flygasal_Bot" 
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <i className="bi bi-telegram fs-4"></i>
-                      <span>Continue on Telegram</span>
-                    </a>
+                    <TelegramLoginButton botUsername="Flygasal_bot" onAuth={handleTelegramAuth} />
                   </div>
                 </div>
               </div>
