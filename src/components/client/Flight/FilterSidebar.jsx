@@ -258,6 +258,12 @@ export default function FilterSidebar({
       (b) => b.range[0] === retTimeRange?.[0] && b.range[1] === retTimeRange?.[1]
     )?.key || "custom";
 
+    const resultsText = useMemo(() => {
+      if (count == null) return "";          // handles undefined/null
+      if (count === 0) return "No results";
+      return `Showing ${count} result${count === 1 ? "" : "s"}`;
+    }, [count]);
+
   return (
     <aside
       className={[
@@ -268,8 +274,8 @@ export default function FilterSidebar({
     >
       {/* Top meta */}
       <div className="mb-3 sm:mb-4 flex items-center justify-between">
-        <div className="text-[12px] font-medium text-slate-700">
-          Showing <span className="font-semibold">{count}</span> results
+        <div className="text-[12px] font-medium text-slate-700" aria-live="polite">
+          {resultsText}
         </div>
         {onCloseMobile && (
           <button
