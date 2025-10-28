@@ -55,37 +55,46 @@ const Icon = ({ name, className = "h-4 w-4" }) => {
 
 const PAX_ORDER = ["ADT", "CHD", "INF"];
 
-/* -------------------- segment atoms -------------------- */
-const Rail = ({ label }) => (
+/* -------------------- atoms -------------------- */
+const Rail = ({ progress = 0.62, label }) => (
   <div className="relative flex-1 h-1.5 rounded-full bg-slate-200">
-    <div className="absolute left-0 top-0 h-1.5 w-2/3 rounded-full bg-[#5A46E0]" />
+    <div
+      className="absolute left-0 top-0 h-1.5 rounded-full bg-[#5A46E0]"
+      style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }}
+    />
+    {/* end caps */}
+    <span className="absolute left-0 -top-[3px] h-2.5 w-2.5 rounded-full bg-[#5A46E0]" />
+    <span className="absolute right-0 -top-[3px] h-2.5 w-2.5 rounded-full bg-slate-300" />
     <span className="sr-only">{label}</span>
   </div>
 );
 
-/**
- * One collapsible “segment” block:
- * - Route bar
- * - Summary line (logo + times + rail + stops + Details toggle)
- * - Smooth collapsing body with <FlightSegment />
- */
+/* -------------------- segment block -------------------- */
 const SegmentBlock = ({
   id,
   openId,
   setOpenId,
-  titleLeft,         // e.g. "Nairobi → London"
-  titleRight,        // e.g. "Thu, 30 Oct"
+  titleLeft,
+  titleRight,
+
+  // summary bits
   logoSrc,
   logoAlt,
+
+  depDateText,
   depTime,
   depCity,
   depAirport,
+
   durationText,
-  stopsText,         // "Non-stop" | "1 stop" | "2 stops"
+  stopsText,
+
+  arrDateText,
   arrTime,
   arrCity,
   arrAirport,
-  body,              // JSX (FlightSegment)
+
+  body, // FlightSegment
 }) => {
   const open = openId === id;
   const toggle = () => setOpenId(open ? null : id);
@@ -93,7 +102,7 @@ const SegmentBlock = ({
   return (
     <div className="overflow-hidden bg-white">
       {/* Route bar */}
-      <div className="flex items-center justify-between bg-slate-50/80 px-4 py-2.5 md:px-5 text-sm">
+      <div className="flex items-center justify-between bg-slate-100 px-4 py-2.5 md:px-5 text-sm">
         <div className="flex items-center gap-2 text-slate-700">
           <span className="font-medium">{titleLeft}</span>
           <span className="ml-2 h-2 w-2 rounded-full bg-emerald-500" />
@@ -101,58 +110,77 @@ const SegmentBlock = ({
         {titleRight && <div className="text-slate-600">{titleRight}</div>}
       </div>
 
-      {/* Summary row */}
-      <button
-        type="button"
-        onClick={toggle}
-        className="w-full text-left"
-        aria-expanded={open}
-      >
-        <div className="grid grid-cols-12 items-center gap-3 px-4 py-3 md:px-5">
-          {/* Airline/logo */}
+      {/* Summary row (matches screenshot layout) */}
+      <div className="px-4 md:px-5">
+        <div className="grid grid-cols-12 items-center gap-3 py-3">
+          {/* checkbox stub */}
+          <div className="col-span-1 hidden sm:flex justify-center">
+            <span className="h-4 w-4 rounded border border-slate-300 bg-white inline-block" />
+          </div>
+
+          {/* Airline logo + carrier + (left column date/time/city) */}
           <div className="col-span-12 sm:col-span-3 md:col-span-3 flex items-center gap-3">
             <img
               src={logoSrc}
               alt={logoAlt}
-              className="h-8 w-8 rounded-full object-contain ring-1 ring-slate-200 bg-white"
+              className="h-9 w-9 rounded-full object-contain ring-1 ring-slate-200 bg-white"
               onError={(e) => {
                 e.currentTarget.onerror = null;
                 e.currentTarget.src = "/assets/img/airlines/placeholder.png";
               }}
             />
             <div className="min-w-0">
-              <div className="text-slate-900 font-medium text-sm truncate">{depCity}</div>
-              <div className="text-xs text-slate-500 truncate">{depAirport}</div>
+              <div className="text-xs text-slate-500">{depDateText}</div>
+              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{depTime}</div>
+              <div className="text-xs text-slate-600 truncate">{depCity}</div>
+              <div className="text-[11px] text-slate-500 truncate">{depAirport}</div>
             </div>
           </div>
 
-          {/* Times + rail + stops */}
-          <div className="col-span-12 sm:col-span-6 md:col-span-6 flex items-center gap-3">
-            <div className="text-slate-900 font-semibold text-sm tabular-nums">{depTime}</div>
+          {/* Middle rail + duration + stops */}
+          <button
+            type="button"
+            onClick={toggle}
+            aria-expanded={open}
+            className="col-span-12 sm:col-span-6 md:col-span-6 flex items-center gap-3 text-left"
+          >
+            <Icon name="plane" className="h-4 w-4 text-slate-500" />
+            <div className="text-xs text-slate-600 whitespace-nowrap">{durationText}</div>
             <Rail label={durationText} />
-            <div className="text-slate-700 text-xs whitespace-nowrap">{stopsText}</div>
-            <div className="text-slate-900 font-semibold text-sm tabular-nums">{arrTime}</div>
-          </div>
+            <div className="text-xs text-slate-600 whitespace-nowrap">{stopsText}</div>
+          </button>
 
-          {/* Arrival place + Details caret */}
-          <div className="col-span-12 sm:col-span-3 md:col-span-3 flex items-center justify-between gap-3">
+          {/* Right column date/time/city + Details chip */}
+          <div className="col-span-12 sm:col-span-2 md:col-span-2 ml-auto flex items-center justify-end gap-3">
             <div className="min-w-0 text-right">
-              <div className="text-slate-900 text-sm truncate">{arrCity}</div>
-              <div className="text-xs text-slate-500 truncate">{arrAirport}</div>
+              <div className="text-xs text-rose-600">{arrDateText}</div>
+              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{arrTime}</div>
+              <div className="text-xs text-slate-600 truncate">{arrCity}</div>
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">
+
+            <button
+              type="button"
+              onClick={toggle}
+              className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-700"
+            >
               Details
               <motion.svg
-                width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth="2" initial={false} animate={{ rotate: open ? 180 : 0 }}
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                initial={false}
+                animate={{ rotate: open ? 180 : 0 }}
                 className="shrink-0"
               >
                 <path d="M6 9l6 6 6-6" />
               </motion.svg>
-            </span>
+            </button>
           </div>
         </div>
-      </button>
+      </div>
 
       {/* Collapsible body */}
       <AnimatePresence initial={false}>
@@ -298,9 +326,6 @@ const ItineraryList = ({
             const pb = itinerary.priceBreakdown || {};
             const pbCurrency = pb.currency || currency;
             const totals = pb.totals || {};
-            const backendBase = Number(totals.base || 0);
-            const backendTaxes = Number(totals.taxes || 0);
-            const backendFees = Number(totals.fees || (pb.fees?.total || 0));
             const backendGrand = Number(totals.grand || itinerary.totalPrice || 0);
             const markupAmount = +((backendGrand || 0) * ((agentMarkupPercent || 0) / 100)).toFixed(2);
             const grandWithMarkup = +((backendGrand || 0) + markupAmount).toFixed(2);
@@ -351,7 +376,7 @@ const ItineraryList = ({
                 </div>
 
                 {/* SEGMENTS */}
-                <div className="px-0 pb-4 md:pb-5 space-y-3">
+                <div className="px-0 pb-2 md:pb-3 space-y-2">
                   {/* Outbound */}
                   {itinerary.outbound && (
                     <SegmentBlock
@@ -360,16 +385,23 @@ const ItineraryList = ({
                       setOpenId={setOpen}
                       titleLeft={outLeft}
                       titleRight={outDateRight ? formatDate(outDateRight) : ""}
+
                       logoSrc={airlineLogo}
                       logoAlt={`${airlineName} logo`}
+
+                      depDateText={outSeg0?.departureTime ? formatDate(outSeg0.departureTime) : ""}
                       depTime={itinerary.outbound.departureTime ? formatTime(itinerary.outbound.departureTime) : (outSeg0?.departureTime ? formatTime(outSeg0.departureTime) : "")}
                       depCity={airlineName}
                       depAirport={(itinerary.outbound.origin || outSeg0?.departure || "—")}
+
                       durationText={formatDuration(itinerary?.outbound?.journeyTime || 0)}
                       stopsText={Number(itinerary?.outbound?.stops || 0) === 0 ? "Non-stop" : `${itinerary.outbound.stops} stop${itinerary.outbound.stops > 1 ? "s" : ""}`}
+
+                      arrDateText={outSegLast?.arrivalTime ? formatDate(outSegLast.arrivalTime) : ""}
                       arrTime={itinerary.outbound.arrivalTime ? formatTime(itinerary.outbound.arrivalTime) : (outSegLast?.arrivalTime ? formatTime(outSegLast.arrivalTime) : "")}
                       arrCity={(itinerary.outbound.destination || outSegLast?.arrival || "—")}
                       arrAirport={(itinerary.outbound.destination || outSegLast?.arrival || "—")}
+
                       body={
                         <FlightSegment
                           flight={itinerary.outbound}
@@ -395,16 +427,23 @@ const ItineraryList = ({
                       setOpenId={setOpen}
                       titleLeft={retLeft}
                       titleRight={retDateRight ? formatDate(retDateRight) : ""}
+
                       logoSrc={airlineLogo}
                       logoAlt={`${airlineName} logo`}
+
+                      depDateText={retSeg0?.departureTime ? formatDate(retSeg0.departureTime) : ""}
                       depTime={itinerary.return.departureTime ? formatTime(itinerary.return.departureTime) : (retSeg0?.departureTime ? formatTime(retSeg0.departureTime) : "")}
                       depCity={airlineName}
                       depAirport={(itinerary.return.origin || retSeg0?.departure || "—")}
+
                       durationText={formatDuration(itinerary?.return?.journeyTime || 0)}
                       stopsText={Number(itinerary?.return?.stops || 0) === 0 ? "Non-stop" : `${itinerary.return.stops} stop${itinerary.return.stops > 1 ? "s" : ""}`}
+
+                      arrDateText={retSegLast?.arrivalTime ? formatDate(retSegLast.arrivalTime) : ""}
                       arrTime={itinerary.return.arrivalTime ? formatTime(itinerary.return.arrivalTime) : (retSegLast?.arrivalTime ? formatTime(retSegLast.arrivalTime) : "")}
                       arrCity={(itinerary.return.destination || retSegLast?.arrival || "—")}
                       arrAirport={(itinerary.return.destination || retSegLast?.arrival || "—")}
+
                       body={
                         <FlightSegment
                           flight={itinerary.return}
@@ -422,13 +461,16 @@ const ItineraryList = ({
                     />
                   )}
 
-                  {/* Multi-city: render each leg as its own segment */}
+                  {/* Multi-city */}
                   {Array.isArray(itinerary.legs) && itinerary.legs.length > 0 &&
                     itinerary.legs.map((leg, li) => {
                       const seg0 = leg?.segments?.[0];
                       const segLast = leg?.segments?.slice(-1)?.[0];
                       const left = `${(leg.origin || seg0?.departure || "—")} → ${(leg.destination || segLast?.arrival || "—")}`;
                       const right = seg0?.departureTime || leg?.departureTime;
+                      const logoCode = seg0?.airline || itinerary.airlines?.[0];
+                      const logoSrc = logoCode ? `/assets/img/airlines/${logoCode}.png` : "/assets/img/airlines/placeholder.png";
+                      const aName = logoCode ? (typeof getAirlineName === "function" ? getAirlineName(logoCode) : logoCode) : "Airline";
                       return (
                         <SegmentBlock
                           key={`${key}-leg-${li}`}
@@ -437,16 +479,23 @@ const ItineraryList = ({
                           setOpenId={setOpen}
                           titleLeft={`${left}`}
                           titleRight={right ? formatDate(right) : ""}
-                          logoSrc={airlineLogo}
-                          logoAlt={`${airlineName} logo`}
+
+                          logoSrc={logoSrc}
+                          logoAlt={`${aName} logo`}
+
+                          depDateText={seg0?.departureTime ? formatDate(seg0.departureTime) : ""}
                           depTime={leg.departureTime ? formatTime(leg.departureTime) : (seg0?.departureTime ? formatTime(seg0.departureTime) : "")}
-                          depCity={airlineName}
+                          depCity={aName}
                           depAirport={(leg.origin || seg0?.departure || "—")}
+
                           durationText={formatDuration(leg?.journeyTime || 0)}
                           stopsText={Number(leg?.stops || 0) === 0 ? "Non-stop" : `${leg.stops} stop${leg.stops > 1 ? "s" : ""}`}
+
+                          arrDateText={segLast?.arrivalTime ? formatDate(segLast.arrivalTime) : ""}
                           arrTime={leg.arrivalTime ? formatTime(leg.arrivalTime) : (segLast?.arrivalTime ? formatTime(segLast.arrivalTime) : "")}
                           arrCity={(leg.destination || segLast?.arrival || "—")}
                           arrAirport={(leg.destination || segLast?.arrival || "—")}
+
                           body={
                             <FlightSegment
                               flight={leg}
@@ -465,11 +514,27 @@ const ItineraryList = ({
                   }
                 </div>
 
-                {/* Footer actions row (mirrors screenshot spacing) */}
-                <div className="flex items-center justify-end gap-3 px-4 pb-4 md:px-5 md:pb-5">
+                {/* Bottom badges + CTA row (to mimic screenshot) */}
+                <div className="flex items-center justify-between px-4 pb-4 md:px-5 md:pb-5">
+                  <div className="flex items-center gap-3 text-[#5A46E0]">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#EEE9FF]">
+                      {/* bag icon */}
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                        <rect x="3" y="7" width="18" height="13" rx="2" />
+                        <path d="M8 7V6a4 4 0 0 1 8 0v1" />
+                      </svg>
+                    </span>
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#EEE9FF]">
+                      {/* person icon */}
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                        <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm7 8a7 7 0 0 0-14 0" />
+                      </svg>
+                    </span>
+                  </div>
+
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#5A46E0] px-5 py-3 text-sm font-semibold text-white hover:bg-[#4b3acb] transition"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#5A46E0] px-6 py-3 text-sm font-semibold text-white hover:bg-[#4b3acb] transition"
                     onClick={() => selectItinerary(itinerary)}
                   >
                     Next step
