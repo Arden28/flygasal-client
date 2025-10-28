@@ -21,7 +21,7 @@ const Home = () => {
         <div className="absolute inset-0 bg-black/40" />
 
         {/* Hero content */}
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center text-white">
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 sm:py-28 text-center text-white">
           <h1 className="text-4xl sm:text-6xl font-semibold tracking-wide drop-shadow-md">
             Discover Your Next Adventure
           </h1>
