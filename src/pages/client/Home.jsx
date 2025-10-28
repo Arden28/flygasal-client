@@ -6,7 +6,7 @@ import SearchTabs from '../../components/client/Flight/SearchTabs';
 
 const Home = () => {
   return (
-    <div className="flex min-h-screen flex-col pt-14 font-sans">
+    <div className="min-h-screen font-sans">
       {/* Hero Section */}
       <section className="relative w-full overflow-hidden">
         {/* Background image instead of gradient */}
