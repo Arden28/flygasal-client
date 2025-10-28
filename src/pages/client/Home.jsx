@@ -9,7 +9,7 @@ const Home = () => {
       {/* Hero Section with background and promotional text */}
       <HeroSection />
       {/* Hero Section */}
-      
+
       {/* Hero Section */}
       <section className="relative w-full overflow-hidden">
         {/* Gradient background updated to match Gasal colours (warm orange palette) */}
@@ -325,23 +325,23 @@ const Home = () => {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
             {[
               'WB.png',
-              'riyadh-air.svg',
-              'southwest.svg',
-              'air-canada.svg',
-              'american.svg',
-              'cebu-pacific.svg',
-              'delta.svg',
-              'emirates.svg',
-              'qatar.svg',
-              'ryanair.svg',
-              'wizz.svg',
-              'air-new-zealand.svg',
-              'qantas.svg',
-              'easyjet.svg',
-              'klm.svg',
-              'british-airways.svg',
-              'china-southern.svg',
-              'flysafair.svg',
+              'eth.png',
+              'kq.png',
+              'air-canada.png',
+              'american.png',
+              'cebu-pacific.png',
+              'delta.png',
+              'emirates.png',
+              'qatar.png',
+              'ryanair.png',
+              'wizz.png',
+              'air-new-zealand.png',
+              'qantas.png',
+              'easyjet.png',
+              'klm.png',
+              'british-airways.png',
+              'china-southern.png',
+              'flysafair.png',
             ].map((logo) => (
               <div
                 key={logo}
