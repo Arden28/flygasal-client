@@ -2,6 +2,13 @@ import { airlines, airports } from "../data/fakeData";
 
 
   // Get airport name from code
+  export const getCityName = (code) => {
+    const airport = airports.find((a) => a.value === code);
+    return airport ? `${airport.city}` : code;
+  };
+
+
+  // Get airport name from code
   export const getAirportName = (code) => {
     const airport = airports.find((a) => a.value === code);
     return airport ? `${airport.label}` : code;

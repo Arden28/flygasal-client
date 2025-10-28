@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import FlightSegment from "./FlightSegment";
 import { formatDuration } from "../../../lib/helper";
-import { getAirportName } from "../../../utils/utils";
+import { getAirportName, getCityName } from "../../../utils/utils";
 
 /* -------------------- tiny utils -------------------- */
 const money = (n, currency = "USD") =>
@@ -131,9 +131,9 @@ const SegmentBlock = ({
               <div className="text-xs text-slate-600 truncate">{depCity}</div>
               <div
                 className="text-[11px] text-slate-500 truncate max-w-[120px]"
-                title={getAirportName(depAirport)}
+                title={getCityName(depAirport)}
               >
-                {getAirportName(depAirport)}
+                {getCityName(depAirport)}
               </div>
             </div>
           </div>
@@ -156,7 +156,12 @@ const SegmentBlock = ({
             <div className="min-w-0 text-right">
               <div className="text-xs text-rose-600">{arrDateText}</div>
               <div className="text-slate-900 font-semibold leading-5 tabular-nums">{arrTime}</div>
-              <div className="text-xs text-slate-600 truncate">{arrCity}</div>
+              <div
+                className="text-[11px] text-slate-500 truncate max-w-[120px]"
+                title={getCityName(arrAirport)}
+              >
+                {getCityName(arrAirport)}
+              </div>
             </div>
 
             <button
