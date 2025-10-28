@@ -1,112 +1,80 @@
 import React from 'react';
 
-const SortNavigation = ({ sortOrder, handleSortChange, isSearchFormVisible, toggleSearchForm }) => {
+const SortNavigation = ({
+  sortOrder = 'recommended',
+  handleSortChange = () => {},
+  isSearchFormVisible,
+  toggleSearchForm,
+}) => {
+  // Define the three sort tabs with labels and base colours.  These values
+  // approximate the colours used on the Alternative Airlines website.
+  const tabs = [
+    { key: 'recommended', label: 'Recommended', activeBg: 'bg-purple-600', inactiveBg: 'bg-purple-100', activeText: 'text-white', inactiveText: 'text-purple-700' },
+    { key: 'cheapest', label: 'Cheapest', activeBg: 'bg-emerald-600', inactiveBg: 'bg-emerald-100', activeText: 'text-white', inactiveText: 'text-emerald-700' },
+    { key: 'quickest', label: 'Quickest', activeBg: 'bg-orange-500', inactiveBg: 'bg-orange-100', activeText: 'text-white', inactiveText: 'text-orange-700' },
+  ];
+
   return (
-    <nav className="sorting" style={{ top: '150px' }}>
-      <ul className="flex-nowrap gap-3 flex-sm-wrap nav nav-pills nav-justified bg-white rounded-2 overflow-hidden mb-3">
-        <li className="nav-item d-none d-lg-inline-block">
+    <nav className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        {/* Search toggle */}
+        {typeof isSearchFormVisible !== 'undefined' && typeof toggleSearchForm === 'function' && (
           <button
-            role="button"
-            className={`nav-link px-0 rounded-5 ${isSearchFormVisible ? 'active' : 'active'}`}
+            type="button"
+            className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none"
             onClick={toggleSearchForm}
           >
-            <span className={`d-block w-100 fw-bold ${isSearchFormVisible ? 'text-black' : 'text-black'} d-flex align-items-center justify-content-center gap-2`}
-              style={{ fontSize: '0.855rem' }}
-            >
-              {isSearchFormVisible ? (
-                <>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="21"
-                    height="21"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#ffffff"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M19 9l-7 7-7-7" transform="rotate(180)" />
-                  </svg>
-                  Hide Search
-                </>
-              ) : (
-                <>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="21"
-                    height="21"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#ffffff"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                  </svg>
-                  Modify Search
-                </>
-              )}
-            </span>
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            role="button"
-            className={`nav-link px-0 rounded-5 ${sortOrder === 'asc' ? 'active' : ''}`}
-            onClick={() => handleSortChange('asc')}
-          >
-            <span className={`d-block w-100 ${sortOrder === 'asc' ? 'text-black' : ''} d-flex align-items-center justify-content-center gap-2`}
-              style={{ fontSize: '0.855rem' }}
-            >
+            {/* Icon changes based on visibility */}
+            {isSearchFormVisible ? (
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="21"
-                height="21"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="#ffffff"
+                stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                className="h-4 w-4"
               >
-                <line x1="12" y1="20" x2="12" y2="10"></line>
-                <line x1="18" y1="20" x2="18" y2="4"></line>
-                <line x1="6" y1="20" x2="6" y2="16"></line>
+                <path d="M19 9l-7 7-7-7" />
               </svg>
-              Lowest to Higher
-            </span>
-          </button>
-        </li>
-        <li className="nav-item">
-          <button
-            role="button"
-            className={`nav-link px-0 rounded-5 ${sortOrder === 'desc' ? 'active' : ''}`}
-            onClick={() => handleSortChange('desc')}
-          >
-            <span className={`d-block w-100 ${sortOrder === 'desc' ? 'text-black' : ''} d-flex align-items-center justify-content-center gap-2`}
-              style={{ fontSize: '0.855rem' }}
-            >
+            ) : (
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="19"
-                height="19"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="#ffffff"
+                stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                className="h-4 w-4"
               >
-                <path d="M12 20V10M6 20V4M18 20v-4"/>
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
-              Highest to Lower
-            </span>
+            )}
+            {isSearchFormVisible ? 'Hide search' : 'Modify search'}
           </button>
-        </li>
-      </ul>
+        )}
+        {/* Sort options */}
+        <div className="flex flex-1 justify-center sm:justify-end gap-2 flex-wrap">
+          {tabs.map(({ key, label, activeBg, inactiveBg, activeText, inactiveText }) => {
+            const isActive = sortOrder === key;
+            const bgClass = isActive ? activeBg : inactiveBg;
+            const textClass = isActive ? activeText : inactiveText;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => handleSortChange(key)}
+                className={`px-4 py-2 rounded-full text-sm font-medium focus:outline-none ${bgClass} ${textClass}`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </nav>
   );
 };
