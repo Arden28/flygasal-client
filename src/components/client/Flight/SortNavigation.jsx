@@ -1,75 +1,129 @@
-import React from 'react';
+import React from "react";
 
+/**
+ * SortNavigation
+ * - Full-width, 3-segment selector: Recommended | Cheapest | Quickest
+ * - No "modify search" button
+ * - Active segment = solid color with white text
+ * - Inactive segments = subtle light background
+ * - Shows title, price and average duration (pass via props or relies on sensible defaults)
+ *
+ * Props:
+ *   sortOrder: "recommended" | "cheapest" | "quickest"
+ *   handleSortChange: (key) => void
+ *   summaries?: {
+ *     recommended?: { price?: string, duration?: string },
+ *     cheapest?: { price?: string, duration?: string },
+ *     quickest?: { price?: string, duration?: string },
+ *   }
+ */
 const SortNavigation = ({
-  sortOrder = 'recommended',
+  sortOrder = "recommended",
   handleSortChange = () => {},
-  isSearchFormVisible,
-  toggleSearchForm,
+  summaries = {},
 }) => {
-  // Define the three sort tabs with labels and base colours.  These values
-  // approximate the colours used on the Alternative Airlines website.
-  const tabs = [
-    { key: 'recommended', label: 'Recommended', activeBg: 'bg-purple-600', inactiveBg: 'bg-purple-100', activeText: 'text-white', inactiveText: 'text-purple-700' },
-    { key: 'cheapest', label: 'Cheapest', activeBg: 'bg-emerald-600', inactiveBg: 'bg-emerald-100', activeText: 'text-white', inactiveText: 'text-emerald-700' },
-    { key: 'quickest', label: 'Quickest', activeBg: 'bg-orange-500', inactiveBg: 'bg-orange-100', activeText: 'text-white', inactiveText: 'text-orange-700' },
-  ];
+  const data = {
+    recommended: {
+      title: "Recommended",
+      price: summaries?.recommended?.price ?? "€1 141",
+      duration: summaries?.recommended?.duration ?? "16h 13m (average)",
+      // Active purple approximating AA’s tone
+      activeBg: "bg-[#5A46E0]",
+      inactiveBg: "bg-slate-50",
+      activeText: "text-white",
+      inactiveText: "text-slate-800",
+      leftRounded: true,
+      rightRounded: false,
+      showInfo: true,
+    },
+    cheapest: {
+      title: "Cheapest",
+      price: summaries?.cheapest?.price ?? "€1 141",
+      duration: summaries?.cheapest?.duration ?? "16h 13m (average)",
+      activeBg: "bg-emerald-600",
+      inactiveBg: "bg-white",
+      activeText: "text-white",
+      inactiveText: "text-slate-800",
+      leftRounded: false,
+      rightRounded: false,
+      showInfo: false,
+    },
+    quickest: {
+      title: "Quickest",
+      price: summaries?.quickest?.price ?? "€3 952",
+      duration: summaries?.quickest?.duration ?? "9h 5m (average)",
+      activeBg: "bg-[#5A46E0]",
+      inactiveBg: "bg-white",
+      activeText: "text-white",
+      inactiveText: "text-slate-800",
+      leftRounded: false,
+      rightRounded: true,
+      showInfo: false,
+    },
+  };
+
+  const tabs = ["recommended", "cheapest", "quickest"];
 
   return (
-    <nav className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        {/* Search toggle */}
-        {typeof isSearchFormVisible !== 'undefined' && typeof toggleSearchForm === 'function' && (
-          <button
-            type="button"
-            className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none"
-            onClick={toggleSearchForm}
-          >
-            {/* Icon changes based on visibility */}
-            {isSearchFormVisible ? (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-4 w-4"
-              >
-                <path d="M19 9l-7 7-7-7" />
-              </svg>
-            ) : (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-4 w-4"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            )}
-            {isSearchFormVisible ? 'Hide search' : 'Modify search'}
-          </button>
-        )}
-        {/* Sort options */}
-        <div className="flex flex-1 justify-center sm:justify-end gap-2 flex-wrap">
-          {tabs.map(({ key, label, activeBg, inactiveBg, activeText, inactiveText }) => {
+    <nav className="w-full">
+      {/* Outer shell: rounded, subtle border, no shadow */}
+      <div className="w-full overflow-hidden rounded-2xl ring-1 ring-slate-200">
+        <div className="grid grid-cols-1 sm:grid-cols-3">
+          {tabs.map((key, idx) => {
             const isActive = sortOrder === key;
-            const bgClass = isActive ? activeBg : inactiveBg;
-            const textClass = isActive ? activeText : inactiveText;
+            const t = data[key];
+
+            // Corner rounding is on the outer shell; keep buttons square.
+            // Use separators between middle cells.
+            const separator =
+              idx > 0
+                ? "sm:border-l sm:border-slate-200"
+                : "";
+
+            const bg = isActive ? t.activeBg : t.inactiveBg;
+            const text = isActive ? t.activeText : t.inactiveText;
+            const priceText = isActive ? "text-white/95" : "text-slate-900";
+            const durationText = isActive ? "text-white/90" : "text-slate-500";
+
             return (
               <button
                 key={key}
                 type="button"
                 onClick={() => handleSortChange(key)}
-                className={`px-4 py-2 rounded-full text-sm font-medium focus:outline-none ${bgClass} ${textClass}`}
+                className={[
+                  "w-full text-left transition-colors",
+                  bg,
+                  text,
+                  "px-4 py-4 md:px-6 md:py-5",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-0",
+                  isActive ? "focus-visible:ring-white/40" : "focus-visible:ring-slate-300/60",
+                  separator,
+                ].join(" ")}
+                aria-pressed={isActive}
               >
-                {label}
+                <div className="flex items-start gap-2">
+                  <div className="text-sm font-semibold leading-6 flex items-center gap-1">
+                    {t.title}
+                    {t.showInfo && (
+                      <svg
+                        aria-hidden
+                        viewBox="0 0 24 24"
+                        className={`h-4 w-4 ${
+                          isActive ? "text-white/90" : "text-[#5A46E0]"
+                        }`}
+                        fill="currentColor"
+                      >
+                        <path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Zm-.75-11.5h1.5V17h-1.5v-6.5Zm0-3h1.5V9h-1.5V7.5Z" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                <div className={`mt-2 text-sm font-semibold ${priceText}`}>
+                  {t.price}
+                </div>
+                <div className={`mt-3 text-xs ${durationText}`}>
+                  {t.duration}
+                </div>
               </button>
             );
           })}
