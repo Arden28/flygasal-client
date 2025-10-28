@@ -1,4 +1,8 @@
+
 import React from 'react';
+import HeroSection from '../../components/client/HeroSection';
+
+
 
 /**
  * Updated home page to better align with the look and feel of the
@@ -28,7 +32,7 @@ const Home = () => {
       {/* Hero Section with background and promotional text */}
       <HeroSection />
       {/* Hero Section */}
-      
+
       <section className="relative w-full overflow-hidden">
         {/* Gradient background inspired by Alternative Airlines */}
         <div className="absolute inset-0 bg-gradient-to-b from-purple-600 via-fuchsia-500 to-pink-300" />
@@ -39,7 +43,9 @@ const Home = () => {
           <p className="mt-4 text-lg sm:text-2xl opacity-90 max-w-2xl mx-auto">
             Book your perfect flight with confidence.
           </p>
+
           {/* Search form intentionally omitted – integrate your own form here */}
+
           <div className="mt-10 inline-flex items-center gap-2 mx-auto">
             <span className="inline-flex items-center gap-1 bg-white/20 rounded-full px-3 py-1 text-sm sm:text-base">
               {/* Trustpilot 5‑star badge */}
