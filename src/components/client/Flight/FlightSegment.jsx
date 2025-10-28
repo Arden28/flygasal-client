@@ -232,7 +232,7 @@ const FlightSegment = ({
       </div>
 
       {/* body */}
-      <div className="relative px-3 pb-3 pt-3">
+      <div className="relative px-2 pb-3 pt-3">
         {/* right-corner duration (like the mock card top-right small meta) */}
         <div className="absolute right-5 top-3 text-xs text-slate-500">{durationText}</div>
 
@@ -251,7 +251,7 @@ const FlightSegment = ({
               <div className="text-md font-semibold leading-6 text-slate-900 tabular-nums">
                 {depTime || "—"}
               </div>
-              <div className="text-slate-900">{depAirport || depCode || "—"}</div>
+              <div className="text-md text-slate-900">{depAirport || depCode || "—"}</div>
               <div className="text-xs text-slate-500">
                 {depDate} <span className="mx-1">•</span> Terminal {flight?.departureTerminal || "Terminal 1A"}
               </div>
@@ -307,10 +307,10 @@ const FlightSegment = ({
 
             {/* arrival block */}
             <div className="relative">
-              <div className="text-[22px] font-semibold leading-6 text-slate-900 tabular-nums">
+              <div className="text-md font-semibold leading-6 text-slate-900 tabular-nums">
                 {arrTime || "—"}
               </div>
-              <div className="text-slate-900">{arrAirport || arrCode || "—"}</div>
+              <div className="text-md text-slate-900">{arrAirport || arrCode || "—"}</div>
               <div className="text-xs text-slate-500">
                 {arrDate} <span className="mx-1">•</span> Terminal {flight?.arrivalTerminal || "Terminal 5"}
               </div>
