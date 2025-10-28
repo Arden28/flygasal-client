@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import FlightSegment from "./FlightSegment";
 import { formatDuration } from "../../../lib/helper";
 import { getAirportName, getCityName } from "../../../utils/utils";
+import { FaPersonWalking } from "react-icons/fa6";
 
 /* -------------------- tiny utils -------------------- */
 const money = (n, currency = "USD") =>
@@ -532,9 +533,7 @@ const ItineraryList = ({
                     </span>
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#EEE9FF]">
                       {/* person icon */}
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                        <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm7 8a7 7 0 0 0-14 0" />
-                      </svg>
+                      <FaPersonWalking />
                     </span>
                   </div>
 
