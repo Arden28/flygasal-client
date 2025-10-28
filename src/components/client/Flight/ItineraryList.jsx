@@ -5,6 +5,7 @@ import FlightSegment from "./FlightSegment";
 import { formatDuration } from "../../../lib/helper";
 import { getAirportName, getCityName } from "../../../utils/utils";
 import { FaPersonWalking } from "react-icons/fa6";
+import { MdLuggage } from "react-icons/md";
 
 /* -------------------- tiny utils -------------------- */
 const money = (n, currency = "USD") =>
@@ -526,10 +527,7 @@ const ItineraryList = ({
                   <div className="flex items-center gap-3 text-[#5A46E0]">
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#EEE9FF]">
                       {/* bag icon */}
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                        <rect x="3" y="7" width="18" height="13" rx="2" />
-                        <path d="M8 7V6a4 4 0 0 1 8 0v1" />
-                      </svg>
+                      <MdLuggage />
                     </span>
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#EEE9FF]">
                       {/* person icon */}
