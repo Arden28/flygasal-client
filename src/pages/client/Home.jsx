@@ -30,7 +30,7 @@ const Home = () => {
     <div className="min-h-screen font-sans">
 
       {/* Hero Section with background and promotional text */}
-      <HeroSection />
+      {/* <HeroSection /> */}
       {/* Hero Section */}
 
       <section className="relative w-full overflow-hidden">
@@ -44,7 +44,8 @@ const Home = () => {
             Book your perfect flight with confidence.
           </p>
 
-          {/* Search form intentionally omitted – integrate your own form here */}
+            {/* Search Tabs */}
+            <SearchTabs />
 
           <div className="mt-10 inline-flex items-center gap-2 mx-auto">
             <span className="inline-flex items-center gap-1 bg-white/20 rounded-full px-3 py-1 text-sm sm:text-base">
