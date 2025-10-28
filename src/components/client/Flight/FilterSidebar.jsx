@@ -148,6 +148,9 @@ export default function FilterSidebar({
   airlineCountsOutbound,
   airlineCountsReturn,
   onCloseMobile,
+  totalCount,
+  currentPage,
+  pageSize,
 }) {
   const [absMin, absMax] = priceBounds || [100, 4000];
   const [currMin, currMax] = priceRange || [absMin, absMax];
@@ -258,11 +261,13 @@ export default function FilterSidebar({
       (b) => b.range[0] === retTimeRange?.[0] && b.range[1] === retTimeRange?.[1]
     )?.key || "custom";
 
-    const resultsText = useMemo(() => {
-      if (count == null) return "";          // handles undefined/null
-      if (count === 0) return "No results";
-      return `Showing ${count} result${count === 1 ? "" : "s"}`;
-    }, [count]);
+
+  const pageSummary = useMemo(() => {
+    if (!totalCount || !currentPage || !pageSize) return null;
+    const start = (currentPage - 1) * pageSize + 1;
+    const end = Math.min(currentPage * pageSize, totalCount);
+    return { start, end, total: totalCount };
+  }, [totalCount, currentPage, pageSize]);
 
   return (
     <aside
@@ -274,9 +279,12 @@ export default function FilterSidebar({
     >
       {/* Top meta */}
       <div className="mb-3 sm:mb-4 flex items-center justify-between">
-        <div className="text-[12px] font-medium text-slate-700" aria-live="polite">
-          {count}
-        </div>
+        {pageSummary && (
+          <div className="text-[12px] font-medium text-slate-700" aria-live="polite">
+            Showing <span className="font-medium text-slate-800">{pageSummary.start}–{pageSummary.end}</span> of{" "}
+            <span className="font-medium text-slate-800">{pageSummary.total}</span> results
+          </div>
+        )}
         {onCloseMobile && (
           <button
             className="inline-flex h-9 items-center justify-center rounded-lg ring-1 ring-slate-300 px-3 text-sm hover:bg-white lg:hidden"
