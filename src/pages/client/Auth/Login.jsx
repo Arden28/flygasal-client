@@ -22,7 +22,7 @@ const Login = ({
   resetPasswordUrl = '/api/forget_password',
 }) => {
   
-  const { login } = useContext(AuthContext);
+  const { login, telegramLogin } = useContext(AuthContext);
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '', remember: false });
   const [isLoading, setIsLoading] = useState(false);
@@ -88,32 +88,21 @@ const Login = ({
     // }
   };
 
-const handleTelegramAuth = async (tgUser) => {
-  try {
-    const res = await fetch("/api/auth/telegram", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include", // if using Sanctum session cookie
-      body: JSON.stringify(tgUser), // Telegram sends {id, first_name, username, auth_date, hash, ...}
-    });
-    const data = await res.json();
+  const handleTelegramAuth = async (tgUser) => {
+    try {
+      // Use the AuthContext telegramLogin() method we added earlier
+      const userResponse = await telegramLogin(tgUser);
 
-    if (data.status === "ok") {
-      // if you return a token instead of cookie-session:
-      // localStorage.setItem("token", data.token);
-      await login({ provider: "telegram", token: data.token, profile: data.user });
-      navigate(data.user?.role === "admin" ? "/admin" : "/dashboard");
-    } else if (data.status === "pending") {
-      setError("Your account is pending approval.");
-    } else if (data.status === "no_account") {
-      setError("Your Telegram isn’t linked to any account. Contact admin.");
-    } else {
-      setError(data.error || "Telegram login failed");
+      // Redirect based on user role
+      if (userResponse.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
+    } catch (err) {
+      setError(err.message || "Telegram login failed");
     }
-  } catch (e) {
-    setError(e.message || "Telegram login failed");
-  }
-};
+  };
 
 
   return (

@@ -57,6 +57,23 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
         }
     };
+    
+    const telegramLogin = async (tgPayload) => {
+        // tgPayload is what Telegram widget gives: { id, username, auth_date, hash, ... }
+        setLoading(true);
+        try {
+            // 1) Hit your API: /telegram  (auth.telegram already sets token via apiService)
+            await auth.telegram(tgPayload);
+            // 2) Load the user with that token
+            const userResponse = await auth.fetchUser();
+            setUser(userResponse);
+            return userResponse;
+        } catch (error) {
+            throw new Error(error.response?.data?.message || 'Telegram login failed');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Handles user registration.
     const register = async (userData) => {
@@ -107,7 +124,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, register, loading, refreshUser }}>
+        <AuthContext.Provider value={{ user, login, logout, register, loading, refreshUser, telegramLogin }}>
             {children}
         </AuthContext.Provider>
     );
