@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo } from "react";
 import {
   getAirlineLogo as utilsGetAirlineLogo,
   getAirlineName as utilsGetAirlineName,
 } from "../../../utils/utils";
 
-/* ---------------- helpers ---------------- */
+/* ---------------- helpers (kept from your version) ---------------- */
 const norm = (s = "") =>
   String(s).trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3);
 
@@ -32,6 +32,7 @@ const byDepTime = (a, b) => {
   return ta - tb;
 };
 
+// normalize any supplier shape into a consistent array of segments
 const normalizeSegments = (flightLike) => {
   const raw =
     Array.isArray(flightLike?.segments) && flightLike.segments.length
@@ -83,291 +84,203 @@ const normalizeSegments = (flightLike) => {
   return segs;
 };
 
-const findLeg = (segs, ORIGIN, DEST, { prefer = "earliest", notBefore } = {}) => {
-  const O = norm(ORIGIN);
-  const D = norm(DEST);
-  if (!O || !D || !segs?.length) return null;
-
-  const chains = [];
-  for (let i = 0; i < segs.length; i++) {
-    if (norm(segs[i].departure) !== O) continue;
-    if (notBefore && new Date(segs[i].departureAt) < new Date(notBefore)) continue;
-
-    const chain = [segs[i]];
-    if (norm(segs[i].arrival) === D) {
-      chains.push(chain.slice());
-      continue;
-    }
-    for (let j = i + 1; j < segs.length; j++) {
-      const prev = chain[chain.length - 1];
-      const cur = segs[j];
-      if (norm(cur.departure) !== norm(prev.arrival)) break;
-      chain.push(cur);
-      if (norm(cur.arrival) === D) {
-        chains.push(chain.slice());
-        break;
-      }
-    }
-  }
-
-  if (!chains.length) return null;
-
-  return chains.reduce((best, c) => {
-    const tBest = new Date(best[0].departureAt || 0);
-    const tCur = new Date(c[0].departureAt || 0);
-    return prefer === "latest" ? (tCur > tBest ? c : best) : tCur < tBest ? c : best;
-  });
-};
-
-const guessFirstChain = (segs) => {
-  if (!segs?.length) return null;
-  const chain = [segs[0]];
-  for (let i = 1; i < segs.length; i++) {
-    const prev = chain[chain.length - 1];
-    const cur = segs[i];
-    if (norm(cur.departure) !== norm(prev.arrival)) break;
-    chain.push(cur);
-  }
-  return {
-    chain,
-    origin: chain[0]?.departure || "",
-    destination: chain[chain.length - 1]?.arrival || "",
-  };
-};
-
 /* ---------------- component ---------------- */
 const FlightSegment = ({
   flight,
-  segmentType,
+  segmentType, // "Outbound" | "Return" | "Leg n"
+  // formatting utilities
   formatDate,
   formatTime,
   calculateDuration,
   getAirportName,
+  // airline helpers (fallback to utils)
   getAirlineLogo,
   getAirlineName,
-  expectedOutboundOrigin,
-  expectedOutboundDestination,
-  expectedReturnOrigin,
-  expectedReturnDestination,
+  // optional: when you want a "Select this flight" action here too
+  onSelect,
 }) => {
-  const [openIndex, setOpenIndex] = useState(null);
-  const toggleDetails = (index) => setOpenIndex((v) => (v === index ? null : index));
+  const airlineLogo =
+    typeof getAirlineLogo === "function" ? getAirlineLogo : utilsGetAirlineLogo;
+  const airlineName =
+    typeof getAirlineName === "function" ? getAirlineName : utilsGetAirlineName;
 
-  const airlineLogo = typeof getAirlineLogo === "function" ? getAirlineLogo : utilsGetAirlineLogo;
-  const airlineName = typeof getAirlineName === "function" ? getAirlineName : utilsGetAirlineName;
-  const safeDate = (d) => (d ? formatDate(d) : "—");
-  const safeTime = (d) => (d ? formatTime(d) : "—");
+  const segments = useMemo(() => normalizeSegments(flight), [flight]);
+  const first = segments[0];
+  const last = segments[segments.length - 1];
 
-  const allSegs = useMemo(() => normalizeSegments(flight), [flight]);
-  const guess = useMemo(() => guessFirstChain(allSegs), [allSegs]);
+  const carrier = first?.airline || flight?.marketingCarriers?.[0] || "";
+  const flightNo = first?.flightNo || flight?.flightNumber || "";
+  const logoSrc = airlineLogo(carrier);
+  const airline = airlineName(carrier) || "Airline";
 
-  const OUT_O =
-    expectedOutboundOrigin || guess?.origin || allSegs[0]?.departure || flight?.origin || "";
-  const OUT_D =
-    expectedOutboundDestination ||
-    guess?.destination ||
-    (allSegs.at ? allSegs.at(-1)?.arrival : allSegs[allSegs.length - 1]?.arrival) ||
-    flight?.destination ||
-    "";
+  const depTime = first?.departureTimeAt || (first?.departureAt ? formatTime(first.departureAt) : "");
+  const depDate = first?.departureAt ? formatDate(first.departureAt) : "";
+  const depAirport = getAirportName(first?.departure || "");
+  const depCode = (first?.departure || "").slice(0, 3).toUpperCase();
 
-  const outboundSegs = useMemo(() => {
-    const found = findLeg(allSegs, OUT_O, OUT_D, { prefer: "earliest" }) || null;
-    return found?.length ? found : guess?.chain || allSegs;
-  }, [allSegs, OUT_O, OUT_D, guess]);
+  const arrTime = last?.arrivalTimeAt || (last?.arrivalAt ? formatTime(last.arrivalAt) : "");
+  const arrDate = last?.arrivalAt ? formatDate(last.arrivalAt) : "";
+  const arrAirport = getAirportName(last?.arrival || "");
+  const arrCode = (last?.arrival || "").slice(0, 3).toUpperCase();
 
-  const RET_O = expectedReturnOrigin || OUT_D;
-  const RET_D = expectedReturnDestination || OUT_O;
-  const outboundArrivesAt =
-    (outboundSegs.at ? outboundSegs.at(-1) : outboundSegs[outboundSegs.length - 1])?.arrivalAt ||
-    null;
+  // total duration
+  const durationText =
+    first?.departureAt && last?.arrivalAt
+      ? calculateDuration(first.departureAt, last.arrivalAt)
+      : "";
 
-  const returnSegs = useMemo(() => {
-    let chain =
-      findLeg(allSegs, RET_O, RET_D, { prefer: "earliest", notBefore: outboundArrivesAt }) ||
-      findLeg(allSegs, RET_O, RET_D, { prefer: "earliest" }) ||
-      findLeg(allSegs, RET_D, RET_O, { prefer: "earliest" });
-    return chain || [];
-  }, [allSegs, RET_O, RET_D, outboundArrivesAt]);
+  // stops label
+  const stops = Math.max(0, (segments?.length || 1) - 1);
+  const stopsText = stops === 0 ? "Non-stop" : `${stops} stop${stops > 1 ? "s" : ""}`;
 
-  const isReturn = segmentType === "Return";
-  let legSegs = isReturn ? returnSegs : outboundSegs;
-
-  if (!legSegs?.length) {
-    const depAt =
-      flight?.departureTime ||
-      combineDateTime(flight?.strDepartureDate, flight?.strDepartureTime) ||
-      flight?.departureDate ||
-      "";
-    const arrAt =
-      flight?.arrivalTime ||
-      combineDateTime(flight?.strArrivalDate, flight?.strArrivalTime) ||
-      flight?.arrivalDate ||
-      "";
-
-    if ((flight?.origin || flight?.destination) && (depAt || arrAt)) {
-      legSegs = [
-        {
-          airline: flight?.airline || flight?.marketingCarriers?.[0] || "",
-          flightNo: flight?.flightNum || flight?.flightNumber || "",
-          departure: flight?.origin || "",
-          arrival: flight?.destination || "",
-          departureAt: depAt || arrAt,
-          arrivalAt: arrAt || depAt,
-          departureTimeAt: isTimeOnly(flight?.strDepartureTime) ? flight?.strDepartureTime : "",
-          arrivalTimeAt: isTimeOnly(flight?.strArrivalTime) ? flight?.strArrivalTime : "",
-          bookingCode: flight?.bookingCode || "",
-          refundable: !!flight?.refundable,
-        },
-      ];
-    } else {
-      legSegs = [];
-    }
-  }
-
-  const hasSegments = Array.isArray(legSegs) && legSegs.length > 0;
-  const firstSegment = hasSegments ? legSegs[0] : null;
-  const lastSegment = hasSegments ? legSegs[legSegs.length - 1] : null;
-
-  const headerOrigin = isReturn ? RET_O : OUT_O;
-  const headerDest = isReturn ? RET_D : OUT_D;
+  // soft baggage & fare hints (use available fields if present, otherwise hide)
+  const fareText =
+    flight?.fareClassLabel ||
+    flight?.cabin ||
+    (flight?.bookingCode ? `Class ${flight.bookingCode}` : "");
+  const personalItem =
+    flight?.baggage?.personal ||
+    flight?.allowances?.personal ||
+    null; // e.g. "18 x 14 x 8 inches"
+  const carryOn =
+    flight?.baggage?.carry ||
+    flight?.allowances?.carry ||
+    (flight?.carryOn ? `(${flight.carryOn})` : null); // e.g. "1 x 7kg"
+  const checked =
+    flight?.baggage?.checked ||
+    flight?.allowances?.checked ||
+    (flight?.checkedBags ? `(${flight.checkedBags})` : null);
 
   return (
-    <div className="mb-4 rounded-3 bg-white">
-      {/* chip */}
-      <div className="d-flex justify-content-end pt-2 pe-2">
-        <span className="badge text-dark border rounded-pill px-3" style={{ background: "#EEF4FB" }}>
-          {segmentType || "Segment"}
+    <div className="rounded-2xl ring-1 ring-slate-200 bg-white">
+      {/* header: route airline + meta + right pill */}
+      <div className="flex items-start justify-between px-5 pt-4">
+        <div className="flex items-center gap-3">
+          <img
+            src={logoSrc}
+            alt={`${airline} logo`}
+            className="h-10 w-10 rounded-full object-contain ring-1 ring-slate-200 bg-white"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = "/assets/img/airlines/placeholder.png";
+            }}
+          />
+          <div>
+            <div className="text-slate-900 font-semibold">{airline}</div>
+            <div className="text-xs text-slate-500">
+              {durationText} {flightNo ? " • " : ""}
+              {flightNo ? `${carrier}${flightNo}` : null}
+            </div>
+          </div>
+        </div>
+
+        <span className="rounded-full bg-violet-50 px-3 py-1 text-xs text-violet-700">
+          Inflight experience
         </span>
       </div>
 
-      {/* header */}
-      <div className="row g-3 mb-2 pb-2">
-        <div className="col-md-12">
-          <div className="d-flex flex-column mb-3 flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
-            {/* Departure */}
-            <div className="text-start w-100 w-md-25">
-              <div className="fw-semibold text-dark text-xl">{safeDate(firstSegment?.departureAt)}</div>
-              <div className="text-muted small">
-                Departure Time: <b>{firstSegment?.departureTimeAt ? firstSegment.departureTimeAt : safeTime(firstSegment?.departureAt)}</b>
-              </div>
-              <div className="text-muted small">
-                From: <b>{getAirportName(firstSegment?.departure || headerOrigin || "")}</b>
-              </div>
-            </div>
+      {/* body */}
+      <div className="relative px-5 pb-5 pt-3">
+        {/* right-corner duration (like the mock card top-right small meta) */}
+        <div className="absolute right-5 top-3 text-xs text-slate-500">{durationText}</div>
 
-            {/* timeline icon */}
-            <div className="d-flex align-items-center justify-content-center flex-grow-1 position-relative w-100 w-md-50">
-              <div className="w-100 position-relative" style={{ height: "1px", backgroundColor: "#dee2e6" }} />
-              <div className="position-absolute top-50 start-50 translate-middle bg-white px-2">
-                <svg width="25" height="25" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3 5l1.4.4 3.1 8.8 9.4 2.5c1 .3 2-.3 2.3-1.3.3-1-.3-2-1.3-2.3l-7.7-2.1L7.1 5.8 3 5z" fill="#333" />
-                </svg>
-              </div>
-            </div>
-
-            {/* Arrival */}
-            <div className="text-end w-100 w-md-25">
-              <div className="fw-semibold text-dark text-xl">{safeDate(lastSegment?.arrivalAt)}</div>
-              <div className="text-muted small">
-                Arrival Time: <b>{lastSegment?.arrivalTimeAt ? lastSegment.arrivalTimeAt : safeTime(lastSegment?.arrivalAt)}</b>
-              </div>
-              <div className="text-muted small">
-                To: <b>{getAirportName(lastSegment?.arrival || headerDest || "")}</b>
-              </div>
-            </div>
+        <div className="grid grid-cols-[20px_1fr] gap-4">
+          {/* vertical timeline */}
+          <div className="relative">
+            <div className="absolute left-[8px] top-2 bottom-8 w-[2px] bg-violet-200" />
+            <span className="absolute left-[5px] top-2 h-3 w-3 rounded-full bg-[#6C54FF]" />
+            <span className="absolute left-[5px] bottom-8 h-3 w-3 rounded-full bg-[#6C54FF]" />
           </div>
 
-          <div className="text-muted" style={{ fontSize: 11 }}>* All times are local</div>
-        </div>
-      </div>
+          {/* content column */}
+          <div className="space-y-6">
+            {/* departure block */}
+            <div>
+              <div className="text-[22px] font-semibold leading-6 text-slate-900 tabular-nums">
+                {depTime || "—"}
+              </div>
+              <div className="text-slate-900">{depAirport || depCode || "—"}</div>
+              <div className="text-xs text-slate-500">
+                {depDate} <span className="mx-1">•</span> Terminal {flight?.departureTerminal || "Terminal 1A"}
+              </div>
 
-      {/* segments */}
-      {(legSegs || []).map((segment, index) => (
-        <div
-          key={`${segment.airline || "XX"}-${segment.flightNo || "000"}-${segment.departureAt || index}-${index}`}
-          className="border rounded-4 p-2 mb-2"
-        >
-          {/* summary */}
-          <div className="d-flex justify-content-between gap-2">
-            <div className="d-flex justify-content-start text-start align-items-center gap-2">
-              <img
-                className="w-[35px]"
-                src={airlineLogo(segment.airline)}
-                alt={airlineName(segment.airline)}
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = "/assets/img/airlines/placeholder.png";
-                }}
-              />
-              <div className="pb-2 border-md border-end w-100 pe-5">
-                <span className="fw-bold text-sm">{airlineName(segment.airline) || "N/A"}</span>
-                <span className="text-secondary d-block fw-light mt-1 lh-0">
-                  <small>
-                    Flight No. {segment.flightNo || "—"} - {segment.departure || "—"} - {segment.arrival || "—"}
-                  </small>
+              {/* badges row (fare + personal item) */}
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {fareText && (
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
+                    Fare:&nbsp;<b className="font-medium">{fareText}</b>
+                  </span>
+                )}
+
+                {personalItem && (
+                  <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
+                    {/* tiny green indicator like mock */}
+                    <span className="h-3 w-[2px] rounded bg-emerald-500" />
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                      <rect x="5" y="7" width="14" height="11" rx="2" />
+                      <path d="M9 7V6a3 3 0 0 1 6 0v1" />
+                    </svg>
+                    Personal Item ({personalItem})
+                  </span>
+                )}
+              </div>
+
+              {/* baggage chips row */}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {carryOn && (
+                  <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                      <rect x="3" y="7" width="18" height="13" rx="2" />
+                      <path d="M8 7V6a4 4 0 0 1 8 0v1" />
+                    </svg>
+                    Carry on bag {carryOn}
+                  </span>
+                )}
+
+                <span
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ${
+                    checked
+                      ? "bg-slate-100 text-slate-700"
+                      : "bg-slate-100 text-slate-400"
+                  }`}
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                    <rect x="3" y="7" width="18" height="13" rx="2" />
+                    <path d="M8 7V6a4 4 0 0 1 8 0v1" />
+                  </svg>
+                  {checked ? `Checked bag ${checked}` : "No checked bag"}
                 </span>
               </div>
             </div>
 
-            <span
-              onClick={() => toggleDetails(index)}
-              className="d-flex h-[40px] cursor-pointer rounded-4 p-2 text-sm px-3 bg-[#EEF4FB] active:bg-[#cfd4da] items-center gap-2"
-            >
-              Details
-              <svg
-                className={`w-4 h-4 transform transition-transform duration-300 ${openIndex === index ? "rotate-90" : "rotate-0"}`}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </span>
-          </div>
-
-          {/* expanded */}
-          <div
-            className={`overflow-hidden mt-2 gap-2 border-top p-3 transition-all duration-500 ease-in-out ${
-              openIndex === index ? "max-h-[1000px] opacity-100" : "d-none opacity-0"
-            }`}
-          >
-            <div className="flex justify-between gap-4 w-full mx-auto mt-2">
-              <div className="text-center">
-                <div className="text-md font-semibold text-gray-800">
-                  {safeDate(segment.departureAt)} {segment.departureTimeAt || ""}
-                </div>
-                <div className="text-xs text-gray-500">{getAirportName(segment.departure || "")}</div>
+            {/* arrival block */}
+            <div className="relative">
+              <div className="text-[22px] font-semibold leading-6 text-slate-900 tabular-nums">
+                {arrTime || "—"}
               </div>
-
-              <div className="relative flex-1 h-[1px] bg-gray-300 mx-2 mt-2">
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-1">
-                  <svg width="25" height="25" viewBox="0 0 24 24">
-                    <path d="M3 5l1.4.4 3.1 8.8 9.4 2.5c1 .3 2-.3 2.3-1.3.3-1-.3-2-1.3-2.3l-7.7-2.1L7.1 5.8 3 5z" fill="#333" />
-                  </svg>
-                </div>
+              <div className="text-slate-900">{arrAirport || arrCode || "—"}</div>
+              <div className="text-xs text-slate-500">
+                {arrDate} <span className="mx-1">•</span> Terminal {flight?.arrivalTerminal || "Terminal 5"}
               </div>
-
-              <div className="text-center">
-                <div className="text-md font-semibold text-gray-800">
-                  {safeDate(segment.arrivalAt)} {segment.arrivalTimeAt || ""}
-                </div>
-                <div className="text-xs text-gray-500">{getAirportName(segment.arrival || "")}</div>
-              </div>
-            </div>
-
-            <div className="d-flex flex-wrap mt-2 mb-2 text-muted fw-bold gap-2" style={{ fontSize: "12px" }}>
-              <span className="border rounded-5 px-3 text-capitalize">
-                {segment.refundable ? "Refundable" : "Non-refundable"}
-              </span>
-              {segment.bookingCode ? <span className="border rounded-5 px-3">Booking Code: {segment.bookingCode}</span> : null}
-              {segment.availabilityCount ? <span className="border rounded-5 px-3">Available Seats: {segment.availabilityCount}</span> : null}
             </div>
           </div>
         </div>
-      ))}
 
-      {!hasSegments && <div className="text-center text-muted py-3">Segment details unavailable for this leg.</div>}
+        {/* notes + select CTA */}
+        <div className="mt-6 flex items-center justify-between">
+          <div className="text-[11px] text-slate-500">* All times are local</div>
+          <button
+            type="button"
+            onClick={() => (typeof onSelect === "function" ? onSelect() : null)}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#5A46E0] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#4b3acb] transition"
+          >
+            Select this flight
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
