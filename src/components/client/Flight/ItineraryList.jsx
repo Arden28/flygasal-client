@@ -302,14 +302,8 @@ const ItineraryList = ({
 
   return (
     <div className="mt-3" aria-live="polite">
-      {pageSummary && (
-        <div className="mb-2 text-sm text-slate-600">
-          Showing <span className="font-medium text-slate-800">{pageSummary.start}–{pageSummary.end}</span> of{" "}
-          <span className="font-medium text-slate-800">{pageSummary.total}</span> results
-        </div>
-      )}
 
-      <motion.ul layout className="mt-2 space-y-3">
+      <motion.ul layout className="mt-1 space-y-3">
         <AnimatePresence mode="sync" initial={false}>
           {paginatedItineraries.map((itinerary) => {
             const key = computeItinKey(itinerary);
