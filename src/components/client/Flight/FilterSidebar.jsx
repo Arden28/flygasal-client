@@ -1,17 +1,26 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import "rc-slider/assets/index.css";
 
-/* ---------- Small helpers ---------- */
+/* ---------- utils ---------- */
 const hh = (n) => `${String(n).padStart(2, "0")}:00`;
+const TIME_BUCKETS = [
+  { key: "any", label: "Any time", range: [0, 24] },
+  { key: "early", label: "Early morning", range: [0, 6] },
+  { key: "morning", label: "Morning", range: [6, 12] },
+  { key: "afternoon", label: "Afternoon", range: [12, 18] },
+  { key: "evening", label: "Evening", range: [18, 24] },
+];
 
-/* ---------- Simple Section (no accordion, no shadow) ---------- */
+/* ---------- Section (minimal; no card look) ---------- */
 const Section = ({ title, children }) => (
-  <section className="rounded-2xl ring-1 ring-slate-200 bg-white overflow-hidden">
-    <header className="px-4 py-3 border-b border-slate-200/70">
-      <h3 className="text-sm font-semibold tracking-wide text-slate-800">{title}</h3>
+  <section className="pt-3 first:pt-0">
+    <header className="pb-2">
+      <h3 className="text-[13px] font-semibold tracking-wide text-slate-900 uppercase">
+        {title}
+      </h3>
     </header>
-    {/* space between header & content */}
-    <div className="px-4 pt-3 pb-4">{children}</div>
+    {children}
+    <div className="my-4 h-px bg-slate-200/70 last:hidden" />
   </section>
 );
 
@@ -31,7 +40,7 @@ const AirlineRow = ({
   return (
     <label
       className={[
-        "flex items-center gap-3 rounded-lg px-2.5 py-2",
+        "flex items-center gap-3 rounded-lg px-2 py-2",
         disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-slate-50 cursor-pointer",
         "transition-colors",
       ].join(" ")}
@@ -55,7 +64,7 @@ const AirlineRow = ({
       />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm text-slate-800">{name}</div>
-        <div className="truncate text-xs text-slate-500">{code}</div>
+        <div className="truncate text-[11px] text-slate-500">{code}</div>
       </div>
       {typeof count === "number" && (
         <span
@@ -70,82 +79,6 @@ const AirlineRow = ({
         </span>
       )}
     </label>
-  );
-};
-
-/* ---------- Cabin cards ---------- */
-const CABIN_OPTIONS = [
-  { key: "ECONOMY", label: "Economy", sub: "Standard seats", icon: "💺" },
-  { key: "PREMIUM_ECONOMY", label: "Premium", sub: "Extra legroom", icon: "🧘" },
-  { key: "BUSINESS", label: "Business", sub: "Lie-flat options", icon: "🛏️" },
-  { key: "FIRST", label: "First", sub: "Top perks", icon: "⭐" },
-];
-
-const CabinCard = ({ active, label, sub, icon, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={[
-      "group flex w-full items-center gap-3 rounded-xl border p-3 text-left transition",
-      "ring-1 ring-slate-200/70",
-      active ? "border-blue-600 bg-blue-50 ring-blue-200" : "border-slate-200 hover:bg-slate-50 bg-white",
-    ].join(" ")}
-    aria-pressed={active}
-  >
-    <span className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-base">{icon}</span>
-    <div className="min-w-0">
-      <div className="truncate text-sm font-semibold text-slate-900">{label}</div>
-      <div className="truncate text-xs text-slate-500">{sub}</div>
-    </div>
-    <div className="ml-auto">
-      <span
-        className={[
-          "inline-flex h-5 w-5 items-center justify-center rounded-full border text-xs",
-          active ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 text-transparent",
-        ].join(" ")}
-      >
-        ✓
-      </span>
-    </div>
-  </button>
-);
-
-/* ---------- Time buckets (chips only) ---------- */
-const TIME_BUCKETS = [
-  { key: "any", label: "Any time", range: [0, 24] },
-  { key: "early", label: "Early morning", range: [0, 6] },
-  { key: "morning", label: "Morning", range: [6, 12] },
-  { key: "afternoon", label: "Afternoon", range: [12, 18] },
-  { key: "evening", label: "Evening", range: [18, 24] },
-];
-
-const TimeBucketChips = ({ value, onChange }) => {
-  const activeKey =
-    TIME_BUCKETS.find((b) => b.range[0] === value[0] && b.range[1] === value[1])?.key || "custom";
-
-  return (
-    <div className="flex flex-wrap gap-2">
-      {TIME_BUCKETS.map((b) => {
-        const isActive = activeKey === b.key;
-        return (
-          <button
-            key={b.key}
-            type="button"
-            onClick={() => onChange(b.range)}
-            className={[
-              "rounded-full px-3 py-1.5 text-xs sm:text-sm ring-1",
-              isActive
-                ? "ring-blue-600 bg-blue-50 text-blue-700"
-                : "ring-slate-200 bg-white text-slate-700 hover:bg-slate-50",
-            ].join(" ")}
-            aria-pressed={isActive}
-            title={`${b.label}: ${hh(b.range[0])}–${hh(b.range[1])}`}
-          >
-            {b.label}: {String(b.range[0]).padStart(2, "0")}-{String(b.range[1]).padStart(2, "0")}
-          </button>
-        );
-      })}
-    </div>
   );
 };
 
@@ -196,41 +129,26 @@ export default function FilterSidebar({
   const [airlineSearchOW, setAirlineSearchOW] = useState("");
   const [airlineSearchRT, setAirlineSearchRT] = useState("");
 
-  // --- Price drafts (so typing isn't clamped on each keystroke)
   const [minDraft, setMinDraft] = useState(clamped[0]);
   const [maxDraft, setMaxDraft] = useState(clamped[1]);
 
-  // Keep drafts in sync when bounds or external range changes
-  React.useEffect(() => {
+  useEffect(() => {
     setMinDraft(clamped[0]);
     setMaxDraft(clamped[1]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clamped[0], clamped[1]]);
 
-  // Normalize and commit to parent
   const commitPrice = () => {
     const isNum = (v) => Number.isFinite(Number(v));
     let lo = isNum(minDraft) ? Number(minDraft) : absMin;
     let hi = isNum(maxDraft) ? Number(maxDraft) : absMax;
-
-    // swap if inverted
     if (lo > hi) [lo, hi] = [hi, lo];
-
-    // clamp to absolute bounds
     lo = Math.max(absMin, Math.min(absMax, lo));
     hi = Math.max(absMin, Math.min(absMax, hi));
-
-    // Only notify parent if changed
-    if (lo !== currMin || hi !== currMax) {
-      handlePriceChange([lo, hi]);
-    }
-
-    // snap drafts to normalized values
+    if (lo !== currMin || hi !== currMax) handlePriceChange([lo, hi]);
     setMinDraft(lo);
     setMaxDraft(hi);
   };
-
-  // Convenience: commit on Enter
   const onPriceKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -238,8 +156,15 @@ export default function FilterSidebar({
     }
   };
 
+  /* Cabin - render compact checkbox list instead of cards */
+  const CABINS = [
+    { key: "ECONOMY", label: "Economy" },
+    { key: "PREMIUM_ECONOMY", label: "Premium Economy" },
+    { key: "BUSINESS", label: "Business" },
+    { key: "FIRST", label: "First" },
+  ];
 
-  /* Build name/logo meta once per code for stable, alphabetical lists */
+  /* Build airline meta */
   const toMeta = (code) => ({
     code,
     name: (getAirlineName?.(code) || code).trim(),
@@ -247,12 +172,14 @@ export default function FilterSidebar({
   });
 
   const rawOutboundCodes = useMemo(() => {
-    if (Array.isArray(airlinesOutboundExact) && airlinesOutboundExact.length) return airlinesOutboundExact;
+    if (Array.isArray(airlinesOutboundExact) && airlinesOutboundExact.length)
+      return airlinesOutboundExact;
     return Array.from(new Set(uniqueAirlines || [])).sort();
   }, [airlinesOutboundExact, uniqueAirlines]);
 
   const rawReturnCodes = useMemo(() => {
-    if (Array.isArray(airlinesReturnExact) && airlinesReturnExact.length) return airlinesReturnExact;
+    if (Array.isArray(airlinesReturnExact) && airlinesReturnExact.length)
+      return airlinesReturnExact;
     return Array.from(new Set(uniqueAirlines || [])).sort();
   }, [airlinesReturnExact, uniqueAirlines]);
 
@@ -265,7 +192,6 @@ export default function FilterSidebar({
     [rawReturnCodes, getAirlineName, getAirlineLogo]
   );
 
-  /* Filter by search (no "Hide 0" anymore) */
   const filteredOnewayAirlines = useMemo(() => {
     const q = airlineSearchOW.trim().toLowerCase();
     let list = airlineMetaOutbound;
@@ -280,7 +206,6 @@ export default function FilterSidebar({
     return list;
   }, [airlineMetaReturn, airlineSearchRT]);
 
-  /* Bulk toggle helpers */
   const bulkToggle = (type, list) => (selectAll) => {
     const evt = { target: { checked: selectAll } };
     const codes = list.map((m) => m.code);
@@ -290,20 +215,31 @@ export default function FilterSidebar({
 
   const handleClear = () => onClearAll && onClearAll();
 
-  const getCountOW = (code) => (airlineCountsOutbound ? (airlineCountsOutbound[code] || 0) : undefined);
-  const getCountRT = (code) => (airlineCountsReturn ? (airlineCountsReturn[code] || 0) : undefined);
+  const getCountOW = (code) =>
+    airlineCountsOutbound ? airlineCountsOutbound[code] || 0 : undefined;
+  const getCountRT = (code) =>
+    airlineCountsReturn ? airlineCountsReturn[code] || 0 : undefined;
+
+  /* For checkbox-style single-select time & stops */
+  const activeDepBucket =
+    TIME_BUCKETS.find(
+      (b) => b.range[0] === depTimeRange?.[0] && b.range[1] === depTimeRange?.[1]
+    )?.key || "custom";
+
+  const activeRetBucket =
+    TIME_BUCKETS.find(
+      (b) => b.range[0] === retTimeRange?.[0] && b.range[1] === retTimeRange?.[1]
+    )?.key || "custom";
 
   return (
     <aside
       className={[
-        "w-full rounded-3xl bg-white backdrop-blur",
-        "p-3 lg:p-4 xl:p-5",
-        "space-y-3 lg:space-y-4",
-        "ring-1 ring-slate-200/60",
+        "w-full rounded-3xl bg-white/70 backdrop-blur",
+        "p-3 sm:p-4 lg:p-5",
       ].join(" ")}
     >
       {/* Header (mobile) */}
-      <div className="flex items-center justify-between mb-1 lg:mb-0 lg:hidden">
+      <div className="mb-2 flex items-center justify-between sm:mb-3 lg:mb-4 lg:hidden">
         <h2 className="text-base font-semibold text-slate-900">Filters</h2>
         {onCloseMobile && (
           <button
@@ -315,66 +251,75 @@ export default function FilterSidebar({
         )}
       </div>
 
-      {/* Cabin */}
+      {/* Cabin (checkbox list) */}
       <Section title="Cabin class">
-        <div className="grid grid-cols-1 gap-2.5">
-          {CABIN_OPTIONS.map((c) => (
-            <CabinCard
-              key={c.key}
-              active={selectedCabins.includes(c.key)}
-              label={c.label}
-              sub={c.sub}
-              icon={c.icon}
-              onClick={() => onToggleCabin?.(c.key)}
-            />
-          ))}
+        <div className="grid grid-cols-1 gap-1.5">
+          {CABINS.map((c) => {
+            const checked = selectedCabins.includes(c.key);
+            return (
+              <label
+                key={c.key}
+                className="flex items-center gap-3 rounded-lg px-2.5 py-2 hover:bg-slate-50 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  checked={checked}
+                  onChange={() => onToggleCabin?.(c.key)}
+                />
+                <span className="text-sm text-slate-800">{c.label}</span>
+              </label>
+            );
+          })}
         </div>
-        <div className="mt-3 flex items-center justify-between text-xs">
+        <div className="mt-2 flex items-center justify-between">
           <button
             type="button"
-            className="rounded-full ring-1 ring-slate-300 px-3 py-1 hover:bg-slate-50"
+            className="rounded-full ring-1 ring-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
             onClick={onResetCabins}
           >
             Select all
           </button>
           {selectedCabins.length > 0 && (
-            <span className="text-slate-500">Selected: {selectedCabins.length}</span>
+            <span className="text-[12px] text-slate-500">
+              Selected: {selectedCabins.length}
+            </span>
           )}
         </div>
       </Section>
 
-      {/* Stops (removed extra indications/badges) */}
+      {/* Stops — checkbox look (single-select logic preserved) */}
       <Section title="Stops">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-1 gap-1.5">
           {[
             { value: "mix", label: "All" },
             { value: "oneway_0", label: "Direct" },
             { value: "oneway_1", label: "1 stop" },
             { value: "oneway_2", label: "2+ stops" },
           ].map(({ value, label }) => (
-            <button
+            <label
               key={value}
-              type="button"
-              onClick={() => handleStopChange(value)}
-              className={[
-                "rounded-full px-3 py-1.5 text-sm ring-1",
-                currentStop === value
-                  ? "ring-blue-600 bg-blue-50 text-blue-700"
-                  : "ring-slate-200 bg-white text-slate-700 hover:bg-slate-50",
-              ].join(" ")}
-              aria-pressed={currentStop === value}
+              className="flex items-center gap-3 rounded-lg px-2.5 py-2 hover:bg-slate-50 cursor-pointer"
             >
-              {label}
-            </button>
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                checked={currentStop === value}
+                onChange={() => handleStopChange(value)}
+              />
+              <span className="text-sm text-slate-800">{label}</span>
+            </label>
           ))}
         </div>
       </Section>
 
       {/* Price */}
-      <Section title={`Price (${/* purely visual label; keep as-is */ "USD"})`}>
+      <Section title={`Price (USD)`}>
         <div className="grid grid-cols-2 gap-2 sm:gap-3">
           <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-2 text-xs text-slate-500">Min</span>
+            <span className="pointer-events-none absolute left-3 top-2 text-xs text-slate-500">
+              Min
+            </span>
             <input
               type="number"
               inputMode="numeric"
@@ -386,7 +331,9 @@ export default function FilterSidebar({
             />
           </div>
           <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-2 text-xs text-slate-500">Max</span>
+            <span className="pointer-events-none absolute left-3 top-2 text-xs text-slate-500">
+              Max
+            </span>
             <input
               type="number"
               inputMode="numeric"
@@ -398,22 +345,68 @@ export default function FilterSidebar({
             />
           </div>
         </div>
-        {/* Optional tiny helper text (no behavior change) */}
-        <div className="mt-2 text-[11px] text-slate-500">
+        <p className="mt-2 text-[11px] text-slate-500">
           Press Enter or leave the field to apply. Range is {absMin}–{absMax}.
+        </p>
+      </Section>
+
+      {/* Departure time — outbound (checkbox look; single-select under the hood) */}
+      <Section title="Departure time (outbound)">
+        <div className="grid grid-cols-1 gap-1.5">
+          {TIME_BUCKETS.map((b) => {
+            const checked = activeDepBucket === b.key;
+            return (
+              <label
+                key={b.key}
+                className="flex items-center gap-3 rounded-lg px-2.5 py-2 hover:bg-slate-50 cursor-pointer"
+                title={`${b.label}: ${hh(b.range[0])}–${hh(b.range[1])}`}
+              >
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  checked={checked}
+                  onChange={() => onDepTimeChange(b.range)}
+                />
+                <span className="text-sm text-slate-800">
+                  {b.label}{" "}
+                  <span className="text-[11px] text-slate-500">
+                    ({String(b.range[0]).padStart(2, "0")}-{String(b.range[1]).padStart(2, "0")})
+                  </span>
+                </span>
+              </label>
+            );
+          })}
         </div>
       </Section>
 
-
-      {/* Time windows — outbound (chips only, no slider) */}
-      <Section title="Departure time (outbound)">
-        <TimeBucketChips value={depTimeRange} onChange={onDepTimeChange} />
-      </Section>
-
-      {/* Time windows — return (chips only, no slider) */}
+      {/* Departure time — return */}
       {returnFlights?.length > 0 && (
         <Section title="Departure time (return)">
-          <TimeBucketChips value={retTimeRange} onChange={onRetTimeChange} />
+          <div className="grid grid-cols-1 gap-1.5">
+            {TIME_BUCKETS.map((b) => {
+              const checked = activeRetBucket === b.key;
+              return (
+                <label
+                  key={b.key}
+                  className="flex items-center gap-3 rounded-lg px-2.5 py-2 hover:bg-slate-50 cursor-pointer"
+                  title={`${b.label}: ${hh(b.range[0])}–${hh(b.range[1])}`}
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    checked={checked}
+                    onChange={() => onRetTimeChange(b.range)}
+                  />
+                  <span className="text-sm text-slate-800">
+                    {b.label}{" "}
+                    <span className="text-[11px] text-slate-500">
+                      ({String(b.range[0]).padStart(2, "0")}-{String(b.range[1]).padStart(2, "0")})
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
         </Section>
       )}
 
@@ -455,7 +448,6 @@ export default function FilterSidebar({
             onChange={(e) => setAirlineSearchOW(e.target.value)}
             className="h-9 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
           />
-          {/* Small pills in a flex div */}
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <button
               type="button"
@@ -474,7 +466,6 @@ export default function FilterSidebar({
           </div>
         </div>
 
-        {/* Full list (no scroll, no overflow) */}
         <div className="space-y-1 pr-1">
           {filteredOnewayAirlines.map(({ code }) => {
             const count = getCountOW(code);
@@ -495,8 +486,6 @@ export default function FilterSidebar({
         </div>
       </Section>
 
-
-
       {/* Airlines — return */}
       {returnFlights?.length > 0 && (
         <Section title="Airlines (return)">
@@ -508,7 +497,6 @@ export default function FilterSidebar({
               onChange={(e) => setAirlineSearchRT(e.target.value)}
               className="h-9 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
             />
-            {/* Small pills in a flex div */}
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <button
                 type="button"
@@ -527,7 +515,6 @@ export default function FilterSidebar({
             </div>
           </div>
 
-          {/* Full list (no scroll, no overflow) */}
           <div className="space-y-1 pr-1">
             {filteredReturnAirlines.map(({ code }) => {
               const count = getCountRT(code);
@@ -549,29 +536,25 @@ export default function FilterSidebar({
         </Section>
       )}
 
-
-
       {/* Footer actions */}
-      <div className="lg:pt-1">
-        <div className="lg:static sticky bottom-2 left-0 right-0">
-          <div className="flex items-center justify-between gap-3">
+      <div className="pt-1">
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            className="rounded-xl ring-1 ring-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-white"
+            onClick={handleClear}
+          >
+            Clear all
+          </button>
+          {onCloseMobile && (
             <button
               type="button"
-              className="rounded-xl ring-1 ring-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-white"
-              onClick={handleClear}
+              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 lg:hidden"
+              onClick={onCloseMobile}
             >
-              Clear all
+              Apply
             </button>
-            {onCloseMobile && (
-              <button
-                type="button"
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 lg:hidden"
-                onClick={onCloseMobile}
-              >
-                Apply
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </aside>
