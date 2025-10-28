@@ -97,27 +97,29 @@ export default function ClientLayout() {
   return (
     <div className="flex min-h-screen flex-col" id="fadein">
       {/* --- NAVBAR --- */}
-      <header ref={rootRef} className="relative z-[250] text-white">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/40 via-black/20 to-transparent" />
-
-        <div className="relative mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between sm:h-20">
+      {/* Navbar */}
+      <header
+        ref={rootRef}
+        className="sticky top-0 z-[250] border-b border-slate-200/60 bg-white/70 backdrop-blur-md"
+      >
+        <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
+          <div className="flex h-14 items-center justify-between">
             {/* Brand */}
             <Link to="/" className="group flex items-center gap-2">
-              <img src={logo} alt="FlyGasal" className="h-8 w-auto sm:h-9" />
+              <img src={logo} alt="FlyGasal" className="h-8 w-auto" />
             </Link>
 
             {/* Desktop Nav */}
-            <nav className="hidden items-center gap-1 lg:flex">
-              <ul className="flex items-center gap-1 rounded-full bg-white/0">
+            <nav className="hidden lg:block">
+              <ul className="flex gap-1">
                 {navLinks.map((it) => (
                   <li key={it.to}>
                     <Link
                       to={it.to}
-                      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                      className={`rounded-xl px-3 py-2 text-sm ${
                         isActive(it.to)
-                          ? "bg-white/15 text-white shadow-sm backdrop-blur"
-                          : "text-white/90 hover:bg-white/10 hover:text-white"
+                          ? "bg-blue-50 text-blue-700"
+                          : "text-slate-700 hover:bg-slate-50"
                       }`}
                     >
                       {it.label}
@@ -128,12 +130,12 @@ export default function ClientLayout() {
             </nav>
 
             {/* Right controls */}
-            <div className="hidden items-center gap-2 lg:flex">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white/90 backdrop-blur">
+            <div className="hidden lg:flex items-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-800">
                 <img src={usFlag} alt="" className="h-4 w-4 rounded-sm" />
                 <span>English</span>
               </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white/90 backdrop-blur">
+              <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-800">
                 <span className="font-semibold">$ USD</span>
               </div>
 
@@ -141,7 +143,7 @@ export default function ClientLayout() {
               <div className="relative">
                 <button
                   onClick={() => setAcctOpen((v) => !v)}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2.5 py-1.5 text-sm text-white/90 backdrop-blur hover:bg-white/15"
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-800"
                 >
                   <img
                     src={
@@ -151,21 +153,21 @@ export default function ClientLayout() {
                       )}`
                     }
                     alt="Avatar"
-                    className="h-8 w-8 rounded-full border border-white/20 object-cover"
+                    className="h-8 w-8 rounded-full border border-slate-200 object-cover"
                   />
-                  <span className="max-w-[12rem] truncate">
+                  <span className="truncate max-w-[12rem]">
                     {isLoggingOut ? "Logging out..." : userDisplayName}
                   </span>
                   <Caret />
                 </button>
 
                 {acctOpen && (
-                  <ul className="absolute right-0 mt-2 w-52 overflow-hidden rounded-xl border border-white/15 bg-white/90 text-slate-900 shadow-2xl backdrop-blur">
+                  <ul className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-200 bg-white shadow-xl">
                     {accountOptions.map((opt) => (
                       <li key={opt.label}>
                         <Link
                           to={opt.to}
-                          className="block px-3 py-2 text-sm hover:bg-black/5"
+                          className="block px-3 py-2 text-sm hover:bg-slate-50"
                           onClick={() => setAcctOpen(false)}
                         >
                           {opt.label}
@@ -176,7 +178,7 @@ export default function ClientLayout() {
                       <li>
                         <button
                           onClick={handleLogout}
-                          className="block w-full px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50/80"
+                          className="block w-full px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
                         >
                           {isLoggingOut ? "Logging out..." : "Logout"}
                         </button>
@@ -187,12 +189,19 @@ export default function ClientLayout() {
               </div>
             </div>
 
-            {/* Mobile menu button */}
+            {/* Mobile Menu */}
             <button
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white lg:hidden backdrop-blur"
+              className="lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white"
               onClick={() => setMobileOpen((v) => !v)}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+              >
                 <line x1="3" y1="12" x2="21" y2="12" />
                 <line x1="3" y1="6" x2="21" y2="6" />
                 <line x1="3" y1="18" x2="21" y2="18" />
@@ -201,52 +210,24 @@ export default function ClientLayout() {
           </div>
         </div>
 
-        {/* Mobile Sheet */}
         {mobileOpen && (
-          <div className="lg:hidden">
-            <div
-              className="fixed inset-0 z-[240] bg-black/40 backdrop-blur-sm"
-              onClick={() => setMobileOpen(false)}
-            />
-            <div className="fixed inset-x-0 top-0 z-[245] origin-top rounded-b-2xl border-b border-white/10 bg-[#0b0b0b]/95 px-4 pb-6 pt-4 text-white shadow-2xl">
-              <div className="mx-auto flex max-w-7xl items-center justify-between">
-                <img src={logo} className="h-8 w-auto" />
-                <button
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none">
-                    <path d="M6 6l12 12M6 18L18 6" />
-                  </svg>
-                </button>
-              </div>
-              <ul className="mx-auto mt-4 max-w-7xl space-y-1">
-                {navLinks.map((it) => (
-                  <li key={it.to}>
-                    <Link
-                      to={it.to}
-                      className={`block rounded-xl px-3 py-3 text-base ${
-                        isActive(it.to)
-                          ? "bg-white/10 text-white"
-                          : "text-white/90 hover:bg-white/10"
-                      }`}
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      {it.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-              <div className="mx-auto mt-4 flex max-w-7xl items-center gap-2">
-                <div className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 text-sm">
-                  <img src={usFlag} alt="" className="h-4 w-4 rounded-sm" />
-                  <span>English</span>
-                </div>
-                <div className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 text-sm">
-                  <span className="font-semibold">$ USD</span>
-                </div>
-              </div>
-            </div>
+          <div className="border-t border-slate-200 bg-white shadow-sm lg:hidden">
+            <ul className="flex flex-col gap-1 py-2 px-3">
+              {navLinks.map((it) => (
+                <li key={it.to}>
+                  <Link
+                    to={it.to}
+                    className={`block rounded-xl px-3 py-2 text-sm ${
+                      isActive(it.to)
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {it.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </header>
@@ -352,7 +333,7 @@ function FooterColumn({ title, links }) {
 
 function Caret() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="opacity-90">
+    <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
       <path d="M6 9l6 6 6-6" />
     </svg>
   );
