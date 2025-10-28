@@ -3,39 +3,17 @@ import React from 'react';
 import HeroSection from '../../components/client/HeroSection';
 
 
-
-/**
- * Updated home page to better align with the look and feel of the
- * Alternative Airlines marketing site. The hero now uses a soft
- * purple‑to‑pink gradient and larger typography inspired by the
- * “Book flights. Pay later.” header seen on the Alternative Airlines
- * homepage【594294797686614†L8-L11】. Below the hero there are three
- * benefit cards with pastel backgrounds and clear copy mirroring the
- * “Find your perfect flight”, “Pay over time” and “Book with
- * confidence” sections on the reference site【594294797686614†L45-L61】.
- * A testimonial block overlays text on a full‑width image with a
- * subtle gradient, similar to the Trustpilot quote area on the
- * Alternative Airlines site【594294797686614†L64-L69】. Destinations are
- * presented as horizontal cards with left‑aligned images and a small
- * “Explore” call to action like the destination grid on the reference
- * site【594294797686614†L74-L88】. An airline mosaic uses a simple grid
- * of white tiles instead of a marquee for better readability and
- * alignment with the reference. Finally, the help cards section now
- * adopts the “We’re with you every step of the way” styling from the
- * reference site.
- */
-
 const Home = () => {
   return (
     <div className="min-h-screen font-sans">
-
       {/* Hero Section with background and promotional text */}
-      {/* <HeroSection /> */}
+      <HeroSection />
       {/* Hero Section */}
-
+      
+      {/* Hero Section */}
       <section className="relative w-full overflow-hidden">
-        {/* Gradient background inspired by Alternative Airlines */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#F07E24] via-[#7ECFF5] to-[#FFD6A3]" />
+        {/* Gradient background updated to match Gasal colours (warm orange palette) */}
+        <div className="absolute inset-0 bg-gradient-to-b from-orange-400 via-orange-500 to-orange-600" />
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 sm:py-28 text-center text-white">
           <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight">
             Book flights. Pay later.
@@ -43,10 +21,7 @@ const Home = () => {
           <p className="mt-4 text-lg sm:text-2xl opacity-90 max-w-2xl mx-auto">
             Book your perfect flight with confidence.
           </p>
-
-            {/* Search Tabs */}
-            <SearchTabs />
-
+          {/* Search form intentionally omitted – integrate your own form here */}
           <div className="mt-10 inline-flex items-center gap-2 mx-auto">
             <span className="inline-flex items-center gap-1 bg-white/20 rounded-full px-3 py-1 text-sm sm:text-base">
               {/* Trustpilot 5‑star badge */}
@@ -83,12 +58,12 @@ const Home = () => {
             ].map((item) => (
               <div
                 key={item.title}
-                className="flex flex-col items-start gap-4 p-8 bg-purple-50 rounded-3xl shadow-sm transition-transform hover:-translate-y-1"
+                className="flex flex-col items-start gap-4 p-8 bg-orange-50 rounded-3xl shadow-sm transition-transform hover:-translate-y-1"
               >
                 <img
                   src={item.icon}
                   alt=""
-                  className="h-12 w-12 text-purple-700"
+                  className="h-12 w-12 text-orange-700"
                 />
                 <h3 className="text-xl font-semibold text-slate-900">
                   {item.title}
@@ -127,6 +102,143 @@ const Home = () => {
         </div>
       </section>
 
+      {/* Delay payments Section */}
+      <section className="bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 flex flex-col md:flex-row items-center gap-12">
+          {/* Image on the left */}
+          <div className="md:w-1/2">
+            <img
+              src="/assets/img/agent.jpg"
+              alt="Flexible payment options"
+              className="rounded-3xl w-full h-80 object-cover"
+            />
+          </div>
+          {/* Text content */}
+          <div className="md:w-1/2">
+            <h3 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-4">
+              Delay payments, not your plans
+            </h3>
+            <p className="text-slate-600 mb-6">
+              Life happens, and plans change. But that shouldn't stop you from exploring the world. With our flexible payment options, delay the cost, not your adventure, and travel when you're ready【781689595112326†L115-L119】.
+            </p>
+            <a
+              href="#"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-full hover:bg-orange-700 transition-colors"
+            >
+              Explore payment options
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                className="w-4 h-4"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Protection Section */}
+      <section className="bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 flex flex-col md:flex-row items-center gap-12">
+          {/* Text content */}
+          <div className="md:w-1/2 order-2 md:order-1">
+            <h3 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-4">
+              Protection that puts you in control
+            </h3>
+            <p className="text-slate-600 mb-6">
+              Travel with peace of mind, knowing that you're prepared for the unexpected. Choose flight protection that works for you, ensuring you're covered before and during your trip, no matter what comes your way【781689595112326†L125-L129】.
+            </p>
+            <a
+              href="#"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-full hover:bg-orange-700 transition-colors"
+            >
+              Discover protection
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                className="w-4 h-4"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </a>
+          </div>
+          {/* Image on the right */}
+          <div className="md:w-1/2 order-1 md:order-2">
+            <img
+              src="/assets/img/agent2.jpg"
+              alt="Protection options"
+              className="rounded-3xl w-full h-80 object-cover"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Trusted Customers Section */}
+      <section className="bg-orange-50">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
+          <h3 className="text-center text-3xl sm:text-4xl font-extrabold text-slate-900 mb-10">
+            Trusted by customers all around the world
+          </h3>
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              {
+                quote:
+                  'This was my first booking and I used Fly Gasal twice on this trip. I must say by far the best online booking experience ever.',
+                name: 'Dee',
+              },
+              {
+                quote:
+                  'From start to finish the process of selecting, confirming, processing of payment and check‑in experience was absolutely flawless! I will be using Fly Gasal every time I travel.',
+                name: 'Corey M',
+              },
+              {
+                quote:
+                  'Fly Gasal made what would have been an otherwise difficult situation much easier to manage. Thank you, Fly Gasal.',
+                name: 'A',
+              },
+              {
+                quote:
+                  'It was my first time using Fly Gasal and it was one of the best experiences I had in booking my flights. The process was easy and the flight options were clearly laid out.',
+                name: 'Antonette N',
+              },
+            ].map((t) => (
+              <div
+                key={t.name}
+                className="bg-white rounded-3xl p-6 shadow-sm flex flex-col justify-between"
+              >
+                <div className="mb-4">
+                  <img
+                    src="/assets/img/trustpilot-5star.svg"
+                    alt="Trustpilot 5-star"
+                    className="h-5 mb-4"
+                  />
+                  <p className="text-slate-700 leading-relaxed">{t.quote}</p>
+                </div>
+                <div className="mt-4 text-sm font-semibold text-slate-900">
+                  {t.name}
+                </div>
+                <div className="text-xs text-slate-500">Verified by Trustpilot</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Destinations Section */}
       <section className="bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
@@ -148,7 +260,7 @@ const Home = () => {
               <a
                 key={dest.name}
                 href="#"
-                className="flex items-center bg-purple-50 rounded-3xl overflow-hidden shadow-sm transition-transform hover:-translate-y-1"
+                className="flex items-center bg-orange-50 rounded-3xl overflow-hidden shadow-sm transition-transform hover:-translate-y-1"
               >
                 <img
                   src={dest.img}
@@ -158,7 +270,7 @@ const Home = () => {
                 <div className="flex-1 p-4">
                   <h4 className="text-lg font-semibold text-slate-900">{dest.name}</h4>
                   <p className="text-sm text-slate-600">Flights to {dest.name}</p>
-                  <span className="mt-2 inline-flex items-center gap-1 text-purple-700 text-sm">
+                  <span className="mt-2 inline-flex items-center gap-1 text-orange-700 text-sm">
                     Explore
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -182,7 +294,7 @@ const Home = () => {
           <div className="mt-10 text-center">
             <a
               href="#"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-full hover:bg-orange-700 transition-colors"
             >
               Explore all destinations
               <svg
@@ -205,7 +317,7 @@ const Home = () => {
       </section>
 
       {/* Airlines Section */}
-      <section className="bg-purple-50">
+      <section className="bg-orange-50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
           <h3 className="text-center text-3xl sm:text-4xl font-extrabold text-slate-900 mb-10">
             Access airlines all around the world
@@ -246,7 +358,7 @@ const Home = () => {
           <div className="mt-10 text-center">
             <a
               href="#"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-orange-600 text-white rounded-full hover:bg-orange-700 transition-colors"
             >
               Explore all airlines
               <svg
@@ -297,7 +409,7 @@ const Home = () => {
             ].map((card) => (
               <div
                 key={card.title}
-                className="flex flex-col overflow-hidden bg-purple-50 rounded-3xl shadow-sm hover:shadow-md transition-shadow"
+                className="flex flex-col overflow-hidden bg-orange-50 rounded-3xl shadow-sm hover:shadow-md transition-shadow"
               >
                 <img
                   src={card.img}
@@ -313,7 +425,7 @@ const Home = () => {
                   </p>
                   <a
                     href="#"
-                    className="mt-4 inline-flex items-center gap-1 text-purple-700 font-medium"
+                    className="mt-4 inline-flex items-center gap-1 text-orange-700 font-medium"
                   >
                     {card.cta}
                     <svg
