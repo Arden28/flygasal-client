@@ -229,9 +229,9 @@ const SegmentBlock = ({
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.22 }}
-            className="px-4 pb-4 md:px-5"
+            className="p-2 bg-[#F6F6F7]"
           >
-            <div className="p-1">{body}</div>
+            <div className="">{body}</div>
           </motion.div>
         )}
       </AnimatePresence>
