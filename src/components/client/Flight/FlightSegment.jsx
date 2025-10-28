@@ -248,7 +248,7 @@ const FlightSegment = ({
           <div className="space-y-6">
             {/* departure block */}
             <div>
-              <div className="text-[22px] font-semibold leading-6 text-slate-900 tabular-nums">
+              <div className="text-md font-semibold leading-6 text-slate-900 tabular-nums">
                 {depTime || "—"}
               </div>
               <div className="text-slate-900">{depAirport || depCode || "—"}</div>
