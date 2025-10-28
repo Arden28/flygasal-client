@@ -231,7 +231,7 @@ const SegmentBlock = ({
             transition={{ duration: 0.22 }}
             className="px-4 pb-4 md:px-5"
           >
-            <div className="rounded-2xl ring-1 ring-slate-200 p-4">{body}</div>
+            <div className="p-1">{body}</div>
           </motion.div>
         )}
       </AnimatePresence>

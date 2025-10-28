@@ -204,7 +204,7 @@ const FlightSegment = ({
     (flight?.checkedBags ? `(${flight.checkedBags})` : null);
 
   return (
-    <div className="rounded-2xl ring-1 ring-slate-200 bg-white">
+    <div className="bg-white">
       {/* header: route airline + meta + right pill */}
       <div className="flex items-start justify-between px-5 pt-4">
         <div className="flex items-center gap-3">
