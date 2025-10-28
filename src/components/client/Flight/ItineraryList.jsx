@@ -229,7 +229,7 @@ const SegmentBlock = ({
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.22 }}
-            className="p-2 bg-[#F6F6F7]"
+            className="p-3 bg-[#F6F6F7]"
           >
             <div className="">{body}</div>
           </motion.div>
