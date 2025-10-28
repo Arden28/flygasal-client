@@ -207,7 +207,7 @@ const handleTelegramAuth = async (tgUser) => {
                 <div className="mt-3 row text-center">
                   <hr />
                   <div className="bg-light p-3 rounded-3 border">
-                    <TelegramLoginButton botUsername="Flygasal_bot" onAuth={handleTelegramAuth} />
+                    <TelegramLoginButton botUsername="FlygasalOfiicial_bot" onAuth={handleTelegramAuth} />
                   </div>
                 </div>
               </div>
