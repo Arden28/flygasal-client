@@ -5,7 +5,6 @@ import FlightSegment from "./FlightSegment";
 import { formatDuration } from "../../../lib/helper";
 import { getAirportName, getCityName } from "../../../utils/utils";
 import { FaPersonWalking } from "react-icons/fa6";
-import { MdLuggage } from "react-icons/md";
 
 /* -------------------- tiny utils -------------------- */
 const money = (n, currency = "USD") =>
@@ -37,6 +36,7 @@ const computeItinKey = (it) => {
   return `${outKey}|${retKey}|${it.totalPrice}`;
 };
 
+/* -------------------- icons -------------------- */
 const Icon = ({ name, className = "h-4 w-4" }) => {
   switch (name) {
     case "info":
@@ -45,10 +45,16 @@ const Icon = ({ name, className = "h-4 w-4" }) => {
           <path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Zm-.75-11.5h1.5V17h-1.5v-6.5Zm0-3h1.5V9h-1.5V7.5Z" />
         </svg>
       );
-    case "plane":
+    case "takeoff":
       return (
-        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor">
-          <path strokeWidth="1.8" d="M2 16l20-8-9 9-2 5-3-4-6-2z" />
+        <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+          <path d="M2 19h20v2H2zM2.7 9.7l1.1-.3 4.5 3 4.1-1.1L9 5.5l1.4-.4 5.7 4.8 4.3-1.2c1-.3 2 .3 2.3 1.3.3 1-.3 2-1.3 2.3l-6.2 1.7-6.5-1.1L2.7 9.7z" />
+        </svg>
+      );
+    case "landing":
+      return (
+        <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+          <path d="M2 19h20v2H2zM3 5l1.4.4 3.1 8.8 9.4 2.5c1 .3 2-.3 2.3-1.3.3-1-.3-2-1.3-2.3l-7.7-2.1L7.1 5.8 3 5z" />
         </svg>
       );
     default:
@@ -56,21 +62,49 @@ const Icon = ({ name, className = "h-4 w-4" }) => {
   }
 };
 
-const PAX_ORDER = ["ADT", "CHD", "INF"];
+/* -------------------- middle band -------------------- */
+const RailBand = ({
+  progress = 0.62,
+  durationText = "",
+  stopsText = "",
+  depCode = "",
+  arrCode = "",
+  onClick,
+  open,
+}) => {
+  const width = `${Math.min(100, Math.max(0, progress * 100))}%`;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={open}
+      className="col-span-12 sm:col-span-6 md:col-span-6 grid w-full text-left"
+      style={{ gridTemplateRows: "auto auto auto" }}
+    >
+      {/* top row: plane icons + duration */}
+      <div className="flex items-center justify-between text-[11px] leading-none text-slate-600 mb-1">
+        <Icon name="takeoff" className="h-3.5 w-3.5 opacity-70" />
+        <div className="text-xs font-medium text-slate-700">{durationText}</div>
+        <Icon name="landing" className="h-3.5 w-3.5 opacity-70" />
+      </div>
 
-/* -------------------- atoms -------------------- */
-const Rail = ({ progress = 0.62, label }) => (
-  <div className="relative flex-1 h-1.5 rounded-full bg-slate-200">
-    <div
-      className="absolute left-0 top-0 h-1.5 rounded-full bg-[#5A46E0]"
-      style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }}
-    />
-    {/* end caps */}
-    <span className="absolute left-0 -top-[3px] h-2.5 w-2.5 rounded-full bg-[#5A46E0]" />
-    <span className="absolute right-0 -top-[3px] h-2.5 w-2.5 rounded-full bg-slate-300" />
-    <span className="sr-only">{label}</span>
-  </div>
-);
+      {/* middle row: the rail */}
+      <div className="relative h-1.5 rounded-full bg-slate-200">
+        <div className="absolute left-0 top-0 h-1.5 rounded-full bg-[#5A46E0]" style={{ width }} />
+        {/* end caps */}
+        <span className="absolute left-0 -top-[3px] h-2.5 w-2.5 rounded-full bg-[#5A46E0]" />
+        <span className="absolute right-0 -top-[3px] h-2.5 w-2.5 rounded-full bg-slate-300" />
+      </div>
+
+      {/* bottom row: codes + stops */}
+      <div className="mt-1 flex items-center justify-between text-[11px] leading-none text-slate-600">
+        <span className="font-semibold tracking-wide">{depCode || "—"}</span>
+        <span className="text-slate-500">{stopsText}</span>
+        <span className="font-semibold tracking-wide">{arrCode || "—"}</span>
+      </div>
+    </button>
+  );
+};
 
 /* -------------------- segment block -------------------- */
 const SegmentBlock = ({
@@ -79,8 +113,6 @@ const SegmentBlock = ({
   setOpenId,
   titleLeft,
   titleRight,
-
-  // summary bits
   logoSrc,
   logoAlt,
 
@@ -97,10 +129,13 @@ const SegmentBlock = ({
   arrCity,
   arrAirport,
 
-  body, // FlightSegment
+  body,
 }) => {
   const open = openId === id;
   const toggle = () => setOpenId(open ? null : id);
+
+  // guess a simple progress: 60% so the bar looks alive even w/o true time ratio
+  const progress = 0.62;
 
   return (
     <div className="overflow-hidden bg-white">
@@ -113,10 +148,10 @@ const SegmentBlock = ({
         {titleRight && <div className="text-slate-600">{titleRight}</div>}
       </div>
 
-      {/* Summary row (matches screenshot layout) */}
+      {/* Summary row */}
       <div className="px-4 md:px-5">
         <div className="grid grid-cols-12 items-center gap-3 py-3">
-          {/* Airline logo + carrier + (left column date/time/city) */}
+          {/* left column */}
           <div className="col-span-12 sm:col-span-3 md:col-span-3 flex items-center gap-3">
             <img
               src={logoSrc}
@@ -128,9 +163,9 @@ const SegmentBlock = ({
               }}
             />
             <div className="min-w-0">
-              <div className="text-xs text-slate-500">{depDateText}</div>
+              <div className="text-[11px] text-slate-500">{depDateText}</div>
               <div className="text-slate-900 font-semibold leading-5 tabular-nums">{depTime}</div>
-              <div className="text-xs text-slate-600 truncate">{depCity}</div>
+              <div className="text-[11px] text-slate-600 truncate">{depCity}</div>
               <div
                 className="text-[11px] text-slate-500 truncate max-w-[120px]"
                 title={getCityName(depAirport)}
@@ -140,23 +175,21 @@ const SegmentBlock = ({
             </div>
           </div>
 
-          {/* Middle rail + duration + stops */}
-          <button
-            type="button"
+          {/* middle band */}
+          <RailBand
+            progress={progress}
+            durationText={durationText}
+            stopsText={stopsText}
+            depCode={(depAirport || "").slice(0, 3).toUpperCase()}
+            arrCode={(arrAirport || "").slice(0, 3).toUpperCase()}
             onClick={toggle}
-            aria-expanded={open}
-            className="col-span-12 sm:col-span-6 md:col-span-6 flex items-center gap-3 text-left"
-          >
-            <Icon name="plane" className="h-4 w-4 text-slate-500" />
-            <div className="text-xs text-slate-600 whitespace-nowrap">{durationText}</div>
-            <Rail label={durationText} />
-            <div className="text-xs text-slate-600 whitespace-nowrap">{stopsText}</div>
-          </button>
+            open={open}
+          />
 
-          {/* Right column date/time/city + Details chip */}
-          <div className="col-span-12 sm:col-span-2 md:col-span-2 ml-auto flex items-center justify-end gap-3">
+          {/* right column */}
+          <div className="col-span-12 sm:col-span-3 md:col-span-3 ml-auto flex items-center justify-end gap-3">
             <div className="min-w-0 text-right">
-              <div className="text-xs text-rose-600">{arrDateText}</div>
+              <div className="text-[11px] text-rose-600">{arrDateText}</div>
               <div className="text-slate-900 font-semibold leading-5 tabular-nums">{arrTime}</div>
               <div
                 className="text-[11px] text-slate-500 truncate max-w-[120px]"
@@ -201,9 +234,7 @@ const SegmentBlock = ({
             transition={{ duration: 0.22 }}
             className="px-4 pb-4 md:px-5"
           >
-            <div className="rounded-2xl ring-1 ring-slate-200 p-4">
-              {body}
-            </div>
+            <div className="rounded-2xl ring-1 ring-slate-200 p-4">{body}</div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -398,15 +429,31 @@ const ItineraryList = ({
                       logoAlt={`${airlineName} logo`}
 
                       depDateText={outSeg0?.departureTime ? formatDate(outSeg0.departureTime) : ""}
-                      depTime={itinerary.outbound.departureTime ? formatTime(itinerary.outbound.departureTime) : (outSeg0?.departureTime ? formatTime(outSeg0.departureTime) : "")}
+                      depTime={
+                        itinerary.outbound.departureTime
+                          ? formatTime(itinerary.outbound.departureTime)
+                          : outSeg0?.departureTime
+                          ? formatTime(outSeg0.departureTime)
+                          : ""
+                      }
                       depCity={airlineName}
                       depAirport={(itinerary.outbound.origin || outSeg0?.departure || "—")}
 
                       durationText={formatDuration(itinerary?.outbound?.journeyTime || 0)}
-                      stopsText={Number(itinerary?.outbound?.stops || 0) === 0 ? "Non-stop" : `${itinerary.outbound.stops} stop${itinerary.outbound.stops > 1 ? "s" : ""}`}
+                      stopsText={
+                        Number(itinerary?.outbound?.stops || 0) === 0
+                          ? "Non-stop"
+                          : `${itinerary.outbound.stops} stop${itinerary.outbound.stops > 1 ? "s" : ""}`
+                      }
 
                       arrDateText={outSegLast?.arrivalTime ? formatDate(outSegLast.arrivalTime) : ""}
-                      arrTime={itinerary.outbound.arrivalTime ? formatTime(itinerary.outbound.arrivalTime) : (outSegLast?.arrivalTime ? formatTime(outSegLast.arrivalTime) : "")}
+                      arrTime={
+                        itinerary.outbound.arrivalTime
+                          ? formatTime(itinerary.outbound.arrivalTime)
+                          : outSegLast?.arrivalTime
+                          ? formatTime(outSegLast.arrivalTime)
+                          : ""
+                      }
                       arrCity={(itinerary.outbound.destination || outSegLast?.arrival || "—")}
                       arrAirport={(itinerary.outbound.destination || outSegLast?.arrival || "—")}
 
@@ -440,15 +487,31 @@ const ItineraryList = ({
                       logoAlt={`${airlineName} logo`}
 
                       depDateText={retSeg0?.departureTime ? formatDate(retSeg0.departureTime) : ""}
-                      depTime={itinerary.return.departureTime ? formatTime(itinerary.return.departureTime) : (retSeg0?.departureTime ? formatTime(retSeg0.departureTime) : "")}
+                      depTime={
+                        itinerary.return.departureTime
+                          ? formatTime(itinerary.return.departureTime)
+                          : retSeg0?.departureTime
+                          ? formatTime(retSeg0.departureTime)
+                          : ""
+                      }
                       depCity={airlineName}
                       depAirport={(itinerary.return.origin || retSeg0?.departure || "—")}
 
                       durationText={formatDuration(itinerary?.return?.journeyTime || 0)}
-                      stopsText={Number(itinerary?.return?.stops || 0) === 0 ? "Non-stop" : `${itinerary.return.stops} stop${itinerary.return.stops > 1 ? "s" : ""}`}
+                      stopsText={
+                        Number(itinerary?.return?.stops || 0) === 0
+                          ? "Non-stop"
+                          : `${itinerary.return.stops} stop${itinerary.return.stops > 1 ? "s" : ""}`
+                      }
 
                       arrDateText={retSegLast?.arrivalTime ? formatDate(retSegLast.arrivalTime) : ""}
-                      arrTime={itinerary.return.arrivalTime ? formatTime(itinerary.return.arrivalTime) : (retSegLast?.arrivalTime ? formatTime(retSegLast.arrivalTime) : "")}
+                      arrTime={
+                        itinerary.return.arrivalTime
+                          ? formatTime(itinerary.return.arrivalTime)
+                          : retSegLast?.arrivalTime
+                          ? formatTime(retSegLast.arrivalTime)
+                          : ""
+                      }
                       arrCity={(itinerary.return.destination || retSegLast?.arrival || "—")}
                       arrAirport={(itinerary.return.destination || retSegLast?.arrival || "—")}
 
@@ -470,7 +533,8 @@ const ItineraryList = ({
                   )}
 
                   {/* Multi-city */}
-                  {Array.isArray(itinerary.legs) && itinerary.legs.length > 0 &&
+                  {Array.isArray(itinerary.legs) &&
+                    itinerary.legs.length > 0 &&
                     itinerary.legs.map((leg, li) => {
                       const seg0 = leg?.segments?.[0];
                       const segLast = leg?.segments?.slice(-1)?.[0];
@@ -492,7 +556,7 @@ const ItineraryList = ({
                           logoAlt={`${aName} logo`}
 
                           depDateText={seg0?.departureTime ? formatDate(seg0.departureTime) : ""}
-                          depTime={leg.departureTime ? formatTime(leg.departureTime) : (seg0?.departureTime ? formatTime(seg0.departureTime) : "")}
+                          depTime={leg.departureTime ? formatTime(leg.departureTime) : seg0?.departureTime ? formatTime(seg0.departureTime) : ""}
                           depCity={aName}
                           depAirport={(leg.origin || seg0?.departure || "—")}
 
@@ -500,7 +564,7 @@ const ItineraryList = ({
                           stopsText={Number(leg?.stops || 0) === 0 ? "Non-stop" : `${leg.stops} stop${leg.stops > 1 ? "s" : ""}`}
 
                           arrDateText={segLast?.arrivalTime ? formatDate(segLast.arrivalTime) : ""}
-                          arrTime={leg.arrivalTime ? formatTime(leg.arrivalTime) : (segLast?.arrivalTime ? formatTime(segLast.arrivalTime) : "")}
+                          arrTime={leg.arrivalTime ? formatTime(leg.arrivalTime) : segLast?.arrivalTime ? formatTime(segLast.arrivalTime) : ""}
                           arrCity={(leg.destination || segLast?.arrival || "—")}
                           arrAirport={(leg.destination || segLast?.arrival || "—")}
 
@@ -518,19 +582,19 @@ const ItineraryList = ({
                           }
                         />
                       );
-                    })
-                  }
+                    })}
                 </div>
 
-                {/* Bottom badges + CTA row (to mimic screenshot) */}
+                {/* Bottom badges + CTA */}
                 <div className="flex items-center justify-between px-4 pb-4 md:px-5 md:pb-5">
                   <div className="flex items-center gap-3 text-[#5A46E0]">
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#EEE9FF]">
-                      {/* bag icon */}
-                      <MdLuggage />
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                        <rect x="3" y="7" width="18" height="13" rx="2" />
+                        <path d="M8 7V6a4 4 0 0 1 8 0v1" />
+                      </svg>
                     </span>
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#EEE9FF]">
-                      {/* person icon */}
                       <FaPersonWalking />
                     </span>
                   </div>
