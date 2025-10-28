@@ -374,8 +374,8 @@ const ItineraryList = ({
             // helpers
             const outSeg0 = itinerary?.outbound?.segments?.[0];
             const outSegLast = itinerary?.outbound?.segments?.slice(-1)?.[0];
-            const outLeft = itinerary?.outbound
-              ? `${(itinerary.outbound.origin || outSeg0?.departure) ?? "—"} → ${(itinerary.outbound.destination || outSegLast?.arrival) ?? "—"}`
+            const outLeft = getCityName(itinerary?.outbound)
+              ? `${(getCityName(itinerary.outbound.origin) || getCityName(outSeg0?.departure)) ?? "—"} → ${(getCityName(itinerary.outbound.destination) || getCityName(outSegLast?.arrival)) ?? "—"}`
               : "—";
             const outDateRight = outSeg0?.departureTime || itinerary?.outbound?.departureTime;
 
