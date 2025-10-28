@@ -44,7 +44,7 @@ const Icon = ({ name, className = "h-4 w-4" }) => {
   switch (name) {
     case "info":
       return (
-        <FaInfo />
+        <FaInfo className="h-2 w-2" />
       );
     case "takeoff":
       return (
