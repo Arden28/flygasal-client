@@ -275,7 +275,7 @@ export default function FilterSidebar({
       {/* Top meta */}
       <div className="mb-3 sm:mb-4 flex items-center justify-between">
         <div className="text-[12px] font-medium text-slate-700" aria-live="polite">
-          {resultsText}
+          {count}
         </div>
         {onCloseMobile && (
           <button
