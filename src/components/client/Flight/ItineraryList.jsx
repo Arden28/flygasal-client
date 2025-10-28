@@ -485,16 +485,6 @@ const ItineraryList = ({
                       </div>
                     )}
 
-                    <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3">
-                      <Row label="Base (all pax)" value={money(backendBase, pbCurrency)} />
-                      <Row label="Taxes (all pax)" value={money(backendTaxes, pbCurrency)} />
-                      <Row label="Fees (all pax)" value={money(backendFees, pbCurrency)} />
-                      <Row label="Agent markup" value={money(markupAmount, pbCurrency)} />
-                      <div className="mt-1 border-t border-slate-200 pt-1">
-                        <Row label="Total to pay" value={money(grandWithMarkup, pbCurrency)} bold />
-                      </div>
-                    </div>
-
                     {agentMarkupPercent > 0 && (
                       <div className="mt-2">
                         <Pill tone="amber">Agent earns {money(markupAmount, pbCurrency)}</Pill>
