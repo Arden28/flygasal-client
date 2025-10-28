@@ -1,15 +1,12 @@
 
 import React from 'react';
 import HeroSection from '../../components/client/HeroSection';
+import SearchTabs from '../../components/client/Flight/SearchTabs';
 
 
 const Home = () => {
   return (
     <div className="min-h-screen font-sans">
-      {/* Hero Section with background and promotional text */}
-      <HeroSection />
-      {/* Hero Section */}
-
       {/* Hero Section */}
       <section className="relative w-full overflow-hidden">
         {/* Background image instead of gradient */}
@@ -32,7 +29,8 @@ const Home = () => {
             Book your perfect flight with confidence.
           </p>
 
-          {/* Search form intentionally omitted – integrate your own form here */}
+            {/* Search Tabs */}
+            <SearchTabs />
 
           <div className="mt-10 inline-flex items-center gap-2 mx-auto">
             <span className="inline-flex items-center gap-1 bg-white/20 rounded-full px-3 py-1 text-sm sm:text-base">
