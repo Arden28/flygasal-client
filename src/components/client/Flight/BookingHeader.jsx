@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
 
 /**
  * BookingHeader (resilient)
@@ -11,7 +12,7 @@ export default function BookingHeader({
   searchParams,
   adults,
   children,
-  infants,
+  // infants,
   outbound,
   returnFlight,
   tripType,
