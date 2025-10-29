@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import FlightSegment from "./FlightSegment";
 import { formatDuration } from "../../../lib/helper";
-import { formatDate, formatTime, getAirportName, getCityName } from "../../../utils/utils";
+import { findLeg, formatDate, formatTime, getAirportName, getCityName, guessFirstChain, normalizeSegments, safeDate } from "../../../utils/utils";
 import { FaPersonWalking } from "react-icons/fa6";
 import { MdLuggage } from "react-icons/md";
 import { FaPlaneDeparture } from "react-icons/fa";
@@ -107,6 +107,7 @@ const RailBand = ({
 const SegmentBlock = ({
   flight,
   id,
+  segmentType,
   openId,
   setOpenId,
   titleLeft,
@@ -126,6 +127,11 @@ const SegmentBlock = ({
   arrTime,
   arrCity,
   arrAirport,
+  // optional anchors
+  expectedOutboundOrigin,
+  expectedOutboundDestination,
+  expectedReturnOrigin,
+  expectedReturnDestination,
 
   body,
 }) => {
@@ -134,6 +140,51 @@ const SegmentBlock = ({
 
   // guess a simple progress: 60% so the bar looks alive even w/o true time ratio
   const progress = 0.62;
+  
+  
+    /* ---------------- Normalization & anchors ---------------- */
+    const allSegs = useMemo(() => normalizeSegments(flight), [flight]);
+    const guess = useMemo(() => guessFirstChain(allSegs), [allSegs]);
+  
+    const OUT_O =
+      expectedOutboundOrigin ||
+      guess?.origin ||
+      allSegs[0]?.departure ||
+      flight?.origin ||
+      "";
+    const OUT_D =
+      expectedOutboundDestination ||
+      guess?.destination ||
+      allSegs.at?.(-1)?.arrival ||
+      flight?.destination ||
+      "";
+  
+    const outboundSegs = useMemo(() => {
+      const found =
+        findLeg(allSegs, OUT_O, OUT_D, { prefer: "earliest" }) ||
+        null;
+      return found?.length ? found : guess?.chain || allSegs;
+    }, [allSegs, OUT_O, OUT_D, guess]);
+  
+    const RET_O = expectedReturnOrigin || OUT_D;
+    const RET_D = expectedReturnDestination || OUT_O;
+  
+    const outboundArrivesAt = outboundSegs.at?.(-1)?.arrivalAt || null;
+  
+    const returnSegs = useMemo(() => {
+      let chain =
+        findLeg(allSegs, RET_O, RET_D, { prefer: "earliest", notBefore: outboundArrivesAt }) ||
+        findLeg(allSegs, RET_O, RET_D, { prefer: "earliest" }) ||
+        findLeg(allSegs, RET_D, RET_O, { prefer: "earliest" });
+      return chain || [];
+    }, [allSegs, RET_O, RET_D, outboundArrivesAt]);
+  
+    const isReturn = segmentType === "Return";
+    let legSegs = isReturn ? returnSegs : outboundSegs;
+
+    const hasSegments = Array.isArray(legSegs) && legSegs.length > 0;
+    const firstSegment = hasSegments ? legSegs[0] : null;
+    const lastSegment = hasSegments ? legSegs[legSegs.length - 1] : null;
 
   return (
     <div className="overflow-hidden bg-white">
@@ -161,8 +212,8 @@ const SegmentBlock = ({
               }}
             />
             <div className="min-w-0">
-              <div className="text-[11px] text-slate-500">{formatDate(flight.departureTime)}</div>
-              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{formatTime(flight.departureTime)}</div>
+              <div className="text-[11px] text-slate-500">{safeDate(firstSegment.departureDate)}</div>
+              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{firstSegment.departureTime}</div>
               <div className="text-[11px] text-slate-600 truncate">{depCity}</div>
               <div
                 className="text-[11px] text-slate-500 truncate max-w-[120px]"
@@ -419,8 +470,9 @@ const ItineraryList = ({
                   {/* Outbound */}
                   {itinerary.outbound && (
                     <SegmentBlock
-                      flight={itinerary.outbound}
                       id={`${key}-out`}
+                      flight={itinerary.outbound}
+                      segmentType="Outbound"
                       openId={openDetailsId}
                       setOpenId={setOpen}
                       titleLeft={outLeft}
@@ -457,6 +509,8 @@ const ItineraryList = ({
                       }
                       arrCity={(itinerary.outbound.destination || outSegLast?.arrival || "—")}
                       arrAirport={(itinerary.outbound.destination || outSegLast?.arrival || "—")}
+                      expectedOutboundOrigin={searchParams?.origin}
+                      expectedOutboundDestination={searchParams?.destination}
 
                       body={
                         <FlightSegment
@@ -480,6 +534,7 @@ const ItineraryList = ({
                     <SegmentBlock
                       flight={itinerary.return}
                       id={`${key}-ret`}
+                      segmentType="Return"
                       openId={openDetailsId}
                       setOpenId={setOpen}
                       titleLeft={retLeft}
@@ -516,6 +571,8 @@ const ItineraryList = ({
                       }
                       arrCity={(itinerary.return.destination || retSegLast?.arrival || "—")}
                       arrAirport={(itinerary.return.destination || retSegLast?.arrival || "—")}
+                      expectedReturnOrigin={searchParams?.origin}
+                      expectedReturnDestination={searchParams?.destination}
 
                       body={
                         <FlightSegment
@@ -550,6 +607,7 @@ const ItineraryList = ({
                           flight={leg}
                           key={`${key}-leg-${li}`}
                           id={`${key}-leg-${li}`}
+                          segmentType={`Leg ${li + 1}`}
                           openId={openDetailsId}
                           setOpenId={setOpen}
                           titleLeft={`${left}`}
