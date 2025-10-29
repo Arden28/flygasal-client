@@ -79,7 +79,7 @@ const AirlineRow = ({
     >
       <input
         type="checkbox"
-        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+        className="h-4 w-4 rounded border-slate-300 text-[#F68221] focus:ring-[#F68221]"
         checked={checked}
         onChange={onChange}
         disabled={disabled}
@@ -304,43 +304,6 @@ export default function FilterSidebar({
         )}
       </div>
 
-      {/* Cabin */}
-      {/* <CollapsibleSection title="Cabin class" defaultOpen>
-        <div className="grid grid-cols-1 gap-2">
-          {CABINS.map((c) => {
-            const checked = selectedCabins.includes(c.key);
-            return (
-              <label
-                key={c.key}
-                className="flex items-center gap-3 rounded-lg px-2.5 py-2 hover:bg-slate-50 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                  checked={checked}
-                  onChange={() => onToggleCabin?.(c.key)}
-                />
-                <span className="text-sm text-slate-800">{c.label}</span>
-              </label>
-            );
-          })}
-        </div>
-        <div className="mt-3 flex items-center justify-between">
-          <button
-            type="button"
-            className="rounded-full ring-1 ring-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
-            onClick={onResetCabins}
-          >
-            Select all
-          </button>
-          {selectedCabins.length > 0 && (
-            <span className="text-[12px] text-slate-500">
-              Selected: {selectedCabins.length}
-            </span>
-          )}
-        </div>
-      </CollapsibleSection> */}
-
       {/* Stops (single-select via checkboxes) */}
       <CollapsibleSection title="Stops" defaultOpen>
         <div className="grid grid-cols-1 gap-2">
@@ -356,7 +319,7 @@ export default function FilterSidebar({
             >
               <input
                 type="checkbox"
-                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                className="h-4 w-4 rounded border-slate-300 text-[#F68221] focus:ring-[#F68221]"
                 checked={currentStop === value}
                 onChange={() => handleStopChange(value)}
               />
@@ -380,7 +343,7 @@ export default function FilterSidebar({
               onChange={(e) => setMinDraft(e.target.value)}
               onBlur={commitPrice}
               onKeyDown={onPriceKeyDown}
-              className="mt-5 h-11 w-full rounded-xl ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="mt-5 h-11 w-full rounded-xl ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-[#F68221]/30 focus:outline-none"
             />
           </div>
           <div className="relative">
@@ -394,7 +357,7 @@ export default function FilterSidebar({
               onChange={(e) => setMaxDraft(e.target.value)}
               onBlur={commitPrice}
               onKeyDown={onPriceKeyDown}
-              className="mt-5 h-11 w-full rounded-xl ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="mt-5 h-11 w-full rounded-xl ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-[#F68221]/30 focus:outline-none"
             />
           </div>
         </div>
@@ -407,7 +370,7 @@ export default function FilterSidebar({
       <CollapsibleSection title="Departure time (outbound)" defaultOpen>
         <div className="grid grid-cols-1 gap-2">
           {TIME_BUCKETS.map((b) => {
-            const checked = activeDepBucket === b.key;
+            const checked = (b.range[0] === depTimeRange?.[0] && b.range[1] === depTimeRange?.[1]);
             return (
               <label
                 key={b.key}
@@ -416,7 +379,7 @@ export default function FilterSidebar({
               >
                 <input
                   type="checkbox"
-                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  className="h-4 w-4 rounded border-slate-300 text-[#F68221] focus:ring-[#F68221]"
                   checked={checked}
                   onChange={() => onDepTimeChange(b.range)}
                 />
@@ -437,7 +400,7 @@ export default function FilterSidebar({
         <CollapsibleSection title="Departure time (return)" defaultOpen>
           <div className="grid grid-cols-1 gap-2">
             {TIME_BUCKETS.map((b) => {
-              const checked = activeRetBucket === b.key;
+              const checked = (b.range[0] === retTimeRange?.[0] && b.range[1] === retTimeRange?.[1]);
               return (
                 <label
                   key={b.key}
@@ -446,7 +409,7 @@ export default function FilterSidebar({
                 >
                   <input
                     type="checkbox"
-                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className="h-4 w-4 rounded border-slate-300 text-[#F68221] focus:ring-[#F68221]"
                     checked={checked}
                     onChange={() => onRetTimeChange(b.range)}
                   />
@@ -472,7 +435,7 @@ export default function FilterSidebar({
             max={72}
             value={maxDurationHours}
             onChange={(e) => onMaxDurationChange(Number(e.target.value || 0))}
-            className="h-11 w-28 rounded-xl ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
+            className="h-11 w-28 rounded-xl ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-[#F68221]/30 focus:outline-none"
           />
           <span className="text-sm text-slate-600">hours</span>
         </div>
@@ -483,11 +446,11 @@ export default function FilterSidebar({
         <label className="inline-flex items-center gap-2 text-sm text-slate-700">
           <input
             type="checkbox"
-            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            className="h-4 w-4 rounded border-slate-300 text-[#F68221] focus:ring-[#F68221]"
             checked={!!baggageOnly}
             onChange={(e) => onBaggageOnlyChange(e.target.checked)}
           />
-        <span>Show only fares with baggage included</span>
+          <span>Show only fares with baggage included</span>
         </label>
       </CollapsibleSection>
 
@@ -499,7 +462,7 @@ export default function FilterSidebar({
             placeholder="Search airline name or code…"
             value={airlineSearchOW}
             onChange={(e) => setAirlineSearchOW(e.target.value)}
-            className="h-10 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
+            className="h-10 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-[#F68221]/30 focus:outline-none"
           />
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <button
@@ -548,7 +511,7 @@ export default function FilterSidebar({
               placeholder="Search airline name or code…"
               value={airlineSearchRT}
               onChange={(e) => setAirlineSearchRT(e.target.value)}
-              className="h-10 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              className="h-10 w-full rounded-lg ring-1 ring-slate-300 px-3 text-sm focus:ring-2 focus:ring-[#F68221]/30 focus:outline-none"
             />
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <button
@@ -587,7 +550,6 @@ export default function FilterSidebar({
             })}
           </div>
         </CollapsibleSection>
-
       )}
 
       {/* Footer actions */}
@@ -603,7 +565,7 @@ export default function FilterSidebar({
           {onCloseMobile && (
             <button
               type="button"
-              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 lg:hidden"
+              className="rounded-xl bg-[#F68221] px-4 py-2 text-sm font-semibold text-white hover:bg-[#d96f17] lg:hidden"
               onClick={onCloseMobile}
             >
               Apply
