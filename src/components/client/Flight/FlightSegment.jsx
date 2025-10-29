@@ -323,7 +323,7 @@ const FlightSegment = ({
             <div>
               <div className="text-slate-900 font-semibold">{airlineName(segment.airline) || "N/A"}</div>
               <div className="text-xs text-slate-500">
-                {durationText} {segment.flightNo ? " • " : ""}
+                {durationText} {segment.flightNo ? " • " : " "}
                 {segment.flightNo ? `${segment.airline}${segment.flightNo}` : null}
               </div>
             </div>
