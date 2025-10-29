@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo } from "react";
 import {
   getAirlineLogo as utilsGetAirlineLogo,
   getAirlineName as utilsGetAirlineName,
@@ -149,15 +149,17 @@ const FlightSegment = ({
   getAirlineLogo,
   getAirlineName,
   // optional: when you want a "Select this flight" action here too
-  onSelect,
+
+  // optional anchors
+  expectedOutboundOrigin,
+  expectedOutboundDestination,
+  expectedReturnOrigin,
+  expectedReturnDestination,
+  // onSelect,
 }) => {
-  const [openIndex, setOpenIndex] = useState(null);
-  const toggleDetails = (index) => setOpenIndex((v) => (v === index ? null : index));
 
   const airlineLogo = typeof getAirlineLogo === "function" ? getAirlineLogo : utilsGetAirlineLogo;
   const airlineName = typeof getAirlineName === "function" ? getAirlineName : utilsGetAirlineName;
-  const safeDate = (d) => (d ? formatDate(d) : "—");
-  const safeTime = (d) => (d ? formatTime(d) : "—");
 
   /* ---------------- Normalization & anchors ---------------- */
   const allSegs = useMemo(() => normalizeSegments(flight), [flight]);
@@ -269,8 +271,8 @@ const FlightSegment = ({
       : "";
 
   // stops label
-  const stops = Math.max(0, (segments?.length || 1) - 1);
-  const stopsText = stops === 0 ? "Non-stop" : `${stops} stop${stops > 1 ? "s" : ""}`;
+  // const stops = Math.max(0, (segments?.length || 1) - 1);
+  // const stopsText = stops === 0 ? "Non-stop" : `${stops} stop${stops > 1 ? "s" : ""}`;
 
   // soft baggage & fare hints (use available fields if present, otherwise hide)
   const fareText =
