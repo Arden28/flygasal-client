@@ -300,129 +300,135 @@ const FlightSegment = ({
         <div className="flex justify-between items-start">
           <span className="font-medium text-md">{firstSegment?.departure || headerOrigin || ""} → {lastSegment?.arrival || headerDest || ""}</span>
           {/* right-corner duration (like the mock card top-right small meta) */}
-          <div className="absolute right-5 top-3 text-xs text-slate-500">{durationText}</div>
+          <div className="absolute text-right text-xs text-slate-500">{durationText}</div>
         </div>
       </div>
 
-      {/* header: route airline + meta + right pill */}
-      <div className="flex items-start justify-between px-4 mt-3">
-        <div className="flex items-center gap-3">
-          <img
-            src={logoSrc}
-            alt={`${airline} logo`}
-            className="h-10 w-10 rounded-full object-contain ring-1 ring-slate-200 bg-white"
-            onError={(e) => {
-              e.currentTarget.onerror = null;
-              e.currentTarget.src = "/assets/img/airlines/placeholder.png";
-            }}
-          />
-          <div>
-            <div className="text-slate-900 font-semibold">{airline}</div>
-            <div className="text-xs text-slate-500">
-              {durationText} {flightNo ? " • " : ""}
-              {flightNo ? `${carrier}${flightNo}` : null}
+
+      {/* Render individual segments */}
+      {(legSegs || []).map((segment, index) => (
+        <>
+        {/* header: route airline + meta + right pill */}
+        <div className="flex items-start justify-between px-4 mt-3">
+          <div className="flex items-center gap-3">
+            <img
+              src={airlineLogo(segment.airline)}
+              alt={`${airlineName(segment.airline)} logo`}
+              className="h-10 w-10 rounded-full object-contain ring-1 ring-slate-200 bg-white"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = "/assets/img/airlines/placeholder.png";
+              }}
+            />
+            <div>
+              <div className="text-slate-900 font-semibold">{airlineName(segment.airline) || "N/A"}</div>
+              <div className="text-xs text-slate-500">
+                {durationText} {segment.flightNo ? " • " : ""}
+                {segment.flightNo ? `${segment.airline}${segment.flightNo}` : null}
+              </div>
             </div>
           </div>
+
+          <span className="rounded-full bg-violet-50 px-3 py-1 text-xs text-violet-700">
+            Inflight experience
+          </span>
         </div>
 
-        <span className="rounded-full bg-violet-50 px-3 py-1 text-xs text-violet-700">
-          Inflight experience
-        </span>
-      </div>
+        {/* body */}
+        <div className="relative px-4 pb-3 pt-3">
+          {/* right-corner duration */}
+          <div className="absolute right-5 top-3 text-xs text-slate-500">{durationText}</div>
 
-      {/* body */}
-      <div className="relative px-4 pb-3 pt-3">
-        {/* right-corner duration */}
-        <div className="absolute right-5 top-3 text-xs text-slate-500">{durationText}</div>
+          <div className="grid grid-cols-[20px_1fr] gap-4">
+            {/* vertical timeline */}
+            <div className="relative">
+              <div className="absolute left-[8px] top-2 bottom-8 w-[2px] bg-violet-200" />
+              <span className="absolute left-[5px] top-2 h-3 w-3 rounded-full bg-[#6C54FF]" />
+              <span className="absolute left-[5px] bottom-8 h-3 w-3 rounded-full bg-[#6C54FF]" />
+            </div>
 
-        <div className="grid grid-cols-[20px_1fr] gap-4">
-          {/* vertical timeline */}
-          <div className="relative">
-            <div className="absolute left-[8px] top-2 bottom-8 w-[2px] bg-violet-200" />
-            <span className="absolute left-[5px] top-2 h-3 w-3 rounded-full bg-[#6C54FF]" />
-            <span className="absolute left-[5px] bottom-8 h-3 w-3 rounded-full bg-[#6C54FF]" />
-          </div>
+            {/* content column */}
+            <div className="space-y-6">
+              {/* departure block */}
+              <div>
+                <div className="text-md font-semibold leading-6 text-slate-900 tabular-nums">
+                  {depTime || "—"}
+                </div>
+                <div className="text-md text-slate-900">{depAirport || depCode || "—"}</div>
+                <div className="text-xs text-slate-500">
+                  {depDate} <span className="mx-1">•</span> Terminal {flight?.departureTerminal || "Terminal 1A"}
+                </div>
 
-          {/* content column */}
-          <div className="space-y-6">
-            {/* departure block */}
-            <div>
-              <div className="text-md font-semibold leading-6 text-slate-900 tabular-nums">
-                {depTime || "—"}
-              </div>
-              <div className="text-md text-slate-900">{depAirport || depCode || "—"}</div>
-              <div className="text-xs text-slate-500">
-                {depDate} <span className="mx-1">•</span> Terminal {flight?.departureTerminal || "Terminal 1A"}
-              </div>
+                {/* badges row (fare + personal item) */}
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  {fareText && (
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
+                      Fare:&nbsp;<b className="font-medium">{fareText}</b>
+                    </span>
+                  )}
 
-              {/* badges row (fare + personal item) */}
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                {fareText && (
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
-                    Fare:&nbsp;<b className="font-medium">{fareText}</b>
-                  </span>
-                )}
+                  {personalItem && (
+                    <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
+                      {/* tiny green indicator like mock */}
+                      <span className="h-3 w-[2px] rounded bg-emerald-500" />
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                        <rect x="5" y="7" width="14" height="11" rx="2" />
+                        <path d="M9 7V6a3 3 0 0 1 6 0v1" />
+                      </svg>
+                      Personal Item ({personalItem})
+                    </span>
+                  )}
+                </div>
 
-                {personalItem && (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
-                    {/* tiny green indicator like mock */}
-                    <span className="h-3 w-[2px] rounded bg-emerald-500" />
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                      <rect x="5" y="7" width="14" height="11" rx="2" />
-                      <path d="M9 7V6a3 3 0 0 1 6 0v1" />
-                    </svg>
-                    Personal Item ({personalItem})
-                  </span>
-                )}
-              </div>
+                {/* baggage chips row */}
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {carryOn && (
+                    <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
+                        <rect x="3" y="7" width="18" height="13" rx="2" />
+                        <path d="M8 7V6a4 4 0 0 1 8 0v1" />
+                      </svg>
+                      Carry on bag {carryOn}
+                    </span>
+                  )}
 
-              {/* baggage chips row */}
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {carryOn && (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
+                  <span
+                    className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ${
+                      checked
+                        ? "bg-slate-100 text-slate-700"
+                        : "bg-slate-100 text-slate-400"
+                    }`}
+                  >
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
                       <rect x="3" y="7" width="18" height="13" rx="2" />
                       <path d="M8 7V6a4 4 0 0 1 8 0v1" />
                     </svg>
-                    Carry on bag {carryOn}
+                    {checked ? `Checked bag ${checked}` : "No checked bag"}
                   </span>
-                )}
-
-                <span
-                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ${
-                    checked
-                      ? "bg-slate-100 text-slate-700"
-                      : "bg-slate-100 text-slate-400"
-                  }`}
-                >
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                    <rect x="3" y="7" width="18" height="13" rx="2" />
-                    <path d="M8 7V6a4 4 0 0 1 8 0v1" />
-                  </svg>
-                  {checked ? `Checked bag ${checked}` : "No checked bag"}
-                </span>
+                </div>
               </div>
-            </div>
 
-            {/* arrival block */}
-            <div className="relative">
-              <div className="text-md font-semibold leading-6 text-slate-900 tabular-nums">
-                {arrTime || "—"}
-              </div>
-              <div className="text-md text-slate-900">{arrAirport || arrCode || "—"}</div>
-              <div className="text-xs text-slate-500">
-                {arrDate} <span className="mx-1">•</span> Terminal {flight?.arrivalTerminal || "Terminal 5"}
+              {/* arrival block */}
+              <div className="relative">
+                <div className="text-md font-semibold leading-6 text-slate-900 tabular-nums">
+                  {arrTime || "—"}
+                </div>
+                <div className="text-md text-slate-900">{arrAirport || arrCode || "—"}</div>
+                <div className="text-xs text-slate-500">
+                  {arrDate} <span className="mx-1">•</span> Terminal {flight?.arrivalTerminal || "Terminal 5"}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* notes */}
-        <div className="mt-6 flex items-center justify-between">
-          <div className="text-[11px] text-slate-500">* All times are local</div>
-          <span>&nbsp;</span>
+          {/* notes */}
+          <div className="mt-6 flex items-center justify-between">
+            <div className="text-[11px] text-slate-500">* All times are local</div>
+            <span>&nbsp;</span>
+          </div>
         </div>
-      </div>
+        </>
+      ))}
     </div>
   );
 };
