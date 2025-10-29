@@ -246,7 +246,7 @@ const SegmentBlock = ({
             /> */}
             <div className="flex items-center gap-2">
               {Array.isArray(flight?.marketingCarriers) && flight.marketingCarriers.length > 0 ? (
-                flight.airlines.map((code, i) => (
+                flight.marketingCarriers.map((code, i) => (
                   <img
                     key={i}
                     src={`/assets/img/airlines/${code}.png`}
