@@ -146,11 +146,10 @@ export default function BookingHeader({
           <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-3">
             {/* Logo Section */}
             <div className="flex justify-center sm:justify-start w-full sm:w-auto">
-              <img
-                src="/assets/img/logo/flygasal.png"
-                alt="Fly Gasal"
-                className="h-8 sm:h-10 object-contain"
-              />
+              <Link
+                to="/">
+                <img src="/assets/img/logo/flygasal.png" alt="Fly Gasal" className="h-8 sm:h-10 object-contain" />
+              </Link>
             </div>
 
             {/* Steps Section */}
