@@ -296,16 +296,16 @@ const FlightSegment = ({
     <div className="bg-white rounded-xl px-0 py-2">
 
       {/* Route header */}
-      <div className="border-b px-4 py-3">
+      <div className="border-b px-4 py-3 mb-3">
         <div className="flex justify-between items-start">
-          <span className="font-medium">{firstSegment?.departure || headerOrigin || ""} → {lastSegment?.arrival || headerDest || ""}</span>
+          <span className="font-medium text-md">{firstSegment?.departure || headerOrigin || ""} → {lastSegment?.arrival || headerDest || ""}</span>
           {/* right-corner duration (like the mock card top-right small meta) */}
           <div className="absolute right-5 top-3 text-xs text-slate-500">{durationText}</div>
         </div>
       </div>
 
       {/* header: route airline + meta + right pill */}
-      <div className="flex items-start justify-between px-4">
+      <div className="flex items-start justify-between px-4 mt-3">
         <div className="flex items-center gap-3">
           <img
             src={logoSrc}
