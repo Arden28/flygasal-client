@@ -151,10 +151,97 @@ const FlightSegment = ({
   // optional: when you want a "Select this flight" action here too
   onSelect,
 }) => {
-  const airlineLogo =
-    typeof getAirlineLogo === "function" ? getAirlineLogo : utilsGetAirlineLogo;
-  const airlineName =
-    typeof getAirlineName === "function" ? getAirlineName : utilsGetAirlineName;
+  const [openIndex, setOpenIndex] = useState(null);
+  const toggleDetails = (index) => setOpenIndex((v) => (v === index ? null : index));
+
+  const airlineLogo = typeof getAirlineLogo === "function" ? getAirlineLogo : utilsGetAirlineLogo;
+  const airlineName = typeof getAirlineName === "function" ? getAirlineName : utilsGetAirlineName;
+  const safeDate = (d) => (d ? formatDate(d) : "—");
+  const safeTime = (d) => (d ? formatTime(d) : "—");
+
+  /* ---------------- Normalization & anchors ---------------- */
+  const allSegs = useMemo(() => normalizeSegments(flight), [flight]);
+  const guess = useMemo(() => guessFirstChain(allSegs), [allSegs]);
+
+  const OUT_O =
+    expectedOutboundOrigin ||
+    guess?.origin ||
+    allSegs[0]?.departure ||
+    flight?.origin ||
+    "";
+  const OUT_D =
+    expectedOutboundDestination ||
+    guess?.destination ||
+    allSegs.at?.(-1)?.arrival ||
+    flight?.destination ||
+    "";
+
+  const outboundSegs = useMemo(() => {
+    const found =
+      findLeg(allSegs, OUT_O, OUT_D, { prefer: "earliest" }) ||
+      null;
+    return found?.length ? found : guess?.chain || allSegs;
+  }, [allSegs, OUT_O, OUT_D, guess]);
+
+  const RET_O = expectedReturnOrigin || OUT_D;
+  const RET_D = expectedReturnDestination || OUT_O;
+
+  const outboundArrivesAt = outboundSegs.at?.(-1)?.arrivalAt || null;
+
+  const returnSegs = useMemo(() => {
+    let chain =
+      findLeg(allSegs, RET_O, RET_D, { prefer: "earliest", notBefore: outboundArrivesAt }) ||
+      findLeg(allSegs, RET_O, RET_D, { prefer: "earliest" }) ||
+      findLeg(allSegs, RET_D, RET_O, { prefer: "earliest" });
+    return chain || [];
+  }, [allSegs, RET_O, RET_D, outboundArrivesAt]);
+
+  const isReturn = segmentType === "Return";
+  let legSegs = isReturn ? returnSegs : outboundSegs;
+
+  // Absolute last-resort synthetic single-segment if everything else failed
+  if (!legSegs?.length) {
+    const depAt =
+      flight?.departureTime ||
+      combineDateTime(flight?.strDepartureDate, flight?.strDepartureTime) ||
+      flight?.departureDate ||
+      "";
+    const arrAt =
+      flight?.arrivalTime ||
+      combineDateTime(flight?.strArrivalDate, flight?.strArrivalTime) ||
+      flight?.arrivalDate ||
+      "";
+
+    if ((flight?.origin || flight?.destination) && (depAt || arrAt)) {
+      legSegs = [
+        {
+          airline: flight?.airline || flight?.marketingCarriers?.[0] || "",
+          flightNo: flight?.flightNum || flight?.flightNumber || "",
+          departure: flight?.origin || "",
+          arrival: flight?.destination || "",
+          departureAt: depAt || arrAt, // at least one
+          arrivalAt: arrAt || depAt,
+          departureTimeAt: isTimeOnly(flight?.strDepartureTime) ? flight?.strDepartureTime : "",
+          arrivalTimeAt: isTimeOnly(flight?.strArrivalTime) ? flight?.strArrivalTime : "",
+          bookingCode: flight?.bookingCode || "",
+          refundable: !!flight?.refundable,
+        },
+      ];
+    } else {
+      legSegs = [];
+    }
+  }
+
+  const hasSegments = Array.isArray(legSegs) && legSegs.length > 0;
+  const firstSegment = hasSegments ? legSegs[0] : null;
+  const lastSegment = hasSegments ? legSegs[legSegs.length - 1] : null;
+
+  const headerOrigin = isReturn ? RET_O : OUT_O;
+  const headerDest = isReturn ? RET_D : OUT_D;
+  // const airlineLogo =
+  //   typeof getAirlineLogo === "function" ? getAirlineLogo : utilsGetAirlineLogo;
+  // const airlineName =
+  //   typeof getAirlineName === "function" ? getAirlineName : utilsGetAirlineName;
 
   const segments = useMemo(() => normalizeSegments(flight), [flight]);
   const first = segments[0];
@@ -205,6 +292,14 @@ const FlightSegment = ({
 
   return (
     <div className="bg-white rounded-xl px-3 py-2">
+
+      {/* Route header */}
+      <div className="border-b">
+        <div className="flex justify-between items-start">
+          <span className="font-medium">{firstSegment?.departure || headerOrigin || ""} → {lastSegment?.arrival || headerDest || ""}</span>
+        </div>
+      </div>
+
       {/* header: route airline + meta + right pill */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
@@ -318,7 +413,7 @@ const FlightSegment = ({
           </div>
         </div>
 
-        {/* notes + select CTA */}
+        {/* notes */}
         <div className="mt-6 flex items-center justify-between">
           <div className="text-[11px] text-slate-500">* All times are local</div>
           <span>&nbsp;</span>
