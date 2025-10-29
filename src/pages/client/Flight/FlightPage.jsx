@@ -1173,7 +1173,7 @@ const FlightPage = () => {
           </div>
         </div> */}
         <div className="container">
-          <div className="border-x border-b rounded-b-2xl border-gray-200 bg-white p-3">
+          <div className="border-x border-b rounded-2xl border-gray-200 bg-white p-3">
             <FlightSearchForm
               searchParams={searchParams}
               setAvailableFlights={setAvailableFlights}
