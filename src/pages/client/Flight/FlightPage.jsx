@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AuthContext } from "../../../context/AuthContext";
 import BookingHeader from "../../../components/client/Flight/BookingHeader";
 
-const flightsPerPage = 250;
+const flightsPerPage = 30;
 const MAX_RETURNS_PER_OUTBOUND = 6;
 const MAX_RESULTS = 500;
 

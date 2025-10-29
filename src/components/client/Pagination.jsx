@@ -43,12 +43,17 @@ const Pagination = ({
 
   const jumpBy = (n) => go(currentPage + n);
 
+  // Brand-styled primitives
   const btn =
-    "inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed";
+    "inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm border border-slate-300 bg-white hover:bg-slate-50 " +
+    "focus:outline-none focus:ring-2 focus:ring-[#F68221]/25 focus:border-[#F68221] " +
+    "disabled:opacity-50 disabled:cursor-not-allowed";
   const pill =
-    "min-w-[40px] inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm border border-slate-300";
-  const active = "bg-blue-600 border-blue-600 text-white hover:bg-blue-700";
-  const num = "bg-white hover:bg-slate-50 text-slate-800";
+    "min-w-[40px] inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm border";
+  const active =
+    "bg-[#F68221] border-[#F68221] text-white hover:bg-[#E37314] focus:ring-2 focus:ring-[#F68221]/30";
+  const num =
+    "border-slate-300 bg-white text-slate-800 hover:bg-[#FFF4EB] focus:outline-none focus:ring-2 focus:ring-[#F68221]/25 focus:border-[#F68221]";
 
   // It's safe to return null *after* hooks ran
   if (!Number.isFinite(totalPages) || totalPages <= 1) {
@@ -65,7 +70,7 @@ const Pagination = ({
         <div className="flex items-center gap-2 text-sm text-slate-600">
           <label className="whitespace-nowrap">Results per page:</label>
           <select
-            className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-[#F68221] focus:ring-2 focus:ring-[#F68221]/25"
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
           >
@@ -126,7 +131,7 @@ const Pagination = ({
           <ul className="flex items-center gap-1">
             {pages.map((p, i) =>
               p === "…" ? (
-                <li key={`dots-${i}`} className="px-2 text-slate-400 select-none">…</li>
+                <li key={`dots-${i}`} className="px-2 text-slate-300 select-none">…</li>
               ) : (
                 <li key={p}>
                   <button
@@ -179,7 +184,7 @@ const Pagination = ({
               setJump("");
             }
           }}
-          className="h-9 w-20 rounded-md border border-slate-300 px-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+          className="h-9 w-20 rounded-md border border-slate-300 px-2 text-sm focus:border-[#F68221] focus:ring-2 focus:ring-[#F68221]/25"
           placeholder="e.g. 3"
           aria-label="Jump to page"
         />
