@@ -1,5 +1,7 @@
 import React, { useMemo } from "react";
 import {
+  formatDuration,
+  safeDate,
   getAirlineLogo as utilsGetAirlineLogo,
   getAirlineName as utilsGetAirlineName,
 } from "../../../utils/utils";
@@ -240,8 +242,6 @@ const FlightSegment = ({
 
   const headerOrigin = isReturn ? RET_O : OUT_O;
   const headerDest = isReturn ? RET_D : OUT_D;
-  const safeDate = (d) => (d ? formatDate(d) : "—");
-  const safeTime = (d) => (d ? formatTime(d) : "—");
   // const airlineLogo =
   //   typeof getAirlineLogo === "function" ? getAirlineLogo : utilsGetAirlineLogo;
   // const airlineName =
@@ -256,15 +256,10 @@ const FlightSegment = ({
   // const logoSrc = airlineLogo(carrier);
   // const airline = airlineName(carrier) || "Airline";
 
-  const depTime = first?.departureTimeAt || (first?.departureAt ? formatTime(first.departureAt) : "");
   const depDate = first?.departureAt ? formatDate(first.departureAt) : "";
-  const depAirport = getAirportName(first?.departure || "");
-  const depCode = (first?.departure || "").slice(0, 3).toUpperCase();
 
   const arrTime = last?.arrivalTimeAt || (last?.arrivalAt ? formatTime(last.arrivalAt) : "");
   const arrDate = last?.arrivalAt ? formatDate(last.arrivalAt) : "";
-  const arrAirport = getAirportName(last?.arrival || "");
-  const arrCode = (last?.arrival || "").slice(0, 3).toUpperCase();
 
   // total duration
   const durationText =
@@ -277,14 +272,14 @@ const FlightSegment = ({
   // const stopsText = stops === 0 ? "Non-stop" : `${stops} stop${stops > 1 ? "s" : ""}`;
 
   // soft baggage & fare hints (use available fields if present, otherwise hide)
-  const fareText =
-    flight?.fareClassLabel ||
-    flight?.cabin ||
-    (flight?.bookingCode ? `Class ${flight.bookingCode}` : "");
-  const personalItem =
-    flight?.baggage?.personal ||
-    flight?.allowances?.personal ||
-    null; // e.g. "18 x 14 x 8 inches"
+  // const fareText =
+  //   flight?.fareClassLabel ||
+  //   flight?.cabin ||
+  //   (flight?.bookingCode ? `Class ${flight.bookingCode}` : "");
+  // const personalItem =
+  //   flight?.baggage?.personal ||
+  //   flight?.allowances?.personal ||
+  //   null; // e.g. "18 x 14 x 8 inches"
   const carryOn =
     flight?.baggage?.carry ||
     flight?.allowances?.carry ||
@@ -308,7 +303,7 @@ const FlightSegment = ({
 
 
       {/* Render individual segments */}
-      {(legSegs || []).map((segment, index) => (  
+      {(legSegs || []).map((segment) => (  
         <>
         {/* header: route airline + meta + right pill */}
         <div className="flex items-start justify-between px-4 mt-3">
@@ -325,7 +320,7 @@ const FlightSegment = ({
             <div>
               <div className="text-slate-900 font-semibold">{airlineName(segment.airline) || "N/A"}</div>
               <div className="text-xs text-slate-500">
-                {durationText} {segment.flightNo ? " • " : " "}
+                {formatDuration(segment.flightTime || "")} {segment.flightNo ? " • " : " "}
                 {segment.flightNo ? `${segment.airline}${segment.flightNo}` : null}
               </div>
             </div>
@@ -339,7 +334,7 @@ const FlightSegment = ({
         {/* body */}
         <div className="relative px-4 pb-3 pt-3">
           {/* right-corner duration */}
-          <div className="absolute right-5 top-3 text-xs text-slate-500">{durationText}</div>
+          <div className="absolute right-5 top-3 text-xs text-slate-500">{formatDuration(segment.flightTime)}</div>
 
           <div className="grid grid-cols-[20px_1fr] gap-4">
             {/* vertical timeline */}
@@ -358,7 +353,7 @@ const FlightSegment = ({
                 </div>
                 <div className="text-md text-slate-900">{getAirportName(segment.departure || "")}</div>
                 <div className="text-xs text-slate-500">
-                  {depDate} <span className="mx-1">•</span> Terminal {segment?.departureTerminal || "—"}
+                  {safeDate(segment.departureAt)} <span className="mx-1">•</span> Terminal {segment?.departureTerminal || "—"}
                 </div>
 
                 {/* badges row (fare + personal item) */}
