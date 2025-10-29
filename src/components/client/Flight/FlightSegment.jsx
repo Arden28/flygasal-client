@@ -227,8 +227,15 @@ const FlightSegment = ({
           arrivalAt: arrAt || depAt,
           departureTimeAt: isTimeOnly(flight?.strDepartureTime) ? flight?.strDepartureTime : "",
           arrivalTimeAt: isTimeOnly(flight?.strArrivalTime) ? flight?.strArrivalTime : "",
-          bookingCode: flight?.bookingCode || "",
           refundable: !!flight?.refundable,
+
+          cabinClass: flight?.cabinClass,
+          availabilityCount: flight?.availabilityCount,
+          bookingCode: flight?.bookingCode,
+          arrivalTerminal: flight?.arrivalTerminal,
+          codeShare: flight?.codeShare,
+          departureTerminal: flight?.departureTerminal,
+          flightTime: flight?.flightTime,
         },
       ];
     } else {
@@ -296,8 +303,8 @@ const FlightSegment = ({
       <div className="border-b px-4 py-3 mb-3">
         <div className="flex justify-between items-start">
           <span className="font-medium text-md">{firstSegment?.departure || headerOrigin || ""} → {lastSegment?.arrival || headerDest || ""}</span>
-          {/* right-corner duration (like the mock card top-right small meta) */}
-          <div className="text-right text-xs text-slate-500">{flight.journeyTime}</div>
+          {/* right-corner duration */}
+          <div className="text-right text-xs text-slate-500">{formatDuration(flight.journeyTime)}</div>
         </div>
       </div>
 
