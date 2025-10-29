@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import FlightSegment from "./FlightSegment";
 import { formatDuration } from "../../../lib/helper";
-import { findLeg, formatDate, formatTime, getAirportName, getCityName, guessFirstChain, normalizeSegments, safeDate } from "../../../utils/utils";
+import { findLeg, formatDate, formatTime, getAirportName, getCityName, guessFirstChain, normalizeSegments } from "../../../utils/utils";
 import { FaPersonWalking } from "react-icons/fa6";
 import { MdLuggage } from "react-icons/md";
 import { FaPlaneDeparture } from "react-icons/fa";
@@ -212,14 +212,14 @@ const SegmentBlock = ({
               }}
             />
             <div className="min-w-0">
-              <div className="text-[11px] text-slate-500">{safeDate(firstSegment.departureAt || firstSegment.departureDate)}</div>
-              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{firstSegment.departureTimeAt}</div>
-              <div className="text-[11px] text-slate-600 truncate">{getCityName(firstSegment.departure)}</div>
+              <div className="text-[11px] text-slate-500">{formatDate(flight.departureDate)}</div>
+              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{formatTime(flight.departureTime)}</div>
+              <div className="text-[11px] text-slate-600 truncate">{depCity}</div>
               <div
                 className="text-[11px] text-slate-500 truncate max-w-[120px]"
-                title={getAirportName(firstSegment.departure)}
+                title={getAirportName(depAirport)}
               >
-                {getAirportName(firstSegment.departure)}
+                {getAirportName(depAirport)}
               </div>
             </div>
           </div>
@@ -238,13 +238,13 @@ const SegmentBlock = ({
           {/* right column */}
           <div className="col-span-12 sm:col-span-3 md:col-span-3 ml-auto flex items-center justify-end gap-3">
             <div className="min-w-0 text-right">
-              <div className="text-[11px] text-rose-600">{safeDate(lastSegment.arrivalAt || lastSegment.arrivalDate)}</div>
-              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{lastSegment.arrivalTimeAt}</div>
+              <div className="text-[11px] text-rose-600">{arrDateText}</div>
+              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{arrTime}</div>
               <div
                 className="text-[11px] text-slate-500 truncate max-w-[120px]"
-                title={getAirportName(lastSegment.arrival)}
+                title={getAirportName(arrAirport)}
               >
-                {getAirportName(lastSegment.arrival)}
+                {getAirportName(arrAirport)}
               </div>
             </div>
 
