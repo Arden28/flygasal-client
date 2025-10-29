@@ -899,8 +899,27 @@ const FlightPage = () => {
           (selectedCabins.includes(outCabinKey) && (!retCabinKey || selectedCabins.includes(retCabinKey)));
 
         // duration + baggage
-        const durHrs = totalDurationMins(it.outbound, it.return, it.legs) / 60;
-        const durationOk = durHrs <= maxDurationHours;
+        let durationOk = true;
+
+        if (Array.isArray(it.legs) && it.legs.length) {
+          // For MULTI, compare the **longest single leg** duration to the threshold,
+          // not the whole multi itinerary span (which can be days long).
+          const legMins = it.legs
+            .map((l) => {
+              const dep = new Date(l?.segments?.[0]?.departureDate || l?.departureTime);
+              const arr = new Date(l?.segments?.slice(-1)?.[0]?.arrivalDate || l?.arrivalTime);
+              return Math.max(0, (arr - dep) / 60000);
+            })
+            .filter((m) => Number.isFinite(m));
+
+          const longestLegHrs = (legMins.length ? Math.max(...legMins) : 0) / 60;
+          durationOk = longestLegHrs <= maxDurationHours;
+        } else {
+          // Oneway / Return: keep your existing total-duration logic
+          const durHrs = totalDurationMins(it.outbound, it.return, it.legs) / 60;
+          durationOk = durHrs <= maxDurationHours;
+        }
+
         const bagOk =
           !baggageOnly ||
           hasBaggage(it.outbound) ||
@@ -1119,8 +1138,8 @@ const FlightPage = () => {
   return (
     <div className="bg-[#F7F8F9]">
       {/* Sticky modify search */}
-      <motion.div className="sticky top-0 z-20 bg-[rgba(255,255,255,.75)] backdrop-blur border-b border-gray-200">
-        <div className="container py-2">
+      <motion.div className="top-0 z-20 bg-[rgba(255,255,255,.75)] backdrop-blur border-b border-gray-200">
+        <div className="sticky container py-2">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
               {searchParams ? (
