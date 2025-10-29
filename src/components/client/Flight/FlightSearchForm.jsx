@@ -643,10 +643,14 @@ useEffect(() => {
     .rdrDays{margin:.15rem .25rem}
     .rdrDay{font-size:.9rem;color:#0f172a}
     .rdrDayNumber{margin:0}
-    .rdrSelected,.rdrStartEdge,.rdrEndEdge{background:#0284c7!important;color:#fff!important}
-    .rdrInRange{background:#bae6fd!important}
-    .rdrDayToday .rdrDayNumber span:after{background:#0284c7}
+    /* primary selection color */
+    .rdrSelected,.rdrStartEdge,.rdrEndEdge{background:#F68221!important;color:#fff!important}
+    /* in-range (soft orange wash) */
+    .rdrInRange{background:rgba(246,130,33,.18)!important}
+    /* today dot */
+    .rdrDayToday .rdrDayNumber span:after{background:#F68221}
   `;
+
 
   const departLabel0 = flightsState[0]?.dateRange?.startDate
     ? format(flightsState[0].dateRange.startDate, "EEE d MMM")

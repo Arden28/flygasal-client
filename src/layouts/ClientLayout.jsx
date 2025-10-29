@@ -15,6 +15,7 @@ export default function ClientLayout() {
   const [acctOpen, setAcctOpen] = useState(false);
 
   const noLayoutPatterns = [
+    /^\/flight\/availability$/,
     /^\/flight\/booking-confirmation$/,
     /^\/flight\/booking\/details$/,
     /^\/flight\/booking\/invoice\/[^/]+$/,

@@ -1137,6 +1137,7 @@ const FlightPage = () => {
   // ---------- Render ----------
   return (
     <div className="bg-[#F7F8F9]">
+      
       {/* Sticky modify search */}
       <motion.div className="top-0 z-20 bg-[#452003] py-3">
         {/* <div className="container py-2">
