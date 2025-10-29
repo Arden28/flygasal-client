@@ -3,21 +3,7 @@ import React from "react";
 /**
  * SortNavigation
  * - Full-width, 3-segment selector: Recommended | Cheapest | Quickest
- * - No "modify search" button
- * - Active segment = solid color with white text
- * - Inactive segments = subtle light background
- * - Shows title, price and average duration
- * - Skeleton loading for price & duration (global `loading` or per-tab)
- *
- * Props:
- *   sortOrder: "recommended" | "cheapest" | "quickest"
- *   handleSortChange: (key) => void
- *   loading?: boolean
- *   summaries?: {
- *     recommended?: { price?: string, duration?: string, loading?: boolean },
- *     cheapest?:    { price?: string, duration?: string, loading?: boolean },
- *     quickest?:    { price?: string, duration?: string, loading?: boolean },
- *   }
+ * ...
  */
 const SortNavigation = ({
   sortOrder = "recommended",
@@ -30,7 +16,7 @@ const SortNavigation = ({
       title: "Recommended",
       price: summaries?.recommended?.price ?? "€1 141",
       duration: summaries?.recommended?.duration ?? "16h 13m (average)",
-      activeBg: "bg-[#5A46E0]",
+      activeBg: "bg-[#F68221]",
       inactiveBg: "bg-slate-50",
       activeText: "text-white",
       inactiveText: "text-slate-800",
@@ -41,7 +27,7 @@ const SortNavigation = ({
       title: "Cheapest",
       price: summaries?.cheapest?.price ?? "€1 141",
       duration: summaries?.cheapest?.duration ?? "16h 13m (average)",
-      activeBg: "bg-emerald-600",
+      activeBg: "bg-[#F68221]",
       inactiveBg: "bg-white",
       activeText: "text-white",
       inactiveText: "text-slate-800",
@@ -52,7 +38,7 @@ const SortNavigation = ({
       title: "Quickest",
       price: summaries?.quickest?.price ?? "€3 952",
       duration: summaries?.quickest?.duration ?? "9h 5m (average)",
-      activeBg: "bg-[#5A46E0]",
+      activeBg: "bg-[#F68221]",
       inactiveBg: "bg-white",
       activeText: "text-white",
       inactiveText: "text-slate-800",
@@ -63,7 +49,7 @@ const SortNavigation = ({
 
   const order = ["recommended", "cheapest", "quickest"];
 
-  // Skeleton block (width variants to avoid uniform look)
+  // Skeleton block
   const Skel = ({ active, w = "w-24", h = "h-4", className = "" }) => (
     <span
       className={[
@@ -122,7 +108,7 @@ const SortNavigation = ({
                       <svg
                         aria-hidden
                         viewBox="0 0 24 24"
-                        className={`h-4 w-4 ${isActive ? "text-white/90" : "text-[#5A46E0]"}`}
+                        className={`h-4 w-4 ${isActive ? "text-white/90" : "text-[#F68221]"}`}
                         fill="currentColor"
                       >
                         <path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Zm-.75-11.5h1.5V17h-1.5v-6.5Zm0-3h1.5V9h-1.5V7.5Z" />
@@ -158,4 +144,3 @@ const SortNavigation = ({
 };
 
 export default SortNavigation;
-
