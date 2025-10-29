@@ -293,10 +293,10 @@ const FlightSegment = ({
     (flight?.checkedBags ? `(${flight.checkedBags})` : null);
 
   return (
-    <div className="bg-white rounded-xl px-3 py-2">
+    <div className="bg-white rounded-xl px-0 py-2">
 
       {/* Route header */}
-      <div className="border-b">
+      <div className="border-b px-2 py-3">
         <div className="flex justify-between items-start">
           <span className="font-medium">{firstSegment?.departure || headerOrigin || ""} → {lastSegment?.arrival || headerDest || ""}</span>
           {/* right-corner duration (like the mock card top-right small meta) */}
