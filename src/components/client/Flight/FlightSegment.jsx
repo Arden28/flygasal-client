@@ -161,15 +161,15 @@ function LayoverBar({ minutes, city, airport, short, long, protectedTransfer = t
   const mm = Math.max(0, Math.round((minutes || 0) % 60));
 
   return (
-    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+    <div className="mt-3 border border-slate-200 bg-slate-50 px-4 py-3">
       <div className="flex items-center justify-between gap-4">
 
         {/* Left: icon + text */}
         <div className="flex items-start gap-3">
           {/* circular walk icon */}
-          <div className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500">
+          <div className="mt-0.5 inline-flex h-7 w-7 items-center text-white justify-center rounded-full bg-emerald-500">
             {/* walk svg */}
-            <FaPersonWalking />
+            <FaPersonWalking className="text-white" />
           </div>
 
           <div className="leading-tight">
@@ -493,7 +493,7 @@ const FlightSegment = ({
 
             {/* Insert layover bar between segments */}
             {next && layoverMins > 0 && (
-              <div className="px-4">
+              <div className="px-0">
                 <LayoverBar
                   minutes={layoverMins}
                   city={city || getAirportName(next.departure || "")}
