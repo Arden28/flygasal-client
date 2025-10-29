@@ -79,11 +79,9 @@ const SortNavigation = ({
             const priceText = isActive ? "text-white/95" : "text-slate-900";
             const durationText = isActive ? "text-white/90" : "text-slate-500";
 
-            const tabLoading =
-              loading ||
-              t.loading ||
-              !summaries?.[key]?.price ||
-              !summaries?.[key]?.duration;
+            // Use resolved values (with fallbacks) to decide loading
+            const haveData = Boolean(t.price) && Boolean(t.duration);
+            const tabLoading = loading || t.loading || !haveData;
 
             return (
               <button
