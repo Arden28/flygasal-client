@@ -645,7 +645,7 @@ const ItineraryList = ({
                       const seg0 = leg?.segments?.[0];
                       const segLast = leg?.segments?.slice(-1)?.[0];
                       const left = `${(leg.origin || seg0?.departure || "—")} → ${(leg.destination || segLast?.arrival || "—")}`;
-                      const right = seg0?.departureTime || leg?.departureTime;
+                      const right = leg?.departureTime || seg0?.departureDate || seg0?.departureTime || "";
                       const logoCode = seg0?.airline || itinerary.airlines?.[0];
                       const logoSrc = logoCode ? `/assets/img/airlines/${logoCode}.png` : "/assets/img/airlines/placeholder.png";
                       const aName = logoCode ? (typeof getAirlineName === "function" ? getAirlineName(logoCode) : logoCode) : "Airline";
@@ -658,12 +658,23 @@ const ItineraryList = ({
                           openId={openDetailsId}
                           setOpenId={setOpen}
                           titleLeft={`${left}`}
-                          titleRight={right ? formatDate(right) : ""}
+                          titleRight={
+                            right
+                              ? // Only call formatDate when we have a date or datetime (leg.departureTime or seg0.departureDate)
+                                (leg?.departureTime || seg0?.departureDate ? formatDate(leg?.departureTime || seg0?.departureDate) : "")
+                              : ""
+                          }
 
                           logoSrc={logoSrc}
                           logoAlt={`${aName} logo`}
 
-                          depDateText={seg0?.departureTime ? formatDate(seg0.departureTime) : ""}
+                          depDateText={
+                            seg0?.departureDate
+                              ? formatDate(seg0.departureDate)
+                              : leg?.departureTime
+                              ? formatDate(leg.departureTime)
+                              : ""
+                          }
                           depTime={leg.departureTime ? formatTime(leg.departureTime) : seg0?.departureTime ? formatTime(seg0.departureTime) : ""}
                           depCity={aName}
                           depAirport={(leg.origin || seg0?.departure || "—")}
@@ -671,8 +682,21 @@ const ItineraryList = ({
                           durationText={formatDuration(leg?.journeyTime || 0)}
                           stopsText={Number(leg?.stops || 0) === 0 ? "Non-stop" : `${leg.stops} stop${leg.stops > 1 ? "s" : ""}`}
 
-                          arrDateText={segLast?.arrivalTime ? formatDate(segLast.arrivalTime) : ""}
-                          arrTime={leg.arrivalTime ? formatTime(leg.arrivalTime) : segLast?.arrivalTime ? formatTime(segLast.arrivalTime) : ""}
+                          arrDateText={
+                            segLast?.arrivalDate
+                              ? formatDate(segLast.arrivalDate)
+                              : leg?.arrivalTime
+                              ? formatDate(leg.arrivalTime)
+                              : ""
+                          }
+
+                          arrTime={
+                            leg.arrivalTime
+                              ? formatTime(leg.arrivalTime)
+                              : segLast?.arrivalTime
+                              ? formatTime(segLast.arrivalTime)
+                              : ""
+                          }
                           arrCity={(leg.destination || segLast?.arrival || "—")}
                           arrAirport={(leg.destination || segLast?.arrival || "—")}
 
