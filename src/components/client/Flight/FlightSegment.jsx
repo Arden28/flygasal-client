@@ -5,6 +5,7 @@ import {
   getAirlineLogo as utilsGetAirlineLogo,
   getAirlineName as utilsGetAirlineName,
 } from "../../../utils/utils";
+import { IoTicketSharp } from "react-icons/io5";
 
 /* ---------------- helpers ---------------- */
 const norm = (s = "") =>
@@ -377,6 +378,12 @@ const FlightSegment = ({
                   {segment.bookingCode && (
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
                       Fare:&nbsp;<b className="font-medium">Class {segment.bookingCode ?? segment.bookingClass}</b>
+                    </span>
+                  )}
+
+                  {segment.availabilityCount && (
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
+                      Available seats:&nbsp;<b className="font-medium">{segment.availabilityCount} <IoTicketSharp /></b>
                     </span>
                   )}
 
