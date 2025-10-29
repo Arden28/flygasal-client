@@ -217,7 +217,8 @@ const SegmentBlock = ({
       getCityName(lastSegment?.arrival) ||
       arrCity ||
       "";
-    console.info("Airlines: ", flight?.airlines);
+      
+    console.log("Flight object:", flight);
   return (
     <div className="overflow-hidden bg-white">
       {/* Route bar */}
