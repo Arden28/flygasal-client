@@ -17,7 +17,7 @@ const SortNavigation = ({
       price: summaries?.recommended?.price ?? "$1 141",
       duration: summaries?.recommended?.duration ?? "16h 13m (average)",
       activeBg: "bg-[#F68221]",
-      inactiveBg: "bg-slate-50",
+      inactiveBg: "bg-white",
       activeText: "text-white",
       inactiveText: "text-slate-800",
       showInfo: true,
@@ -65,7 +65,7 @@ const SortNavigation = ({
   );
 
   return (
-    <nav className="w-full mb-3">
+    <nav className="w-full mb-4">
       <div className="w-full overflow-hidden rounded-2xl ring-1 ring-slate-200">
         <div className="grid grid-cols-1 sm:grid-cols-3">
           {order.map((key, idx) => {

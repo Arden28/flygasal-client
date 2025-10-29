@@ -53,21 +53,43 @@ const multiKey = (legs, cabin) =>
   )}`;
 
 /* ---------- priceOf() reads backend totals raw (no normalization) ---------- */
-const priceOf = (o) => {
-  const pb = o?.priceBreakdown;
-  const grand = pb?.totals?.grand ?? pb?.total;
-  return Number(grand || 0);
-};
 
 // Normalize a priceBreakdown into a numeric grand total
 const priceOfPB = (pb) => Number((pb && (pb.totals?.grand ?? pb.total)) || 0);
 
-// Get the display/compare price for any itinerary shape (oneway/return/multi)
+// Read price from any flight-ish object (offer, leg, itinerary)
+const priceOf = (o) => {
+  if (!o) return 0;
+  // 1) explicit numeric total, if present
+  if (Number.isFinite(o.totalPrice)) return Number(o.totalPrice);
+  // 2) breakdown on object
+  const fromPB = priceOfPB(o.priceBreakdown);
+  if (fromPB) return fromPB;
+  // 3) raw backend breakdown stashed during normalization
+  const fromSrc = priceOfPB(o.__sourcePB);
+  if (fromSrc) return fromSrc;
+  return 0;
+};
+
+// Get the display/compare price for any itinerary shape
 const priceOfItin = (it) => {
-  // prefer itinerary.totalPrice when present (you already compute this for multi),
-  // else fall back to priceBreakdown
-  const candidate = Number(it?.totalPrice ?? priceOfPB(it?.priceBreakdown));
-  return Number.isFinite(candidate) ? candidate : 0;
+  if (!it) return 0;
+  // Prefer itinerary-level totalPrice if present
+  if (Number.isFinite(it.totalPrice)) return Number(it.totalPrice);
+  // Otherwise fall back to its priceBreakdown / __sourcePB
+  const fromPB = priceOfPB(it.priceBreakdown);
+  if (fromPB) return fromPB;
+  const fromSrc = priceOfPB(it.__sourcePB);
+  if (fromSrc) return fromSrc;
+
+  // Last resort: sum leg-level prices (handles return/multi if totals missing)
+  if (it.outbound || it.return) {
+    return priceOf(it.outbound) + priceOf(it.return);
+  }
+  if (Array.isArray(it.legs) && it.legs.length) {
+    return it.legs.reduce((sum, l) => sum + priceOf(l), 0);
+  }
+  return 0;
 };
 
 // Journey minutes getter (uses itinerary.journeyTime if provided, else computes)
@@ -778,11 +800,15 @@ const FlightPage = () => {
           });
           if (items.length >= MAX_RESULTS) break;
         }
-        items.sort((a, b) => a.priceBreakdown.totals.grand - b.priceBreakdown.totals.grand);
+        items.sort((a, b) => priceOfItin(a) - priceOfItin(b));
+        // items.sort((a, b) => a.priceBreakdown.totals.grand - b.priceBreakdown.totals.grand);
         const final = new Map();
         for (const it of items) {
           const k = returnKey(it.outbound, it.return, it.cabin);
-          if (!final.has(k) || it.priceBreakdown.totals.grand < final.get(k).priceBreakdown.totals.grand) final.set(k, it);
+          // if (!final.has(k) || it.priceBreakdown.totals.grand < final.get(k).priceBreakdown.totals.grand) final.set(k, it);
+          if (!final.has(k) || priceOfItin(it) < priceOfItin(final.get(k))) {
+            final.set(k, it);
+          }
         }
         return Array.from(final.values());
       }
@@ -798,7 +824,7 @@ const FlightPage = () => {
           // Use a pair price so Price filter & bounds behave correctly.
           // If a supplier already embeds full roundtrip price in both legs,
           // this still yields a consistent upper bound.
-          const pairTotalPrice = (Number(priceOf(out)) || 0) + (Number(priceOf(rt)) || 0);
+          const pairTotalPrice = priceOf(out) + priceOf(rt);
           const rec = {
             id: `${out.id}-${rt.id}`,
             outbound: stripPB(out),

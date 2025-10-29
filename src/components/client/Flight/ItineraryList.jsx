@@ -452,7 +452,7 @@ const ItineraryList = ({
   }
 
   return (
-    <div className="mt-3" aria-live="polite">
+    <div className="mt-5" aria-live="polite">
       <motion.ul layout className="space-y-3">
         <AnimatePresence mode="sync" initial={false}>
           {paginatedItineraries.map((itinerary) => {
