@@ -10,6 +10,7 @@ import FlightSearchForm from "../../../components/client/Flight/FlightSearchForm
 import flygasal from "../../../api/flygasalService";
 import { motion, AnimatePresence } from "framer-motion";
 import { AuthContext } from "../../../context/AuthContext";
+import BookingHeader from "../../../components/client/Flight/BookingHeader";
 
 const flightsPerPage = 25;
 const MAX_RETURNS_PER_OUTBOUND = 6;
