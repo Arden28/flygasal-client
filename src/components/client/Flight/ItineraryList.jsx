@@ -214,12 +214,12 @@ const SegmentBlock = ({
             <div className="min-w-0">
               <div className="text-[11px] text-slate-500">{safeDate(firstSegment.departureDate)}</div>
               <div className="text-slate-900 font-semibold leading-5 tabular-nums">{firstSegment.departureTime}</div>
-              <div className="text-[11px] text-slate-600 truncate">{depCity}</div>
+              <div className="text-[11px] text-slate-600 truncate">{getCityName(firstSegment.airline)}</div>
               <div
                 className="text-[11px] text-slate-500 truncate max-w-[120px]"
-                title={getAirportName(depAirport)}
+                title={getAirportName(firstSegment.airline)}
               >
-                {getAirportName(depAirport)}
+                {getAirportName(firstSegment.airline)}
               </div>
             </div>
           </div>
