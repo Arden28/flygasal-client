@@ -306,7 +306,7 @@ const FlightSegment = ({
 
 
       {/* Render individual segments */}
-      {(legSegs || []).map((segment, index) => (
+      {(legSegs || []).map((segment, index) => (  
         <>
         {/* header: route airline + meta + right pill */}
         <div className="flex items-start justify-between px-4 mt-3">
