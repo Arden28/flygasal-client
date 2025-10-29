@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AuthContext } from "../../../context/AuthContext";
 import BookingHeader from "../../../components/client/Flight/BookingHeader";
 
-const flightsPerPage = 25;
+const flightsPerPage = 250;
 const MAX_RETURNS_PER_OUTBOUND = 6;
 const MAX_RESULTS = 500;
 
@@ -68,6 +68,51 @@ const priceOfItin = (it) => {
   // else fall back to priceBreakdown
   const candidate = Number(it?.totalPrice ?? priceOfPB(it?.priceBreakdown));
   return Number.isFinite(candidate) ? candidate : 0;
+};
+
+// Journey minutes getter (uses itinerary.journeyTime if provided, else computes)
+const getJourneyMins = (it) => {
+  if (Number.isFinite(it?.journeyTime)) return Number(it.journeyTime);
+
+  // Fallbacks mirroring your existing duration logic:
+  if (Array.isArray(it?.legs) && it.legs.length) {
+    const first = it.legs[0];
+    const last  = it.legs[it.legs.length - 1];
+    const dep = new Date(first?.segments?.[0]?.departureDate || first?.departureTime);
+    const arr = new Date(last?.segments?.slice(-1)?.[0]?.arrivalDate || last?.arrivalTime);
+    const mins = Math.max(0, Math.round((arr - dep) / 60000));
+    return mins;
+  }
+
+  // oneway/return
+  const dep1 = new Date(it?.outbound?.segments?.[0]?.departureDate || it?.outbound?.departureTime);
+  const arr1 = new Date(it?.outbound?.segments?.slice(-1)?.[0]?.arrivalDate || it?.outbound?.arrivalTime);
+  let mins = Math.max(0, (arr1 - dep1) / 60000);
+
+  if (it?.return) {
+    const dep2 = new Date(it.return?.segments?.[0]?.departureDate || it.return?.departureTime);
+    const arr2 = new Date(it.return?.segments?.slice(-1)?.[0]?.arrivalDate || it.return?.arrivalTime);
+    mins += Math.max(0, (arr2 - dep2) / 60000);
+  }
+  return Math.round(mins);
+};
+
+
+
+// formatting helpers for summaries
+const fmtCurrency = (amt, currency = "USD") => {
+  if (!Number.isFinite(amt)) return "—";
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(amt);
+  } catch {
+    return `${currency} ${Math.round(amt).toLocaleString()}`;
+  }
+};
+const fmtDuration = (mins) => {
+  if (!Number.isFinite(mins)) return "—";
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h}h ${m}m`;
 };
 
 /* ---------- Small helper: drop any visible priceBreakdown field from leg/offer objects when embedding ---------- */
@@ -178,7 +223,11 @@ const FlightPage = () => {
   const [retTimeRange, setRetTimeRange] = useState([0, 24]);
   const [maxDurationHours, setMaxDurationHours] = useState(48);
   const [baggageOnly, setBaggageOnly] = useState(false);
-  const [sortOrder, setSortOrder] = useState("asc");
+
+  // const [sortOrder, setSortOrder] = useState("asc");
+  const [sortOrder, setSortOrder] = useState("recommended"); // "recommended" | "cheapest" | "quickest"
+  
+
   const [currentPage, setCurrentPage] = useState(1);
 
   // UI
@@ -826,112 +875,102 @@ const FlightPage = () => {
     const low = Math.max(absMin ?? 0, Math.min(minPrice, maxPrice));
     const high = Math.min(absMax ?? Infinity, Math.max(minPrice, maxPrice));
 
-    return itineraries
-      .filter((it) => {
-        const itPrice = priceOfItin(it);
-        const priceOk = itPrice >= low && itPrice <= high;
-        // const priceOk = it.totalPrice >= low && it.totalPrice <= high;
-        // const priceOk = it.priceBreakdown.totals.grand >= low && it.priceBreakdown.totals.grand <= high;
+    // 1) FILTER (unchanged)
+    const base = itineraries.filter((it) => {
+      const itPrice = priceOfItin(it);
+      const priceOk = itPrice >= low && itPrice <= high;
 
-            // ----- Robust stops across oneway/return/multi -----
-            // Prefer itinerary.totalStops; if missing, derive from segments.
-            const deriveLegStops = (leg) =>
-            Math.max(0,
-                Number.isFinite(leg?.stops)
-                ? leg.stops
-                : Math.max(0, (leg?.segments?.length || 1) - 1)
-            );
-
-            let stopsCount = 0;
-
-            if (Number.isFinite(it.totalStops)) {
-            // trusted field when present
-            stopsCount = Math.max(0, it.totalStops);
-            } else if (Array.isArray(it.legs) && it.legs.length) {
-            // multi: sum per-leg stops
-            stopsCount = it.legs.reduce((acc, l) => acc + deriveLegStops(l), 0);
-            } else {
-            // oneway/return: add outbound (+ return if present)
-            stopsCount = deriveLegStops(it.outbound) + (it.return ? deriveLegStops(it.return) : 0);
-            }
-
-            // Collapse "2 or more" into the UI key we use in the sidebar
-            const stopClass = stopsCount >= 2 ? "oneway_2" : `oneway_${stopsCount}`;
-            const stopsOk = currentStop === "mix" || currentStop === stopClass;
-
-
-        /* Outbound/return airline filters:
-         * match if ANY carrier on that leg is selected (not just first carrier)
-         */
-        const obCarriers = carriersOfLeg(it.outbound || it.legs?.[0] || null);
-        const rtCarriers = it.return ? carriersOfLeg(it.return) : [];
-
-        const owOk =
-          checkedOnewayValue.length === 0 ||
-          obCarriers.some((code) => checkedOnewayValue.includes(`oneway_${code}`));
-
-        const rtOk =
-          !it.return ||
-          checkedReturnValue.length === 0 ||
-          rtCarriers.some((code) => checkedReturnValue.includes(`return_${code}`));
-
-        // time windows
-        const owDep = new Date(it.outbound?.segments?.[0]?.departureDate || it.outbound?.departureTime);
-        const owHour = Number.isNaN(owDep.getTime()) ? 0 : owDep.getHours();
-        const owTimeOk = owHour >= depTimeRange[0] && owHour <= depTimeRange[1];
-
-        let rtTimeOk = true;
-        if (it.return) {
-          const rtDep = new Date(it.return?.segments?.[0]?.departureDate || it.return?.departureTime);
-          const rtHour = Number.isNaN(rtDep.getTime()) ? 0 : rtDep.getHours();
-          rtTimeOk = rtHour >= retTimeRange[0] && rtHour <= retTimeRange[1];
-        }
-
-        // CABIN FILTER
-        const outCabinKey = normalizeCabinKey(
-          it.cabin || it.outbound?.cabin || it.outbound?.segments?.[0]?.cabinClass
+      // ----- stops calc (unchanged) -----
+      const deriveLegStops = (leg) =>
+        Math.max(0,
+          Number.isFinite(leg?.stops)
+            ? leg.stops
+            : Math.max(0, (leg?.segments?.length || 1) - 1)
         );
-        const retCabinKey = it.return
-          ? normalizeCabinKey(it.return?.cabin || it.return?.segments?.[0]?.cabinClass)
-          : null;
 
-        const cabinOk =
-          selectedCabins.length === 0 ||
-          (selectedCabins.includes(outCabinKey) && (!retCabinKey || selectedCabins.includes(retCabinKey)));
+      let stopsCount = 0;
+      if (Number.isFinite(it.totalStops)) {
+        stopsCount = Math.max(0, it.totalStops);
+      } else if (Array.isArray(it.legs) && it.legs.length) {
+        stopsCount = it.legs.reduce((acc, l) => acc + deriveLegStops(l), 0);
+      } else {
+        stopsCount = deriveLegStops(it.outbound) + (it.return ? deriveLegStops(it.return) : 0);
+      }
+      const stopClass = stopsCount >= 2 ? "oneway_2" : `oneway_${stopsCount}`;
+      const stopsOk = currentStop === "mix" || currentStop === stopClass;
 
-        // duration + baggage
-        let durationOk = true;
+      // airlines per leg (unchanged)
+      const obCarriers = carriersOfLeg(it.outbound || it.legs?.[0] || null);
+      const rtCarriers = it.return ? carriersOfLeg(it.return) : [];
 
-        if (Array.isArray(it.legs) && it.legs.length) {
-          // For MULTI, compare the **longest single leg** duration to the threshold,
-          // not the whole multi itinerary span (which can be days long).
-          const legMins = it.legs
-            .map((l) => {
-              const dep = new Date(l?.segments?.[0]?.departureDate || l?.departureTime);
-              const arr = new Date(l?.segments?.slice(-1)?.[0]?.arrivalDate || l?.arrivalTime);
-              return Math.max(0, (arr - dep) / 60000);
-            })
-            .filter((m) => Number.isFinite(m));
+      const owOk =
+        checkedOnewayValue.length === 0 ||
+        obCarriers.some((code) => checkedOnewayValue.includes(`oneway_${code}`));
 
-          const longestLegHrs = (legMins.length ? Math.max(...legMins) : 0) / 60;
-          durationOk = longestLegHrs <= maxDurationHours;
-        } else {
-          // Oneway / Return: keep your existing total-duration logic
-          const durHrs = totalDurationMins(it.outbound, it.return, it.legs) / 60;
-          durationOk = durHrs <= maxDurationHours;
-        }
+      const rtOk =
+        !it.return ||
+        checkedReturnValue.length === 0 ||
+        rtCarriers.some((code) => checkedReturnValue.includes(`return_${code}`));
 
-        const bagOk =
-          !baggageOnly ||
-          hasBaggage(it.outbound) ||
-          (it.return && hasBaggage(it.return)) ||
-          (Array.isArray(it.legs) && it.legs.some((l) => hasBaggage(l)));
+      // time windows (unchanged)
+      const owDep = new Date(it.outbound?.segments?.[0]?.departureDate || it.outbound?.departureTime);
+      const owHour = Number.isNaN(owDep.getTime()) ? 0 : owDep.getHours();
+      const owTimeOk = owHour >= depTimeRange[0] && owHour <= depTimeRange[1];
 
-        return priceOk && stopsOk && owOk && rtOk && owTimeOk && rtTimeOk && durationOk && bagOk && cabinOk;
-      })
-      .sort((a, b) =>
-        sortOrder === "asc" ? priceOfItin(a) - priceOfItin(b) : priceOfItin(b) - priceOfItin(a)
+      let rtTimeOk = true;
+      if (it.return) {
+        const rtDep = new Date(it.return?.segments?.[0]?.departureDate || it.return?.departureTime);
+        const rtHour = Number.isNaN(rtDep.getTime()) ? 0 : rtDep.getHours();
+        rtTimeOk = rtHour >= retTimeRange[0] && rtHour <= retTimeRange[1];
+      }
+
+      // cabin (unchanged)
+      const outCabinKey = normalizeCabinKey(
+        it.cabin || it.outbound?.cabin || it.outbound?.segments?.[0]?.cabinClass
       );
+      const retCabinKey = it.return
+        ? normalizeCabinKey(it.return?.cabin || it.return?.segments?.[0]?.cabinClass)
+        : null;
+      const cabinOk =
+        selectedCabins.length === 0 ||
+        (selectedCabins.includes(outCabinKey) && (!retCabinKey || selectedCabins.includes(retCabinKey)));
+
+      // duration + baggage (unchanged)
+      let durationOk = true;
+      if (Array.isArray(it.legs) && it.legs.length) {
+        const legMins = it.legs
+          .map((l) => {
+            const dep = new Date(l?.segments?.[0]?.departureDate || l?.departureTime);
+            const arr = new Date(l?.segments?.slice(-1)?.[0]?.arrivalDate || l?.arrivalTime);
+            return Math.max(0, (arr - dep) / 60000);
+          })
+          .filter((m) => Number.isFinite(m));
+
+        const longestLegHrs = (legMins.length ? Math.max(...legMins) : 0) / 60;
+        durationOk = longestLegHrs <= maxDurationHours;
+      } else {
+        const durHrs = getJourneyMins(it) / 60;
+        durationOk = durHrs <= maxDurationHours;
+      }
+
+      const bagOk =
+        !baggageOnly ||
+        hasBaggage(it.outbound) ||
+        (it.return && hasBaggage(it.return)) ||
+        (Array.isArray(it.legs) && it.legs.some((l) => hasBaggage(l)));
+
+      return priceOk && stopsOk && owOk && rtOk && owTimeOk && rtTimeOk && durationOk && bagOk && cabinOk;
+    });
+
+    // 2) SORT — only when needed to avoid stepping on "filters"
+    if (sortOrder === "cheapest") {
+      return [...base].sort((a, b) => priceOfItin(a) - priceOfItin(b));
+    }
+    if (sortOrder === "quickest") {
+      return [...base].sort((a, b) => getJourneyMins(a) - getJourneyMins(b));
+    }
+    // "recommended": keep the default listing you constructed earlier
+    return base;
   }, [
     itineraries,
     minPrice,
@@ -946,8 +985,46 @@ const FlightPage = () => {
     baggageOnly,
     sortOrder,
     selectedCabins,
-    carriersOfLeg, // <- include helper as dep
+    carriersOfLeg,
   ]);
+
+  
+  // Summaries for SortNavigation (cheap/quick + a default snapshot)
+  const sortSummaries = useMemo(() => {
+    if (!filteredItineraries.length) {
+      return {
+        recommended: { price: "—", duration: "—", loading: loading },
+        cheapest: { price: "—", duration: "—", loading: loading },
+        quickest: { price: "—", duration: "—", loading: loading },
+      };
+    }
+
+    // Cheapest itinerary by price
+    const cheapest = [...filteredItineraries].sort((a, b) => priceOfItin(a) - priceOfItin(b))[0];
+    // Quickest itinerary by journey mins
+    const quickest = [...filteredItineraries].sort((a, b) => getJourneyMins(a) - getJourneyMins(b))[0];
+    // Recommended = first in current default ordering
+    const recommended = filteredItineraries[0];
+
+    return {
+      recommended: {
+        price: fmtCurrency(priceOfItin(recommended), currency),
+        duration: `${fmtDuration(getJourneyMins(recommended))} (avg)`,
+        loading,
+      },
+      cheapest: {
+        price: fmtCurrency(priceOfItin(cheapest), currency),
+        duration: `${fmtDuration(getJourneyMins(cheapest))} (avg)`,
+        loading,
+      },
+      quickest: {
+        price: fmtCurrency(priceOfItin(quickest), currency),
+        duration: `${fmtDuration(getJourneyMins(quickest))} (avg)`,
+        loading,
+      },
+    };
+  }, [filteredItineraries, currency, loading]);
+
 
   // Primary codes (exactly like your filter uses)
   /* Sidebar airline lists from **leg carriers**. */
@@ -1137,7 +1214,7 @@ const FlightPage = () => {
 
   // ---------- Render ----------
   return (
-    <div className="bg-[#F7F8F9]">
+    <div className="min-h-screen bg-[#F7F8F9]">
       {/* Header */}
       <BookingHeader
         searchParams={new URLSearchParams(location.search)}
@@ -1182,7 +1259,7 @@ const FlightPage = () => {
             </button>
           </div>
         </div> */}
-        <div className="container">
+        <div className="container py-4">
           <div className="border-x border-b rounded-2xl border-gray-200 bg-white p-3">
             <FlightSearchForm
               searchParams={searchParams}
@@ -1391,7 +1468,7 @@ const FlightPage = () => {
                   <SortNavigation
                     sortOrder={sortOrder}
                     handleSortChange={(order) => {
-                      setSortOrder(order);
+                      setSortOrder(order);  // "recommended" | "cheapest" | "quickest"
                       resetToTop();
                     }}
                     isSearchFormVisible={isSearchFormVisible}
