@@ -12,35 +12,58 @@ import { format, addDays, startOfToday, isValid } from "date-fns";
 /* --------------------- portal + anchor rect helpers --------------------- */
 function Portal({ children }) {
   const [mountNode, setMountNode] = useState(null);
-  useEffect(() => {
-    Promise.resolve().then(() => setMountNode(document?.body || null));
+  // mount synchronously to avoid a 1-frame flicker
+  useLayoutEffect(() => {
+    setMountNode(document?.body || null);
   }, []);
   return mountNode ? createPortal(children, mountNode) : null;
 }
 
 function useAnchorRect(ref, enabled) {
   const [rect, setRect] = useState(null);
+  const ticking = useRef(false);
+
   useLayoutEffect(() => {
     if (!enabled || !ref.current) return;
-    const update = () => {
+
+    const measure = () => {
       const el = ref.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      setRect({ top: r.top, left: r.left, right: r.right, bottom: r.bottom, width: r.width, height: r.height });
+      setRect({
+        top: r.top,
+        left: r.left,
+        right: r.right,
+        bottom: r.bottom,
+        width: r.width,
+        height: r.height,
+      });
     };
-    update();
-    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
-    ro?.observe(ref.current);
-    window.addEventListener("resize", update, { passive: true });
-    window.addEventListener("scroll", update, { passive: true });
+
+    const onScrollResize = () => {
+      if (ticking.current) return;
+      ticking.current = true;
+      requestAnimationFrame(() => {
+        ticking.current = false;
+        measure();
+      });
+    };
+
+    // initial measure
+    measure();
+
+    window.addEventListener("scroll", onScrollResize, { passive: true });
+    window.addEventListener("resize", onScrollResize, { passive: true });
+
     return () => {
-      ro?.disconnect();
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update);
+      window.removeEventListener("scroll", onScrollResize);
+      window.removeEventListener("resize", onScrollResize);
     };
   }, [enabled, ref]);
+
   return rect;
 }
+
 
 /* --------------------- utils --------------------- */
 const MAX_TRAVELLERS = 9;
