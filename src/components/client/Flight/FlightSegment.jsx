@@ -53,6 +53,13 @@ const normalizeSegments = (flightLike) => {
       const depTime = s.strDepartureTime ?? s.departureTime ?? s.depTime ?? "";
       const arrDate = s.strArrivalDate ?? s.arrivalDate ?? s.arrDate ?? "";
       const arrTime = s.strArrivalTime ?? s.arrivalTime ?? s.arrTime ?? "";
+      
+      const cabinClass = s?.cabinClass ?? "";
+      const availabilityCount = s?.availabilityCount ?? "";
+      const arrivalTerminal = s?.arrivalTerminal ?? "";
+      const codeShare = s?.codeShare ?? "";
+      const departureTerminal = s?.departureTerminal ?? "";
+      const flightTime = s?.flightTime ?? "";
 
       const departureAt =
         combineDateTime(depDate, depTime) ||
@@ -75,8 +82,14 @@ const normalizeSegments = (flightLike) => {
         arrivalAt,
         departureTimeAt: isTimeOnly(depTime) ? depTime : "",
         arrivalTimeAt: isTimeOnly(arrTime) ? arrTime : "",
-        bookingCode,
         refundable,
+        bookingCode,
+        cabinClass,
+        availabilityCount,
+        arrivalTerminal,
+        codeShare,
+        departureTerminal,
+        flightTime,
       };
     })
     .filter((s) => (s.departure || s.arrival) && (s.departureAt || s.arrivalAt))
@@ -142,16 +155,10 @@ const guessFirstChain = (segs) => {
 const FlightSegment = ({
   flight,
   segmentType, // "Outbound" | "Return" | "Leg n"
-  // formatting utilities
-  formatDate,
-  formatTime,
-  calculateDuration,
   getAirportName,
   // airline helpers (fallback to utils)
   getAirlineLogo,
   getAirlineName,
-  // optional: when you want a "Select this flight" action here too
-
   // optional anchors
   expectedOutboundOrigin,
   expectedOutboundDestination,
@@ -249,30 +256,7 @@ const FlightSegment = ({
 
   const headerOrigin = isReturn ? RET_O : OUT_O;
   const headerDest = isReturn ? RET_D : OUT_D;
-  // const airlineLogo =
-  //   typeof getAirlineLogo === "function" ? getAirlineLogo : utilsGetAirlineLogo;
-  // const airlineName =
-  //   typeof getAirlineName === "function" ? getAirlineName : utilsGetAirlineName;
 
-  const segments = useMemo(() => normalizeSegments(flight), [flight]);
-  const first = segments[0];
-  const last = segments[segments.length - 1];
-
-  // const carrier = first?.airline || flight?.marketingCarriers?.[0] || "";
-  // const flightNo = first?.flightNo || flight?.flightNumber || "";
-  // const logoSrc = airlineLogo(carrier);
-  // const airline = airlineName(carrier) || "Airline";
-
-  const depDate = first?.departureAt ? formatDate(first.departureAt) : "";
-
-  const arrTime = last?.arrivalTimeAt || (last?.arrivalAt ? formatTime(last.arrivalAt) : "");
-  const arrDate = last?.arrivalAt ? formatDate(last.arrivalAt) : "";
-
-  // total duration
-  const durationText =
-    first?.departureAt && last?.arrivalAt
-      ? calculateDuration(first.departureAt, last.arrivalAt)
-      : "";
 
   // stops label
   // const stops = Math.max(0, (segments?.length || 1) - 1);
@@ -304,7 +288,7 @@ const FlightSegment = ({
         <div className="flex justify-between items-start">
           <span className="font-medium text-md">{firstSegment?.departure || headerOrigin || ""} → {lastSegment?.arrival || headerDest || ""}</span>
           {/* right-corner duration */}
-          <div className="text-right text-xs text-slate-500">{formatDuration(flight.journeyTime)}</div>
+          <div className="text-right text-xs text-slate-500">{formatDuration(flight?.journeyTime)}</div>
         </div>
       </div>
 
@@ -341,7 +325,7 @@ const FlightSegment = ({
         {/* body */}
         <div className="relative px-4 pb-3 pt-3">
           {/* right-corner duration */}
-          <div className="absolute right-5 top-3 text-xs text-slate-500">{formatDuration(segment.flightTime)}</div>
+          <div className="absolute right-5 top-3 text-xs text-slate-500">{formatDuration(segment?.flightTime)}</div>
 
           <div className="grid grid-cols-[20px_1fr] gap-4">
             {/* vertical timeline */}
