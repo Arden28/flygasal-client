@@ -81,9 +81,9 @@ const RailBand = ({
 
       {/* middle row: the rail */}
       <div className="relative h-1.5 rounded-full bg-slate-200">
-        <div className="absolute left-0 top-0 h-1.5 rounded-full bg-[#5A46E0]" style={{ width }} />
+        <div className="absolute left-0 top-0 h-1.5 rounded-full bg-[#F68221]" style={{ width }} />
         {/* end caps */}
-        <span className="absolute left-0 -top-[3px] h-2.5 w-2.5 rounded-full bg-[#5A46E0]" />
+        <span className="absolute left-0 -top-[3px] h-2.5 w-2.5 rounded-full bg-[#F68221]" />
         <span className="absolute right-0 -top-[3px] h-2.5 w-2.5 rounded-full bg-slate-300" />
       </div>
 
@@ -719,7 +719,7 @@ const ItineraryList = ({
 
                 {/* Bottom badges + CTA */}
                 <div className="flex items-center justify-between px-4 pb-4 md:px-5 md:pb-5">
-                  <div className="flex items-center gap-3 text-[#5A46E0]">
+                  <div className="flex items-center gap-3 text-[#F68221]">
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#EEE9FF]">
                       <MdLuggage />
                     </span>
@@ -730,7 +730,7 @@ const ItineraryList = ({
 
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#5A46E0] px-6 py-3 text-sm font-semibold text-white hover:bg-[#4b3acb] transition"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#F68221] px-6 py-3 text-sm font-semibold text-white hover:bg-[#F5740A] transition"
                     onClick={() => selectItinerary(itinerary)}
                   >
                     Next step
