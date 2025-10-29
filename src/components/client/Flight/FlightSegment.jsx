@@ -8,6 +8,7 @@ import {
   getAirlineName as utilsGetAirlineName,
 } from "../../../utils/utils";
 import { IoTicketSharp } from "react-icons/io5";
+import { FaPersonWalking } from "react-icons/fa6";
 
 /* ---------------- helpers ---------------- */
 const norm = (s = "") =>
@@ -155,29 +156,67 @@ const guessFirstChain = (segs) => {
 
 
 
-function LayoverBar({ minutes, city, airport, short, long }) {
-  const cls = short
-    ? "border-rose-200 bg-rose-50 text-rose-700"
-    : long
-    ? "border-amber-200 bg-amber-50 text-amber-700"
-    : "border-slate-200 bg-white text-slate-700";
+function LayoverBar({ minutes, city, airport, short, long, protectedTransfer = true }) {
+  const hh = Math.floor((minutes || 0) / 60);
+  const mm = Math.max(0, Math.round((minutes || 0) % 60));
 
   return (
-    <div className={`mt-3 rounded-lg border px-3 py-2 text-xs ${cls}`}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-semibold">
-          Layover {short ? "(short)" : long ? "(long)" : ""}
-        </span>
-        <span className="font-mono">
-          {Math.floor(minutes / 60)}h {Math.round(minutes % 60)}m
-        </span>
-      </div>
-      <div className="mt-0.5">
-        Change at <span className="font-medium">{city}</span> • {airport}
+    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <div className="flex items-center justify-between gap-4">
+
+        {/* Left: icon + text */}
+        <div className="flex items-start gap-3">
+          {/* circular walk icon */}
+          <div className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500">
+            {/* walk svg */}
+            <FaPersonWalking />
+          </div>
+
+          <div className="leading-tight">
+            <div className="text-[13px] font-semibold text-slate-800">
+              Connection in {city || "—"}
+            </div>
+            <div className="text-[12px] text-slate-600">
+              {hh}h {mm}m{airport ? <> &nbsp;•&nbsp; {airport}</> : null}
+            </div>
+          </div>
+        </div>
+
+        {/* Right: badges */}
+        <div className="flex flex-wrap items-center gap-2">
+          {protectedTransfer && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-medium text-white">
+              Protected transfer
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white/20 text-white">
+                i
+              </span>
+            </span>
+          )}
+
+          {long && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/80 px-3 py-1 text-[11px] font-medium text-white">
+              Longer transfer
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white/20 text-white">
+                i
+              </span>
+            </span>
+          )}
+
+          {/* Optional: short transfer chip (if you want it) */}
+          {short && !long && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/90 px-3 py-1 text-[11px] font-medium text-white">
+              Short transfer
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white/20 text-white">
+                i
+              </span>
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
 }
+
 
 /* ---------------- component ---------------- */
 const FlightSegment = ({
