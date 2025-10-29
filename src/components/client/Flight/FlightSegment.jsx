@@ -151,6 +151,31 @@ const guessFirstChain = (segs) => {
 };
 
 
+
+function LayoverBar({ minutes, city, airport, short, long }) {
+  const cls = short
+    ? "border-rose-200 bg-rose-50 text-rose-700"
+    : long
+    ? "border-amber-200 bg-amber-50 text-amber-700"
+    : "border-slate-200 bg-white text-slate-700";
+
+  return (
+    <div className={`mt-3 rounded-lg border px-3 py-2 text-xs ${cls}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold">
+          Layover {short ? "(short)" : long ? "(long)" : ""}
+        </span>
+        <span className="font-mono">
+          {Math.floor(minutes / 60)}h {Math.round(minutes % 60)}m
+        </span>
+      </div>
+      <div className="mt-0.5">
+        Change at <span className="font-medium">{city}</span> • {airport}
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- component ---------------- */
 const FlightSegment = ({
   flight,

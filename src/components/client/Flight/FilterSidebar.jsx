@@ -275,11 +275,24 @@ export default function FilterSidebar({
     >
       {/* Top meta */}
       <div className="mb-3 sm:mb-4 flex items-center justify-between">
-        {pageSummary && (
-          <div className="text-[14px] font-medium text-slate-700" aria-live="polite">
-            Showing <span className="font-semibold text-slate-800">{pageSummary.start}–{pageSummary.end}</span> of{" "}
-            <span className="font-semibold text-slate-800">{pageSummary.total}</span> results
+        {pageSummary ? (
+          <div
+            className="text-[14px] font-medium text-slate-700"
+            aria-live="polite"
+          >
+            Showing{" "}
+            <span className="font-semibold text-slate-800">
+              {pageSummary.start}–{pageSummary.end}
+            </span>{" "}
+            of{" "}
+            <span className="font-semibold text-slate-800">
+              {pageSummary.total}
+            </span>{" "}
+            results
           </div>
+        ) : (
+          // Skeleton loader
+          <div className="h-5 w-48 animate-pulse rounded-md bg-slate-200"></div>
         )}
         {onCloseMobile && (
           <button
