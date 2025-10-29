@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import FlightSegment from "./FlightSegment";
 import { formatDuration } from "../../../lib/helper";
-import { findLeg, formatDate, formatTime, getAirportName, getCityName, guessFirstChain, normalizeSegments } from "../../../utils/utils";
+import { findLeg, formatDate, formatTime, getAirportName, getCityName, guessFirstChain, normalizeSegments, safeDate } from "../../../utils/utils";
 import { FaPersonWalking } from "react-icons/fa6";
 import { MdLuggage } from "react-icons/md";
 import { FaPlaneDeparture } from "react-icons/fa";
@@ -43,17 +43,11 @@ const computeItinKey = (it) => {
 const Icon = ({ name, className = "h-4 w-4" }) => {
   switch (name) {
     case "info":
-      return (
-        <FaInfo className="h-3 w-3" />
-      );
+      return <FaInfo className="h-3 w-3" />;
     case "takeoff":
-      return (
-        <FaPlaneDeparture />
-      );
+      return <FaPlaneDeparture />;
     case "landing":
-      return (
-        <FaPlaneArrival />
-      );
+      return <FaPlaneArrival />;
     default:
       return null;
   }
@@ -140,51 +134,84 @@ const SegmentBlock = ({
 
   // guess a simple progress: 60% so the bar looks alive even w/o true time ratio
   const progress = 0.62;
-  
-  
-    /* ---------------- Normalization & anchors ---------------- */
-    const allSegs = useMemo(() => normalizeSegments(flight), [flight]);
-    const guess = useMemo(() => guessFirstChain(allSegs), [allSegs]);
-  
-    const OUT_O =
-      expectedOutboundOrigin ||
-      guess?.origin ||
-      allSegs[0]?.departure ||
-      flight?.origin ||
-      "";
-    const OUT_D =
-      expectedOutboundDestination ||
-      guess?.destination ||
-      allSegs.at?.(-1)?.arrival ||
-      flight?.destination ||
-      "";
-  
-    const outboundSegs = useMemo(() => {
-      const found =
-        findLeg(allSegs, OUT_O, OUT_D, { prefer: "earliest" }) ||
-        null;
-      return found?.length ? found : guess?.chain || allSegs;
-    }, [allSegs, OUT_O, OUT_D, guess]);
-  
-    const RET_O = expectedReturnOrigin || OUT_D;
-    const RET_D = expectedReturnDestination || OUT_O;
-  
-    const outboundArrivesAt = outboundSegs.at?.(-1)?.arrivalAt || null;
-  
-    const returnSegs = useMemo(() => {
-      let chain =
-        findLeg(allSegs, RET_O, RET_D, { prefer: "earliest", notBefore: outboundArrivesAt }) ||
-        findLeg(allSegs, RET_O, RET_D, { prefer: "earliest" }) ||
-        findLeg(allSegs, RET_D, RET_O, { prefer: "earliest" });
-      return chain || [];
-    }, [allSegs, RET_O, RET_D, outboundArrivesAt]);
-  
-    const isReturn = segmentType === "Return";
-    let legSegs = isReturn ? returnSegs : outboundSegs;
 
-    const hasSegments = Array.isArray(legSegs) && legSegs.length > 0;
-    const firstSegment = hasSegments ? legSegs[0] : null;
-    const lastSegment = hasSegments ? legSegs[legSegs.length - 1] : null;
+  /* ---------------- Normalization & anchors ---------------- */
+  const allSegs = useMemo(() => normalizeSegments(flight), [flight]);
+  const guess = useMemo(() => guessFirstChain(allSegs), [allSegs]);
+
+  const OUT_O =
+    expectedOutboundOrigin ||
+    guess?.origin ||
+    allSegs[0]?.departure ||
+    flight?.origin ||
+    "";
+  const OUT_D =
+    expectedOutboundDestination ||
+    guess?.destination ||
+    allSegs.at?.(-1)?.arrival ||
+    flight?.destination ||
+    "";
+
+  const outboundSegs = useMemo(() => {
+    const found =
+      findLeg(allSegs, OUT_O, OUT_D, { prefer: "earliest" }) ||
+      null;
+    return found?.length ? found : guess?.chain || allSegs;
+  }, [allSegs, OUT_O, OUT_D, guess]);
+
+  const RET_O = expectedReturnOrigin || OUT_D;
+  const RET_D = expectedReturnDestination || OUT_O;
+
+  const outboundArrivesAt = outboundSegs.at?.(-1)?.arrivalAt || null;
+
+  const returnSegs = useMemo(() => {
+    let chain =
+      findLeg(allSegs, RET_O, RET_D, { prefer: "earliest", notBefore: outboundArrivesAt }) ||
+      findLeg(allSegs, RET_O, RET_D, { prefer: "earliest" }) ||
+      findLeg(allSegs, RET_D, RET_O, { prefer: "earliest" });
+    return chain || [];
+  }, [allSegs, RET_O, RET_D, outboundArrivesAt]);
+
+  const isReturn = segmentType === "Return";
+  let legSegs = isReturn ? returnSegs : outboundSegs;
+
+  const hasSegments = Array.isArray(legSegs) && legSegs.length > 0;
+  const firstSegment = hasSegments ? legSegs[0] : null;
+  const lastSegment = hasSegments ? legSegs[legSegs.length - 1] : null;
+
+  // ---------- SAFE fallbacks to avoid null crashes ----------
+  const leftDateText =
+    depDateText ||
+    (firstSegment ? safeDate(firstSegment?.departureAt || firstSegment?.departureDate || firstSegment?.departureTime) : "");
+
+  const leftTimeText =
+    firstSegment?.departureTimeAt ||
+    depTime ||
+    "";
+
+  const leftCity =
+    getCityName(firstSegment?.departure) ||
+    depCity ||
+    "";
+
+  const leftAirportName =
+    getAirportName(firstSegment?.departure) ||
+    (depAirport ? getAirportName(depAirport) : "") ||
+    "";
+
+  const rightDateText =
+    arrDateText ||
+    (lastSegment ? safeDate(lastSegment?.arrivalAt || lastSegment?.arrivalDate || lastSegment?.arrivalTime) : "");
+
+  const rightTimeText =
+    lastSegment?.arrivalTimeAt ||
+    arrTime ||
+    "";
+
+  const rightAirportName =
+    getAirportName(lastSegment?.arrival) ||
+    (arrAirport ? getAirportName(arrAirport) : "") ||
+    "";
 
   return (
     <div className="overflow-hidden bg-white">
@@ -212,14 +239,14 @@ const SegmentBlock = ({
               }}
             />
             <div className="min-w-0">
-              <div className="text-[11px] text-slate-500">{formatDate(flight.departureDate)}</div>
-              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{formatTime(flight.departureTime)}</div>
-              <div className="text-[11px] text-slate-600 truncate">{depCity}</div>
+              <div className="text-[11px] text-slate-500">{leftDateText}</div>
+              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{leftTimeText}</div>
+              <div className="text-[11px] text-slate-600 truncate">{leftCity || "—"}</div>
               <div
                 className="text-[11px] text-slate-500 truncate max-w-[120px]"
-                title={getAirportName(depAirport)}
+                title={leftAirportName}
               >
-                {getAirportName(depAirport)}
+                {leftAirportName || "—"}
               </div>
             </div>
           </div>
@@ -238,13 +265,13 @@ const SegmentBlock = ({
           {/* right column */}
           <div className="col-span-12 sm:col-span-3 md:col-span-3 ml-auto flex items-center justify-end gap-3">
             <div className="min-w-0 text-right">
-              <div className="text-[11px] text-rose-600">{arrDateText}</div>
-              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{arrTime}</div>
+              <div className="text-[11px] text-rose-600">{rightDateText}</div>
+              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{rightTimeText}</div>
               <div
                 className="text-[11px] text-slate-500 truncate max-w-[120px]"
-                title={getAirportName(arrAirport)}
+                title={rightAirportName}
               >
-                {getAirportName(arrAirport)}
+                {rightAirportName || "—"}
               </div>
             </div>
 
@@ -417,7 +444,6 @@ const ItineraryList = ({
             const markupAmount = +((backendGrand || 0) * ((agentMarkupPercent || 0) / 100)).toFixed(2);
             const grandWithMarkup = +((backendGrand || 0) + markupAmount).toFixed(2);
 
-            
             const airlines = itinerary.airlines || [];
 
             const isMulti =
