@@ -212,7 +212,7 @@ const SegmentBlock = ({
               }}
             />
             <div className="min-w-0">
-              <div className="text-[11px] text-slate-500">{safeDate(firstSegment.departureAt)}</div>
+              <div className="text-[11px] text-slate-500">{safeDate(firstSegment.departureAt || firstSegment.departureDate)}</div>
               <div className="text-slate-900 font-semibold leading-5 tabular-nums">{firstSegment.departureTimeAt}</div>
               <div className="text-[11px] text-slate-600 truncate">{getCityName(firstSegment.departure)}</div>
               <div
@@ -238,7 +238,7 @@ const SegmentBlock = ({
           {/* right column */}
           <div className="col-span-12 sm:col-span-3 md:col-span-3 ml-auto flex items-center justify-end gap-3">
             <div className="min-w-0 text-right">
-              <div className="text-[11px] text-rose-600">{safeDate(lastSegment.arrivalAt)}</div>
+              <div className="text-[11px] text-rose-600">{safeDate(lastSegment.arrivalAt || lastSegment.arrivalDate)}</div>
               <div className="text-slate-900 font-semibold leading-5 tabular-nums">{lastSegment.arrivalTimeAt}</div>
               <div
                 className="text-[11px] text-slate-500 truncate max-w-[120px]"
