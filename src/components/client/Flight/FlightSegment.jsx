@@ -365,13 +365,12 @@ const FlightSegment = ({
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   {segment.bookingCode && (
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
-                      Fare:&nbsp;<b className="font-medium">Class {flight.bookingCode}</b>
+                      Fare:&nbsp;<b className="font-medium">Class {segment.bookingCode ?? segment.bookingClass}</b>
                     </span>
                   )}
 
-                  {personalItem && (
+                  {/* {flight?.baggage && (
                     <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
-                      {/* tiny green indicator like mock */}
                       <span className="h-3 w-[2px] rounded bg-emerald-500" />
                       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
                         <rect x="5" y="7" width="14" height="11" rx="2" />
@@ -379,7 +378,7 @@ const FlightSegment = ({
                       </svg>
                       Personal Item ({personalItem})
                     </span>
-                  )}
+                  )} */}
                 </div>
 
                 {/* baggage chips row */}
@@ -415,9 +414,9 @@ const FlightSegment = ({
                 <div className="text-md font-semibold leading-6 text-slate-900 tabular-nums">
                   {arrTime || "—"}
                 </div>
-                <div className="text-md text-slate-900">{arrAirport || arrCode || "—"}</div>
+                <div className="text-md text-slate-900">{getAirportName(segment.arrival) || "—"}</div>
                 <div className="text-xs text-slate-500">
-                  {arrDate} <span className="mx-1">•</span> Terminal {flight?.arrivalTerminal || "—"}
+                  {arrDate} <span className="mx-1">•</span> Terminal {segment?.arrivalTerminal || "—"}
                 </div>
               </div>
             </div>

@@ -100,8 +100,15 @@ const carveLegsForMulti = (offer, requestedLegs = [], normalizeSegsForCarve, fin
         departureTime: s.departureTime ?? s.strDepartureTime ?? "",
         arrivalDate: s.arrivalDate ?? s.strArrivalDate ?? "",
         arrivalTime: s.arrivalTime ?? s.strArrivalTime ?? "",
-        bookingCode: s.bookingCode,
         refundable: s.refundable,
+
+        cabinClass: s.cabinClass,
+        availabilityCount: s.availabilityCount,
+        bookingCode: s.bookingCode,
+        arrivalTerminal: s.arrivalTerminal,
+        codeShare: s.codeShare,
+        departureTerminal: s.departureTerminal,
+        flightTime: s.flightTime,
       })),
       stops: Math.max(0, chain.length - 1),
       // keep raw backend PB hidden here for itinerary to reuse
@@ -294,8 +301,15 @@ const FlightPage = () => {
         departureTime: s.strDepartureTime ?? "",
         arrivalDate: s.strArrivalDate ?? "",
         arrivalTime: s.strArrivalTime ?? "",
-        bookingCode: s.bookingCode ?? s.bookingClass ?? "",
         refundable: !!s.refundable,
+
+        cabinClass: s.cabinClass,
+        availabilityCount: s.availabilityCount,
+        bookingCode: s.bookingCode,
+        arrivalTerminal: s.arrivalTerminal,
+        codeShare: s.codeShare,
+        departureTerminal: s.departureTerminal,
+        flightTime: s.flightTime,
       }))
       .filter((s) => s.departureAt && s.arrivalAt)
       .sort((a, b) => new Date(a.departureAt) - new Date(b.departureAt));
@@ -360,8 +374,15 @@ const FlightPage = () => {
           arrival: s.arrival,
           departureDate: s.departureAt,
           arrivalDate: s.arrivalAt,
-          bookingCode: s.bookingCode,
           refundable: s.refundable,
+
+          cabinClass: s.cabinClass,
+          availabilityCount: s.availabilityCount,
+          bookingCode: s.bookingCode,
+          arrivalTerminal: s.arrivalTerminal,
+          codeShare: s.codeShare,
+          departureTerminal: s.departureTerminal,
+          flightTime: s.flightTime,
         })),
         origin: first.departure,
         destination: last.arrival,
