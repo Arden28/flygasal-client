@@ -212,7 +212,7 @@ const SegmentBlock = ({
               }}
             />
             <div className="min-w-0">
-              <div className="text-[11px] text-slate-500">{safeDate(firstSegment.departureDate)}</div>
+              <div className="text-[11px] text-slate-500">{safeDate(firstSegment.departureAt)}</div>
               <div className="text-slate-900 font-semibold leading-5 tabular-nums">{firstSegment.departureTime}</div>
               <div className="text-[11px] text-slate-600 truncate">{getCityName(firstSegment.airline)}</div>
               <div
