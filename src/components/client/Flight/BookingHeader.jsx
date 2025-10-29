@@ -92,7 +92,10 @@ export default function BookingHeader({
     >
       {/* Sticky top row */}
       <div className="sticky top-0 z-40 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-slate-200">
+
         {/* Flight Details */}
+        {hasRoute && hasDates && (
+         <> 
         <div className="mx-auto max-w-8xl px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
           {/* Left: Route + Dates (safe fallbacks) */}
           <div className="text-sm md:text-base font-medium min-w-0">
@@ -135,6 +138,8 @@ export default function BookingHeader({
         </div>
 
         <hr className="mb-2" />
+        </>
+        )}
 
         {/* Steps */}
         <div className="mx-auto max-w-6xl px-2 sm:px-4 py-2">
