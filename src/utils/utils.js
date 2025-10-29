@@ -45,3 +45,20 @@ export const formatTime = (d) =>
 
 export const safeDate = (d) => (d ? formatDate(d) : "—");
 export const safeTime = (d) => (d ? formatTime(d) : "—");
+
+export const diffMinutes = (a, b) => {
+  if (!a || !b) return 0
+  const ta = new Date(a).getTime()
+  const tb = new Date(b).getTime()
+  if (Number.isNaN(ta) || Number.isNaN(tb)) return 0
+  return Math.max(0, Math.round((tb - ta) / 60000))
+}
+
+export const parseAirportLabel = (label = "") => {
+  const [left, right] = String(label).split(/\s*-\s*/)
+  if (!right) return { city: label, airport: "" }
+  const codeMatch = left.match(/\(([A-Z0-9]{3,4})\)/)
+  const code = codeMatch ? codeMatch[1] : ""
+  const city = left.replace(/\s*\([A-Z0-9]{3,4}\)\s*$/, "").trim()
+  return { city, airport: code ? `${right} (${code})` : right }
+}
