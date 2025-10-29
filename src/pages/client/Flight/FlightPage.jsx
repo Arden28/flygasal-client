@@ -58,6 +58,17 @@ const priceOf = (o) => {
   return Number(grand || 0);
 };
 
+// Normalize a priceBreakdown into a numeric grand total
+const priceOfPB = (pb) => Number((pb && (pb.totals?.grand ?? pb.total)) || 0);
+
+// Get the display/compare price for any itinerary shape (oneway/return/multi)
+const priceOfItin = (it) => {
+  // prefer itinerary.totalPrice when present (you already compute this for multi),
+  // else fall back to priceBreakdown
+  const candidate = Number(it?.totalPrice ?? priceOfPB(it?.priceBreakdown));
+  return Number.isFinite(candidate) ? candidate : 0;
+};
+
 /* ---------- Small helper: drop any visible priceBreakdown field from leg/offer objects when embedding ---------- */
 const stripPB = (obj) => {
   if (!obj) return obj;
@@ -793,8 +804,7 @@ const FlightPage = () => {
   // ======= Recompute price bounds from actual itineraries =======
   useEffect(() => {
     if (Array.isArray(itineraries) && itineraries.length) {
-      const prices = itineraries.map((it) => Number(it.priceBreakdown.totals.grand)).filter((p) => Number.isFinite(p));
-      // const prices = itineraries.map((it) => Number(it.totalPrice)).filter((p) => Number.isFinite(p));
+      const prices = itineraries.map(priceOfItin).filter((p) => Number.isFinite(p));
       if (prices.length) {
         const absMin = Math.floor(Math.min(...prices));
         const absMax = Math.ceil(Math.max(...prices));
@@ -817,8 +827,10 @@ const FlightPage = () => {
 
     return itineraries
       .filter((it) => {
+        const itPrice = priceOfItin(it);
+        const priceOk = itPrice >= low && itPrice <= high;
         // const priceOk = it.totalPrice >= low && it.totalPrice <= high;
-        const priceOk = it.priceBreakdown.totals.grand >= low && it.priceBreakdown.totals.grand <= high;
+        // const priceOk = it.priceBreakdown.totals.grand >= low && it.priceBreakdown.totals.grand <= high;
 
             // ----- Robust stops across oneway/return/multi -----
             // Prefer itinerary.totalStops; if missing, derive from segments.
@@ -897,7 +909,9 @@ const FlightPage = () => {
 
         return priceOk && stopsOk && owOk && rtOk && owTimeOk && rtTimeOk && durationOk && bagOk && cabinOk;
       })
-      .sort((a, b) => (sortOrder === "asc" ? a.priceBreakdown.totals.grand - b.priceBreakdown.totals.grand : b.priceBreakdown.totals.grand - a.priceBreakdown.totals.grand));
+      .sort((a, b) =>
+        sortOrder === "asc" ? priceOfItin(a) - priceOfItin(b) : priceOfItin(b) - priceOfItin(a)
+      );
   }, [
     itineraries,
     minPrice,
