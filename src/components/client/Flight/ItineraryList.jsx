@@ -235,15 +235,6 @@ const SegmentBlock = ({
         <div className="grid grid-cols-12 items-center gap-3 py-3">
           {/* left column */}
           <div className="col-span-12 sm:col-span-3 md:col-span-3 flex items-center gap-3">
-            {/* <img
-              src={logoSrc}
-              alt={logoAlt}
-              className="h-9 w-9 rounded-full object-contain ring-1 ring-slate-200 bg-white"
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = "/assets/img/airlines/placeholder.png";
-              }}
-            /> */}
             <div className="flex items-center gap-2">
               {Array.isArray(flight?.marketingCarriers) && flight.marketingCarriers.length > 0 ? (
                 flight.marketingCarriers.map((code, i) => (

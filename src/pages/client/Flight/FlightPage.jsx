@@ -1172,26 +1172,15 @@ const FlightPage = () => {
             </button>
           </div>
         </div>
-        <AnimatePresence initial={false}>
-          {isSearchFormVisible && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.25 }}
-            >
-              <div className="container">
-                <div className="border-x border-b rounded-b-2xl border-gray-200 bg-white p-3">
-                  <FlightSearchForm
-                    searchParams={searchParams}
-                    setAvailableFlights={setAvailableFlights}
-                    setReturnFlights={setReturnFlights}
-                  />
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <div className="container">
+          <div className="border-x border-b rounded-b-2xl border-gray-200 bg-white p-3">
+            <FlightSearchForm
+              searchParams={searchParams}
+              setAvailableFlights={setAvailableFlights}
+              setReturnFlights={setReturnFlights}
+            />
+          </div>
+        </div>
       </motion.div>
 
       <div className="position-relative container-fluid pt-4 pb-4">
