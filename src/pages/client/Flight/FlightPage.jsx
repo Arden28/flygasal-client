@@ -1137,7 +1137,14 @@ const FlightPage = () => {
   // ---------- Render ----------
   return (
     <div className="bg-[#F7F8F9]">
-      
+      {/* Header */}
+      <BookingHeader
+        searchParams={new URLSearchParams(location.search)}
+        tripType={tripType}
+        getAirportName={getAirportName}
+        formatDate={formatDate}
+      />
+
       {/* Sticky modify search */}
       <motion.div className="top-0 z-20 bg-[#452003] py-3">
         {/* <div className="container py-2">
