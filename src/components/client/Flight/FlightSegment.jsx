@@ -240,6 +240,8 @@ const FlightSegment = ({
 
   const headerOrigin = isReturn ? RET_O : OUT_O;
   const headerDest = isReturn ? RET_D : OUT_D;
+  const safeDate = (d) => (d ? formatDate(d) : "—");
+  const safeTime = (d) => (d ? formatTime(d) : "—");
   // const airlineLogo =
   //   typeof getAirlineLogo === "function" ? getAirlineLogo : utilsGetAirlineLogo;
   // const airlineName =
@@ -300,7 +302,7 @@ const FlightSegment = ({
         <div className="flex justify-between items-start">
           <span className="font-medium text-md">{firstSegment?.departure || headerOrigin || ""} → {lastSegment?.arrival || headerDest || ""}</span>
           {/* right-corner duration (like the mock card top-right small meta) */}
-          <div className="absolute text-right text-xs text-slate-500">{durationText}</div>
+          <div className="text-right text-xs text-slate-500">{durationText}</div>
         </div>
       </div>
 
@@ -352,18 +354,18 @@ const FlightSegment = ({
               {/* departure block */}
               <div>
                 <div className="text-md font-semibold leading-6 text-slate-900 tabular-nums">
-                  {depTime || "—"}
+                  {segment.departureTimeAt || ""}
                 </div>
-                <div className="text-md text-slate-900">{depAirport || depCode || "—"}</div>
+                <div className="text-md text-slate-900">{getAirportName(segment.departure || "")}</div>
                 <div className="text-xs text-slate-500">
-                  {depDate} <span className="mx-1">•</span> Terminal {flight?.departureTerminal || "Terminal 1A"}
+                  {depDate} <span className="mx-1">•</span> Terminal {segment?.departureTerminal || "—"}
                 </div>
 
                 {/* badges row (fare + personal item) */}
                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                  {fareText && (
+                  {segment.bookingCode && (
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
-                      Fare:&nbsp;<b className="font-medium">{fareText}</b>
+                      Fare:&nbsp;<b className="font-medium">Class {flight.bookingCode}</b>
                     </span>
                   )}
 
@@ -415,20 +417,20 @@ const FlightSegment = ({
                 </div>
                 <div className="text-md text-slate-900">{arrAirport || arrCode || "—"}</div>
                 <div className="text-xs text-slate-500">
-                  {arrDate} <span className="mx-1">•</span> Terminal {flight?.arrivalTerminal || "Terminal 5"}
+                  {arrDate} <span className="mx-1">•</span> Terminal {flight?.arrivalTerminal || "—"}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* notes */}
-          <div className="mt-6 flex items-center justify-between">
-            <div className="text-[11px] text-slate-500">* All times are local</div>
-            <span>&nbsp;</span>
-          </div>
         </div>
         </>
       ))}
+          {/* notes */}
+          <div className="mt-6 px-4 flex items-center justify-between">
+            <div className="text-[11px] text-slate-500">* All times are local</div>
+            <span>&nbsp;</span>
+          </div>
     </div>
   );
 };
