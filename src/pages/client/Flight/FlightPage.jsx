@@ -1138,7 +1138,7 @@ const FlightPage = () => {
   return (
     <div className="bg-[#F7F8F9]">
       {/* Sticky modify search */}
-      <motion.div className="top-0 z-20 bg-[rgba(255,255,255,.75)] backdrop-blur border-b border-gray-200">
+      <motion.div className="top-0 z-20 bg-[#452003] py-3">
         {/* <div className="container py-2">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
@@ -1172,7 +1172,7 @@ const FlightPage = () => {
             </button>
           </div>
         </div> */}
-        <div className="container bg-[#452003]">
+        <div className="container">
           <div className="border-x border-b rounded-b-2xl border-gray-200 bg-white p-3">
             <FlightSearchForm
               searchParams={searchParams}
