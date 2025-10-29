@@ -213,13 +213,13 @@ const SegmentBlock = ({
             />
             <div className="min-w-0">
               <div className="text-[11px] text-slate-500">{safeDate(firstSegment.departureAt)}</div>
-              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{firstSegment.departureTime}</div>
-              <div className="text-[11px] text-slate-600 truncate">{getCityName(firstSegment.airline)}</div>
+              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{firstSegment.departureTimeAt}</div>
+              <div className="text-[11px] text-slate-600 truncate">{getCityName(firstSegment.departure)}</div>
               <div
                 className="text-[11px] text-slate-500 truncate max-w-[120px]"
-                title={getAirportName(firstSegment.airline)}
+                title={getAirportName(firstSegment.departure)}
               >
-                {getAirportName(firstSegment.airline)}
+                {getAirportName(firstSegment.departure)}
               </div>
             </div>
           </div>
