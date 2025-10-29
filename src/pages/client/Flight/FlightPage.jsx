@@ -1471,6 +1471,8 @@ const FlightPage = () => {
                       setSortOrder(order);  // "recommended" | "cheapest" | "quickest"
                       resetToTop();
                     }}
+                    loading={loading}
+                    summaries={sortSummaries}
                     isSearchFormVisible={isSearchFormVisible}
                     toggleSearchForm={toggleSearchForm}
                   />

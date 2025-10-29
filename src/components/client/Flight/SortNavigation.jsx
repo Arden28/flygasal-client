@@ -14,7 +14,7 @@ const SortNavigation = ({
   const tabs = {
     recommended: {
       title: "Recommended",
-      price: summaries?.recommended?.price ?? "€1 141",
+      price: summaries?.recommended?.price ?? "$1 141",
       duration: summaries?.recommended?.duration ?? "16h 13m (average)",
       activeBg: "bg-[#F68221]",
       inactiveBg: "bg-slate-50",
@@ -25,7 +25,7 @@ const SortNavigation = ({
     },
     cheapest: {
       title: "Cheapest",
-      price: summaries?.cheapest?.price ?? "€1 141",
+      price: summaries?.cheapest?.price ?? "$1 141",
       duration: summaries?.cheapest?.duration ?? "16h 13m (average)",
       activeBg: "bg-[#F68221]",
       inactiveBg: "bg-white",
@@ -36,7 +36,7 @@ const SortNavigation = ({
     },
     quickest: {
       title: "Quickest",
-      price: summaries?.quickest?.price ?? "€3 952",
+      price: summaries?.quickest?.price ?? "$3 952",
       duration: summaries?.quickest?.duration ?? "9h 5m (average)",
       activeBg: "bg-[#F68221]",
       inactiveBg: "bg-white",
