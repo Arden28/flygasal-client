@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import FlightSegment from "./FlightSegment";
 import { formatDuration } from "../../../lib/helper";
-import { getAirportName, getCityName } from "../../../utils/utils";
+import { formatDate, getAirportName, getCityName } from "../../../utils/utils";
 import { FaPersonWalking } from "react-icons/fa6";
 import { MdLuggage } from "react-icons/md";
 import { FaPlaneDeparture } from "react-icons/fa";
@@ -161,7 +161,7 @@ const SegmentBlock = ({
               }}
             />
             <div className="min-w-0">
-              <div className="text-[11px] text-slate-500">{depDateText}</div>
+              <div className="text-[11px] text-slate-500">{formatDate(flight.departureTime)}</div>
               <div className="text-slate-900 font-semibold leading-5 tabular-nums">{depTime}</div>
               <div className="text-[11px] text-slate-600 truncate">{depCity}</div>
               <div
@@ -250,7 +250,6 @@ const ItineraryList = ({
   searchParams,
   getAirlineLogo,
   getAirlineName,
-  formatDate,
   formatToYMD,
   formatTime,
   formatTimeOnly,
@@ -367,6 +366,9 @@ const ItineraryList = ({
             const markupAmount = +((backendGrand || 0) * ((agentMarkupPercent || 0) / 100)).toFixed(2);
             const grandWithMarkup = +((backendGrand || 0) + markupAmount).toFixed(2);
 
+            
+            const airlines = itinerary.airlines || [];
+
             const isMulti =
               (searchParams?.tripType || "").toLowerCase() === "multi" ||
               (Array.isArray(itinerary.legs) && itinerary.legs.length > 0);
@@ -427,7 +429,7 @@ const ItineraryList = ({
                       logoSrc={airlineLogo}
                       logoAlt={`${airlineName} logo`}
 
-                      depDateText={outSeg0?.departureTimeAt ? formatDate(outSeg0.departureTimeAt) : ""}
+                      depDateText={outSeg0?.departureTime ? formatDate(outSeg0.departureTime) : ""}
                       depTime={
                         itinerary.outbound.departureTime
                           ? formatTime(itinerary.outbound.departureTime)
@@ -476,6 +478,7 @@ const ItineraryList = ({
                   {/* Return */}
                   {isRoundTrip && itinerary.return && (
                     <SegmentBlock
+                      flight={itinerary.return}
                       id={`${key}-ret`}
                       openId={openDetailsId}
                       setOpenId={setOpen}
@@ -544,6 +547,7 @@ const ItineraryList = ({
                       const aName = logoCode ? (typeof getAirlineName === "function" ? getAirlineName(logoCode) : logoCode) : "Airline";
                       return (
                         <SegmentBlock
+                          flight={leg}
                           key={`${key}-leg-${li}`}
                           id={`${key}-leg-${li}`}
                           openId={openDetailsId}
