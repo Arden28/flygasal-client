@@ -297,7 +297,7 @@ const FlightSegment = ({
         <div className="flex justify-between items-start">
           <span className="font-medium text-md">{firstSegment?.departure || headerOrigin || ""} → {lastSegment?.arrival || headerDest || ""}</span>
           {/* right-corner duration (like the mock card top-right small meta) */}
-          <div className="text-right text-xs text-slate-500">{durationText}</div>
+          <div className="text-right text-xs text-slate-500">{flight.journeyTime}</div>
         </div>
       </div>
 
