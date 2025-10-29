@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import FlightSegment from "./FlightSegment";
@@ -52,6 +52,152 @@ const Icon = ({ name, className = "h-4 w-4" }) => {
       return null;
   }
 };
+
+/* ===================== Large Price Tooltip ===================== */
+function Row({ label, value, sub }) {
+  return (
+    <div className="flex items-start justify-between gap-3 py-2">
+      <div className="min-w-0">
+        <div className="text-[13px] font-medium text-slate-700">{label}</div>
+        {sub ? <div className="text-[12px] text-slate-500">{sub}</div> : null}
+      </div>
+      <div className="text-right tabular-nums font-semibold text-slate-900">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function PricingTooltip({
+  open,
+  onClose,
+  anchorClassName = "",
+  currency = "USD",
+  basePrice = 0,
+  markupPercent = 0,
+  markupAmount = 0,
+  total = 0,
+  paxSummary,    // e.g. "2 adults, 1 child"
+  extra = {},    // optional: { taxes, fees }
+}) {
+  const cardRef = useRef(null);
+
+  // close on ESC
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => e.key === "Escape" && onClose?.();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  // simple money formatter
+  const fmt = (n) => (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
+
+  // simple percentage bar for markup
+  const pct = Math.max(0, Math.min(100, Number(markupPercent) || 0));
+
+  return (
+    <div className={`relative ${anchorClassName}`}>
+      {/* Backdrop (click outside to close) */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            key="price-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-30"
+            onClick={onClose}
+            aria-hidden
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Card */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            key="price-card"
+            initial={{ opacity: 0, y: 6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.98 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+            role="dialog"
+            aria-label="Pricing breakdown"
+            ref={cardRef}
+            className="absolute right-0 z-40 mt-2 w-[min(92vw,520px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Arrow */}
+            <div className="absolute -top-2 right-6 h-4 w-4 rotate-45 border border-slate-200 border-b-0 border-r-0 bg-white" />
+
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
+              <div>
+                <div className="text-sm font-semibold text-slate-900">Price breakdown</div>
+                {paxSummary ? (
+                  <div className="text-[12px] text-slate-500">{paxSummary}</div>
+                ) : null}
+              </div>
+              <button
+                onClick={onClose}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50"
+                aria-label="Close pricing details"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-4 pt-2 pb-4">
+              <Row label="Base price" value={fmt(basePrice)} />
+              {"taxes" in extra && (
+                <Row label="Taxes" value={fmt(extra.taxes)} />
+              )}
+              {"fees" in extra && (
+                <Row label="Fees" value={fmt(extra.fees)} />
+              )}
+
+              <div className="my-2 rounded-xl bg-amber-50/60 p-3 ring-1 ring-amber-100">
+                <Row
+                  label="Agent markup"
+                  sub={`${pct}% applied`}
+                  value={fmt(markupAmount)}
+                />
+                {/* Markup bar */}
+                <div className="mt-2">
+                  <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="absolute left-0 top-0 h-2 rounded-full bg-[#F68221]"
+                      style={{ width: `${pct}%` }}
+                      aria-hidden
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-2 border-t border-slate-200 pt-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-[13px] font-semibold text-slate-800">Total</div>
+                  <div className="tabular-nums text-lg font-bold text-slate-900">
+                    {fmt(total)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Foot notes (optional) */}
+              <div className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                Prices shown are estimated and may vary at checkout depending on availability and airline rules.
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 /* -------------------- middle band -------------------- */
 const RailBand = ({
@@ -369,6 +515,23 @@ const ItineraryList = ({
     return { start, end, total: totalCount };
   }, [totalCount, currentPage, pageSize]);
 
+  // --- NEW: pricing tooltip control (only one open at a time) ---
+  const [openPriceKey, setOpenPriceKey] = useState(null);
+  const togglePrice = (k) => setOpenPriceKey((p) => (p === k ? null : k));
+  const closePrice = () => setOpenPriceKey(null);
+
+  // --- NEW: pax summary for tooltip header ---
+  const paxSummary = useMemo(() => {
+    const a = Number(searchParams?.adults || 1);
+    const c = Number(searchParams?.children || 0);
+    const i = Number(searchParams?.infants || 0);
+    const parts = [];
+    if (a) parts.push(`${a} adult${a > 1 ? "s" : ""}`);
+    if (c) parts.push(`${c} child${c > 1 ? "ren" : ""}`);
+    if (i) parts.push(`${i} infant${i > 1 ? "s" : ""}`);
+    return parts.join(", ") || "1 adult";
+  }, [searchParams?.adults, searchParams?.children, searchParams?.infants]);
+
   const selectItinerary = (itinerary) => {
     const isMulti =
       (searchParams?.tripType || "").toLowerCase() === "multi" ||
@@ -504,11 +667,37 @@ const ItineraryList = ({
               >
                 {/* Price header */}
                 <div className="flex items-center justify-between gap-3 px-4 py-3 md:px-5">
-                  <div className="inline-flex items-center gap-2 text-xl md:text-2xl font-bold text-slate-900">
+                  <div className="relative inline-flex items-center gap-2 text-xl md:text-2xl font-bold text-slate-900">
                     {money(grandWithMarkup, pbCurrency)}
-                    <span className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-slate-600">
-                      <Icon name="info" className="h-1 w-1" />
-                    </span>
+
+                    {/* Trigger (replaces the small span) */}
+                    <button
+                      type="button"
+                      onClick={() => togglePrice(key)}
+                      aria-expanded={openPriceKey === key}
+                      aria-controls={`price-tip-${key}`}
+                      className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#F68221]/40 ring-offset-2"
+                      title="View price breakdown"
+                    >
+                      <Icon name="info" className="h-3 w-3" />
+                    </button>
+
+                    {/* Large Tooltip */}
+                    <PricingTooltip
+                      open={openPriceKey === key}
+                      onClose={closePrice}
+                      anchorClassName="self-start"
+                      currency={pbCurrency}
+                      basePrice={backendGrand}
+                      markupPercent={agentMarkupPercent || 0}
+                      markupAmount={markupAmount}
+                      total={grandWithMarkup}
+                      paxSummary={paxSummary}
+                      extra={{
+                        ...(totals?.taxes ? { taxes: totals.taxes } : {}),
+                        ...(totals?.fees ? { fees: totals.fees } : {}),
+                      }}
+                    />
                   </div>
                 </div>
 
