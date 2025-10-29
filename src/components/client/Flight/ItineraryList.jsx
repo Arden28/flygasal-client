@@ -162,7 +162,7 @@ const SegmentBlock = ({
             />
             <div className="min-w-0">
               <div className="text-[11px] text-slate-500">{formatDate(flight.departureTime)}</div>
-              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{depTime}</div>
+              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{flight.departureTime}</div>
               <div className="text-[11px] text-slate-600 truncate">{depCity}</div>
               <div
                 className="text-[11px] text-slate-500 truncate max-w-[120px]"
