@@ -27,19 +27,15 @@ import { airlines, airports } from "../data/fakeData";
     // return airline ? airline.logo : code;
   };
 
-  export function formatDuration(minutes) {
-  if (minutes < 60) {
-    return `${minutes} min`;
+export function formatDuration(minutes) {
+  if (minutes <= 60) {
+    return `${minutes}m`;
   }
 
   const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
+  const remaining = minutes % 60;
 
-  if (remainingMinutes === 0) {
-    return `${hours} hr${hours > 1 ? "s" : ""}`;
-  }
-
-  return `${hours} hr${hours > 1 ? "s" : ""} ${remainingMinutes} min`;
+  return remaining > 0 ? `${hours}h ${remaining}m` : `${hours}h`;
 }
 
 export const formatDate = (d) =>

@@ -407,11 +407,11 @@ const FlightSegment = ({
               {/* arrival block */}
               <div className="relative">
                 <div className="text-md font-semibold leading-6 text-slate-900 tabular-nums">
-                  {arrTime || "—"}
+                  {segment.arrivalTimeAt || ""}
                 </div>
                 <div className="text-md text-slate-900">{getAirportName(segment.arrival) || "—"}</div>
                 <div className="text-xs text-slate-500">
-                  {arrDate} <span className="mx-1">•</span> Terminal {segment?.arrivalTerminal || "—"}
+                  {safeDate(segment.arrivalAt)} <span className="mx-1">•</span> Terminal {segment?.arrivalTerminal || "—"}
                 </div>
               </div>
             </div>
