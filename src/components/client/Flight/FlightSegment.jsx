@@ -392,7 +392,7 @@ const FlightSegment = ({
                 </div>
               </div>
 
-              <span className="rounded-full bg-violet-50 px-3 py-1 text-xs text-violet-700">
+              <span className="rounded-full bg-orange-50 px-3 py-1 text-xs text-orange-700">
                 Inflight experience
               </span>
             </div>
@@ -405,9 +405,9 @@ const FlightSegment = ({
               <div className="grid grid-cols-[20px_1fr] gap-4">
                 {/* vertical timeline */}
                 <div className="relative">
-                  <div className="absolute left-[8px] top-2 bottom-8 w-[2px] bg-violet-200" />
-                  <span className="absolute left-[5px] top-2 h-3 w-3 rounded-full bg-[#6C54FF]" />
-                  <span className="absolute left-[5px] bottom-8 h-3 w-3 rounded-full bg-[#6C54FF]" />
+                  <div className="absolute left-[8px] top-2 bottom-8 w-[2px] bg-orange-200" />
+                  <span className="absolute left-[5px] top-2 h-3 w-3 rounded-full bg-[#F68221]" />
+                  <span className="absolute left-[5px] bottom-8 h-3 w-3 rounded-full bg-[#F68221]" />
                 </div>
 
                 {/* content column */}
