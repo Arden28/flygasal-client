@@ -73,92 +73,54 @@ const buildAvailabilitySearch = (search) => {
 };
 
 /* ======================================================
-   Fancy Aviation Loading (accessible)
+   AirLoading — centered, modern, brand-colored
    ====================================================== */
-const AirLoading = ({ location }) => {
-  const sp = new URLSearchParams(location.search);
-  const origin = sp.get("origin") || sp.get("flights[0][departure]") || "—";
-  const destination = sp.get("destination") || sp.get("flights[0][arrival]") || "—";
-  const depart = sp.get("depart") || sp.get("flights[0][departureDate]") || null;
-
-  const formatNice = (s) =>
-    s ? new Date(s).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "—";
+const AirLoading = () => {
+  const BRAND = "#F68221"; // primary
 
   return (
     <div className="min-h-screen bg-[#F6F6F7]">
-      <div className="container mx-auto px-4 py-10">
-        <div className="mx-auto max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          {/* Sky scene */}
-          <div className="relative h-56 overflow-hidden" aria-hidden="true">
-            <div className="absolute inset-0 bg-gradient-to-b from-sky-50 via-white to-white" />
-
-            {/* moving clouds */}
-            <motion.div
-              className="absolute -left-40 top-8 h-16 w-64 rounded-full bg-white/80 blur-md"
-              animate={{ x: ["0%", "140%"] }}
-              transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-            />
-            <motion.div
-              className="absolute left-10 top-24 h-12 w-40 rounded-full bg-white/70 blur-md"
-              animate={{ x: ["0%", "120%"] }}
-              transition={{ duration: 14, repeat: Infinity, ease: "linear", delay: 1.2 }}
-            />
-
-            {/* dashed route line */}
-            <div className="absolute inset-x-8 bottom-10">
-              <div className="relative h-6">
-                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-t-2 border-dashed border-slate-300" />
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-slate-700" />
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full bg-slate-700" />
-                <motion.div
-                  className="absolute -left-4 top-1/2 -translate-y-1/2"
-                  animate={{ left: ["-16px", "calc(100% - 16px)"] }}
-                  transition={{ duration: 2.6, repeat: Infinity, ease: [0.4, 0.0, 0.2, 1] }}
-                >
-                <svg aria-hidden width="26" height="26"  viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                    <path d="M2 16l20-5-2-3-8 2-5-6-2 1 3 7-6 2z" />
-                    <path d="M2 19h20" />
-                </svg>
-                </motion.div>
-              </div>
+      <div className="container mx-auto px-4">
+        <div className="flex min-h-screen items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98, y: 6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm"
+            role="status"
+            aria-live="polite"
+          >
+            {/* Icon circle */}
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-full"
+                 style={{ backgroundColor: "#FFF3E8", border: "1px solid #FED7B4", color: BRAND }}>
+              <motion.svg
+                width="28" height="28" viewBox="0 0 24 24" fill="none"
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 1.4, ease: "linear" }}
+              >
+                <path d="M12 4v2a6 6 0 016 6h2c0-4.418-3.582-8-8-8z" fill="currentColor" />
+                <path d="M12 20v-2a6 6 0 01-6-6H4c0 4.418 3.582 8 8 8z" fill="currentColor" opacity=".55" />
+              </motion.svg>
             </div>
 
-            {/* route labels */}
-            <div className="absolute inset-x-6 bottom-4 flex items-center justify-between text-[11px] text-slate-600">
-              <span className="rounded-full border border-slate-300 bg-white/70 px-2 py-0.5">
-                {origin}
-              </span>
-              <span className="rounded-full border border-slate-300 bg-white/70 px-2 py-0.5">
-                {destination}
-              </span>
-            </div>
-          </div>
-
-          {/* Title / subtitle */}
-          <div className="px-6 pb-6 pt-4 text-center" role="status" aria-live="polite">
-            <motion.h2
-              className="mx-auto inline-block bg-clip-text text-base font-semibold text-transparent"
-              style={{
-                backgroundImage: "linear-gradient(90deg, #0ea5e9, #111827, #0ea5e9)",
-                backgroundSize: "200% 100%",
-              }}
-              animate={{ backgroundPositionX: ["0%", "100%"] }}
-              transition={{ duration: 2.2, repeat: Infinity, ease: "linear" }}
-            >
-              Checking availability…
-            </motion.h2>
-            <p className="mt-1 text-xs text-slate-600">
-              {origin} → {destination} {depart ? `• ${formatNice(depart)}` : ""}
+            {/* Title */}
+            <h2 className="mt-5 text-center text-lg font-semibold text-zinc-900">
+              Checking availability
+            </h2>
+            <p className="mt-1 text-center text-sm text-zinc-600">
+              Fetching live prices and seats…
             </p>
 
-            <div className="mx-auto mt-4 h-1.5 w-48 overflow-hidden rounded-full bg-slate-200" aria-hidden="true">
+            {/* Classic loader bar */}
+            <div className="mx-auto mt-5 h-1.5 w-48 overflow-hidden rounded-full bg-zinc-200" aria-hidden="true">
               <motion.div
-                className="h-full w-1/3 rounded-full bg-sky-600"
+                className="h-full w-1/3 rounded-full"
+                style={{ backgroundColor: BRAND }}
                 animate={{ x: ["-30%", "130%"] }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
               />
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </div>
@@ -166,75 +128,72 @@ const AirLoading = ({ location }) => {
 };
 
 /* ======================================================
-   Modern Error State
+   Modern Error State — same visual language as loading
    ====================================================== */
-const ErrorState = ({ message, onBack, onRetry, onReprice, location }) => {
-  const sp = new URLSearchParams(location.search);
-  const origin = sp.get("origin") || sp.get("flights[0][departure]") || "—";
-  const destination = sp.get("destination") || sp.get("flights[0][arrival]") || "—";
-  const tripType = sp.get("tripType") || "oneway";
+const ErrorState = ({ message, onBack, onRetry, onReprice }) => {
+  const BRAND = "#F68221";
 
   return (
     <div className="min-h-screen bg-[#F6F6F7]">
-      <div className="container mx-auto px-4 py-14">
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mx-auto max-w-2xl rounded-2xl border border-rose-200 bg-white p-6"
-        >
-          <div className="flex items-start gap-3">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-rose-300 bg-rose-50 text-rose-700">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" strokeWidth="1.5"/>
+      <div className="container mx-auto px-4">
+        <div className="flex min-h-screen items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98, y: 6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm"
+            role="alertdialog"
+            aria-label="Flight selection error"
+          >
+            {/* Icon circle */}
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-full"
+                 style={{ backgroundColor: "#FFF3E8", border: "1px solid #FED7B4", color: BRAND }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2a10 10 0 100 20 10 10 0 000-20z" stroke="currentColor" strokeWidth="1.8" />
+                <path d="M12 7v6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                <circle cx="12" cy="16.5" r="1.2" fill="currentColor" />
               </svg>
             </div>
-            <div className="min-w-0">
-              <h3 className="text-lg font-semibold text-slate-900">We couldn’t get this fare</h3>
-              <p className="mt-1 text-sm text-slate-700">{message}</p>
 
-              <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
-                <span className="rounded-full border border-slate-300 bg-slate-50 px-2 py-0.5">
-                  Route: {origin} → {destination}
-                </span>
-                <span className="rounded-full border border-slate-300 bg-slate-50 px-2 py-0.5">
-                  Trip: {tripType}
-                </span>
-              </div>
+            <h3 className="mt-5 text-center text-lg font-semibold text-zinc-900">
+              We couldn’t get this fare
+            </h3>
+            <p className="mt-1 text-center text-sm text-zinc-600">{message}</p>
 
-              <div className="mt-5 flex flex-wrap gap-2">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              <button
+                className="rounded-lg px-4 py-2 text-white"
+                style={{ backgroundColor: BRAND }}
+                onClick={onBack}
+              >
+                Back to Search
+              </button>
+              <button
+                className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-700 hover:bg-zinc-50"
+                onClick={onRetry}
+              >
+                Try again
+              </button>
+              {onReprice && (
                 <button
-                  className="rounded-lg bg-blue-700 px-4 py-2 text-white hover:bg-blue-800"
-                  onClick={onBack}
+                  className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-700 hover:bg-zinc-50"
+                  onClick={onReprice}
                 >
-                  Back to Flight Search
+                  Reprice
                 </button>
-                <button
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-slate-700 hover:bg-slate-50"
-                  onClick={onRetry}
-                >
-                  Try again
-                </button>
-                {onReprice && (
-                  <button
-                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-slate-700 hover:bg-slate-50"
-                    onClick={onReprice}
-                  >
-                    Reprice
-                  </button>
-                )}
-              </div>
-
-              <details className="mt-3 text-xs text-slate-600">
-                <summary className="cursor-pointer select-none text-slate-700">Why this happens</summary>
-                <ul className="mt-2 list-disc pl-5">
-                  <li>The fare changed or sold out while you were reviewing it.</li>
-                  <li>The return leg no longer matches the outbound constraints.</li>
-                  <li>A temporary network hiccup interrupted the request.</li>
-                </ul>
-              </details>
+              )}
             </div>
-          </div>
-        </motion.div>
+
+            <details className="mx-auto mt-4 w-full text-xs text-zinc-600">
+              <summary className="cursor-pointer select-none text-zinc-700">Why this happens</summary>
+              <ul className="mt-2 list-disc pl-5">
+                <li>The fare changed or sold out while you were reviewing it.</li>
+                <li>The return leg no longer matches the outbound constraints.</li>
+                <li>A temporary network hiccup interrupted the request.</li>
+              </ul>
+            </details>
+          </motion.div>
+        </div>
       </div>
     </div>
   );
@@ -829,13 +788,12 @@ const BookingDetail = () => {
         onBack={() => navigate(backUrl)}
         onRetry={() => window.location.reload()}
         onReprice={reprice}
-        location={location}
       />
     );
   }
 
   if (loading || !tripDetails?.outbound) {
-    return <AirLoading location={location} />;
+    return <AirLoading />;
   }
 
   /* ---------- render ---------- */
@@ -993,7 +951,7 @@ const BookingDetail = () => {
                   cx="50"
                   cy="50"
                   r="40"
-                  stroke="#0ea5e9"
+                  stroke="#F68221"
                   strokeWidth="8"
                   strokeDasharray="251.2"
                   strokeLinecap="round"
@@ -1004,7 +962,7 @@ const BookingDetail = () => {
               </motion.svg>
               {/* plane rotating */}
               <motion.div
-                className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 text-slate-800"
+                className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 text-zinc-800"
                 style={{ transformOrigin: "50px 50px" }}
                 animate={{ rotate: 360 }}
                 transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
@@ -1016,15 +974,16 @@ const BookingDetail = () => {
             </div>
 
             <motion.div
-              className="mt-4 text-sm font-medium text-slate-800"
+              className="mt-4 text-sm font-medium text-zinc-800"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
             >
               Processing payment…
             </motion.div>
-            <div className="mt-2 h-1.5 w-48 overflow-hidden rounded-full bg-slate-200" aria-hidden="true">
+            <div className="mt-2 h-1.5 w-48 overflow-hidden rounded-full bg-zinc-200" aria-hidden="true">
               <motion.div
-                className="h-full w-1/3 rounded-full bg-slate-800"
+                className="h-full w-1/3 rounded-full"
+                style={{ backgroundColor: "#F68221" }}
                 animate={{ x: ["-30%", "130%"] }}
                 transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
               />
