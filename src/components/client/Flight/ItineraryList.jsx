@@ -193,26 +193,31 @@ const SegmentBlock = ({
     getCityName(firstSegment?.departure) ||
     depCity ||
     "";
-
-  const leftAirportName =
+    
+    const leftAirportName =
     getAirportName(firstSegment?.departure) ||
     (depAirport ? getAirportName(depAirport) : "") ||
     "";
-
-  const rightDateText =
+    
+    const rightDateText =
     arrDateText ||
     (lastSegment ? safeDate(lastSegment?.arrivalAt || lastSegment?.arrivalDate || lastSegment?.arrivalTime) : "");
-
-  const rightTimeText =
+    
+    const rightTimeText =
     lastSegment?.arrivalTimeAt ||
     arrTime ||
     "";
-
-  const rightAirportName =
+    
+    const rightAirportName =
     getAirportName(lastSegment?.arrival) ||
     (arrAirport ? getAirportName(arrAirport) : "") ||
     "";
-
+    
+    const rightCity =
+      getCityName(lastSegment?.arrival) ||
+      arrCity ||
+      "";
+    console.info("Airlines: ", flight?.airlines);
   return (
     <div className="overflow-hidden bg-white">
       {/* Route bar */}
@@ -267,6 +272,7 @@ const SegmentBlock = ({
             <div className="min-w-0 text-right">
               <div className="text-[11px] text-rose-600">{rightDateText}</div>
               <div className="text-slate-900 font-semibold leading-5 tabular-nums">{rightTimeText}</div>
+              <div className="text-[11px] text-slate-600 truncate">{rightCity || "—"}</div>
               <div
                 className="text-[11px] text-slate-500 truncate max-w-[120px]"
                 title={rightAirportName}
