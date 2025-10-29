@@ -217,8 +217,8 @@ const SegmentBlock = ({
       getCityName(lastSegment?.arrival) ||
       arrCity ||
       "";
-      
-    console.log("Flight object:", flight);
+
+    // console.log("Flight object:", flight);
   return (
     <div className="overflow-hidden bg-white">
       {/* Route bar */}
@@ -235,7 +235,7 @@ const SegmentBlock = ({
         <div className="grid grid-cols-12 items-center gap-3 py-3">
           {/* left column */}
           <div className="col-span-12 sm:col-span-3 md:col-span-3 flex items-center gap-3">
-            <img
+            {/* <img
               src={logoSrc}
               alt={logoAlt}
               className="h-9 w-9 rounded-full object-contain ring-1 ring-slate-200 bg-white"
@@ -243,7 +243,8 @@ const SegmentBlock = ({
                 e.currentTarget.onerror = null;
                 e.currentTarget.src = "/assets/img/airlines/placeholder.png";
               }}
-            />
+            /> */}
+
             <div className="min-w-0">
               <div className="text-[11px] text-slate-500">{leftDateText}</div>
               <div className="text-slate-900 font-semibold leading-5 tabular-nums">{leftTimeText}</div>
