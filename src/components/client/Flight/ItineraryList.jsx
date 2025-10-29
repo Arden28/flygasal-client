@@ -105,6 +105,7 @@ const RailBand = ({
 
 /* -------------------- segment block -------------------- */
 const SegmentBlock = ({
+  flight,
   id,
   openId,
   setOpenId,
@@ -416,6 +417,7 @@ const ItineraryList = ({
                   {/* Outbound */}
                   {itinerary.outbound && (
                     <SegmentBlock
+                      flight={itinerary.outbound}
                       id={`${key}-out`}
                       openId={openDetailsId}
                       setOpenId={setOpen}
@@ -425,7 +427,7 @@ const ItineraryList = ({
                       logoSrc={airlineLogo}
                       logoAlt={`${airlineName} logo`}
 
-                      depDateText={outSeg0?.departureTime ? formatDate(outSeg0.departureTime) : ""}
+                      depDateText={outSeg0?.departureTimeAt ? formatDate(outSeg0.departureTimeAt) : ""}
                       depTime={
                         itinerary.outbound.departureTime
                           ? formatTime(itinerary.outbound.departureTime)
