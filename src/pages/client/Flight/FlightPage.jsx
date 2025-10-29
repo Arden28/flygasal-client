@@ -1144,6 +1144,7 @@ const FlightPage = () => {
         tripType={tripType}
         getAirportName={getAirportName}
         formatDate={formatDate}
+        currentStep={1}
       />
 
       {/* Sticky modify search */}
