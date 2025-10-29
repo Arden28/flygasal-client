@@ -249,10 +249,10 @@ const FlightSegment = ({
   const first = segments[0];
   const last = segments[segments.length - 1];
 
-  const carrier = first?.airline || flight?.marketingCarriers?.[0] || "";
-  const flightNo = first?.flightNo || flight?.flightNumber || "";
-  const logoSrc = airlineLogo(carrier);
-  const airline = airlineName(carrier) || "Airline";
+  // const carrier = first?.airline || flight?.marketingCarriers?.[0] || "";
+  // const flightNo = first?.flightNo || flight?.flightNumber || "";
+  // const logoSrc = airlineLogo(carrier);
+  // const airline = airlineName(carrier) || "Airline";
 
   const depTime = first?.departureTimeAt || (first?.departureAt ? formatTime(first.departureAt) : "");
   const depDate = first?.departureAt ? formatDate(first.departureAt) : "";
@@ -306,7 +306,7 @@ const FlightSegment = ({
 
 
       {/* Render individual segments */}
-      {(legSegs || []).map((segment, index) => (
+      {(legSegs || []).map((segment) => (
         <>
         {/* header: route airline + meta + right pill */}
         <div className="flex items-start justify-between px-4 mt-3">
