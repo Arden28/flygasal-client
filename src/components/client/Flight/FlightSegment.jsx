@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import {
   diffMinutes,
   formatDuration,
@@ -10,9 +11,10 @@ import {
 import { IoTicketSharp } from "react-icons/io5";
 import { FaPersonWalking } from "react-icons/fa6";
 import { FaSuitcase } from "react-icons/fa";
-import { BsFillBackpack2Fill } from "react-icons/bs";
+import { BsFillBackpack2Fill, BsSuitcase2Fill } from "react-icons/bs";
+import { createPortal } from "react-dom";
 
-/* ---------------- helpers ---------------- */
+/* ---------------- tiny helpers ---------------- */
 const norm = (s = "") =>
   String(s).trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3);
 
@@ -59,7 +61,7 @@ const normalizeSegments = (flightLike) => {
       const depTime = s.strDepartureTime ?? s.departureTime ?? s.depTime ?? "";
       const arrDate = s.strArrivalDate ?? s.arrivalDate ?? s.arrDate ?? "";
       const arrTime = s.strArrivalTime ?? s.arrivalTime ?? s.arrTime ?? "";
-      
+
       const cabinClass = s?.cabinClass ?? "";
       const availabilityCount = s?.availabilityCount ?? "";
       const arrivalTerminal = s?.arrivalTerminal ?? "";
@@ -80,7 +82,6 @@ const normalizeSegments = (flightLike) => {
       const refundable = !!s.refundable;
 
       return {
-        // NEW: keep segmentId so we can map baggage per segment
         segmentId: s.segmentId || s.segmentID || s.segment_id || "",
         airline,
         flightNo,
@@ -158,6 +159,133 @@ const guessFirstChain = (segs) => {
   };
 };
 
+/* ============== Shared Row + SegmentInfoTooltip (Big card) ============== */
+function Row({ label, value, sub }) {
+  return (
+    <div className="flex items-start justify-between gap-3 py-2">
+      <div className="min-w-0">
+        <div className="text-[13px] font-medium text-slate-700">{label}</div>
+        {sub ? <div className="text-[12px] text-slate-500">{sub}</div> : null}
+      </div>
+      <div className="text-right tabular-nums font-semibold text-slate-900">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function SegmentInfoTooltip({ open, onClose, anchorId, title = "Segment details", rows = [] }) {
+  const [coords, setCoords] = useState(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => e.key === "Escape" && onClose?.();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const update = () => {
+      const el = anchorId ? document.getElementById(anchorId) : null;
+      if (!el) return;
+
+      const r = el.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const gutter = 10;
+
+      const cardW = Math.min(vw * 0.92, 520);
+      const cardMaxH = Math.min(vh * 0.8, 560);
+
+      let left = r.right - cardW;
+      let top = r.bottom + 8;
+
+      if (left + cardW > vw - gutter) left = vw - gutter - cardW;
+      if (left < gutter) left = gutter;
+
+      if (top + cardMaxH > vh - gutter) {
+        top = Math.max(gutter, r.top - 8 - cardMaxH);
+      }
+
+      setCoords({ left, top, cardW, cardMaxH });
+    };
+
+    update();
+    const opts = { passive: true, capture: true };
+    window.addEventListener("resize", update, opts);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update, opts);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [open, anchorId]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <>
+      <motion.div
+        key="seginfo-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[9998]"
+        onClick={onClose}
+        aria-hidden
+      />
+      <motion.div
+        key="seginfo-card"
+        initial={{ opacity: 0, y: 6, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 6, scale: 0.98 }}
+        transition={{ duration: 0.16, ease: "easeOut" }}
+        role="dialog"
+        aria-label={title}
+        className="z-[9999] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+        style={{
+          position: "fixed",
+          top: coords?.top ?? -9999,
+          left: coords?.left ?? -9999,
+          width: "min(92vw, 520px)",
+          maxHeight: "80vh",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
+          <div>
+            <div className="text-sm font-semibold text-slate-900">{title}</div>
+            <div className="text-[12px] text-slate-500">Applies to this flight segment</div>
+          </div>
+          <button
+            onClick={onClose}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50"
+            aria-label="Close segment details"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-4 pt-2 pb-4 overflow-auto" style={{ maxHeight: "calc(80vh - 52px)" }}>
+          {rows.map((r, i) => (
+            <Row key={i} label={r.label} value={r.value} sub={r.sub} />
+          ))}
+          <div className="mt-2 text-[11px] leading-relaxed text-slate-500">
+            Info provided by airline/offer rules. Actual allowances may vary at check-in.
+          </div>
+        </div>
+      </motion.div>
+    </>,
+    document.body
+  );
+}
+
+/* ============== Layover ribbon ============== */
 function LayoverBar({ minutes, city, airport, short, long, protectedTransfer = true }) {
   const hh = Math.floor((minutes || 0) / 60);
   const mm = Math.max(0, Math.round((minutes || 0) % 60));
@@ -214,7 +342,7 @@ function LayoverBar({ minutes, city, airport, short, long, protectedTransfer = t
   );
 }
 
-/* ---------------- component ---------------- */
+/* ================= component ================= */
 const FlightSegment = ({
   flight,
   segmentType, // "Outbound" | "Return" | "Leg n"
@@ -230,13 +358,11 @@ const FlightSegment = ({
   // NEW: baggage map from MapOffer.normalize
   baggage,
   globalIdxToSegId
-  // onSelect,
 }) => {
-
   const airlineLogo = typeof getAirlineLogo === "function" ? getAirlineLogo : utilsGetAirlineLogo;
   const airlineName = typeof getAirlineName === "function" ? getAirlineName : utilsGetAirlineName;
 
-  /* ---------------- Normalization & anchors ---------------- */
+  /* -------- Normalize & anchor leg -------- */
   const allSegs = useMemo(() => normalizeSegments(flight), [flight]);
   const guess = useMemo(() => guessFirstChain(allSegs), [allSegs]);
 
@@ -276,7 +402,7 @@ const FlightSegment = ({
   const isReturn = segmentType === "Return";
   let legSegs = isReturn ? returnSegs : outboundSegs;
 
-  // Absolute last-resort synthetic single-segment if everything else failed
+  // Last-resort single segment
   if (!legSegs?.length) {
     const depAt =
       flight?.departureTime ||
@@ -297,7 +423,7 @@ const FlightSegment = ({
           flightNo: flight?.flightNum || flight?.flightNumber || "",
           departure: flight?.origin || "",
           arrival: flight?.destination || "",
-          departureAt: depAt || arrAt, // at least one
+          departureAt: depAt || arrAt,
           arrivalAt: arrAt || depAt,
           departureTimeAt: isTimeOnly(flight?.strDepartureTime) ? flight?.strDepartureTime : "",
           arrivalTimeAt: isTimeOnly(flight?.strArrivalTime) ? flight?.strArrivalTime : "",
@@ -323,19 +449,18 @@ const FlightSegment = ({
 
   const headerOrigin = isReturn ? RET_O : OUT_O;
   const headerDest = isReturn ? RET_D : OUT_D;
-  // Build per-segment baggage maps (supports both normalized + raw PKFare)
+
+  /* -------- Baggage maps (normalized or PKFare raw) -------- */
   const maps = useMemo(() => {
     const normalized = {
       checkedBySegment: baggage?.adt?.checkedBySegment || {},
       carryOnBySegment: baggage?.adt?.carryOnBySegment || {},
     };
 
-    // If already normalized, we're done
     if (Object.keys(normalized.checkedBySegment).length || Object.keys(normalized.carryOnBySegment).length) {
       return normalized;
     }
 
-    // Try to map raw PKFare ADT blocks using the provided global index map
     const adtBlocks = baggage?.ADT;
     const idxMap = (typeof globalIdxToSegId === "object" && globalIdxToSegId) ? globalIdxToSegId : null;
     if (!Array.isArray(adtBlocks) || !idxMap) return normalized;
@@ -366,11 +491,13 @@ const FlightSegment = ({
     return { checkedBySegment: checked, carryOnBySegment: cabin };
   }, [baggage, globalIdxToSegId]);
 
-
-
-  // PKFare baggage maps keyed by segmentId
   const checkedBySeg = maps.checkedBySegment;
   const cabinBySeg   = maps.carryOnBySegment;
+
+  /* -------- Local tooltip state (one open per FlightSegment) -------- */
+  const [openInfoKey, setOpenInfoKey] = useState(null);
+  const closeInfo = () => setOpenInfoKey(null);
+  const toggleInfo = (key) => setOpenInfoKey((p) => (p === key ? null : key));
 
   return (
     <div className="bg-white rounded-xl px-0 py-2">
@@ -378,7 +505,9 @@ const FlightSegment = ({
       {/* Route header */}
       <div className="border-b px-4 py-3 mb-3">
         <div className="flex justify-between items-start">
-          <span className="font-medium text-md">{firstSegment?.departure || headerOrigin || ""} → {lastSegment?.arrival || headerDest || ""}</span>
+          <span className="font-medium text-md">
+            {firstSegment?.departure || headerOrigin || ""} → {lastSegment?.arrival || headerDest || ""}
+          </span>
           <div className="text-right text-xs text-slate-500">{formatDuration(flight?.journeyTime)}</div>
         </div>
       </div>
@@ -392,22 +521,30 @@ const FlightSegment = ({
         const nextDepLabel = next ? getAirportName(next.departure || "") : "";
         const { city, airport } = parseAirportLabel(nextDepLabel);
 
-        // --- NEW: baggage per segment (friendly strings) ---
+        // per-segment baggage strings
         const sid = segment.segmentId || "";
         const ch = sid ? checkedBySeg[sid] : null;
         const cb = sid ? cabinBySeg[sid] : null;
 
-        const carryOnStr = cb
-          ? [cb.amount, cb.weight, cb.size].filter(Boolean).join(" ")
-          : null;
+        const carryOnStr = cb ? [cb.amount, cb.weight, cb.size].filter(Boolean).join(" ") : null;
+        const checkedStr = ch ? [ch.amount, ch.weight].filter(Boolean).join(" ") : null;
 
-        const checkedStr = ch
-          ? [ch.amount, ch.weight].filter(Boolean).join(" ")
-          : null;
+        // tooltip anchor + rows
+        const anchorId = `seg-info-${sid || idx}`;
+        const infoRows = [
+          { label: "Airline", value: airlineName(segment.airline) || segment.airline || "—" },
+          { label: "Flight", value: segment.flightNo ? `${segment.airline}${segment.flightNo}` : "—" },
+          { label: "Cabin", value: segment.cabinClass || "—", sub: segment.bookingCode ? `Fare class ${segment.bookingCode}` : undefined },
+          { label: "Seats left", value: segment.availabilityCount || "—" },
+          { label: "Terminals", value: `Dep ${segment.departureTerminal || "—"} • Arr ${segment.arrivalTerminal || "—"}` },
+          ...(segment.codeShare ? [{ label: "Codeshare", value: String(segment.codeShare) }] : []),
+          { label: "Carry-on", value: carryOnStr || "Not included" },
+          { label: "Checked bag", value: checkedStr || "Not included" },
+        ];
 
         return (
-          <React.Fragment key={idx}>
-            {/* header: route airline + meta + right pill */}
+          <React.Fragment key={sid || idx}>
+            {/* header: airline + meta + right pill */}
             <div className="flex items-start justify-between px-4 mt-3">
               <div className="flex items-center gap-3">
                 <img
@@ -428,9 +565,34 @@ const FlightSegment = ({
                 </div>
               </div>
 
-              <span className="rounded-full bg-orange-50 px-3 py-1 text-xs text-orange-700">
-                Inflight experience
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-orange-50 px-3 py-1 text-xs text-orange-700">
+                  Inflight experience
+                </span>
+
+                {/* NEW: Segment info trigger (uses big anchored tooltip pattern) */}
+                <button
+                  type="button"
+                  id={anchorId}
+                  onClick={() => toggleInfo(anchorId)}
+                  aria-expanded={openInfoKey === anchorId}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#F68221]/40 ring-offset-2"
+                  title="View segment details"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 16v-4M12 8h.01" />
+                  </svg>
+                </button>
+
+                <SegmentInfoTooltip
+                  open={openInfoKey === anchorId}
+                  onClose={closeInfo}
+                  anchorId={anchorId}
+                  title="Segment details"
+                  rows={infoRows}
+                />
+              </div>
             </div>
 
             {/* body */}
@@ -472,37 +634,15 @@ const FlightSegment = ({
                       )}
                     </div>
 
-                    {/* baggage chips row (unchanged design, new data) */}
+                    {/* baggage chips (per segment) */}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {carryOnStr && (
-                        <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700" title={`Carry-on for this segment: ${carryOnStr}`}>
-                          <BsFillBackpack2Fill />
-                          Carry on bag {carryOnStr}
-                        </span>
-                      )}
-                      {/* {baggage?.adt && (
-                        <div className="flex flex-col gap-2 text-xs text-slate-700">
-                          <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1">
-                            <BsFillBackpack2Fill className="text-slate-500" />
-                            <span className="font-medium">Carry-on:</span>
-                            {Object.entries(baggage.adt.carryOnBySegment || {}).map(([key, bag]) => (
-                              <span key={key}>
-                                {bag.amount} {bag.weight ? `(${bag.weight})` : ""}
-                              </span>
-                            ))}
-                          </div>
-
-                          <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1">
-                            <BsSuitcase2Fill className="text-slate-500" />
-                            <span className="font-medium">Checked:</span>
-                            {Object.entries(baggage.adt.checkedBySegment || {}).map(([key, bag]) => (
-                              <span key={key}>
-                                {bag.amount} {bag.weight ? `(${bag.weight})` : ""}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )} */}
+                      <span
+                        className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700"
+                        title={carryOnStr ? `Carry-on for this segment: ${carryOnStr}` : "Carry-on allowance not specified"}
+                      >
+                        <BsFillBackpack2Fill />
+                        {carryOnStr ? `Carry on ${carryOnStr}` : "Carry-on not included"}
+                      </span>
 
                       <span
                         className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ${
@@ -511,7 +651,7 @@ const FlightSegment = ({
                         title={checkedStr ? `Checked for this segment: ${checkedStr}` : "No checked baggage included for this segment"}
                       >
                         <FaSuitcase />
-                        {checkedStr ? `Checked bag ${checkedStr}` : "No checked bag"}
+                        {checkedStr ? `Checked ${checkedStr}` : "No checked bag"}
                       </span>
                     </div>
                   </div>
@@ -530,7 +670,7 @@ const FlightSegment = ({
               </div>
             </div>
 
-            {/* Insert layover bar between segments */}
+            {/* layover bar */}
             {next && layoverMins > 0 && (
               <div className="px-0">
                 <LayoverBar

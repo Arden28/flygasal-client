@@ -143,7 +143,7 @@ function PricingTooltip({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[9998]"
+        className="fixed inset-0 z-[99998]"
         onClick={onClose}
         aria-hidden
       />
@@ -187,8 +187,9 @@ function PricingTooltip({
         {/* Body (scrolls if needed) */}
         <div className="px-4 pt-2 pb-4 overflow-auto" style={{ maxHeight: "calc(80vh - 52px)" }}>
           <Row label="Base price" value={fmt(basePrice)} />
-          {"taxes" in extra && <Row label="Taxes" value={fmt(extra.taxes)} />}
-          {"fees" in extra && <Row label="Fees" value={fmt(extra.fees)} />}
+
+          {/* {"taxes" in extra && <Row label="Taxes" value={fmt(extra.taxes)} />}
+          {"fees" in extra && <Row label="Fees" value={fmt(extra.fees)} />} */}
 
           <div className="my-2 rounded-xl bg-amber-50/60 p-3 ring-1 ring-amber-100">
             <Row label="Agent markup" sub={`${pct}% applied`} value={fmt(markupAmount)} />
