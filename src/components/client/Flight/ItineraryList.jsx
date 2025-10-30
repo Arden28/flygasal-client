@@ -8,6 +8,7 @@ import { FaPersonWalking } from "react-icons/fa6";
 import { MdLuggage } from "react-icons/md";
 import { FaPlaneDeparture } from "react-icons/fa";
 import { FaPlaneArrival, FaInfo } from "react-icons/fa";
+import { createPortal } from "react-dom";
 
 /* -------------------- tiny utils -------------------- */
 const money = (n, currency = "USD") =>
@@ -77,127 +78,170 @@ function PricingTooltip({
   markupPercent = 0,
   markupAmount = 0,
   total = 0,
-  paxSummary,    // e.g. "2 adults, 1 child"
-  extra = {},    // optional: { taxes, fees }
+  paxSummary,
+  extra = {},
 }) {
-  const cardRef = useRef(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
 
   // close on ESC
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => e.key === "Escape" && onClose?.();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose?.();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  // simple money formatter
-  const fmt = (n) => (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
+  // position next to the triggering button (the previous sibling)
+  useEffect(() => {
+    if (!open) return;
 
-  // simple percentage bar for markup
+    const update = () => {
+      const anchorEl = wrapperRef.current?.previousElementSibling as HTMLElement | null;
+      if (!anchorEl) return;
+
+      const r = anchorEl.getBoundingClientRect();
+      const gutter = 8;
+
+      // Desired size (kept small & clamped to viewport)
+      const desiredWidth = Math.min(window.innerWidth * 0.92, 520);
+      const desiredHeight = Math.min(window.innerHeight * 0.8, 560);
+
+      // Prefer bottom-right; fall back within viewport
+      let left = r.right - desiredWidth; // align right edges
+      let top = r.bottom + gutter;
+
+      // If overflowing right, shift left
+      if (left + desiredWidth > window.innerWidth - gutter) {
+        left = window.innerWidth - gutter - desiredWidth;
+      }
+      // If overflowing left, clamp
+      if (left < gutter) left = gutter;
+
+      // If overflowing bottom, place above
+      if (top + desiredHeight > window.innerHeight - gutter) {
+        top = Math.max(gutter, r.top - gutter - desiredHeight);
+      }
+
+      setCoords({ top, left });
+    };
+
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [open]);
+
+  // simple money formatter
+  const fmt = (n: number) =>
+    (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
+
   const pct = Math.max(0, Math.min(100, Number(markupPercent) || 0));
 
+  // Local card content (kept small and scrollable if needed)
+  const Card = (
+    <motion.div
+      key="price-card"
+      initial={{ opacity: 0, y: 6, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 6, scale: 0.98 }}
+      transition={{ duration: 0.16, ease: "easeOut" }}
+      role="dialog"
+      aria-label="Pricing breakdown"
+      onClick={(e) => e.stopPropagation()}
+      className="z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+      style={{
+        position: "fixed",
+        top: coords?.top ?? -9999,
+        left: coords?.left ?? -9999,
+        width: "min(92vw, 520px)",
+        maxHeight: "80vh",
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
+        <div>
+          <div className="text-sm font-semibold text-slate-900">Price breakdown</div>
+          {paxSummary ? (
+            <div className="text-[12px] text-slate-500">{paxSummary}</div>
+          ) : null}
+        </div>
+        <button
+          onClick={onClose}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50"
+          aria-label="Close pricing details"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Body (scrolls if content grows) */}
+      <div className="px-4 pt-2 pb-4 overflow-auto" style={{ maxHeight: "calc(80vh - 52px)" }}>
+        <Row label="Base price" value={fmt(basePrice)} />
+        {"taxes" in extra && <Row label="Taxes" value={fmt((extra as any).taxes)} />}
+        {"fees" in extra && <Row label="Fees" value={fmt((extra as any).fees)} />}
+
+        <div className="my-2 rounded-xl bg-amber-50/60 p-3 ring-1 ring-amber-100">
+          <Row label="Agent markup" sub={`${pct}% applied`} value={fmt(markupAmount)} />
+          <div className="mt-2">
+            <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="absolute left-0 top-0 h-2 rounded-full bg-[#F68221]"
+                style={{ width: `${pct}%` }}
+                aria-hidden
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-2 border-t border-slate-200 pt-3">
+          <div className="flex items-center justify-between">
+            <div className="text-[13px] font-semibold text-slate-800">Total</div>
+            <div className="tabular-nums text-lg font-bold text-slate-900">{fmt(total)}</div>
+          </div>
+        </div>
+
+        <div className="mt-2 text-[11px] leading-relaxed text-slate-500">
+          Prices shown are estimated and may vary at checkout depending on availability and airline rules.
+        </div>
+      </div>
+    </motion.div>
+  );
+
+  // Backdrop
+  const Backdrop = (
+    <motion.div
+      key="price-backdrop"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-40"
+      onClick={onClose}
+      aria-hidden
+    />
+  );
+
   return (
-    <div className={`relative ${anchorClassName}`}>
-      {/* Backdrop (click outside to close) */}
+    <div ref={wrapperRef} className={`relative ${anchorClassName}`}>
       <AnimatePresence>
-        {open && (
-          <motion.div
-            key="price-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-30"
-            onClick={onClose}
-            aria-hidden
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Card */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            key="price-card"
-            initial={{ opacity: 0, y: 6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.98 }}
-            transition={{ duration: 0.16, ease: "easeOut" }}
-            role="dialog"
-            aria-label="Pricing breakdown"
-            ref={cardRef}
-            className="absolute right-0 z-40 mt-2 w-[min(92vw,520px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Arrow */}
-            <div className="absolute -top-2 right-6 h-4 w-4 rotate-45 border border-slate-200 border-b-0 border-r-0 bg-white" />
-
-            {/* Header */}
-            <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
-              <div>
-                <div className="text-sm font-semibold text-slate-900">Price breakdown</div>
-                {paxSummary ? (
-                  <div className="text-[12px] text-slate-500">{paxSummary}</div>
-                ) : null}
-              </div>
-              <button
-                onClick={onClose}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50"
-                aria-label="Close pricing details"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="px-4 pt-2 pb-4">
-              <Row label="Base price" value={fmt(basePrice)} />
-              {"taxes" in extra && (
-                <Row label="Taxes" value={fmt(extra.taxes)} />
-              )}
-              {"fees" in extra && (
-                <Row label="Fees" value={fmt(extra.fees)} />
-              )}
-
-              <div className="my-2 rounded-xl bg-amber-50/60 p-3 ring-1 ring-amber-100">
-                <Row
-                  label="Agent markup"
-                  sub={`${pct}% applied`}
-                  value={fmt(markupAmount)}
-                />
-                {/* Markup bar */}
-                <div className="mt-2">
-                  <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-200">
-                    <div
-                      className="absolute left-0 top-0 h-2 rounded-full bg-[#F68221]"
-                      style={{ width: `${pct}%` }}
-                      aria-hidden
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-2 border-t border-slate-200 pt-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-[13px] font-semibold text-slate-800">Total</div>
-                  <div className="tabular-nums text-lg font-bold text-slate-900">
-                    {fmt(total)}
-                  </div>
-                </div>
-              </div>
-
-              {/* Foot notes (optional) */}
-              <div className="mt-2 text-[11px] leading-relaxed text-slate-500">
-                Prices shown are estimated and may vary at checkout depending on availability and airline rules.
-              </div>
-            </div>
-          </motion.div>
-        )}
+        {open &&
+          createPortal(
+            <>
+              {Backdrop}
+              {Card}
+            </>,
+            document.body
+          )}
       </AnimatePresence>
     </div>
   );
 }
+
 
 /* -------------------- middle band -------------------- */
 const RailBand = ({
