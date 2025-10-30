@@ -382,7 +382,7 @@ const SegmentBlock = ({
       arrCity ||
       "";
 
-    console.log("Flight object:", flight);
+    // console.log("Flight object:", flight);
   return (
     <div className="overflow-hidden bg-white">
       {/* Route bar */}
