@@ -209,3 +209,51 @@ export const byDepTime = (a, b) => {
   const tb = new Date(b.departureAt || b.arrivalAt || 0).getTime();
   return ta - tb;
 };
+
+/* -------------------- baggage helpers -------------------- */
+export const summarizeBaggageForFlight = (flight, baggage) => {
+  try {
+    if (!flight || !Array.isArray(flight.segments)) return "";
+    const checkedMap = baggage?.adt?.checkedBySegment || {};
+    const cabinMap   = baggage?.adt?.carryOnBySegment || {};
+
+    const segIds = flight.segments
+      .map((s) => s.segmentId || s.segmentID || s.segment_id)
+      .filter(Boolean);
+
+    if (!segIds.length) return "";
+
+    // Collect unique values across the leg
+    const checkedVals = new Set();
+    const checkedWts  = new Set();
+    const cabinVals   = new Set();
+    const cabinWts    = new Set();
+
+    segIds.forEach((sid) => {
+      const ch = checkedMap[sid];
+      if (ch?.amount) checkedVals.add(String(ch.amount).toUpperCase());
+      if (ch?.weight) checkedWts.add(String(ch.weight).toUpperCase());
+      const cb = cabinMap[sid];
+      if (cb?.amount) cabinVals.add(String(cb.amount).toUpperCase());
+      if (cb?.weight) cabinWts.add(String(cb.weight).toUpperCase());
+    });
+
+    const join = (set) => Array.from(set).join(" / ");
+
+    const parts = [];
+    if (checkedVals.size || checkedWts.size) {
+      parts.push(
+        `Checked: ${checkedVals.size ? join(checkedVals) : "—"}${checkedWts.size ? ` (${join(checkedWts)})` : ""}`
+      );
+    }
+    if (cabinVals.size || cabinWts.size) {
+      parts.push(
+        `Cabin: ${cabinVals.size ? join(cabinVals) : "—"}${cabinWts.size ? ` (${join(cabinWts)})` : ""}`
+      );
+    }
+
+    return parts.join(" • ");
+  } catch {
+    return "";
+  }
+};

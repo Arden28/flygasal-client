@@ -9,6 +9,8 @@ import {
 } from "../../../utils/utils";
 import { IoTicketSharp } from "react-icons/io5";
 import { FaPersonWalking } from "react-icons/fa6";
+import { FaSuitcase } from "react-icons/fa";
+import { BsFillBackpack2Fill } from "react-icons/bs";
 
 /* ---------------- helpers ---------------- */
 const norm = (s = "") =>
@@ -78,6 +80,8 @@ const normalizeSegments = (flightLike) => {
       const refundable = !!s.refundable;
 
       return {
+        // NEW: keep segmentId so we can map baggage per segment
+        segmentId: s.segmentId || s.segmentID || s.segment_id || "",
         airline,
         flightNo,
         departure,
@@ -154,8 +158,6 @@ const guessFirstChain = (segs) => {
   };
 };
 
-
-
 function LayoverBar({ minutes, city, airport, short, long, protectedTransfer = true }) {
   const hh = Math.floor((minutes || 0) / 60);
   const mm = Math.max(0, Math.round((minutes || 0) % 60));
@@ -163,15 +165,11 @@ function LayoverBar({ minutes, city, airport, short, long, protectedTransfer = t
   return (
     <div className="mt-3 border border-slate-200 bg-slate-50 px-4 py-3">
       <div className="flex items-center justify-between gap-4">
-
         {/* Left: icon + text */}
         <div className="flex items-start gap-3">
-          {/* circular walk icon */}
           <div className="mt-0.5 inline-flex h-7 w-7 items-center text-white justify-center rounded-full bg-emerald-500">
-            {/* walk svg */}
             <FaPersonWalking className="text-white" />
           </div>
-
           <div className="leading-tight">
             <div className="text-[13px] font-semibold text-slate-800">
               Connection in {city || "—"}
@@ -202,7 +200,6 @@ function LayoverBar({ minutes, city, airport, short, long, protectedTransfer = t
             </span>
           )}
 
-          {/* Optional: short transfer chip (if you want it) */}
           {short && !long && (
             <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/90 px-3 py-1 text-[11px] font-medium text-white">
               Short transfer
@@ -217,7 +214,6 @@ function LayoverBar({ minutes, city, airport, short, long, protectedTransfer = t
   );
 }
 
-
 /* ---------------- component ---------------- */
 const FlightSegment = ({
   flight,
@@ -231,6 +227,8 @@ const FlightSegment = ({
   expectedOutboundDestination,
   expectedReturnOrigin,
   expectedReturnDestination,
+  // NEW: baggage map from MapOffer.normalize
+  baggage,
   // onSelect,
 }) => {
 
@@ -270,7 +268,7 @@ const FlightSegment = ({
     let chain =
       findLeg(allSegs, RET_O, RET_D, { prefer: "earliest", notBefore: outboundArrivesAt }) ||
       findLeg(allSegs, RET_O, RET_D, { prefer: "earliest" }) ||
-      findLeg(allSegs, RET_D, RET_O, { prefer: "earliest" });
+      findLeg(allSegs, RET_D, OUT_O, { prefer: "earliest" });
     return chain || [];
   }, [allSegs, RET_O, RET_D, outboundArrivesAt]);
 
@@ -293,6 +291,7 @@ const FlightSegment = ({
     if ((flight?.origin || flight?.destination) && (depAt || arrAt)) {
       legSegs = [
         {
+          segmentId: flight?.segmentId || flight?.segmentID || flight?.segment_id || "",
           airline: flight?.airline || flight?.marketingCarriers?.[0] || "",
           flightNo: flight?.flightNum || flight?.flightNumber || "",
           departure: flight?.origin || "",
@@ -324,28 +323,9 @@ const FlightSegment = ({
   const headerOrigin = isReturn ? RET_O : OUT_O;
   const headerDest = isReturn ? RET_D : OUT_D;
 
-
-  // stops label
-  // const stops = Math.max(0, (segments?.length || 1) - 1);
-  // const stopsText = stops === 0 ? "Non-stop" : `${stops} stop${stops > 1 ? "s" : ""}`;
-
-  // soft baggage & fare hints (use available fields if present, otherwise hide)
-  // const fareText =
-  //   flight?.fareClassLabel ||
-  //   flight?.cabin ||
-  //   (flight?.bookingCode ? `Class ${flight.bookingCode}` : "");
-  // const personalItem =
-  //   flight?.baggage?.personal ||
-  //   flight?.allowances?.personal ||
-  //   null; // e.g. "18 x 14 x 8 inches"
-  const carryOn =
-    flight?.baggage?.carry ||
-    flight?.allowances?.carry ||
-    (flight?.carryOn ? `(${flight.carryOn})` : null); // e.g. "1 x 7kg"
-  const checked =
-    flight?.baggage?.checked ||
-    flight?.allowances?.checked ||
-    (flight?.checkedBags ? `(${flight.checkedBags})` : null);
+  // PKFare baggage maps keyed by segmentId
+  const checkedBySeg = baggage?.adt?.checkedBySegment || {};
+  const cabinBySeg   = baggage?.adt?.carryOnBySegment || {};
 
   return (
     <div className="bg-white rounded-xl px-0 py-2">
@@ -354,20 +334,31 @@ const FlightSegment = ({
       <div className="border-b px-4 py-3 mb-3">
         <div className="flex justify-between items-start">
           <span className="font-medium text-md">{firstSegment?.departure || headerOrigin || ""} → {lastSegment?.arrival || headerDest || ""}</span>
-          {/* right-corner duration */}
           <div className="text-right text-xs text-slate-500">{formatDuration(flight?.journeyTime)}</div>
         </div>
       </div>
 
-
       {/* Render individual segments */}
       {(legSegs || []).map((segment, idx) => {
-        const next = legSegs[idx + 1]
-        const layoverMins = next ? diffMinutes(segment?.arrivalAt, next?.departureAt) : 0
-        const isShort = layoverMins > 0 && layoverMins < 60
-        const isLong = layoverMins >= 180
-        const nextDepLabel = next ? getAirportName(next.departure || "") : ""
-        const { city, airport } = parseAirportLabel(nextDepLabel)
+        const next = legSegs[idx + 1];
+        const layoverMins = next ? diffMinutes(segment?.arrivalAt, next?.departureAt) : 0;
+        const isShort = layoverMins > 0 && layoverMins < 60;
+        const isLong = layoverMins >= 180;
+        const nextDepLabel = next ? getAirportName(next.departure || "") : "";
+        const { city, airport } = parseAirportLabel(nextDepLabel);
+
+        // --- NEW: baggage per segment (friendly strings) ---
+        const sid = segment.segmentId || "";
+        const ch = sid ? checkedBySeg[sid] : null;
+        const cb = sid ? cabinBySeg[sid] : null;
+
+        const carryOnStr = cb
+          ? [cb.amount, cb.weight, cb.size].filter(Boolean).join(" ")
+          : null;
+
+        const checkedStr = ch
+          ? [ch.amount, ch.weight].filter(Boolean).join(" ")
+          : null;
 
         return (
           <React.Fragment key={idx}>
@@ -399,7 +390,6 @@ const FlightSegment = ({
 
             {/* body */}
             <div className="relative px-4 pb-3 pt-3">
-              {/* right-corner duration */}
               <div className="absolute right-5 top-3 text-xs text-slate-500">{formatDuration(segment?.flightTime)}</div>
 
               <div className="grid grid-cols-[20px_1fr] gap-4">
@@ -422,7 +412,7 @@ const FlightSegment = ({
                       {safeDate(segment.departureAt)} <span className="mx-1">•</span> Terminal {segment?.departureTerminal || "—"}
                     </div>
 
-                    {/* badges row (fare + personal item) */}
+                    {/* badges row (fare + seats) */}
                     <div className="mt-4 flex flex-wrap items-center gap-2">
                       {segment.bookingCode && (
                         <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
@@ -435,43 +425,25 @@ const FlightSegment = ({
                           Seats:&nbsp;<b className="font-medium">{segment.availabilityCount}</b> <IoTicketSharp />
                         </span>
                       )}
-
-                      {/* {flight?.baggage && (
-                        <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
-                          <span className="h-3 w-[2px] rounded bg-emerald-500" />
-                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                            <rect x="5" y="7" width="14" height="11" rx="2" />
-                            <path d="M9 7V6a3 3 0 0 1 6 0v1" />
-                          </svg>
-                          Personal Item ({personalItem})
-                        </span>
-                      )} */}
                     </div>
 
-                    {/* baggage chips row */}
+                    {/* baggage chips row (unchanged design, new data) */}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {carryOn && (
-                        <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
-                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                            <rect x="3" y="7" width="18" height="13" rx="2" />
-                            <path d="M8 7V6a4 4 0 0 1 8 0v1" />
-                          </svg>
-                          Carry on bag {carryOn}
+                      {carryOnStr && (
+                        <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700" title={`Carry-on for this segment: ${carryOnStr}`}>
+                          <BsFillBackpack2Fill />
+                          Carry on bag {carryOnStr}
                         </span>
                       )}
 
                       <span
                         className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ${
-                          checked
-                            ? "bg-slate-100 text-slate-700"
-                            : "bg-slate-100 text-slate-400"
+                          checkedStr ? "bg-slate-100 text-slate-700" : "bg-slate-100 text-slate-400"
                         }`}
+                        title={checkedStr ? `Checked for this segment: ${checkedStr}` : "No checked baggage included for this segment"}
                       >
-                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor">
-                          <rect x="3" y="7" width="18" height="13" rx="2" />
-                          <path d="M8 7V6a4 4 0 0 1 8 0v1" />
-                        </svg>
-                        {checked ? `Checked bag ${checked}` : "No checked bag"}
+                        <FaSuitcase />
+                        {checkedStr ? `Checked bag ${checkedStr}` : "No checked bag"}
                       </span>
                     </div>
                   </div>
@@ -488,7 +460,6 @@ const FlightSegment = ({
                   </div>
                 </div>
               </div>
-
             </div>
 
             {/* Insert layover bar between segments */}
@@ -503,10 +474,9 @@ const FlightSegment = ({
                 />
               </div>
             )}
-
           </React.Fragment>
-          )
-        })}
+        );
+      })}
 
       {/* notes */}
       <div className="mt-6 px-4 flex items-center justify-between">
