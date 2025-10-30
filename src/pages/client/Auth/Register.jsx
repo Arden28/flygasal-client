@@ -9,11 +9,9 @@ const T = {
   signup: "Sign Up",
   agent: "Agent",
   name: "Full Name",
-  country: "Country",
   select_country: "Select Country",
   phone: "Phone Number",
   email: "Email",
-  address: "Address",
   password: "Password",
   confirm_password: "Confirm Password",
   by_signup_i_agree_to_terms_and_policy: "By signing up, I agree to the Terms and Policy",
@@ -26,6 +24,8 @@ const T = {
   create_account: "Create Account",
   already_have_account: "Already have an account?",
   sign_in: "Sign in",
+
+  // Marketing copy
   hero_title: "Join Fly Gasal as an Agent",
   hero_sub:
     "Access wholesale rates, manage bookings, and grow your travel business with a dashboard built for agencies.",
@@ -52,14 +52,15 @@ const T = {
   step4_d: "Track performance, manage clients, and scale profitably.",
 };
 
-/* ---------------- Countries (mock) ---------------- */
-const countries = [
-  { id: "1", iso: "us", nicename: "United States", phonecode: "1" },
-  { id: "2", iso: "uk", nicename: "United Kingdom", phonecode: "44" },
-  { id: "3", iso: "ca", nicename: "Canada", phonecode: "1" },
-  { id: "4", iso: "in", nicename: "India", phonecode: "91" },
-  { id: "5", iso: "au", nicename: "Australia", phonecode: "61" },
-];
+/* ---------------- Countries (your new shape; example subset) ----------------
+   Each item:
+   {
+     code: "KE", iso3:"KEN", name:"Kenya", flag:"/assets/img/flags/ke.png",
+     capital:"Nairobi", cities:["Nairobi"], callingCode:"+254", callingCodes: ["+254"],
+     currency:{ code:"KES", name:"Kenyan shilling", symbol:"KSh" }, region:"Africa", ...
+   }
+--------------------------------------------------------------------------- */
+import countries from "../../../data/countries-modern.json"; // <-- ensure this exports your new array
 
 /* ---------------- Styles for react-select ---------------- */
 const selectStyles = {
@@ -80,20 +81,19 @@ const selectStyles = {
   }),
 };
 
-const CustomOption = ({ innerProps, data }) => (
+const CountryOption = ({ innerProps, data }) => (
   <div {...innerProps} className="d-flex align-items-center px-3 py-2">
-    <img src={`/assets/img/flags/${data.iso}.svg`} alt="" width={18} className="me-2" />
-    <span>
-      {data.nicename} (+{data.phonecode})
-    </span>
+    <img src={data.flag} alt="" width={18} height={12} className="me-2 rounded" />
+    <span className="me-2">{data.name}</span>
+    <span className="text-muted small">{data.callingCode || "—"}</span>
   </div>
 );
-const CustomSingleValue = ({ innerProps, data }) => (
+
+const CountrySingleValue = ({ innerProps, data }) => (
   <div {...innerProps} className="d-flex align-items-center">
-    <img src={`/assets/img/flags/${data.iso}.svg`} alt="" width={18} className="me-2" />
-    <span>
-      {data.nicename} (+{data.phonecode})
-    </span>
+    <img src={data.flag} alt="" width={18} height={12} className="me-2 rounded" />
+    <span className="me-2">{data.name}</span>
+    <span className="text-muted small">{data.callingCode || "—"}</span>
   </div>
 );
 
@@ -108,7 +108,9 @@ const strength = (pwd) => {
   if (/[^A-Za-z0-9]/.test(pwd)) sc++;
   return Math.min(sc, 4);
 };
+const stripPlus = (code) => (code || "").replace(/^\+/, "");
 
+/* ---------------- Component ---------------- */
 const Register = ({
   formToken = "static_form_token",
   hcaptchaSiteKey = "f32aa812-3254-479a-839c-4e8a70388cac",
@@ -129,7 +131,7 @@ const Register = ({
 
   const [form, setForm] = useState({
     name: "",
-    phone_country_code: null,
+    country: null, // holds the full country object (with code, name, callingCode, flag, etc.)
     phone: "",
     email: "",
     password: "",
@@ -144,7 +146,7 @@ const Register = ({
   const step1Errors = () => {
     const e = {};
     if (!form.name.trim()) e.name = "Full name is required.";
-    if (!form.phone_country_code) e.phone_country_code = "Country is required.";
+    if (!form.country) e.country = "Country is required.";
     if (!form.phone.trim()) e.phone = "Phone number is required.";
     else if (!/^\d{7,15}$/.test(form.phone.trim())) e.phone = "Phone must be 7–15 digits.";
     if (!form.email.trim()) e.email = "Email is required.";
@@ -175,9 +177,10 @@ const Register = ({
     setForm((f) => ({ ...f, [name]: v }));
     if (formErrors[name]) setFormErrors((er) => ({ ...er, [name]: "" }));
   };
+
   const onCountry = (opt) => {
-    setForm((f) => ({ ...f, phone_country_code: opt }));
-    if (formErrors.phone_country_code) setFormErrors((er) => ({ ...er, phone_country_code: "" }));
+    setForm((f) => ({ ...f, country: opt }));
+    if (formErrors.country) setFormErrors((er) => ({ ...er, country: "" }));
   };
 
   const goNext = () => {
@@ -214,8 +217,8 @@ const Register = ({
         email: form.email.trim().toLowerCase(),
         password: form.password,
         phone_number: form.phone.trim(),
-        phone_country_code: form.phone_country_code?.phonecode || null,
-        phone_country_iso: form.phone_country_code?.iso || null,
+        phone_country_code: stripPlus(form.country?.callingCode || ""), // numeric dial code
+        phone_country_iso: form.country?.code || null, // e.g., "KE"
         agency_name: form.agency_name.trim(),
         agency_license: form.agency_license.trim(),
         agency_city: form.agency_city.trim(),
@@ -228,7 +231,7 @@ const Register = ({
       // reset
       setForm({
         name: "",
-        phone_country_code: null,
+        country: null,
         phone: "",
         email: "",
         password: "",
@@ -258,9 +261,11 @@ const Register = ({
   const canContinue = useMemo(() => Object.keys(step1Errors()).length === 0, [form]);
   const canCreate = useMemo(() => Object.keys(step2Errors()).length === 0, [form, isAgreed, isCaptchaOk]);
 
+  const dial = form.country?.callingCode || "—";
+
   return (
     <>
-      {/* Brand tokens + page theme */}
+      {/* Brand tokens + subtle phone prefix style */}
       <style>{`
         :root{
           --brand:#F68221;
@@ -285,6 +290,27 @@ const Register = ({
         .brand-light{ background:var(--brand-50); border:1px solid rgba(246,130,33,.2); }
         .link-brand{ color:var(--brand-700); text-decoration:none; }
         .link-brand:hover{ color:var(--brand-600); text-decoration:underline; }
+
+        /* Subtle phone prefix – simple, not flashy */
+        .phone-prefix{
+          background:#fff;
+          color:#6b7280;
+          border-right:0;
+          font-weight:500;
+        }
+        .eye-toggle{
+          display:inline-grid;
+          place-items:center;
+          width:44px;
+          border:0;
+          background:transparent;
+          cursor:pointer;
+        }
+        .eye-toggle:focus{
+          outline:none;
+          box-shadow:0 0 0 .2rem rgba(246,130,33,.15);
+          border-radius:.5rem;
+        }
       `}</style>
 
       {/* Hero */}
@@ -438,22 +464,22 @@ const Register = ({
                         </div>
 
                         <div className="col-md-6">
-                          <label htmlFor="phone_country_code" className="form-label fw-semibold">
+                          <label htmlFor="country" className="form-label fw-semibold">
                             * {T.select_country}
                           </label>
                           <Select
-                            inputId="phone_country_code"
+                            inputId="country"
                             classNamePrefix="react-select"
                             options={countries}
-                            value={form.phone_country_code}
+                            value={form.country}
                             onChange={onCountry}
                             styles={selectStyles}
-                            components={{ Option: CustomOption, SingleValue: CustomSingleValue }}
-                            getOptionValue={(o) => o.id}
+                            components={{ Option: CountryOption, SingleValue: CountrySingleValue }}
+                            getOptionValue={(o) => o.code}
                             placeholder={T.select_country}
                           />
-                          {touched.phone_country_code && formErrors.phone_country_code && (
-                            <div className="text-danger small mt-1">{formErrors.phone_country_code}</div>
+                          {touched.country && formErrors.country && (
+                            <div className="text-danger small mt-1">{formErrors.country}</div>
                           )}
                         </div>
 
@@ -462,7 +488,9 @@ const Register = ({
                             * {T.phone}
                           </label>
                           <div className="input-group input-group-lg">
-                            <span className="input-group-text">+{form.phone_country_code?.phonecode || "—"}</span>
+                            <span className="input-group-text phone-prefix">
+                              {dial}
+                            </span>
                             <input
                               id="phone"
                               name="phone"
@@ -480,6 +508,9 @@ const Register = ({
                             {touched.phone && formErrors.phone && (
                               <div className="invalid-feedback">{formErrors.phone}</div>
                             )}
+                          </div>
+                          <div className="form-text">
+                            Enter digits only. We’ll combine it with the country code above.
                           </div>
                         </div>
 
@@ -523,14 +554,30 @@ const Register = ({
                               placeholder="••••••••"
                               autoComplete="new-password"
                             />
-                            {/* <button
+                            <button
                               type="button"
-                              className="btn btn-outline-secondary"
+                              className="eye-toggle"
                               onClick={() => setShowPwd((s) => !s)}
                               aria-label={showPwd ? "Hide password" : "Show password"}
+                              aria-pressed={showPwd}
+                              title={showPwd ? "Hide password" : "Show password"}
                             >
-                              {showPwd ? "Hide" : "Show"}
-                            </button> */}
+                              {showPwd ? (
+                                // eye-off
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
+                                  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-10-8-10-8a18.29 18.29 0 0 1 5.06-6.94" />
+                                  <path d="M1 1l22 22" />
+                                  <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 10 8 10 8a18.41 18.41 0 0 1-4.26 5.15" />
+                                  <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88" />
+                                </svg>
+                              ) : (
+                                // eye
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
+                                  <path d="M1 12s3-8 11-8 11 8 11 8-3 8-11 8-11-8-11-8Z" />
+                                  <circle cx="12" cy="12" r="3" />
+                                </svg>
+                              )}
+                            </button>
                           </div>
                           <div className="mt-2 d-flex gap-1">
                             {[0, 1, 2, 3].map((i) => (
@@ -568,14 +615,30 @@ const Register = ({
                               placeholder="••••••••"
                               autoComplete="new-password"
                             />
-                            {/* <button
+                            <button
                               type="button"
-                              className="btn btn-outline-secondary"
+                              className="eye-toggle"
                               onClick={() => setShowPwd2((s) => !s)}
                               aria-label={showPwd2 ? "Hide password" : "Show password"}
+                              aria-pressed={showPwd2}
+                              title={showPwd2 ? "Hide password" : "Show password"}
                             >
-                              {showPwd2 ? "Hide" : "Show"}
-                            </button> */}
+                              {showPwd2 ? (
+                                // eye-off
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
+                                  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-10-8-10-8a18.29 18.29 0 0 1 5.06-6.94" />
+                                  <path d="M1 1l22 22" />
+                                  <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 10 8 10 8a18.41 18.41 0 0 1-4.26 5.15" />
+                                  <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88" />
+                                </svg>
+                              ) : (
+                                // eye
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
+                                  <path d="M1 12s3-8 11-8 11 8 11 8-3 8-11 8-11-8-11-8Z" />
+                                  <circle cx="12" cy="12" r="3" />
+                                </svg>
+                              )}
+                            </button>
                           </div>
                           {touched.confirm_password && formErrors.confirm_password && (
                             <div className="invalid-feedback">{formErrors.confirm_password}</div>
