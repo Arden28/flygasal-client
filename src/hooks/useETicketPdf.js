@@ -183,15 +183,6 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
         doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(...rgb.text);
         doc.text(paxWrapped, M + 4, y + 12.3);
 
-        // Right box
-        // doc.setDrawColor(...rgb.line);
-        // doc.setFillColor(...rgb.wash2);
-        // doc.roundedRect(M + leftW + 6, y, rightW, leftRectH, 3, 3, "FD");
-        // doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); doc.setTextColor(71,85,105);
-        // doc.text((paid ? "Total Paid" : "Amount Due").toUpperCase(), M + leftW + 10, y + 6);
-        // doc.setFontSize(13); doc.setTextColor(...rgb.text);
-        // doc.text(money(amountDue, currency), M + W - 7, y + 12.6, { align: "right" });
-
         y += leftRectH + 8;
       }
 
@@ -415,16 +406,6 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
         }
       }
 
-      /* ---------- Fare ---------- */
-      // if (solutions0) {
-      //   const need = 20;
-      //   ensure(need);
-      //   doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(...rgb.text);
-      //   doc.text("Fare Details", M, y);
-      //   doc.setFont("helvetica", "normal"); doc.setFontSize(9.6);
-      //   doc.text(`Total: ${money(solutions0?.buyerAmount, solutions0?.currency)}`, M, y + 6.8);
-      //   y += 16;
-      // }
 
       /* ---------- Terms + footer ---------- */
       const terms =
