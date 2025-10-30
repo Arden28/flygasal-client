@@ -1,8 +1,8 @@
-import React, { useState, useContext, useRef } from "react";
+import React, { useState, useContext, useRef, useMemo } from "react";
 import Select from "react-select";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
-import { AuthContext } from "../../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../../../context/AuthContext";
 
 /* ---------------- i18n ---------------- */
 const T = {
@@ -26,15 +26,14 @@ const T = {
   create_account: "Create Account",
   already_have_account: "Already have an account?",
   sign_in: "Sign in",
-
-  // Marketing copy
   hero_title: "Join Fly Gasal as an Agent",
-  hero_sub: "Access wholesale rates, manage bookings, and grow your travel business with a dashboard built for agencies.",
+  hero_sub:
+    "Access wholesale rates, manage bookings, and grow your travel business with a dashboard built for agencies.",
   cta_get_started: "Get Started",
   why_join_title: "Why join Fly Gasal?",
   why_join_sub: "Access wholesale rates and premium inventory to boost your travel agency's revenue.",
   feat1_title: "Wholesale Rates",
-  feat1_desc: "Access exclusive B2B fares and room rates to maximize your margins.",
+  feat1_desc: "Exclusive B2B fares and room rates to maximize your margins.",
   feat2_title: "Premium Inventory",
   feat2_desc: "Book flights and stays across global carriers and top hotels.",
   feat3_title: "Agent Dashboard",
@@ -68,15 +67,16 @@ const selectStyles = {
     ...p,
     borderRadius: 12,
     minHeight: 48,
-    borderColor: s.isFocused ? "#60a5fa" : "#e5e7eb",
-    boxShadow: s.isFocused ? "0 0 0 3px rgba(59,130,246,.2)" : "none",
-    ":hover": { borderColor: "#93c5fd" },
+    borderColor: s.isFocused ? "#F68221" : "#e5e7eb",
+    boxShadow: s.isFocused ? "0 0 0 3px rgba(246,130,33,.18)" : "none",
+    ":hover": { borderColor: "#f5a46a" },
   }),
   menu: (p) => ({ ...p, borderRadius: 12, overflow: "hidden" }),
   option: (p, s) => ({
     ...p,
     padding: "10px 12px",
-    background: s.isFocused ? "#f3f4f6" : "white",
+    background: s.isFocused ? "#fff7ee" : "white",
+    color: "#1f2937",
   }),
 };
 
@@ -124,6 +124,8 @@ const Register = ({
   const [isLoading, setIsLoading] = useState(false);
   const [formErrors, setFormErrors] = useState({});
   const [touched, setTouched] = useState({});
+  const [showPwd, setShowPwd] = useState(false);
+  const [showPwd2, setShowPwd2] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -222,6 +224,7 @@ const Register = ({
         form_token: formToken,
       };
       await register(payload);
+
       // reset
       setForm({
         name: "",
@@ -252,16 +255,36 @@ const Register = ({
   const pwdBars = ["#fee2e2", "#fde68a", "#bbf7d0", "#86efac"];
   const pwdBarColor = pwdScore ? pwdBars[pwdScore - 1] : "#e5e7eb";
 
+  const canContinue = useMemo(() => Object.keys(step1Errors()).length === 0, [form]);
+  const canCreate = useMemo(() => Object.keys(step2Errors()).length === 0, [form, isAgreed, isCaptchaOk]);
+
   return (
     <>
+      {/* Brand tokens + page theme */}
       <style>{`
-        .hero-grad{background:linear-gradient(135deg,#f8fbff 0%,#f5f7ff 40%,#f9f9ff 100%)}
-        .card-glass{backdrop-filter:saturate(180%) blur(6px); background:rgba(255,255,255,.88)}
-        .step-dot{width:28px;height:28px;border-radius:9999px}
-        .step-dot.active{background:#2563eb;color:#fff}
-        .step-dot.done{background:#22c55e;color:#fff}
+        :root{
+          --brand:#F68221;
+          --brand-600:#F5740A;
+          --brand-700:#E96806;
+          --brand-50:#FFF7EE;
+          --ink:#1f2937;
+        }
+        .hero-grad{background: radial-gradient(800px 300px at 10% 0%, rgba(246,130,33,.08), transparent 60%), linear-gradient(180deg,#ffffff, #fbfbfb)}
+        .card-glass{backdrop-filter:saturate(180%) blur(6px); background:rgba(255,255,255,.9); border:1px solid rgba(246,130,33,.12)}
         .feature-card{transition:transform .2s ease, box-shadow .2s ease}
         .feature-card:hover{transform:translateY(-2px); box-shadow:0 10px 20px rgba(0,0,0,.06)}
+        .step-dot{width:28px;height:28px;border-radius:9999px; display:flex; align-items:center; justify-content:center}
+        .step-dot.active{background:var(--brand);color:#fff}
+        .step-dot.done{background:#22c55e;color:#fff}
+        .field-focus:focus{
+          border-color: var(--brand) !important;
+          box-shadow:0 0 0 .2rem rgba(246,130,33,.15) !important;
+        }
+        .brand-btn{ background:var(--brand); border-color:var(--brand); }
+        .brand-btn:hover{ background:var(--brand-600); border-color:var(--brand-600); }
+        .brand-light{ background:var(--brand-50); border:1px solid rgba(246,130,33,.2); }
+        .link-brand{ color:var(--brand-700); text-decoration:none; }
+        .link-brand:hover{ color:var(--brand-600); text-decoration:underline; }
       `}</style>
 
       {/* Hero */}
@@ -269,9 +292,14 @@ const Register = ({
         <div className="container">
           <div className="row align-items-center g-4">
             <div className="col-lg-6">
-              <h1 className="fw-bold mb-3">{T.hero_title}</h1>
+              <span className="badge brand-light rounded-pill mb-3">B2B Agents</span>
+              <h1 className="fw-bold mb-3" style={{ color: "var(--ink)" }}>
+                {T.hero_title}
+              </h1>
               <p className="text-muted mb-4">{T.hero_sub}</p>
-              <a href="#why-join" className="btn btn-primary btn-lg px-4">{T.cta_get_started}</a>
+              <a href="#signup-form" className="btn btn-lg brand-btn text-white px-4">
+                {T.cta_get_started}
+              </a>
             </div>
             <div className="col-lg-6">
               <img src="/assets/img/agent.jpg" alt="Agent" className="img-fluid rounded-4 shadow-sm" />
@@ -281,7 +309,7 @@ const Register = ({
       </section>
 
       {/* Why Join / Advantages */}
-      <section className="py-5 bg-white" id="why-join">
+      <section className="py-5 bg-white">
         <div className="container">
           <div className="text-center mb-4">
             <h2 className="fw-semibold">{T.why_join_title}</h2>
@@ -338,7 +366,10 @@ const Register = ({
                   { n: 4, t: T.step4_t, d: T.step4_d },
                 ].map((s) => (
                   <li key={s.n} className="d-flex align-items-start mb-3">
-                    <div className="me-3 d-flex align-items-center justify-content-center rounded-circle bg-white border" style={{width:40,height:40}}>
+                    <div
+                      className="me-3 d-flex align-items-center justify-content-center rounded-circle bg-white border"
+                      style={{ width: 40, height: 40 }}
+                    >
                       <strong>{s.n}</strong>
                     </div>
                     <div>
@@ -359,24 +390,23 @@ const Register = ({
       {/* Form */}
       <section className="py-4 bg-light" id="signup-form">
         <div className="container">
-          <div className="col-lg-8 mx-auto">
+          <div className="col-lg-9 mx-auto">
             <div className="card card-glass border-0 shadow-sm rounded-4">
               <div className="card-body p-4 p-md-5">
-
                 {/* Header + Stepper */}
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <h3 className="mb-0 fw-semibold">
-                    {T.signup} <span className="text-primary">{T.agent}</span>
+                    {T.signup} <span style={{ color: "var(--brand)" }}>{T.agent}</span>
                   </h3>
-                  <a href="/login" className="text-sm text-decoration-none">
+                  <a href="/login" className="text-sm text-decoration-none link-brand">
                     {T.already_have_account} <strong>{T.sign_in}</strong>
                   </a>
                 </div>
 
                 <div className="d-flex align-items-center gap-3 mb-4">
-                  <div className={`step-dot d-flex align-items-center justify-content-center ${step === 1 ? "active" : "done"}`}>1</div>
-                  <div className="flex-fill" style={{height:2, background:"#e5e7eb"}} />
-                  <div className={`step-dot d-flex align-items-center justify-content-center ${step === 2 ? "active" : ""}`}>2</div>
+                  <div className={`step-dot ${step === 1 ? "active" : "done"}`}>1</div>
+                  <div className="flex-fill" style={{ height: 2, background: "#e5e7eb" }} />
+                  <div className={`step-dot ${step === 2 ? "active" : ""}`}>2</div>
                 </div>
 
                 {formErrors.general && <div className="alert alert-danger">{formErrors.general}</div>}
@@ -386,23 +416,31 @@ const Register = ({
                     <>
                       <div className="row g-3">
                         <div className="col-md-12">
-                          <label htmlFor="name" className="form-label">* {T.name}</label>
+                          <label htmlFor="name" className="form-label fw-semibold">
+                            * {T.name}
+                          </label>
                           <input
                             id="name"
                             name="name"
                             type="text"
-                            className={`form-control form-control-lg ${touched.name && formErrors.name ? "is-invalid" : ""}`}
+                            className={`form-control form-control-lg field-focus ${
+                              touched.name && formErrors.name ? "is-invalid" : ""
+                            }`}
                             value={form.name}
                             onChange={onInput}
                             onBlur={() => markTouched("name")}
                             placeholder="Jane Doe"
                             autoComplete="name"
                           />
-                          {touched.name && formErrors.name && <div className="invalid-feedback">{formErrors.name}</div>}
+                          {touched.name && formErrors.name && (
+                            <div className="invalid-feedback">{formErrors.name}</div>
+                          )}
                         </div>
 
                         <div className="col-md-6">
-                          <label htmlFor="phone_country_code" className="form-label">* {T.select_country}</label>
+                          <label htmlFor="phone_country_code" className="form-label fw-semibold">
+                            * {T.select_country}
+                          </label>
                           <Select
                             inputId="phone_country_code"
                             classNamePrefix="react-select"
@@ -420,14 +458,18 @@ const Register = ({
                         </div>
 
                         <div className="col-md-6">
-                          <label htmlFor="phone" className="form-label">* {T.phone}</label>
+                          <label htmlFor="phone" className="form-label fw-semibold">
+                            * {T.phone}
+                          </label>
                           <div className="input-group input-group-lg">
                             <span className="input-group-text">+{form.phone_country_code?.phonecode || "—"}</span>
                             <input
                               id="phone"
                               name="phone"
                               type="tel"
-                              className={`form-control ${touched.phone && formErrors.phone ? "is-invalid" : ""}`}
+                              className={`form-control field-focus ${
+                                touched.phone && formErrors.phone ? "is-invalid" : ""
+                              }`}
                               value={form.phone}
                               onChange={onInput}
                               onBlur={() => markTouched("phone")}
@@ -435,62 +477,106 @@ const Register = ({
                               inputMode="numeric"
                               autoComplete="tel"
                             />
-                            {touched.phone && formErrors.phone && <div className="invalid-feedback">{formErrors.phone}</div>}
+                            {touched.phone && formErrors.phone && (
+                              <div className="invalid-feedback">{formErrors.phone}</div>
+                            )}
                           </div>
                         </div>
 
                         <div className="col-md-6">
-                          <label htmlFor="email" className="form-label">* {T.email}</label>
+                          <label htmlFor="email" className="form-label fw-semibold">
+                            * {T.email}
+                          </label>
                           <input
                             id="email"
                             name="email"
                             type="email"
-                            className={`form-control form-control-lg ${touched.email && formErrors.email ? "is-invalid" : ""}`}
+                            className={`form-control form-control-lg field-focus ${
+                              touched.email && formErrors.email ? "is-invalid" : ""
+                            }`}
                             value={form.email}
                             onChange={onInput}
                             onBlur={() => markTouched("email")}
                             placeholder="you@company.com"
                             autoComplete="email"
                           />
-                          {touched.email && formErrors.email && <div className="invalid-feedback">{formErrors.email}</div>}
+                          {touched.email && formErrors.email && (
+                            <div className="invalid-feedback">{formErrors.email}</div>
+                          )}
                         </div>
 
                         <div className="col-md-6">
-                          <label htmlFor="password" className="form-label">* {T.password}</label>
-                          <div>
+                          <label htmlFor="password" className="form-label fw-semibold">
+                            * {T.password}
+                          </label>
+                          <div className="input-group input-group-lg">
                             <input
                               id="password"
                               name="password"
-                              type="password"
-                              className={`form-control form-control-lg ${touched.password && formErrors.password ? "is-invalid" : ""}`}
+                              type={showPwd ? "text" : "password"}
+                              className={`form-control field-focus ${
+                                touched.password && formErrors.password ? "is-invalid" : ""
+                              }`}
                               value={form.password}
                               onChange={onInput}
                               onBlur={() => markTouched("password")}
                               placeholder="••••••••"
                               autoComplete="new-password"
                             />
-                            <div className="mt-2 d-flex gap-1">
-                              {[0,1,2,3].map((i) => (
-                                <div key={i} style={{height:6, flex:1, borderRadius:4, background: i < strength(form.password) ? pwdBarColor : "#e5e7eb"}} />
-                              ))}
-                            </div>
-                            {touched.password && formErrors.password && <div className="invalid-feedback d-block">{formErrors.password}</div>}
+                            <button
+                              type="button"
+                              className="btn btn-outline-secondary"
+                              onClick={() => setShowPwd((s) => !s)}
+                              aria-label={showPwd ? "Hide password" : "Show password"}
+                            >
+                              {showPwd ? "Hide" : "Show"}
+                            </button>
                           </div>
+                          <div className="mt-2 d-flex gap-1">
+                            {[0, 1, 2, 3].map((i) => (
+                              <div
+                                key={i}
+                                style={{
+                                  height: 6,
+                                  flex: 1,
+                                  borderRadius: 4,
+                                  background: i < strength(form.password) ? pwdBarColor : "#e5e7eb",
+                                }}
+                              />
+                            ))}
+                          </div>
+                          {touched.password && formErrors.password && (
+                            <div className="invalid-feedback d-block">{formErrors.password}</div>
+                          )}
                         </div>
 
                         <div className="col-md-6">
-                          <label htmlFor="confirm_password" className="form-label">* {T.confirm_password}</label>
-                          <input
-                            id="confirm_password"
-                            name="confirm_password"
-                            type="password"
-                            className={`form-control form-control-lg ${touched.confirm_password && formErrors.confirm_password ? "is-invalid" : ""}`}
-                            value={form.confirm_password}
-                            onChange={onInput}
-                            onBlur={() => markTouched("confirm_password")}
-                            placeholder="••••••••"
-                            autoComplete="new-password"
-                          />
+                          <label htmlFor="confirm_password" className="form-label fw-semibold">
+                            * {T.confirm_password}
+                          </label>
+                          <div className="input-group input-group-lg">
+                            <input
+                              id="confirm_password"
+                              name="confirm_password"
+                              type={showPwd2 ? "text" : "password"}
+                              className={`form-control field-focus ${
+                                touched.confirm_password && formErrors.confirm_password ? "is-invalid" : ""
+                              }`}
+                              value={form.confirm_password}
+                              onChange={onInput}
+                              onBlur={() => markTouched("confirm_password")}
+                              placeholder="••••••••"
+                              autoComplete="new-password"
+                            />
+                            <button
+                              type="button"
+                              className="btn btn-outline-secondary"
+                              onClick={() => setShowPwd2((s) => !s)}
+                              aria-label={showPwd2 ? "Hide password" : "Show password"}
+                            >
+                              {showPwd2 ? "Hide" : "Show"}
+                            </button>
+                          </div>
                           {touched.confirm_password && formErrors.confirm_password && (
                             <div className="invalid-feedback">{formErrors.confirm_password}</div>
                           )}
@@ -498,7 +584,13 @@ const Register = ({
                       </div>
 
                       <div className="mt-4 d-flex justify-content-end">
-                        <button type="button" className="btn btn-primary btn-lg px-4" onClick={goNext}>
+                        <button
+                          type="button"
+                          className="btn btn-lg brand-btn text-white px-4"
+                          onClick={goNext}
+                          disabled={!canContinue}
+                          title={!canContinue ? "Please complete required fields" : undefined}
+                        >
                           {T.continue}
                         </button>
                       </div>
@@ -509,63 +601,87 @@ const Register = ({
                     <>
                       <div className="row g-3">
                         <div className="col-md-6">
-                          <label htmlFor="agency_name" className="form-label">* {T.agency_name}</label>
+                          <label htmlFor="agency_name" className="form-label fw-semibold">
+                            * {T.agency_name}
+                          </label>
                           <input
                             id="agency_name"
                             name="agency_name"
                             type="text"
-                            className={`form-control form-control-lg ${touched.agency_name && formErrors.agency_name ? "is-invalid" : ""}`}
+                            className={`form-control form-control-lg field-focus ${
+                              touched.agency_name && formErrors.agency_name ? "is-invalid" : ""
+                            }`}
                             value={form.agency_name}
                             onChange={onInput}
                             onBlur={() => markTouched("agency_name")}
                             placeholder="Awesome Travels Ltd."
                           />
-                          {touched.agency_name && formErrors.agency_name && <div className="invalid-feedback">{formErrors.agency_name}</div>}
+                          {touched.agency_name && formErrors.agency_name && (
+                            <div className="invalid-feedback">{formErrors.agency_name}</div>
+                          )}
                         </div>
 
                         <div className="col-md-6">
-                          <label htmlFor="agency_license" className="form-label">* {T.agency_license}</label>
+                          <label htmlFor="agency_license" className="form-label fw-semibold">
+                            * {T.agency_license}
+                          </label>
                           <input
                             id="agency_license"
                             name="agency_license"
                             type="text"
-                            className={`form-control form-control-lg ${touched.agency_license && formErrors.agency_license ? "is-invalid" : ""}`}
+                            className={`form-control form-control-lg field-focus ${
+                              touched.agency_license && formErrors.agency_license ? "is-invalid" : ""
+                            }`}
                             value={form.agency_license}
                             onChange={onInput}
                             onBlur={() => markTouched("agency_license")}
                             placeholder="IATA / Local License"
                           />
-                          {touched.agency_license && formErrors.agency_license && <div className="invalid-feedback">{formErrors.agency_license}</div>}
+                          {touched.agency_license && formErrors.agency_license && (
+                            <div className="invalid-feedback">{formErrors.agency_license}</div>
+                          )}
                         </div>
 
                         <div className="col-md-6">
-                          <label htmlFor="agency_city" className="form-label">* {T.agency_city}</label>
+                          <label htmlFor="agency_city" className="form-label fw-semibold">
+                            * {T.agency_city}
+                          </label>
                           <input
                             id="agency_city"
                             name="agency_city"
                             type="text"
-                            className={`form-control form-control-lg ${touched.agency_city && formErrors.agency_city ? "is-invalid" : ""}`}
+                            className={`form-control form-control-lg field-focus ${
+                              touched.agency_city && formErrors.agency_city ? "is-invalid" : ""
+                            }`}
                             value={form.agency_city}
                             onChange={onInput}
                             onBlur={() => markTouched("agency_city")}
                             placeholder="Nairobi"
                           />
-                          {touched.agency_city && formErrors.agency_city && <div className="invalid-feedback">{formErrors.agency_city}</div>}
+                          {touched.agency_city && formErrors.agency_city && (
+                            <div className="invalid-feedback">{formErrors.agency_city}</div>
+                          )}
                         </div>
 
                         <div className="col-md-6">
-                          <label htmlFor="agency_address" className="form-label">* {T.agency_address}</label>
+                          <label htmlFor="agency_address" className="form-label fw-semibold">
+                            * {T.agency_address}
+                          </label>
                           <input
                             id="agency_address"
                             name="agency_address"
                             type="text"
-                            className={`form-control form-control-lg ${touched.agency_address && formErrors.agency_address ? "is-invalid" : ""}`}
+                            className={`form-control form-control-lg field-focus ${
+                              touched.agency_address && formErrors.agency_address ? "is-invalid" : ""
+                            }`}
                             value={form.agency_address}
                             onChange={onInput}
                             onBlur={() => markTouched("agency_address")}
                             placeholder="123 Riverside Rd."
                           />
-                          {touched.agency_address && formErrors.agency_address && <div className="invalid-feedback">{formErrors.agency_address}</div>}
+                          {touched.agency_address && formErrors.agency_address && (
+                            <div className="invalid-feedback">{formErrors.agency_address}</div>
+                          )}
                         </div>
                       </div>
 
@@ -592,7 +708,9 @@ const Register = ({
                           onError={() => setIsCaptchaOk(false)}
                           ref={captchaRef}
                         />
-                        {formErrors.recaptcha && <div className="text-danger small mt-1">{formErrors.recaptcha}</div>}
+                        {formErrors.recaptcha && (
+                          <div className="text-danger small mt-1">{formErrors.recaptcha}</div>
+                        )}
                       </div>
 
                       {/* Actions */}
@@ -600,10 +718,19 @@ const Register = ({
                         <button type="button" className="btn btn-light btn-lg" onClick={goBack}>
                           {T.back}
                         </button>
-                        <button type="submit" className="btn btn-primary btn-lg px-4" disabled={isLoading}>
+                        <button
+                          type="submit"
+                          className="btn btn-lg brand-btn text-white px-4"
+                          disabled={isLoading || !canCreate}
+                          title={!canCreate ? "Please complete required fields" : undefined}
+                        >
                           {isLoading ? (
                             <>
-                              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+                              <span
+                                className="spinner-border spinner-border-sm me-2"
+                                role="status"
+                                aria-hidden="true"
+                              />
                               {T.create_account}
                             </>
                           ) : (
@@ -621,7 +748,7 @@ const Register = ({
             </div>
 
             <p className="text-center mt-3 text-muted">
-              {T.already_have_account} <a href="/login">{T.sign_in}</a>
+              {T.already_have_account} <a href="/login" className="link-brand">{T.sign_in}</a>
             </p>
           </div>
         </div>
