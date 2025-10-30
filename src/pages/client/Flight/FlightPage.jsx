@@ -796,7 +796,7 @@ const FlightPage = () => {
             // compute per-leg carriers, then merge
             airlines: Array.from(new Set([...carriersOfLeg(ob), ...carriersOfLeg(rt)])),
             cabin: cabinOf(ob),
-            baggage: makeBaggageLabel(ob),
+            baggage: ob.baggage || [],
             refundable: false,
             // Always prefer the raw backend PB stashed on the outbound leg/offer
             priceBreakdown: ob?.__sourcePB || out?.__sourcePB || out?.priceBreakdown || null,
