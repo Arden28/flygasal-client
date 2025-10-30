@@ -759,7 +759,7 @@ const FlightPage = () => {
           totalStops,
           airlines,
           cabin: m.cabin || cabinOf(m.legs?.[0]),
-          baggage: null,
+          baggage: m.baggage || [],
           refundable: false,
           // itinerary-level priceBreakdown: prefer container's, else from first leg's __sourcePB
           priceBreakdown: m.priceBreakdown || m.legs?.[0]?.__sourcePB || null,

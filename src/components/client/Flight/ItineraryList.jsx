@@ -382,7 +382,7 @@ const SegmentBlock = ({
       arrCity ||
       "";
 
-    // console.log("Flight object:", flight);
+    console.log("Flight object:", flight);
   return (
     <div className="overflow-hidden bg-white">
       {/* Route bar */}
@@ -672,6 +672,7 @@ const ItineraryList = ({
             const airlineLogo = airlineCode ? `/assets/img/airlines/${airlineCode}.png` : "/assets/img/airlines/placeholder.png";
             const airlineName = airlineCode ? (typeof getAirlineName === "function" ? getAirlineName(airlineCode) : airlineCode) : "Airline";
             const anchorId = `price-btn-${key}`;
+            
 
             return (
               <motion.li
