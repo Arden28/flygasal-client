@@ -9,7 +9,6 @@ import jsPDF from "jspdf";
 import DepositModal from "../../../components/client/Account/DepositModal";
 import apiService from "../../../api/apiService";
 import useETicketPdf from "../../../hooks/useETicketPdf";
-import BookingHeader from "../../../components/client/Flight/BookingHeader";
 
 /* ---------------- Payment Gateways ---------------- */
 const paymentGateways = [
@@ -325,6 +324,206 @@ const BookingConfirmation = ({
     };
   }, [showTimer]);
 
+  // ---------- PDF helpers: clean & elegant ----------
+  const toDataURL = (url) =>
+    new Promise((resolve) => {
+      if (!url) return resolve(null);
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = function () {
+        try {
+          const c = document.createElement("canvas");
+          c.width = this.naturalWidth || this.width;
+          c.height = this.naturalHeight || this.height;
+          const ctx = c.getContext("2d");
+          ctx.drawImage(this, 0, 0);
+          resolve(c.toDataURL("image/png"));
+        } catch {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+
+  const hexToRGB = (hex) => {
+    const h = (hex || "").replace("#", "");
+    if (h.length !== 6) return [0, 0, 0];
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  };
+
+  const sectionTitle = (doc, x, y, title, rgb) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10.5);
+    doc.setTextColor(...rgb.text);
+    doc.text(title.toUpperCase(), x, y);
+    // light underline
+    doc.setDrawColor(...rgb.line);
+    doc.line(x, y + 1.5, x + 180, y + 1.5);
+    return y + 6;
+  };
+
+  const overline = (doc, x, y, text, rgb) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(71, 85, 105); // slate-600
+    doc.text(text.toUpperCase(), x, y);
+    return y + 3.5;
+  };
+
+  const chip = (doc, x, y, label, opts = {}) => {
+    const padX = 2.8, padY = 1.8;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    const w = doc.getTextWidth(label) + padX * 2;
+    const h = 6.5;
+    const { fill = [248, 250, 252], stroke = [226, 232, 240], text = [15, 23, 42], r = 2 } = opts;
+    if (doc.roundedRect) {
+      doc.setFillColor(...fill);
+      doc.setDrawColor(...stroke);
+      doc.roundedRect(x, y - h + 1.5, w, h, r, r, "FD");
+    } else {
+      doc.setFillColor(...fill);
+      doc.setDrawColor(...stroke);
+      doc.rect(x, y - h + 1.5, w, h, "FD");
+    }
+    doc.setTextColor(...text);
+    doc.text(label, x + padX, y - 2);
+    return x + w;
+  };
+
+  const kvGrid = (doc, x, y, width, pairs, columns, rgb) => {
+    const colW = width / columns;
+    const lh = 6;
+    let row = 0;
+    pairs.forEach((kv, i) => {
+      const col = i % columns;
+      if (col === 0 && i > 0) row++;
+      const cx = x + col * colW;
+      const cy = y + row * lh * 2;
+
+      // label
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(71, 85, 105);
+      doc.text(String(kv.label).toUpperCase(), cx, cy);
+
+      // value
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(...rgb.text);
+      const wrapped = doc.splitTextToSize(kv.value ?? "—", colW);
+      doc.text(wrapped, cx, cy + 4.5);
+    });
+    const totalRows = Math.ceil(pairs.length / columns);
+    return y + totalRows * lh * 2 + 4;
+  };
+
+  // Flexible, clean table with zebra rows and per-column alignment
+  const drawTable = (doc, startX, startY, tableW, headers, rows, colWidths, rgb, opt = {}) => {
+    const headerH = opt.headerH ?? 8;
+    const rowHMin = opt.rowH ?? 8;
+    const margin = opt.margin ?? 14;
+    const zebra = opt.zebra ?? true;
+    const aligns = opt.aligns || headers.map(() => "left"); // 'left' | 'right' | 'center'
+
+    const pageH = doc.internal.pageSize.getHeight();
+    const ensurePage = (needed) => {
+      if (startY + needed > pageH - margin) {
+        doc.addPage();
+        startY = margin;
+      }
+    };
+
+    // Header
+    ensurePage(headerH + 2);
+    doc.setDrawColor(...rgb.line);
+    doc.setFillColor(248, 250, 252); // wash
+    doc.rect(startX, startY, tableW, headerH, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(71, 85, 105);
+
+    let x = startX;
+    headers.forEach((h, i) => {
+      const cellW = colWidths[i];
+      const tx = x + (aligns[i] === "right" ? cellW - 2 : aligns[i] === "center" ? cellW / 2 : 2);
+      const align = aligns[i] === "right" ? "right" : aligns[i] === "center" ? "center" : "left";
+      doc.text(String(h).toUpperCase(), tx, startY + headerH - 2.5, { align });
+      x += cellW;
+    });
+    startY += headerH;
+    doc.line(startX, startY, startX + tableW, startY);
+
+    // Rows
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(...rgb.text);
+
+    rows.forEach((r, rowIdx) => {
+      // wrap & compute row height
+      const wrapped = r.map((cell, i) => doc.splitTextToSize(cell == null ? "—" : String(cell), colWidths[i] - 4));
+      const lines = Math.max(...wrapped.map((w) => w.length));
+      const rowH = Math.max(rowHMin, lines * 5.2 + 3);
+
+      ensurePage(rowH + 2);
+
+      // zebra fill
+      if (zebra && rowIdx % 2 === 0) {
+        doc.setFillColor(250, 250, 251);
+        doc.rect(startX, startY, tableW, rowH, "F");
+      }
+
+      // cells
+      let cx = startX;
+      wrapped.forEach((w, i) => {
+        const align = aligns[i] === "right" ? "right" : aligns[i] === "center" ? "center" : "left";
+        const tx = cx + (align === "right" ? colWidths[i] - 2 : align === "center" ? colWidths[i] / 2 : 2);
+        doc.text(w, tx, startY + 5, { align });
+        cx += colWidths[i];
+      });
+
+      // row separator
+      startY += rowH;
+      doc.setDrawColor(...rgb.line);
+      doc.line(startX, startY, startX + tableW, startY);
+    });
+
+    return startY;
+  };
+
+  const amountBox = (doc, x, y, w, h, title, value, rgb) => {
+    // box
+    doc.setDrawColor(...rgb.line);
+    doc.setFillColor(248, 250, 252);
+    doc.rect(x, y, w, h, "F");
+
+    // title (overline)
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(71, 85, 105);
+    doc.text(title.toUpperCase(), x + 5, y + 6);
+
+    // value
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(...rgb.text);
+    doc.text(value, x + w - 5, y + h - 6, { align: "right" });
+  };
+
+  const addFooter = (doc, rgb, generatedNote) => {
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139); // slate-500
+      const w = doc.internal.pageSize.getWidth();
+      const h = doc.internal.pageSize.getHeight();
+      if (generatedNote) doc.text(generatedNote, 14, h - 8);
+      doc.text(`Page ${i} of ${pageCount}`, w - 14, h - 8, { align: "right" });
+    }
+  };
 
 /* ---------------- PDF: premium E-TICKET (refined header, staggered segments) ---------------- */
 
@@ -527,6 +726,12 @@ const { downloadETicket, isDownloadingPdf } = useETicketPdf({ brandColor });
   const journeys = bookingData?.journeys || [];
   const { className: bookingStatusClassName, text: bookingStatusText } = statusDisplay(orderStatus);
 
+  const total = steps.length;
+  const step = Math.min(Math.max(currentStep, 1), total);
+
+  // Progress percentage (step index based)
+  const progressPct = total > 1 ? ((step - 1) / (total - 1)) * 100 : 0;
+
   return (
     <>
       {/* Minimal table styling */}
@@ -570,12 +775,85 @@ const { downloadETicket, isDownloadingPdf } = useETicketPdf({ brandColor });
 
       <div className="min-h-screen bg-[#F6F6F7]">
         {/* ===== Header ===== */}
-        <BookingHeader
-          searchParams={new URLSearchParams(location.search)}
-          getAirportName={getAirportName}
-          formatDate={formatDate}
-          currentStep={3}
-        />
+        <header
+          className={[
+            "w-full bg-white text-slate-900 border-b border-slate-200",
+            className,
+          ].join(" ")}
+          role="banner"
+          style={{ "--brand": brandColor }}
+        >
+          <div className="sticky top-0 z-40 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-slate-200">
+            <div className="mx-auto max-w-6xl px-2 sm:px-4 py-2">
+              <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-3">
+                <div className="flex justify-center sm:justify-start w-full sm:w-auto">
+                  <Link
+                    to="/">
+                    <img src="/assets/img/logo/flygasal.png" alt="Fly Gasal" className="h-8 sm:h-10 object-contain" />
+                  </Link>
+                </div>
+                <ol className="flex items-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar" aria-label="Booking steps">
+                  {steps.map((s) => {
+                    const isActive = s.id === step;
+                    const isDone = s.id < step;
+                    const Node = onStepClick ? "button" : "div";
+                    const base =
+                      "group flex items-center gap-2 min-w-0 rounded-2xl transition px-1 py-0 sm:px-3.5 sm:py-2.5 focus:outline-none ring-offset-2 focus:ring-2 hover:bg-[#FAFAFA] cursor-pointer";
+                    const tone = isDone
+                      ? "border-slate-300 bg-slate-100 focus:ring-[color:var(--brand)]"
+                      : isActive
+                      ? "border-[color:var(--brand)] bg-white focus:ring-[color:var(--brand)]"
+                      : "border-slate-200 bg-white focus:ring-[color:var(--brand)]";
+                    return (
+                      <li key={s.id} className="min-w-0">
+                        <Node
+                          type={onStepClick ? "button" : undefined}
+                          onClick={onStepClick ? () => onStepClick(s.id) : undefined}
+                          className={`${base} ${tone}`}
+                          aria-current={isActive ? "step" : undefined}
+                          title={s.label}
+                          style={{ borderWidth: 1 }}
+                        >
+                          <span
+                            className={[
+                              "flex h-8 w-8 items-center justify-center rounded-full border text-sm font-semibold shrink-0",
+                              isDone
+                                ? "bg-[color:var(--brand)] border-[color:var(--brand)] text-white"
+                                : isActive
+                                ? "bg-white border-[color:var(--brand)] text-slate-900"
+                                : "bg-white border-slate-300 text-slate-600",
+                            ].join(" ")}
+                          >
+                            {isDone ? <Check className="h-4 w-4" aria-hidden /> : s.id}
+                          </span>
+                          <span className={["truncate font-medium", "text-xs sm:text-sm", isActive ? "text-slate-900" : isDone ? "text-slate-700" : "text-slate-600"].join(" ")}>
+                            <span className="sm:hidden">{s.label.length > 14 ? s.label.slice(0, 14) + "…" : s.label}</span>
+                            <span className="hidden sm:inline">{s.label}</span>
+                          </span>
+                        </Node>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            </div>
+          </div>
+
+          {/* Full-width progress bar */}
+          <div className="w-full">
+            <div className="relative h-1.5 w-full bg-slate-200">
+              <div
+                className="absolute left-0 top-0 h-1.5 rounded-r-full transition-[width] duration-500"
+                style={{ width: `${progressPct}%`, background: "var(--brand)" }}
+                aria-hidden
+              />
+            </div>
+            <div className="mx-auto max-w-6xl px-4 py-1.5 flex items-center justify-content-between">
+              <span className="text-[11px] text-slate-600">Step {step} of {total}</span>
+              <span className="text-[11px] text-slate-600">{Math.round(progressPct)}%</span>
+            </div>
+          </div>
+        </header>
 
         {/* ===== Main Content ===== */}
         <div className="container pt-5 pb-5" style={{ maxWidth: 800 }}>

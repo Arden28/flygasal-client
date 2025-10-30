@@ -111,7 +111,7 @@ export default function ClientLayout() {
             </Link>
 
             {/* Desktop Nav */}
-            <nav className="hidden lg:block">
+            {/* <nav className="hidden lg:block">
               <ul className="flex gap-1">
                 {navLinks.map((it) => (
                   <li key={it.to}>
@@ -128,17 +128,17 @@ export default function ClientLayout() {
                   </li>
                 ))}
               </ul>
-            </nav>
+            </nav> */}
 
             {/* Right controls */}
             <div className="hidden lg:flex items-center gap-2">
-              <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-800">
+              {/* <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-800">
                 <img src={usFlag} alt="" className="h-4 w-4 rounded-sm" />
                 <span>English</span>
               </div>
               <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-800">
                 <span className="font-semibold">$ USD</span>
-              </div>
+              </div> */}
 
               {/* Account */}
               <div className="relative">

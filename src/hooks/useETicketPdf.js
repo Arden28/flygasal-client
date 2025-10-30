@@ -145,7 +145,6 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
         return x + w + 4;
       };
       let cx = rightX;
-      cx = chip(`ORDER: ${orderRef}`, cx, y + 10.5);
       chip(`PNR: ${pnr}`, cx, y + 10.5);
 
       if (qrPng) doc.addImage(qrPng, "PNG", page.w - M - 22, y + 1.5, 22, 22);
