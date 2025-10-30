@@ -242,7 +242,7 @@ const Login = ({
                 </div>
 
                 <img
-                  src="/assets/img/auth-illustration.svg"
+                  src="/assets/img/login.jpg"
                   alt="Travel"
                   className="mt-4 img-fluid rounded-4 shadow-sm"
                 />
@@ -304,7 +304,7 @@ const Login = ({
                         autoComplete="current-password"
                         required
                       />
-                      <button
+                      {/* <button
                         type="button"
                         className="btn btn-outline-secondary"
                         onClick={() => setShowPwd((s) => !s)}
@@ -312,7 +312,7 @@ const Login = ({
                         title={showPwd ? "Hide password" : "Show password"}
                       >
                         {showPwd ? "Hide" : "Show"}
-                      </button>
+                      </button> */}
                     </div>
                     {caps && <div className="caps-hint">Caps Lock appears to be ON.</div>}
                   </div>

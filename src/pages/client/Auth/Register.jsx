@@ -523,14 +523,14 @@ const Register = ({
                               placeholder="••••••••"
                               autoComplete="new-password"
                             />
-                            <button
+                            {/* <button
                               type="button"
                               className="btn btn-outline-secondary"
                               onClick={() => setShowPwd((s) => !s)}
                               aria-label={showPwd ? "Hide password" : "Show password"}
                             >
                               {showPwd ? "Hide" : "Show"}
-                            </button>
+                            </button> */}
                           </div>
                           <div className="mt-2 d-flex gap-1">
                             {[0, 1, 2, 3].map((i) => (
@@ -568,14 +568,14 @@ const Register = ({
                               placeholder="••••••••"
                               autoComplete="new-password"
                             />
-                            <button
+                            {/* <button
                               type="button"
                               className="btn btn-outline-secondary"
                               onClick={() => setShowPwd2((s) => !s)}
                               aria-label={showPwd2 ? "Hide password" : "Show password"}
                             >
                               {showPwd2 ? "Hide" : "Show"}
-                            </button>
+                            </button> */}
                           </div>
                           {touched.confirm_password && formErrors.confirm_password && (
                             <div className="invalid-feedback">{formErrors.confirm_password}</div>
