@@ -11,6 +11,7 @@ import flygasal from "../../../api/flygasalService";
 import { motion, AnimatePresence } from "framer-motion";
 import { AuthContext } from "../../../context/AuthContext";
 import BookingHeader from "../../../components/client/Flight/BookingHeader";
+import { createPortal } from "react-dom";
 
 const flightsPerPage = 30;
 const MAX_RETURNS_PER_OUTBOUND = 6;
@@ -310,15 +311,15 @@ const FlightPage = () => {
   const getHour = (dt) => (dt ? new Date(dt).getHours() : 0);
 
   // Baggage: simple truthy flag from segment baggage maps
-  const hasBaggage = (offer) => {
-    const seg0 = offer?.segments?.[0]?.segmentId;
-    const carry = offer?.baggage?.adt?.carryOnBySegment?.[seg0];
-    const checked = offer?.baggage?.adt?.checkedBySegment?.[seg0];
-    return Boolean(
-      (carry && ((carry.amount ?? 0) > 0 || (carry.weight ?? 0) > 0)) ||
-        (checked && ((checked.amount ?? 0) > 0 || (checked.weight ?? 0) > 0))
-    );
-  };
+  // const hasBaggage = (offer) => {
+  //   const seg0 = offer?.segments?.[0]?.segmentId;
+  //   const carry = offer?.baggage?.adt?.carryOnBySegment?.[seg0];
+  //   const checked = offer?.baggage?.adt?.checkedBySegment?.[seg0];
+  //   return Boolean(
+  //     (carry && ((carry.amount ?? 0) > 0 || (carry.weight ?? 0) > 0)) ||
+  //       (checked && ((checked.amount ?? 0) > 0 || (checked.weight ?? 0) > 0))
+  //   );
+  // };
 
   const totalDurationMins = (outbound, ret, legsForMulti) => {
     if (Array.isArray(legsForMulti) && legsForMulti.length) {
@@ -452,8 +453,8 @@ const FlightPage = () => {
         last = chain[chain.length - 1];
       return {
         ...offer,
-        segments: chain.map((s) => ({
-          segmentId: s.segmentId ?? s.segmentID ?? "",
+        segments: chain.map((s, idx) => ({
+          segmentId: s.segmentId ?? s.segmentID ?? s.id ?? `S${idx}`,
           airline: s.airline,
           flightNum: s.flightNo,
           departure: s.departure,
@@ -477,6 +478,7 @@ const FlightPage = () => {
         journeyTime: offer?.journeyTime ?? 0,
         // Keep raw backend PB on a private field for the itinerary
         __sourcePB: offer.priceBreakdown,
+        baggage: offer.baggage || offer.__sourceBaggage || null,
       };
     };
 
@@ -552,9 +554,14 @@ const FlightPage = () => {
         const res = await flygasal.searchFlights(params, { signal: abort.signal });
 
         console.info('Search Results: ', res);
+        
 
         // Keep offers as-is, but stash a raw copy on __sourcePB for safety
-        let offers = (res.offers || []).map((o) => ({ ...o, __sourcePB: o.priceBreakdown }));
+        let offers = (res.offers || []).map((o) => ({
+          ...o,
+          __sourcePB: o.priceBreakdown,
+          __sourceBaggage: o.baggage,       // keep raw baggage
+        }));
         let displayCurrency =
           offers[0]?.priceBreakdown?.currency || offers[0]?.currency || "USD";
 
@@ -616,19 +623,23 @@ const FlightPage = () => {
                   departureTime: leg.departureTime,
                   arrivalTime: leg.arrivalTime,
 
-                  segments: (leg.segments || []).map((s) => ({
+                  segments: (leg.segments || []).map((s, idx) => ({
                     ...s,
+                    // normalize an id we can use as map key
+                    segmentId: s.segmentId ?? s.segmentID ?? s.id ?? `S${idx}`,
                     // keep both names compatible with rest of code
                     departureDate: s.departureDate ?? s.departureTime,
                     arrivalDate: s.arrivalDate ?? s.arrivalTime,
                   })),
-
+                  
                   stops: Math.max(0, (leg.segments?.length || 1) - 1),
                   transferCount: leg.transferCount ?? Math.max(0, (leg.segments?.length || 1) - 1),
                   journeyTime: leg.journeyTime,
-
+                  
                   // keep raw backend PB hidden for itinerary
                   __sourcePB: baseOffer.priceBreakdown,
+                  // attach baggage map so downstream has it
+                  baggage: baseOffer.baggage || baseOffer.__sourceBaggage || null,
 
                   rules: baseOffer.rules,
                   availabilityCount: baseOffer.availabilityCount,
@@ -719,21 +730,77 @@ const FlightPage = () => {
   }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- Derive display helpers ----------
-  const makeBaggageLabel = (offer) => {
-    const seg0 = offer?.segments?.[0]?.segmentId;
-    const carry = offer?.baggage?.adt?.carryOnBySegment?.[seg0];
-    const checked = offer?.baggage?.adt?.checkedBySegment?.[seg0];
-    const carryTxt =
-      carry && ((carry.amount ?? 0) > 0 || (carry.weight ?? 0) > 0)
-        ? `${carry.amount ?? ""}${carry.amount ? "PC" : ""}${carry.weight ? ` ${carry.weight}KG` : ""} carry-on`
-        : "";
-    const checkedTxt =
-      checked && ((checked.amount ?? 0) > 0 || (checked.weight ?? 0) > 0)
-        ? `${checked.amount ?? ""}${checked.amount ? "PC" : ""}${checked.weight ? ` ${checked.weight}KG` : ""} checked`
-        : "";
-    const both = [carryTxt, checkedTxt].filter(Boolean).join(" + ");
-    return both || null;
-  };
+// schema helpers
+const firstKey = (obj) => (obj && typeof obj === "object" ? Object.keys(obj)[0] : undefined);
+const pickNum = (x, ...fields) => {
+  for (const f of fields) {
+    const v = x?.[f];
+    if (Number.isFinite(v) && v > 0) return v;
+  }
+  return undefined;
+};
+const piecesOf = (x) => pickNum(x, "amount", "pieces", "pcs");
+const weightOf = (x) => pickNum(x, "weight", "weightKg", "kg");
+
+// Find carry/checked object for a given offer's first segment.
+// Tries segmentId, global map, then falls back to "any" entry.
+const getBaggageForFirstSeg = (offer) => {
+  const bag = offer?.baggage || offer?.__sourceBaggage || null;
+  if (!bag?.adt) return { carry: null, checked: null };
+
+  const seg0 = offer?.segments?.[0] || {};
+  const segKey =
+    seg0.segmentId || seg0.segmentID || seg0.id ||
+    // if the backend provides a global index→id map, try 0
+    offer?.globalIdxToSegId?.[0] ||
+    offer?.summary?.globalIdxToSegId?.[0] ||
+    undefined;
+
+  const carryBySeg = bag.adt.carryOnBySegment || {};
+  const checkedBySeg = bag.adt.checkedBySegment || {};
+
+  // try by explicit seg key; fallback to any entry; fallback to flat fields
+  const carry = segKey
+    ? carryBySeg?.[segKey] || bag.adt.carryOn || carryBySeg?.[firstKey(carryBySeg)]
+    : bag.adt.carryOn || carryBySeg?.[firstKey(carryBySeg)];
+
+  const checked = segKey
+    ? checkedBySeg?.[segKey] || bag.adt.checked || checkedBySeg?.[firstKey(checkedBySeg)]
+    : bag.adt.checked || checkedBySeg?.[firstKey(checkedBySeg)];
+
+  return { carry, checked };
+};
+
+// Baggage: simple truthy flag from segment baggage maps
+const hasBaggage = (offer) => {
+  const { carry, checked } = getBaggageForFirstSeg(offer);
+  const anyPieces = piecesOf(carry) || piecesOf(checked);
+  const anyWeight = weightOf(carry) || weightOf(checked);
+  return Boolean(anyPieces || anyWeight);
+};
+
+const makeBaggageLabel = (offer) => {
+  const { carry, checked } = getBaggageForFirstSeg(offer);
+
+  const carryPieces = piecesOf(carry);
+  const carryWeight = weightOf(carry);
+  const checkedPieces = piecesOf(checked);
+  const checkedWeight = weightOf(checked);
+
+  const carryTxt =
+    carryPieces || carryWeight
+      ? `${carryPieces ? `${carryPieces}PC` : ""}${carryPieces && carryWeight ? " " : ""}${carryWeight ? `${carryWeight}KG` : ""} carry-on`
+      : "";
+
+  const checkedTxt =
+    checkedPieces || checkedWeight
+      ? `${checkedPieces ? `${checkedPieces}PC` : ""}${checkedPieces && checkedWeight ? " " : ""}${checkedWeight ? `${checkedWeight}KG` : ""} checked`
+      : "";
+
+  const both = [carryTxt, checkedTxt].filter(Boolean).join(" + ");
+  return both || null;
+};
+
 
   // ---------- Build itineraries from normalized offers ----------
   const itineraries = useMemo(() => {
@@ -759,7 +826,8 @@ const FlightPage = () => {
           totalStops,
           airlines,
           cabin: m.cabin || cabinOf(m.legs?.[0]),
-          baggage: m.baggage || [],
+          baggage: makeBaggageLabel(m.legs?.[0] || m), // at least show a label
+          baggageMap: m.baggage || m.__sourceBaggage || m.legs?.[0]?.baggage || null,
           refundable: false,
           // itinerary-level priceBreakdown: prefer container's, else from first leg's __sourcePB
           priceBreakdown: m.priceBreakdown || m.legs?.[0]?.__sourcePB || null,
@@ -796,7 +864,8 @@ const FlightPage = () => {
             // compute per-leg carriers, then merge
             airlines: Array.from(new Set([...carriersOfLeg(ob), ...carriersOfLeg(rt)])),
             cabin: cabinOf(ob),
-            baggage: ob.baggage || [],
+            baggage: makeBaggageLabel(ob),
+            baggageMap: ob?.baggage || ob?.__sourceBaggage || null,
             refundable: false,
             // Always prefer the raw backend PB stashed on the outbound leg/offer
             priceBreakdown: ob?.__sourcePB || out?.__sourcePB || out?.priceBreakdown || null,
@@ -838,6 +907,7 @@ const FlightPage = () => {
             airlines: Array.from(new Set([...carriersOfLeg(out), ...carriersOfLeg(rt)])),
             cabin: cabinOf(out),
             baggage: makeBaggageLabel(out),
+            baggageMap: out?.baggage || out?.__sourceBaggage || null,
             refundable: false,
             // Raw backend breakdown from outbound offer only
             priceBreakdown: out.__sourcePB || out.priceBreakdown || null,
@@ -868,6 +938,7 @@ const FlightPage = () => {
         airlines: carriersOfLeg(f),
         cabin: cabinOf(f),
         baggage: makeBaggageLabel(f),
+        baggageMap: f?.baggage || f?.__sourceBaggage || null,
         refundable: false,
         // pass raw backend breakdown up to itinerary
         priceBreakdown: f.__sourcePB || f.priceBreakdown || null,
@@ -1453,46 +1524,8 @@ const FlightPage = () => {
                 </div>
               )}
 
-
-                {isExpired && !loading ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 text-amber-900"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="shrink-0 grid h-10 w-10 place-items-center rounded-xl bg-amber-100 border border-amber-200">
-                        {/* clock icon */}
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <circle cx="12" cy="12" r="9"></circle>
-                          <path d="M12 7v5l3 3"></path>
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="text-sm font-semibold">Your search results expired</h4>
-                        <p className="mt-1 text-sm text-amber-800/90">
-                          Fares refresh frequently. Run the search again to see live availability and prices.
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <button
-                            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 text-white px-3 py-1.5 text-sm hover:bg-blue-700"
-                            onClick={() => window.location.reload()}
-                          >
-                            Refresh results
-                          </button>
-                          <button
-                            className="inline-flex items-center gap-2 rounded-lg ring-1 ring-slate-300 px-3 py-1.5 text-sm hover:bg-white"
-                            onClick={() => setIsSearchFormVisible(true)}
-                          >
-                            Modify search
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                ) : (
+              {isExpired && !loading ? null : (
                 <>
-
                   {/* Sort */}
                   <SortNavigation
                     sortOrder={sortOrder}
@@ -1543,6 +1576,119 @@ const FlightPage = () => {
                   <Pagination currentPage={safePage} totalPages={totalPages} handlePageChange={handlePageChange} />
                 </>
               )}
+
+              {/* ---- Expired Overlay (blur the whole background, centered card) ---- */}
+              {createPortal(
+                <AnimatePresence>
+                  {isExpired && !loading && (
+                    <>
+                      {/* Backdrop with blur */}
+                      <motion.div
+                        key="expired-backdrop"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[99] bg-black/20 backdrop-blur-md"
+                      />
+
+                      {/* Centered card */}
+                      <motion.div
+                        key="expired-card"
+                        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Search results expired"
+                      >
+                        <div className="w-full max-w-[640px] overflow-hidden rounded-3xl border border-[#F68221]/20 bg-white shadow-2xl">
+                          {/* Top bar / badge */}
+                          <div className="flex items-center gap-2 border-b border-[#F68221]/10 bg-[#FFF6EF] px-5 py-3">
+                            <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#8B400E] ring-1 ring-[#F68221]/30">
+                              <span className="h-1.5 w-1.5 rounded-full bg-[#F68221]" />
+                              Session timed out
+                            </span>
+                            <span className="ml-auto text-[12px] text-[#8B400E]/80">
+                              Fares refresh every few minutes
+                            </span>
+                          </div>
+
+                          {/* Body */}
+                          <div className="px-6 py-6">
+                            <div className="flex items-start gap-4">
+                              {/* Icon */}
+                              <div className="shrink-0 grid h-12 w-12 place-items-center rounded-2xl bg-[#F68221]/10 ring-1 ring-[#F68221]/20">
+                                {/* Brand clock icon */}
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F68221" strokeWidth="2">
+                                  <circle cx="12" cy="12" r="9" />
+                                  <path d="M12 7v5l3 3" />
+                                </svg>
+                              </div>
+
+                              {/* Text + actions */}
+                              <div className="flex-1">
+                                <h3 className="text-lg font-bold text-[#2B1A0F] tracking-tight">
+                                  Your search results expired
+                                </h3>
+                                <p className="mt-1 text-[14px] leading-6 text-[#6A4A3A]">
+                                  Prices and availability change fast. Run your search again to get fresh results,
+                                  or tweak your dates and filters.
+                                </p>
+
+                                {/* Action buttons */}
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                  <button
+                                    className="inline-flex items-center gap-2 rounded-full bg-[#F68221] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#F5740A] active:bg-[#E96806] transition"
+                                    onClick={() => window.location.reload()}
+                                  >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <path d="M23 4v6h-6" />
+                                      <path d="M20.49 15A9 9 0 1 1 6 6" />
+                                    </svg>
+                                    Refresh results
+                                  </button>
+
+                                  <button
+                                    className="inline-flex items-center gap-2 rounded-full border border-[#F68221]/30 bg-white px-4 py-2 text-sm font-semibold text-[#8B400E] hover:bg-[#FFF2E6]"
+                                    onClick={() => setIsSearchFormVisible(true)}
+                                  >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <path d="M12 20h9" />
+                                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                                    </svg>
+                                    Modify search
+                                  </button>
+                                </div>
+
+                                {/* Tiny helper row */}
+                                <div className="mt-3 flex flex-wrap items-center gap-3 text-[12px] text-[#6A4A3A]">
+                                  <span className="inline-flex items-center gap-1">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-[#F68221]" />
+                                    Live pricing
+                                  </span>
+                                  <span className="inline-flex items-center gap-1">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-[#FDBA74]" />
+                                    Availability can change
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Bottom subtle bar */}
+                          <div className="border-t border-[#F68221]/10 bg-[#FFF9F4] px-6 py-3 text-[12px] text-[#8B400E]">
+                            Tip: acting quickly helps secure the best fare.
+                          </div>
+                        </div>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>,
+                document.body
+              )}
+
             </div>
           </div>
         </div>
