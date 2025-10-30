@@ -229,6 +229,7 @@ const FlightSegment = ({
   expectedReturnDestination,
   // NEW: baggage map from MapOffer.normalize
   baggage,
+  globalIdxToSegId
   // onSelect,
 }) => {
 
@@ -322,10 +323,54 @@ const FlightSegment = ({
 
   const headerOrigin = isReturn ? RET_O : OUT_O;
   const headerDest = isReturn ? RET_D : OUT_D;
+  // Build per-segment baggage maps (supports both normalized + raw PKFare)
+  const maps = useMemo(() => {
+    const normalized = {
+      checkedBySegment: baggage?.adt?.checkedBySegment || {},
+      carryOnBySegment: baggage?.adt?.carryOnBySegment || {},
+    };
+
+    // If already normalized, we're done
+    if (Object.keys(normalized.checkedBySegment).length || Object.keys(normalized.carryOnBySegment).length) {
+      return normalized;
+    }
+
+    // Try to map raw PKFare ADT blocks using the provided global index map
+    const adtBlocks = baggage?.ADT;
+    const idxMap = (typeof globalIdxToSegId === "object" && globalIdxToSegId) ? globalIdxToSegId : null;
+    if (!Array.isArray(adtBlocks) || !idxMap) return normalized;
+
+    const checked = {};
+    const cabin = {};
+    adtBlocks.forEach((b) => {
+      const indices = Array.isArray(b?.segmentIndexList) ? b.segmentIndexList : (Array.isArray(b?.segmentIndex) ? b.segmentIndex : []);
+      indices.forEach((n) => {
+        const sid = idxMap[n];
+        if (!sid) return;
+        if (b.baggageAmount || b.baggageWeight) {
+          checked[sid] = {
+            amount: b.baggageAmount || null,
+            weight: b.baggageWeight || null,
+          };
+        }
+        if (b.carryOnAmount || b.carryOnWeight || b.carryOnSize) {
+          cabin[sid] = {
+            amount: b.carryOnAmount || null,
+            weight: b.carryOnWeight || null,
+            size:   b.carryOnSize   || null,
+          };
+        }
+      });
+    });
+
+    return { checkedBySegment: checked, carryOnBySegment: cabin };
+  }, [baggage, globalIdxToSegId]);
+
+
 
   // PKFare baggage maps keyed by segmentId
-  const checkedBySeg = baggage?.adt?.checkedBySegment || {};
-  const cabinBySeg   = baggage?.adt?.carryOnBySegment || {};
+  const checkedBySeg = maps.checkedBySegment;
+  const cabinBySeg   = maps.carryOnBySegment;
 
   return (
     <div className="bg-white rounded-xl px-0 py-2">

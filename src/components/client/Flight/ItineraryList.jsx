@@ -774,7 +774,8 @@ const ItineraryList = ({
                         <FlightSegment
                           flight={itinerary.outbound}
                           segmentType="Outbound"
-                          baggage={itinerary.baggage}
+                          baggage={itinerary.baggage || itinerary.baggageMap}
+                          globalIdxToSegId={itinerary.summary?.globalIdxToSegId || itinerary.globalIdxToSegId}
                           formatDate={formatDate}
                           formatTime={formatTime}
                           calculateDuration={calculateDuration}
@@ -838,7 +839,8 @@ const ItineraryList = ({
                         <FlightSegment
                           flight={itinerary.return}
                           segmentType="Return"
-                          baggage={itinerary.baggage}
+                          baggage={itinerary.baggage || itinerary.baggageMap}
+                          globalIdxToSegId={itinerary.summary?.globalIdxToSegId || itinerary.globalIdxToSegId}
                           formatDate={formatDate}
                           formatTime={formatTime}
                           calculateDuration={calculateDuration}
@@ -918,7 +920,8 @@ const ItineraryList = ({
                             <FlightSegment
                               flight={leg}
                               segmentType={`Leg ${li + 1}`}
-                              baggage={itinerary.baggage}
+                              baggage={itinerary.baggage || itinerary.baggageMap}
+                              globalIdxToSegId={itinerary.summary?.globalIdxToSegId || itinerary.globalIdxToSegId}
                               formatDate={formatDate}
                               formatTime={formatTime}
                               calculateDuration={calculateDuration}
