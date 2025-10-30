@@ -5,6 +5,13 @@ import { AuthContext } from "../context/AuthContext";
 import logo from "/assets/img/logo/flygasal.png";
 import usFlag from "/assets/img/flags/us.svg";
 
+/** Brand palette (inline for clarity) */
+const ORANGE = "#F68221";
+const ORANGE_HOVER = "#e37212"; // a touch darker
+const ORANGE_ACTIVE = "#c86210"; // pressed
+const ORANGE_SOFT_BG = "rgba(246,130,33,0.10)"; // subtle bg chips
+const BORDER_SOFT = "rgba(2,6,23,0.10)"; // slate-900/10
+
 export default function ClientLayout() {
   const { user, logout, loading } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -13,6 +20,15 @@ export default function ClientLayout() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [acctOpen, setAcctOpen] = useState(false);
+
+  // Detect scroll to swap navbar styles (transparent over hero -> solid after scroll)
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const noLayoutPatterns = [
     /^\/flight\/availability$/,
@@ -98,53 +114,101 @@ export default function ClientLayout() {
   return (
     <div className="flex min-h-screen flex-col">
       {/* --- NAVBAR --- */}
-      {/* Navbar */}
       <header
         ref={rootRef}
-        className="relative z-[250] bg-transparent backdrop-blur-md"
+        className={[
+          "sticky top-0 z-[250] backdrop-blur-md transition-colors duration-300",
+          // Transparent over hero images + soft gradient on top; becomes solid on scroll
+          scrolled
+            ? "bg-white/95"
+            : "bg-transparent",
+        ].join(" ")}
       >
+        {/* Soft top gradient to ensure contrast over hero images (not a shadow) */}
+        {!scrolled && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-16"
+            style={{
+              background:
+                "linear-gradient(to bottom, rgba(0,0,0,0.35), rgba(0,0,0,0.00))",
+            }}
+          />
+        )}
+
         <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
-          <div className="flex h-14 items-center justify-between">
+          <nav className="flex h-16 items-center justify-between">
             {/* Brand */}
-            <Link to="/" className="group flex items-center gap-2">
-              <img src={logo} alt="FlyGasal" className="h-8 w-auto" />
+            <Link
+              to="/"
+              className="group flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+              style={{ color: scrolled ? "#0f172a" : "#ffffff" }}
+            >
+              <img
+                src={logo}
+                alt="FlyGasal"
+                className="h-8 w-auto"
+                // prevent color-inversion artifacts if the hero is bright/dark
+              />
             </Link>
 
-            {/* Desktop Nav */}
-            {/* <nav className="hidden lg:block">
-              <ul className="flex gap-1">
-                {navLinks.map((it) => (
+            {/* Primary nav (center on desktop) */}
+            <ul className="hidden lg:flex items-center gap-1">
+              {navLinks.map((it) => {
+                const active = isActive(it.to);
+                return (
                   <li key={it.to}>
                     <Link
                       to={it.to}
-                      className={`rounded-xl px-3 py-2 text-sm ${
-                        isActive(it.to)
-                          ? "bg-blue-50 text-blue-700"
-                          : "text-slate-700 hover:bg-slate-50"
-                      }`}
+                      className={[
+                        "inline-flex items-center rounded-full px-3 py-2 text-sm font-medium transition-colors",
+                        active
+                          ? "text-[color:#F68221]"
+                          : scrolled
+                          ? "text-slate-800 hover:text-slate-900"
+                          : "text-white hover:text-white",
+                      ].join(" ")}
+                      // subtle underline using border (no shadow)
+                      style={{
+                        borderBottom: active ? `2px solid ${ORANGE}` : "2px solid transparent",
+                      }}
                     >
                       {it.label}
                     </Link>
                   </li>
-                ))}
-              </ul>
-            </nav> */}
+                );
+              })}
+            </ul>
 
             {/* Right controls */}
-            <div className="hidden lg:flex items-center gap-2">
-              {/* <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-800">
+            <div className="hidden lg:flex items-center gap-3">
+              {/* Language (example chip kept minimal, no shadows) */}
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm"
+                style={{
+                  border: `1px solid ${BORDER_SOFT}`,
+                  background: scrolled ? "white" : "rgba(255,255,255,0.10)",
+                  color: scrolled ? "#0f172a" : "#ffffff",
+                }}
+                aria-label="Language"
+              >
                 <img src={usFlag} alt="" className="h-4 w-4 rounded-sm" />
-                <span>English</span>
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-800">
-                <span className="font-semibold">$ USD</span>
-              </div> */}
+                EN
+              </button>
 
               {/* Account */}
               <div className="relative">
                 <button
                   onClick={() => setAcctOpen((v) => !v)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-800"
+                  className="inline-flex items-center gap-2 rounded-full px-2.5 py-1.5 text-sm transition-colors"
+                  style={{
+                    border: `1px solid ${BORDER_SOFT}`,
+                    background: scrolled ? "white" : "rgba(255,255,255,0.10)",
+                    color: scrolled ? "#0f172a" : "#ffffff",
+                  }}
+                  aria-haspopup="menu"
+                  aria-expanded={acctOpen ? "true" : "false"}
                 >
                   <img
                     src={
@@ -154,21 +218,30 @@ export default function ClientLayout() {
                       )}`
                     }
                     alt="Avatar"
-                    className="h-8 w-8 rounded-full border border-slate-200 object-cover"
+                    className="h-8 w-8 rounded-full object-cover"
+                    style={{ border: `1px solid ${BORDER_SOFT}` }}
                   />
                   <span className="truncate max-w-[12rem]">
                     {isLoggingOut ? "Logging out..." : userDisplayName}
                   </span>
-                  <Caret />
+                  <Caret scrolled={scrolled} />
                 </button>
 
                 {acctOpen && (
-                  <ul className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-200 bg-white shadow-xl">
+                  <ul
+                    role="menu"
+                    className="absolute right-0 mt-2 w-52 rounded-xl overflow-hidden"
+                    style={{
+                      background: "white",
+                      border: `1px solid ${BORDER_SOFT}`,
+                    }}
+                  >
                     {accountOptions.map((opt) => (
                       <li key={opt.label}>
                         <Link
                           to={opt.to}
-                          className="block px-3 py-2 text-sm hover:bg-slate-50"
+                          role="menuitem"
+                          className="block px-3 py-2 text-sm text-slate-800 hover:bg-slate-50"
                           onClick={() => setAcctOpen(false)}
                         >
                           {opt.label}
@@ -179,7 +252,9 @@ export default function ClientLayout() {
                       <li>
                         <button
                           onClick={handleLogout}
-                          className="block w-full px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
+                          role="menuitem"
+                          className="block w-full px-3 py-2 text-left text-sm"
+                          style={{ color: "#b91c1c" }} // rose-700
                         >
                           {isLoggingOut ? "Logging out..." : "Logout"}
                         </button>
@@ -190,10 +265,17 @@ export default function ClientLayout() {
               </div>
             </div>
 
-            {/* Mobile Menu */}
+            {/* Mobile Menu button */}
             <button
-              className="lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white"
+              className="lg:hidden inline-flex h-10 w-10 items-center justify-center rounded-lg transition-colors"
               onClick={() => setMobileOpen((v) => !v)}
+              aria-label="Toggle menu"
+              aria-expanded={mobileOpen ? "true" : "false"}
+              style={{
+                border: `1px solid ${BORDER_SOFT}`,
+                background: scrolled ? "white" : "rgba(255,255,255,0.10)",
+                color: scrolled ? "#0f172a" : "#ffffff",
+              }}
             >
               <svg
                 width="20"
@@ -208,26 +290,63 @@ export default function ClientLayout() {
                 <line x1="3" y1="18" x2="21" y2="18" />
               </svg>
             </button>
-          </div>
+          </nav>
         </div>
 
+        {/* Mobile panel (no shadow, just border) */}
         {mobileOpen && (
-          <div className="border-t border-slate-200 bg-white shadow-sm lg:hidden">
+          <div
+            className="lg:hidden"
+            style={{
+              borderTop: `1px solid ${BORDER_SOFT}`,
+              background: "white",
+            }}
+          >
             <ul className="flex flex-col gap-1 py-2 px-3">
-              {navLinks.map((it) => (
-                <li key={it.to}>
-                  <Link
-                    to={it.to}
-                    className={`block rounded-xl px-3 py-2 text-sm ${
-                      isActive(it.to)
-                        ? "bg-blue-50 text-blue-700"
-                        : "text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    {it.label}
-                  </Link>
-                </li>
-              ))}
+              {navLinks.map((it) => {
+                const active = isActive(it.to);
+                return (
+                  <li key={it.to}>
+                    <Link
+                      to={it.to}
+                      className="block rounded-xl px-3 py-2 text-sm"
+                      style={{
+                        color: active ? ORANGE : "#0f172a",
+                        background: active ? "rgba(246,130,33,0.08)" : "transparent",
+                        border: active ? `1px solid ${ORANGE}20` : `1px solid transparent`,
+                      }}
+                    >
+                      {it.label}
+                    </Link>
+                  </li>
+                );
+              })}
+
+              <li className="mt-2">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm w-full justify-center"
+                  style={{
+                    border: `1px solid ${BORDER_SOFT}`,
+                    background: "white",
+                    color: "#0f172a",
+                  }}
+                  onClick={() => setAcctOpen((v) => !v)}
+                >
+                  <img
+                    src={
+                      user?.avatar_url ||
+                      `https://api.dicebear.com/7.x/initials/svg?radius=50&seed=${encodeURIComponent(
+                        user?.name || "U"
+                      )}`
+                    }
+                    alt="Avatar"
+                    className="h-6 w-6 rounded-full object-cover"
+                    style={{ border: `1px solid ${BORDER_SOFT}` }}
+                  />
+                  {user ? userDisplayName : "Account"}
+                </button>
+              </li>
             </ul>
           </div>
         )}
@@ -240,13 +359,26 @@ export default function ClientLayout() {
       <footer className="mt-auto bg-[#0E0A1A] text-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
           {/* Newsletter */}
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8 backdrop-blur">
+          <div
+            className="rounded-3xl p-6 sm:p-8 backdrop-blur"
+            style={{
+              border: "1px solid rgba(255,255,255,0.10)",
+              background: "rgba(255,255,255,0.05)",
+            }}
+          >
             <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
               <div className="max-w-xl">
-                <div className="inline-flex items-center gap-2 rounded-full border border-orange-400/30 bg-orange-400/10 px-3 py-1 text-xs text-orange-200">
+                <div
+                  className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs"
+                  style={{
+                    border: `1px solid ${ORANGE}4D`, // ~30% opacity
+                    background: ORANGE_SOFT_BG,
+                    color: "#FED7AA", // orange-200ish
+                  }}
+                >
                   Stay in the loop
                 </div>
-                <h4 className="mt-3 text-2xl font-semibold leading-tight">
+                <h4 className="mt-3 text-2xl font-semibold leading-tight text-white">
                   Exclusive flight tips, fare drops & product updates.
                 </h4>
                 <p className="mt-1 text-white/70 text-sm">
@@ -260,7 +392,15 @@ export default function ClientLayout() {
                   e.preventDefault();
                 }}
               >
-                <div className="flex rounded-full border border-white/15 bg-white/10 p-1.5 focus-within:border-white/25">
+                <div
+                  className="flex rounded-full p-1.5 focus-within:ring-1"
+                  style={{
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    background: "rgba(255,255,255,0.10)",
+                    // subtle focus ring via focus-within:ring currentColor
+                    color: "rgba(255,255,255,0.85)",
+                  }}
+                >
                   <input
                     type="email"
                     required
@@ -269,13 +409,21 @@ export default function ClientLayout() {
                   />
                   <button
                     type="submit"
-                    className="ml-1 inline-flex items-center justify-center rounded-full bg-orange-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-orange-600"
+                    className="ml-1 inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium transition"
+                    style={{
+                      background: ORANGE,
+                      color: "white",
+                    }}
+                    onMouseDown={(e) => (e.currentTarget.style.background = ORANGE_ACTIVE)}
+                    onMouseUp={(e) => (e.currentTarget.style.background = ORANGE)}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = ORANGE_HOVER)}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = ORANGE)}
                   >
                     Subscribe
                   </button>
                 </div>
                 <p className="mt-2 text-[12px] text-white/60">
-                  By subscribing you agree to our Terms & Privacy.
+                  By subscribing you agree to our Terms &amp; Privacy.
                 </p>
               </form>
             </div>
@@ -284,7 +432,7 @@ export default function ClientLayout() {
           {/* Footer links */}
           <div className="mt-10 grid gap-10 md:grid-cols-4">
             <div className="space-y-4">
-              <Link to="/" className="flex items-center gap-2">
+              <Link to="/" className="flex items-center gap-2 text-white">
                 <img src={logo} alt="FlyGasal" className="h-8 w-auto" />
               </Link>
               <p className="text-sm text-white/70">
@@ -298,15 +446,27 @@ export default function ClientLayout() {
           </div>
 
           {/* Bottom bar */}
-          <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-6 text-sm text-white/60 md:flex-row">
+          <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-6 text-sm text-white/70 md:flex-row">
             <div className="flex items-center gap-2">
               <span>© {new Date().getFullYear()} Fly Gasal.</span>
               <span className="hidden sm:inline">All rights reserved.</span>
             </div>
-            <ul className="flex items-center gap-4  text-white/70">
-              <li><a href="#" className=" text-white/70">Terms</a></li>
-              <li><a href="#" className=" text-white/70">Privacy</a></li>
-              <li><a href="#" className=" text-white/70">Cookies</a></li>
+            <ul className="flex items-center gap-4">
+              <li>
+                <a href="#" className="transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                  Terms
+                </a>
+              </li>
+              <li>
+                <a href="#" className="transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                  Privacy
+                </a>
+              </li>
+              <li>
+                <a href="#" className="transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                  Cookies
+                </a>
+              </li>
             </ul>
           </div>
         </div>
@@ -319,10 +479,13 @@ function FooterColumn({ title, links }) {
   return (
     <div>
       <h5 className="text-sm font-semibold tracking-wide text-white/90">{title}</h5>
-      <ul className="mt-3 space-y-2 text-white/70">
+      <ul className="mt-3 space-y-2">
         {links.map((text) => (
-          <li key={text} className="text-white/70">
-            <a href="#" className="text-white/70">
+          <li key={text}>
+            <a
+              href="#"
+              className="text-white/70 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-sm"
+            >
               {text}
             </a>
           </li>
@@ -332,9 +495,16 @@ function FooterColumn({ title, links }) {
   );
 }
 
-function Caret() {
+function Caret({ scrolled }) {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth="2"
+      style={{ color: scrolled ? "#0f172a" : "#ffffff" }}
+    >
       <path d="M6 9l6 6 6-6" />
     </svg>
   );

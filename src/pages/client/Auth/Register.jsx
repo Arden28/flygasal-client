@@ -60,7 +60,8 @@ const T = {
      currency:{ code:"KES", name:"Kenyan shilling", symbol:"KSh" }, region:"Africa", ...
    }
 --------------------------------------------------------------------------- */
-import countries from "../../../data/countries-modern.json"; // <-- ensure this exports your new array
+
+import { countries } from "../../../data/fakeData";
 
 /* ---------------- Styles for react-select ---------------- */
 const selectStyles = {
