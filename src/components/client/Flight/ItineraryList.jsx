@@ -68,11 +68,10 @@ function Row({ label, value, sub }) {
     </div>
   );
 }
-
 function PricingTooltip({
   open,
   onClose,
-  anchorClassName = "",
+  anchorId,            // << NEW: id of the trigger button
   currency = "USD",
   basePrice = 0,
   markupPercent = 0,
@@ -81,164 +80,139 @@ function PricingTooltip({
   paxSummary,
   extra = {},
 }) {
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const [coords, setCoords] = useState(null);
 
-  // close on ESC
+  // Close on ESC
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose?.();
+    const onKey = (e) => e.key === "Escape" && onClose?.();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  // position next to the triggering button (the previous sibling)
+  // Measure the anchor and position the card
   useEffect(() => {
     if (!open) return;
 
     const update = () => {
-      const anchorEl = wrapperRef.current?.previousElementSibling as HTMLElement | null;
-      if (!anchorEl) return;
+      const el = anchorId ? document.getElementById(anchorId) : null;
+      if (!el) return;
 
-      const r = anchorEl.getBoundingClientRect();
-      const gutter = 8;
+      const r = el.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const gutter = 10;
 
-      // Desired size (kept small & clamped to viewport)
-      const desiredWidth = Math.min(window.innerWidth * 0.92, 520);
-      const desiredHeight = Math.min(window.innerHeight * 0.8, 560);
+      const cardW = Math.min(vw * 0.92, 520);
+      const cardMaxH = Math.min(vh * 0.8, 560);
 
-      // Prefer bottom-right; fall back within viewport
-      let left = r.right - desiredWidth; // align right edges
-      let top = r.bottom + gutter;
+      let left = r.right - cardW;       // align right edges with button
+      let top = r.bottom + 8;           // prefer below
 
-      // If overflowing right, shift left
-      if (left + desiredWidth > window.innerWidth - gutter) {
-        left = window.innerWidth - gutter - desiredWidth;
-      }
-      // If overflowing left, clamp
+      if (left + cardW > vw - gutter) left = vw - gutter - cardW;
       if (left < gutter) left = gutter;
 
-      // If overflowing bottom, place above
-      if (top + desiredHeight > window.innerHeight - gutter) {
-        top = Math.max(gutter, r.top - gutter - desiredHeight);
+      if (top + cardMaxH > vh - gutter) {
+        // not enough space below → place above
+        top = Math.max(gutter, r.top - 8 - cardMaxH);
       }
 
-      setCoords({ top, left });
+      setCoords({ left, top, cardW, cardMaxH });
     };
 
     update();
-    window.addEventListener("resize", update);
+    const opts = { passive: true, capture: true };
+    window.addEventListener("resize", update, opts);
     window.addEventListener("scroll", update, true);
     return () => {
-      window.removeEventListener("resize", update);
+      window.removeEventListener("resize", update, opts);
       window.removeEventListener("scroll", update, true);
     };
-  }, [open]);
+  }, [open, anchorId]);
 
-  // simple money formatter
-  const fmt = (n: number) =>
-    (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
-
+  const fmt = (n) => (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
   const pct = Math.max(0, Math.min(100, Number(markupPercent) || 0));
 
-  // Local card content (kept small and scrollable if needed)
-  const Card = (
-    <motion.div
-      key="price-card"
-      initial={{ opacity: 0, y: 6, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 6, scale: 0.98 }}
-      transition={{ duration: 0.16, ease: "easeOut" }}
-      role="dialog"
-      aria-label="Pricing breakdown"
-      onClick={(e) => e.stopPropagation()}
-      className="z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
-      style={{
-        position: "fixed",
-        top: coords?.top ?? -9999,
-        left: coords?.left ?? -9999,
-        width: "min(92vw, 520px)",
-        maxHeight: "80vh",
-      }}
-    >
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
-        <div>
-          <div className="text-sm font-semibold text-slate-900">Price breakdown</div>
-          {paxSummary ? (
-            <div className="text-[12px] text-slate-500">{paxSummary}</div>
-          ) : null}
+  if (!open) return null;
+
+  return createPortal(
+    <>
+      {/* Backdrop */}
+      <motion.div
+        key="price-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[9998]"
+        onClick={onClose}
+        aria-hidden
+      />
+
+      {/* Card */}
+      <motion.div
+        key="price-card"
+        initial={{ opacity: 0, y: 6, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 6, scale: 0.98 }}
+        transition={{ duration: 0.16, ease: "easeOut" }}
+        role="dialog"
+        aria-label="Pricing breakdown"
+        className="z-[9999] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+        style={{
+          position: "fixed",
+          top: coords?.top ?? -9999,
+          left: coords?.left ?? -9999,
+          width: "min(92vw, 520px)",
+          maxHeight: "80vh",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
+          <div>
+            <div className="text-sm font-semibold text-slate-900">Price breakdown</div>
+            {paxSummary ? <div className="text-[12px] text-slate-500">{paxSummary}</div> : null}
+          </div>
+          <button
+            onClick={onClose}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50"
+            aria-label="Close pricing details"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50"
-          aria-label="Close pricing details"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
 
-      {/* Body (scrolls if content grows) */}
-      <div className="px-4 pt-2 pb-4 overflow-auto" style={{ maxHeight: "calc(80vh - 52px)" }}>
-        <Row label="Base price" value={fmt(basePrice)} />
-        {"taxes" in extra && <Row label="Taxes" value={fmt((extra as any).taxes)} />}
-        {"fees" in extra && <Row label="Fees" value={fmt((extra as any).fees)} />}
+        {/* Body (scrolls if needed) */}
+        <div className="px-4 pt-2 pb-4 overflow-auto" style={{ maxHeight: "calc(80vh - 52px)" }}>
+          <Row label="Base price" value={fmt(basePrice)} />
+          {"taxes" in extra && <Row label="Taxes" value={fmt(extra.taxes)} />}
+          {"fees" in extra && <Row label="Fees" value={fmt(extra.fees)} />}
 
-        <div className="my-2 rounded-xl bg-amber-50/60 p-3 ring-1 ring-amber-100">
-          <Row label="Agent markup" sub={`${pct}% applied`} value={fmt(markupAmount)} />
-          <div className="mt-2">
-            <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-200">
-              <div
-                className="absolute left-0 top-0 h-2 rounded-full bg-[#F68221]"
-                style={{ width: `${pct}%` }}
-                aria-hidden
-              />
+          <div className="my-2 rounded-xl bg-amber-50/60 p-3 ring-1 ring-amber-100">
+            <Row label="Agent markup" sub={`${pct}% applied`} value={fmt(markupAmount)} />
+            <div className="mt-2">
+              <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                <div className="absolute left-0 top-0 h-2 rounded-full bg-[#F68221]" style={{ width: `${pct}%` }} />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="mt-2 border-t border-slate-200 pt-3">
-          <div className="flex items-center justify-between">
-            <div className="text-[13px] font-semibold text-slate-800">Total</div>
-            <div className="tabular-nums text-lg font-bold text-slate-900">{fmt(total)}</div>
+          <div className="mt-2 border-t border-slate-200 pt-3">
+            <div className="flex items-center justify-between">
+              <div className="text-[13px] font-semibold text-slate-800">Total</div>
+              <div className="tabular-nums text-lg font-bold text-slate-900">{fmt(total)}</div>
+            </div>
+          </div>
+
+          <div className="mt-2 text-[11px] leading-relaxed text-slate-500">
+            Prices shown are estimated and may vary at checkout depending on availability and airline rules.
           </div>
         </div>
-
-        <div className="mt-2 text-[11px] leading-relaxed text-slate-500">
-          Prices shown are estimated and may vary at checkout depending on availability and airline rules.
-        </div>
-      </div>
-    </motion.div>
-  );
-
-  // Backdrop
-  const Backdrop = (
-    <motion.div
-      key="price-backdrop"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-40"
-      onClick={onClose}
-      aria-hidden
-    />
-  );
-
-  return (
-    <div ref={wrapperRef} className={`relative ${anchorClassName}`}>
-      <AnimatePresence>
-        {open &&
-          createPortal(
-            <>
-              {Backdrop}
-              {Card}
-            </>,
-            document.body
-          )}
-      </AnimatePresence>
-    </div>
+      </motion.div>
+    </>,
+    document.body
   );
 }
 
@@ -697,6 +671,7 @@ const ItineraryList = ({
             const airlineCode = itinerary.airlines?.[0];
             const airlineLogo = airlineCode ? `/assets/img/airlines/${airlineCode}.png` : "/assets/img/airlines/placeholder.png";
             const airlineName = airlineCode ? (typeof getAirlineName === "function" ? getAirlineName(airlineCode) : airlineCode) : "Airline";
+            const anchorId = `price-btn-${key}`;
 
             return (
               <motion.li
@@ -717,6 +692,7 @@ const ItineraryList = ({
                     {/* Trigger (replaces the small span) */}
                     <button
                       type="button"
+                      id={anchorId}  
                       onClick={() => togglePrice(key)}
                       aria-expanded={openPriceKey === key}
                       aria-controls={`price-tip-${key}`}
@@ -730,6 +706,7 @@ const ItineraryList = ({
                     <PricingTooltip
                       open={openPriceKey === key}
                       onClose={closePrice}
+                      anchorId={anchorId}  
                       anchorClassName="self-start"
                       currency={pbCurrency}
                       basePrice={backendGrand}
