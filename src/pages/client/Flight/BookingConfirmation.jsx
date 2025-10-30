@@ -9,6 +9,7 @@ import jsPDF from "jspdf";
 import DepositModal from "../../../components/client/Account/DepositModal";
 import apiService from "../../../api/apiService";
 import useETicketPdf from "../../../hooks/useETicketPdf";
+import BookingHeader from "../../../components/client/Flight/BookingHeader";
 
 /* ---------------- Payment Gateways ---------------- */
 const paymentGateways = [
@@ -775,85 +776,12 @@ const { downloadETicket, isDownloadingPdf } = useETicketPdf({ brandColor });
 
       <div className="min-h-screen bg-[#F6F6F7]">
         {/* ===== Header ===== */}
-        <header
-          className={[
-            "w-full bg-white text-slate-900 border-b border-slate-200",
-            className,
-          ].join(" ")}
-          role="banner"
-          style={{ "--brand": brandColor }}
-        >
-          <div className="sticky top-0 z-40 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-slate-200">
-            <div className="mx-auto max-w-6xl px-2 sm:px-4 py-2">
-              <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-3">
-                <div className="flex justify-center sm:justify-start w-full sm:w-auto">
-                  <Link
-                    to="/">
-                    <img src="/assets/img/logo/flygasal.png" alt="Fly Gasal" className="h-8 sm:h-10 object-contain" />
-                  </Link>
-                </div>
-                <ol className="flex items-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar" aria-label="Booking steps">
-                  {steps.map((s) => {
-                    const isActive = s.id === step;
-                    const isDone = s.id < step;
-                    const Node = onStepClick ? "button" : "div";
-                    const base =
-                      "group flex items-center gap-2 min-w-0 rounded-2xl transition px-1 py-0 sm:px-3.5 sm:py-2.5 focus:outline-none ring-offset-2 focus:ring-2 hover:bg-[#FAFAFA] cursor-pointer";
-                    const tone = isDone
-                      ? "border-slate-300 bg-slate-100 focus:ring-[color:var(--brand)]"
-                      : isActive
-                      ? "border-[color:var(--brand)] bg-white focus:ring-[color:var(--brand)]"
-                      : "border-slate-200 bg-white focus:ring-[color:var(--brand)]";
-                    return (
-                      <li key={s.id} className="min-w-0">
-                        <Node
-                          type={onStepClick ? "button" : undefined}
-                          onClick={onStepClick ? () => onStepClick(s.id) : undefined}
-                          className={`${base} ${tone}`}
-                          aria-current={isActive ? "step" : undefined}
-                          title={s.label}
-                          style={{ borderWidth: 1 }}
-                        >
-                          <span
-                            className={[
-                              "flex h-8 w-8 items-center justify-center rounded-full border text-sm font-semibold shrink-0",
-                              isDone
-                                ? "bg-[color:var(--brand)] border-[color:var(--brand)] text-white"
-                                : isActive
-                                ? "bg-white border-[color:var(--brand)] text-slate-900"
-                                : "bg-white border-slate-300 text-slate-600",
-                            ].join(" ")}
-                          >
-                            {isDone ? <Check className="h-4 w-4" aria-hidden /> : s.id}
-                          </span>
-                          <span className={["truncate font-medium", "text-xs sm:text-sm", isActive ? "text-slate-900" : isDone ? "text-slate-700" : "text-slate-600"].join(" ")}>
-                            <span className="sm:hidden">{s.label.length > 14 ? s.label.slice(0, 14) + "…" : s.label}</span>
-                            <span className="hidden sm:inline">{s.label}</span>
-                          </span>
-                        </Node>
-                      </li>
-                    );
-                  })}
-                </ol>
-              </div>
-            </div>
-          </div>
-
-          {/* Full-width progress bar */}
-          <div className="w-full">
-            <div className="relative h-1.5 w-full bg-slate-200">
-              <div
-                className="absolute left-0 top-0 h-1.5 rounded-r-full transition-[width] duration-500"
-                style={{ width: `${progressPct}%`, background: "var(--brand)" }}
-                aria-hidden
-              />
-            </div>
-            <div className="mx-auto max-w-6xl px-4 py-1.5 flex items-center justify-content-between">
-              <span className="text-[11px] text-slate-600">Step {step} of {total}</span>
-              <span className="text-[11px] text-slate-600">{Math.round(progressPct)}%</span>
-            </div>
-          </div>
-        </header>
+        <BookingHeader
+          searchParams={new URLSearchParams(location.search)}
+          getAirportName={getAirportName}
+          formatDate={formatDate}
+          currentStep={3}
+        />
 
         {/* ===== Main Content ===== */}
         <div className="container pt-5 pb-5" style={{ maxWidth: 800 }}>

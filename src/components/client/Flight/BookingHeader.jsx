@@ -15,7 +15,7 @@ export default function BookingHeader({
   // infants,
   outbound,
   returnFlight,
-  tripType,
+  tripType = "outbound",
   totalPrice,
   getAirportName,
   formatDate,
