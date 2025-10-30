@@ -480,6 +480,31 @@ const FlightSegment = ({
                         </span>
                       {/* {carryOnStr && (
                       )} */}
+                      {baggage?.adt && (
+                        <div className="flex flex-col gap-2 text-xs text-slate-700">
+                          {/* Carry-on */}
+                          <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1">
+                            <BsFillBackpack2Fill className="text-slate-500" />
+                            <span className="font-medium">Carry-on:</span>
+                            {Object.entries(baggage.adt.carryOnBySegment || {}).map(([key, bag]) => (
+                              <span key={key}>
+                                {bag.amount} {bag.weight ? `(${bag.weight})` : ""}
+                              </span>
+                            ))}
+                          </div>
+
+                          {/* Checked baggage */}
+                          <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1">
+                            <BsSuitcase2Fill className="text-slate-500" />
+                            <span className="font-medium">Checked:</span>
+                            {Object.entries(baggage.adt.checkedBySegment || {}).map(([key, bag]) => (
+                              <span key={key}>
+                                {bag.amount} {bag.weight ? `(${bag.weight})` : ""}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       <span
                         className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ${
