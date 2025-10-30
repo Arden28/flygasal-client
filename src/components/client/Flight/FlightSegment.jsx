@@ -425,6 +425,7 @@ const FlightSegment = ({
                           Seats:&nbsp;<b className="font-medium">{segment.availabilityCount}</b> <IoTicketSharp />
                         </span>
                       )}
+                      <span>{segment.segmentId}</span>
                     </div>
 
                     {/* baggage chips row (unchanged design, new data) */}
