@@ -158,7 +158,7 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
 
       const ensure = (need) => { if (y + need > page.h - M) { doc.addPage(); y = M; } };
 
-      /* ---------- Passengers + Amount (auto-height + wrap) ---------- */
+      /* ---------- Passenger(s) + Amount (non-flex; safer height) ---------- */
       {
         const leftW = W * 0.6 - 3;
         const rightW = W * 0.4 - 3;
@@ -168,7 +168,9 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
           : ["—"];
         const paxText = paxNamesArr.join(" • ");
         const paxWrapped = doc.splitTextToSize(paxText, leftW - 8);
-        const leftRectH = Math.max(18, 10 + paxWrapped.length * 4.2);
+        // slightly larger line height + padding to prevent overflow at pax > 2
+        const lh = 4.8;
+        const leftRectH = Math.max(20, 12 + paxWrapped.length * lh);
 
         ensure(leftRectH + 6);
 
@@ -212,19 +214,17 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
         y += Math.max(c1Wrapped.length, c2Wrapped.length) * 4.6 + 10;
       }
 
-      /* ---------- Per-Passenger Flight Sections ---------- */
-      const drawSegmentCard = async (seg, yStart) => {
-        // layout constants
+      /* ---------- Measure helper (y-sensitive) ---------- */
+      const measureSegmentAt = (seg, yStart) => {
         const stubW = 34;
         const bodyX = M + 10;
         const bodyW = W - stubW - 20;
         const topY  = yStart + 16;
 
-        // prepare wraps to compute dynamic height BEFORE ensure()
         const depDate = formatDate(seg?.departureDate);
         const depTime = seg?.departureTime || "—";
         const depCode = seg?.departure || "—";
-        const depAirport = getAirlineName ? (getAirportName(depCode) || depCode) : (getAirportName?.(depCode) || depCode);
+        const depAirport = getAirportName?.(depCode) || depCode;
         const depLine = `${depDate} • ${depAirport}`;
         const depWrap = doc.splitTextToSize(depLine, bodyW * 0.6);
 
@@ -241,7 +241,6 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
         ].filter(Boolean).join("   •   ");
         const extrasWrap = extras ? doc.splitTextToSize(extras, bodyW) : [];
 
-        // vertical math
         const depBlockBottom = topY + 11 + depWrap.length * 4.6;
         const arrY           = topY + 14.5;
         const arrBlockBottom = arrY + 11 + arrWrap.length * 4.6;
@@ -272,7 +271,7 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
         y += h + 4;
       };
 
-      // For each passenger, render their flights (segments)
+      /* ---------- Per-Passenger Flight Sections (two-pass safe draw) ---------- */
       for (let pIndex = 0; pIndex < passengers.length; pIndex++) {
         const pax = passengers[pIndex];
         const paxName = [pax?.firstName, pax?.lastName].filter(Boolean).join(" ") || `Passenger ${pIndex + 1}`;
@@ -282,15 +281,18 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
 
         for (const j of (journeys || [])) {
           for (const seg of (j?.segments || [])) {
-            const { tH, dims } = await drawSegmentCard(seg, y);
+            // PASS 1: measure at current y
+            const { tH } = measureSegmentAt(seg, y);
             ensure(tH + 6);
+            // PASS 2: re-measure at (possibly new) y
+            const { tH: finalTH, dims } = measureSegmentAt(seg, y);
 
             const { bodyX, bodyW, topY, arrY, extrasY, labelsY, valuesY, stubW } = dims;
 
             // card container
             doc.setDrawColor(...rgb.line);
             doc.setFillColor(255,255,255);
-            doc.roundedRect(M, y, W, tH, 4, 4, "S");
+            doc.roundedRect(M, y, W, finalTH, 4, 4, "S");
 
             // header strip
             doc.setFillColor(...rgb.wash);
@@ -334,7 +336,7 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
                 t += d + g;
               }
             };
-            dash(perfX, y + 4, perfX, y + tH - 4);
+            dash(perfX, y + 4, perfX, y + finalTH - 4);
 
             // departure block
             const depDate = formatDate(seg?.departureDate);
@@ -393,7 +395,7 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
             doc.text(ticketNum, bodyX + bodyW, valuesY, { align: "right" });
 
             // stub
-            const stubX = perfX, stubY = y, stubH = tH;
+            const stubX = perfX, stubY = y, stubH = finalTH;
             doc.setFillColor(...rgb.wash2);
             doc.rect(stubX, stubY, stubW, stubH, "F");
 
@@ -408,7 +410,7 @@ export default function useETicketPdf({ brandColor = "#0ea5e9" } = {}) {
             dash(stubX + 3, stubY + stubH - 6, stubX + stubW - 3, stubY + stubH - 6, 1.2, 1.4);
 
             // advance cursor
-            y += tH + 10;
+            y += finalTH + 10;
           }
         }
       }
