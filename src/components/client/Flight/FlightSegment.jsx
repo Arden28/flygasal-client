@@ -474,15 +474,14 @@ const FlightSegment = ({
 
                     {/* baggage chips row (unchanged design, new data) */}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {carryOnStr && (
                         <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700" title={`Carry-on for this segment: ${carryOnStr}`}>
                           <BsFillBackpack2Fill />
                           Carry on bag {carryOnStr}
                         </span>
-                      {/* {carryOnStr && (
-                      )} */}
-                      {baggage?.adt && (
+                      )}
+                      {/* {baggage?.adt && (
                         <div className="flex flex-col gap-2 text-xs text-slate-700">
-                          {/* Carry-on */}
                           <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1">
                             <BsFillBackpack2Fill className="text-slate-500" />
                             <span className="font-medium">Carry-on:</span>
@@ -493,7 +492,6 @@ const FlightSegment = ({
                             ))}
                           </div>
 
-                          {/* Checked baggage */}
                           <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1">
                             <BsSuitcase2Fill className="text-slate-500" />
                             <span className="font-medium">Checked:</span>
@@ -504,7 +502,7 @@ const FlightSegment = ({
                             ))}
                           </div>
                         </div>
-                      )}
+                      )} */}
 
                       <span
                         className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ${
