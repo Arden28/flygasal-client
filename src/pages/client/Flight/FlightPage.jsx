@@ -171,6 +171,7 @@ const carveLegsForMulti = (offer, requestedLegs = [], normalizeSegsForCarve, fin
       cabin: offer.cabin,
       bookingCode: offer.bookingCode,
       segments: chain.map((s) => ({
+        segmentId: s.segmentId ?? s.segmentID ?? "",
         airline: s.airline,
         flightNum: s.flightNo,
         departure: s.departure,
@@ -374,6 +375,7 @@ const FlightPage = () => {
     return raw
       .filter(Boolean)
       .map((s) => ({
+        segmentId: s.segmentId ?? s.segmentID ?? "",
         airline: s.airline ?? s.carrier ?? "",
         flightNo: s.flightNum ?? s.flightNumber ?? "",
         departure: s.departure ?? s.origin ?? s.departureAirport ?? "",
@@ -451,6 +453,7 @@ const FlightPage = () => {
       return {
         ...offer,
         segments: chain.map((s) => ({
+          segmentId: s.segmentId ?? s.segmentID ?? "",
           airline: s.airline,
           flightNum: s.flightNo,
           departure: s.departure,
