@@ -470,17 +470,16 @@ const FlightSegment = ({
                           Seats:&nbsp;<b className="font-medium">{segment.availabilityCount}</b> <IoTicketSharp />
                         </span>
                       )}
-                      <span>{segment.segmentId}</span>
                     </div>
 
                     {/* baggage chips row (unchanged design, new data) */}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {carryOnStr && (
                         <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700" title={`Carry-on for this segment: ${carryOnStr}`}>
                           <BsFillBackpack2Fill />
                           Carry on bag {carryOnStr}
                         </span>
-                      )}
+                      {/* {carryOnStr && (
+                      )} */}
 
                       <span
                         className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ${
