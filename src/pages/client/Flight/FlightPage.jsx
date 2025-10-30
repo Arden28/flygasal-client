@@ -961,7 +961,7 @@ const makeBaggageLabel = (offer) => {
     }
     return Array.from(oneDedup.values()).sort((a, b) => a.totalPrice - b.totalPrice);
   // include carved helper + carriersOfLeg to satisfy exhaustive-deps
-  }, [searchParams, availableFlights, returnFlights, carveReturnFromSingleOffer, carriersOfLeg, makeBaggageLabel]);
+  }, [searchParams, availableFlights, returnFlights, carveReturnFromSingleOffer, carriersOfLeg]);
 
   // ======= Recompute price bounds from actual itineraries =======
   useEffect(() => {
@@ -1098,7 +1098,6 @@ const makeBaggageLabel = (offer) => {
     sortOrder,
     selectedCabins,
     carriersOfLeg,
-    hasBaggage,
     displayPriceOfItin,
   ]);
 
