@@ -221,79 +221,6 @@ const carveLegsForMulti = (offer, requestedLegs = [], normalizeSegsForCarve, fin
   };
 };
 
-/* =====================================================================
- * Baggage helpers (HOISTED to module scope to stabilize hook deps)
- * ===================================================================== */
-const firstKey = (obj) => (obj && typeof obj === "object" ? Object.keys(obj)[0] : undefined);
-const pickNum = (x, ...fields) => {
-  for (const f of fields) {
-    const v = x?.[f];
-    if (Number.isFinite(v) && v > 0) return v;
-  }
-  return undefined;
-};
-const piecesOf = (x) => pickNum(x, "amount", "pieces", "pcs");
-const weightOf = (x) => pickNum(x, "weight", "weightKg", "kg");
-
-// Find carry/checked object for a given offer's first segment.
-// Tries segmentId, global map, then falls back to "any" entry.
-const getBaggageForFirstSeg = (offer) => {
-  const bag = offer?.baggage || offer?.__sourceBaggage || null;
-  if (!bag?.adt) return { carry: null, checked: null };
-
-  const seg0 = offer?.segments?.[0] || {};
-  const segKey =
-    seg0.segmentId || seg0.segmentID || seg0.id ||
-    offer?.globalIdxToSegId?.[0] ||
-    offer?.summary?.globalIdxToSegId?.[0] ||
-    undefined;
-
-  const carryBySeg = bag.adt.carryOnBySegment || {};
-  const checkedBySeg = bag.adt.checkedBySegment || {};
-
-  const carry = segKey
-    ? carryBySeg?.[segKey] || bag.adt.carryOn || carryBySeg?.[firstKey(carryBySeg)]
-    : bag.adt.carryOn || carryBySeg?.[firstKey(carryBySeg)];
-
-  const checked = segKey
-    ? checkedBySeg?.[segKey] || bag.adt.checked || checkedBySeg?.[firstKey(checkedBySeg)]
-    : bag.adt.checked || checkedBySeg?.[firstKey(checkedBySeg)];
-
-  return { carry, checked };
-};
-
-// Truthy flag if any baggage present (pieces or weight).
-const hasBaggage = (offer) => {
-  const { carry, checked } = getBaggageForFirstSeg(offer);
-  const anyPieces = piecesOf(carry) || piecesOf(checked);
-  const anyWeight = weightOf(carry) || weightOf(checked);
-  return Boolean(anyPieces || anyWeight);
-};
-
-// Label like "1PC 8KG carry-on + 23KG checked"
-const makeBaggageLabel = (offer) => {
-  const { carry, checked } = getBaggageForFirstSeg(offer);
-
-  const carryPieces = piecesOf(carry);
-  const carryWeight = weightOf(carry);
-  const checkedPieces = piecesOf(checked);
-  const checkedWeight = weightOf(checked);
-
-  const carryTxt =
-    carryPieces || carryWeight
-      ? `${carryPieces ? `${carryPieces}PC` : ""}${carryPieces && carryWeight ? " " : ""}${carryWeight ? `${carryWeight}KG` : ""} carry-on`
-      : "";
-
-  const checkedTxt =
-    checkedPieces || checkedWeight
-      ? `${checkedPieces ? `${checkedPieces}PC` : ""}${checkedPieces && checkedWeight ? " " : ""}${checkedWeight ? `${checkedWeight}KG` : ""} checked`
-      : "";
-
-  const both = [carryTxt, checkedTxt].filter(Boolean).join(" + ");
-  return both || null;
-};
-/* ===================================================================== */
-
 const FlightPage = () => {
   const { user } = useContext(AuthContext);
   const location = useLocation();
@@ -394,6 +321,17 @@ const FlightPage = () => {
 
   // Advanced filters helpers
   const getHour = (dt) => (dt ? new Date(dt).getHours() : 0);
+
+  // Baggage: simple truthy flag from segment baggage maps
+  // const hasBaggage = (offer) => {
+  //   const seg0 = offer?.segments?.[0]?.segmentId;
+  //   const carry = offer?.baggage?.adt?.carryOnBySegment?.[seg0];
+  //   const checked = offer?.baggage?.adt?.checkedBySegment?.[seg0];
+  //   return Boolean(
+  //     (carry && ((carry.amount ?? 0) > 0 || (carry.weight ?? 0) > 0)) ||
+  //       (checked && ((checked.amount ?? 0) > 0 || (checked.weight ?? 0) > 0))
+  //   );
+  // };
 
   const totalDurationMins = (outbound, ret, legsForMulti) => {
     if (Array.isArray(legsForMulti) && legsForMulti.length) {
@@ -804,6 +742,77 @@ const FlightPage = () => {
   }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- Derive display helpers ----------
+// schema helpers
+const firstKey = (obj) => (obj && typeof obj === "object" ? Object.keys(obj)[0] : undefined);
+const pickNum = (x, ...fields) => {
+  for (const f of fields) {
+    const v = x?.[f];
+    if (Number.isFinite(v) && v > 0) return v;
+  }
+  return undefined;
+};
+const piecesOf = (x) => pickNum(x, "amount", "pieces", "pcs");
+const weightOf = (x) => pickNum(x, "weight", "weightKg", "kg");
+
+// Find carry/checked object for a given offer's first segment.
+// Tries segmentId, global map, then falls back to "any" entry.
+const getBaggageForFirstSeg = (offer) => {
+  const bag = offer?.baggage || offer?.__sourceBaggage || null;
+  if (!bag?.adt) return { carry: null, checked: null };
+
+  const seg0 = offer?.segments?.[0] || {};
+  const segKey =
+    seg0.segmentId || seg0.segmentID || seg0.id ||
+    // if the backend provides a global index→id map, try 0
+    offer?.globalIdxToSegId?.[0] ||
+    offer?.summary?.globalIdxToSegId?.[0] ||
+    undefined;
+
+  const carryBySeg = bag.adt.carryOnBySegment || {};
+  const checkedBySeg = bag.adt.checkedBySegment || {};
+
+  // try by explicit seg key; fallback to any entry; fallback to flat fields
+  const carry = segKey
+    ? carryBySeg?.[segKey] || bag.adt.carryOn || carryBySeg?.[firstKey(carryBySeg)]
+    : bag.adt.carryOn || carryBySeg?.[firstKey(carryBySeg)];
+
+  const checked = segKey
+    ? checkedBySeg?.[segKey] || bag.adt.checked || checkedBySeg?.[firstKey(checkedBySeg)]
+    : bag.adt.checked || checkedBySeg?.[firstKey(checkedBySeg)];
+
+  return { carry, checked };
+};
+
+// Baggage: simple truthy flag from segment baggage maps
+const hasBaggage = (offer) => {
+  const { carry, checked } = getBaggageForFirstSeg(offer);
+  const anyPieces = piecesOf(carry) || piecesOf(checked);
+  const anyWeight = weightOf(carry) || weightOf(checked);
+  return Boolean(anyPieces || anyWeight);
+};
+
+const makeBaggageLabel = (offer) => {
+  const { carry, checked } = getBaggageForFirstSeg(offer);
+
+  const carryPieces = piecesOf(carry);
+  const carryWeight = weightOf(carry);
+  const checkedPieces = piecesOf(checked);
+  const checkedWeight = weightOf(checked);
+
+  const carryTxt =
+    carryPieces || carryWeight
+      ? `${carryPieces ? `${carryPieces}PC` : ""}${carryPieces && carryWeight ? " " : ""}${carryWeight ? `${carryWeight}KG` : ""} carry-on`
+      : "";
+
+  const checkedTxt =
+    checkedPieces || checkedWeight
+      ? `${checkedPieces ? `${checkedPieces}PC` : ""}${checkedPieces && checkedWeight ? " " : ""}${checkedWeight ? `${checkedWeight}KG` : ""} checked`
+      : "";
+
+  const both = [carryTxt, checkedTxt].filter(Boolean).join(" + ");
+  return both || null;
+};
+
 
   // ---------- Build itineraries from normalized offers ----------
   const itineraries = useMemo(() => {
@@ -876,9 +885,11 @@ const FlightPage = () => {
           if (items.length >= MAX_RESULTS) break;
         }
         items.sort((a, b) => priceOfItin(a) - priceOfItin(b));
+        // items.sort((a, b) => a.priceBreakdown.totals.grand - b.priceBreakdown.totals.grand);
         const final = new Map();
         for (const it of items) {
           const k = returnKey(it.outbound, it.return, it.cabin);
+          // if (!final.has(k) || it.priceBreakdown.totals.grand < final.get(k).priceBreakdown.totals.grand) final.set(k, it);
           if (!final.has(k) || priceOfItin(it) < priceOfItin(final.get(k))) {
             final.set(k, it);
           }
@@ -895,6 +906,8 @@ const FlightPage = () => {
         for (let i = 0; i < sortedReturns.length && added < MAX_RETURNS_PER_OUTBOUND; i++) {
           const rt = sortedReturns[i];
           // Use a pair price so Price filter & bounds behave correctly.
+          // If a supplier already embeds full roundtrip price in both legs,
+          // this still yields a consistent upper bound.
           const pairTotalPrice = priceOf(out) + priceOf(rt);
           const rec = {
             id: `${out.id}-${rt.id}`,
@@ -947,7 +960,7 @@ const FlightPage = () => {
       if (oneDedup.size >= MAX_RESULTS) break;
     }
     return Array.from(oneDedup.values()).sort((a, b) => a.totalPrice - b.totalPrice);
-  // include carved helper + carriersOfLeg. (makeBaggageLabel is module-scoped & stable)
+  // include carved helper + carriersOfLeg to satisfy exhaustive-deps
   }, [searchParams, availableFlights, returnFlights, carveReturnFromSingleOffer, carriersOfLeg]);
 
   // ======= Recompute price bounds from actual itineraries =======
@@ -1085,8 +1098,6 @@ const FlightPage = () => {
     sortOrder,
     selectedCabins,
     carriersOfLeg,
-    // hasBaggage and displayPriceOfItin are stable (module-scope/useCallback)
-    // hasBaggage,
     displayPriceOfItin,
   ]);
 
@@ -1328,6 +1339,39 @@ const FlightPage = () => {
 
       {/* Sticky modify search */}
       <motion.div className="top-0 z-20 bg-[#452003] py-3">
+        {/* <div className="container py-2">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              {searchParams ? (
+                <>
+                  <span className="font-medium text-gray-800">{getAirportName(searchParams.origin)}</span>
+                  <span className="mx-2">→</span>
+                  <span className="font-medium text-gray-800">{getAirportName(searchParams.destination)}</span>
+                  {searchParams.departureDate && (
+                    <span className="ml-3">
+                      {formatDate(searchParams.departureDate)}
+                      {searchParams.returnDate ? ` – ${formatDate(searchParams.returnDate)}` : ""}
+                    </span>
+                  )}
+                  <span className="ml-3">
+                    {(searchParams.adults || 1) + (searchParams.children || 0) + (searchParams.infants || 0)} pax
+                  </span>
+                </>
+              ) : (
+                <span>Loading…</span>
+              )}
+            </div>
+            <button
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
+              onClick={() => setIsSearchFormVisible((v) => !v)}
+            >
+              {isSearchFormVisible ? "Hide search" : "Modify search"}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
+        </div> */}
         <div className="container py-4">
           <div className="border-x border-b rounded-2xl border-gray-200 bg-white p-3">
             <FlightSearchForm
