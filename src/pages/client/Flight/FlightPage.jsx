@@ -121,6 +121,7 @@ const getJourneyMins = (it) => {
 };
 
 
+
 // formatting helpers for summaries
 const fmtCurrency = (amt, currency = "USD") => {
   if (!Number.isFinite(amt)) return "—";
@@ -305,19 +306,6 @@ const FlightPage = () => {
   const getAirlineLogo = (code) =>
     airlines.find((x) => x.code === code)?.logo || `/assets/img/airlines/${code}.png`;
   const toggleSearchForm = () => setIsSearchFormVisible((v) => !v);
-
-  
-
-  // === Display price = backend total with agency markup applied ===
-  const displayPriceOfItin = React.useCallback(
-    (it) => {
-      const base = priceOfItin(it);
-      const pct = Number(agentMarkupPercent) || 0;
-      // keep cents; round to 2dp to avoid floating artifacts
-      return Math.round(base * (1 + pct / 100) * 100) / 100;
-    },
-    [agentMarkupPercent]
-  );
 
   // Advanced filters helpers
   const getHour = (dt) => (dt ? new Date(dt).getHours() : 0);
@@ -966,7 +954,7 @@ const makeBaggageLabel = (offer) => {
   // ======= Recompute price bounds from actual itineraries =======
   useEffect(() => {
     if (Array.isArray(itineraries) && itineraries.length) {
-      const prices = itineraries.map(displayPriceOfItin).filter((p) => Number.isFinite(p));
+      const prices = itineraries.map(priceOfItin).filter((p) => Number.isFinite(p));
       if (prices.length) {
         const absMin = Math.floor(Math.min(...prices));
         const absMax = Math.ceil(Math.max(...prices));
@@ -979,7 +967,7 @@ const makeBaggageLabel = (offer) => {
     setPriceBounds([0, 0]);
     setMinPrice(0);
     setMaxPrice(0);
-  }, [itineraries, displayPriceOfItin]);
+  }, [itineraries]);
 
   // Filter + sort (with small guard for price values)
   const filteredItineraries = useMemo(() => {
@@ -989,7 +977,7 @@ const makeBaggageLabel = (offer) => {
 
     // 1) FILTER (unchanged)
     const base = itineraries.filter((it) => {
-      const itPrice = displayPriceOfItin(it);
+      const itPrice = priceOfItin(it);
       const priceOk = itPrice >= low && itPrice <= high;
 
       // ----- stops calc (unchanged) -----
@@ -1076,7 +1064,7 @@ const makeBaggageLabel = (offer) => {
 
     // 2) SORT — only when needed to avoid stepping on "filters"
     if (sortOrder === "cheapest") {
-      return [...base].sort((a, b) => displayPriceOfItin(a) - displayPriceOfItin(b));
+      return [...base].sort((a, b) => priceOfItin(a) - priceOfItin(b));
     }
     if (sortOrder === "quickest") {
       return [...base].sort((a, b) => getJourneyMins(a) - getJourneyMins(b));
@@ -1098,7 +1086,6 @@ const makeBaggageLabel = (offer) => {
     sortOrder,
     selectedCabins,
     carriersOfLeg,
-    displayPriceOfItin,
   ]);
 
   
@@ -1113,7 +1100,7 @@ const makeBaggageLabel = (offer) => {
     }
 
     // Cheapest itinerary by price
-    const cheapest = [...filteredItineraries].sort((a, b) => displayPriceOfItin(a) - displayPriceOfItin(b))[0];
+    const cheapest = [...filteredItineraries].sort((a, b) => priceOfItin(a) - priceOfItin(b))[0];
     // Quickest itinerary by journey mins
     const quickest = [...filteredItineraries].sort((a, b) => getJourneyMins(a) - getJourneyMins(b))[0];
     // Recommended = first in current default ordering
@@ -1121,22 +1108,22 @@ const makeBaggageLabel = (offer) => {
 
     return {
       recommended: {
-        price: fmtCurrency(displayPriceOfItin(recommended), currency),
+        price: fmtCurrency(priceOfItin(recommended), currency),
         duration: `${fmtDuration(getJourneyMins(recommended))} (avg)`,
         loading,
       },
       cheapest: {
-        price: fmtCurrency(displayPriceOfItin(cheapest), currency),
+        price: fmtCurrency(priceOfItin(cheapest), currency),
         duration: `${fmtDuration(getJourneyMins(cheapest))} (avg)`,
         loading,
       },
       quickest: {
-        price: fmtCurrency(displayPriceOfItin(quickest), currency),
+        price: fmtCurrency(priceOfItin(quickest), currency),
         duration: `${fmtDuration(getJourneyMins(quickest))} (avg)`,
         loading,
       },
     };
-  }, [filteredItineraries, currency, loading, displayPriceOfItin]);
+  }, [filteredItineraries, currency, loading]);
 
 
   // Primary codes (exactly like your filter uses)
