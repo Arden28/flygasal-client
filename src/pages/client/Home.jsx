@@ -118,21 +118,15 @@ const Home = () => {
       {/* Delay payments Section */}
       <section className="bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 flex flex-col md:flex-row items-center gap-12">
-          {/* Image on the left */}
-          <div className="md:w-1/2">
-            <img
-              src="/assets/img/agent.jpg"
-              alt="Flexible payment options"
-              className="rounded-3xl w-full h-80 object-cover"
-            />
-          </div>
-          {/* Text content */}
+          {/* Text content (now on the left) */}
           <div className="md:w-1/2">
             <h3 className="text-3xl sm:text-4xl font-semibold text-slate-900 mb-4">
               Delay payments, not your plans
             </h3>
             <p className="text-slate-600 mb-6">
-              Life happens, and plans change. But that shouldn't stop you from exploring the world. With our flexible payment options, delay the cost, not your adventure, and travel when you're ready【781689595112326†L115-L119】.
+              Life happens, and plans change. But that shouldn't stop you from
+              exploring the world. With our flexible payment options, delay the cost,
+              not your adventure, and travel when you're ready.
             </p>
             <a
               href="#"
@@ -155,8 +149,18 @@ const Home = () => {
               </svg>
             </a>
           </div>
+
+          {/* Image now on the right */}
+          <div className="md:w-1/2">
+            <img
+              src="/assets/img/agent.jpg"
+              alt="Flexible payment options"
+              className="rounded-3xl w-full h-80 object-cover"
+            />
+          </div>
         </div>
       </section>
+
 
       {/* Protection Section */}
       <section className="bg-white">
