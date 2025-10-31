@@ -604,7 +604,7 @@ const { downloadETicket, isDownloadingPdf } = useETicketPdf({ brandColor });
 
               {secondsLeft <= 0 && (
                 <div id="expired" className="alert alert-warning text-center rounded-4">
-                  ⏰ Payment time expired! Please select your flights again.
+                  Payment time expired! Please select your flights again.
                 </div>
               )}
             </>

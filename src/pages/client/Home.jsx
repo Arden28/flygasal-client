@@ -109,8 +109,8 @@ const Home = () => {
             <span className="text-sm sm:text-base">Verified by Trustpilot</span>
           </div>
           <h3 className="mt-6 text-3xl sm:text-4xl font-semibold text-white leading-snug max-w-3xl">
-            “Fly Gasal made it possible for me to visit my family whom I hadn't seen in 5+ years.
-            With everything so expensive, their payment plans made everything more affordable.”
+            “It felt like chasing a sunset across the savannah — I hadn’t seen my family in over 5 years. 
+              Thanks to Fly Gasal’s easy payment plans, the journey home finally became real.”
           </h3>
         </div>
       </section>
