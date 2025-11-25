@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import SpinnerOrbit from "../components/client/SpinnerOrbit";
 import { AuthContext } from "../context/AuthContext";
 import logo from "/assets/img/logo/flygasal.png";
+import Navbar from "../components/client/Navbar";
 
 // Brand color
 const ORANGE = "#F68221";
@@ -74,86 +75,12 @@ export default function ClientLayout() {
   return (
     <div className="flex min-h-screen flex-col">
       {/* --- NAVBAR (kept minimal, hero-friendly, no shadows) --- */}
-      <header
-        ref={rootRef}
-        className="relative z-[250] bg-transparent backdrop-blur-md"
-      >
-        <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
-          <div className="flex h-14 items-center justify-between">
-            {/* Brand */}
-            <Link to="/" className="group flex items-center gap-2">
-              <img src={logo} alt="FlyGasal" className="h-8 w-auto" />
-            </Link>
-
-            {/* Account only (no language, no extra links) */}
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <button
-                  onClick={() => setAcctOpen((v) => !v)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-800"
-                >
-                  <img
-                    src={
-                      user?.avatar_url ||
-                      `https://api.dicebear.com/7.x/initials/svg?radius=50&seed=${encodeURIComponent(
-                        user?.name || "U"
-                      )}`
-                    }
-                    alt="Avatar"
-                    className="h-8 w-8 rounded-full border border-slate-200 object-cover"
-                  />
-                  <span className="truncate max-w-[12rem]">
-                    {isLoggingOut ? "Logging out..." : userDisplayName}
-                  </span>
-                  <Caret />
-                </button>
-
-                {acctOpen && (
-                  <ul
-                    className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-200 bg-white"
-                    // no shadow; clean and minimal
-                  >
-                    {(user
-                      ? [
-                          { label: "Dashboard", to: user.role === "admin" ? "/admin" : "/dashboard" },
-                          { label: "Bookings", to: user.role === "admin" ? "/admin" : "/bookings" },
-                          { label: "Deposits", to: user.role === "admin" ? "/admin" : "/deposits" },
-                        ]
-                      : [
-                          { label: "Login", to: "/login" },
-                          { label: "Signup", to: "/signup" },
-                        ]
-                    ).map((opt) => (
-                      <li key={opt.label}>
-                        <Link
-                          to={opt.to}
-                          className="block px-3 py-2 text-sm hover:bg-slate-50"
-                          onClick={() => setAcctOpen(false)}
-                        >
-                          {opt.label}
-                        </Link>
-                      </li>
-                    ))}
-                    {user && (
-                      <li>
-                        <button
-                          onClick={handleLogout}
-                          className="block w-full px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
-                        >
-                          {isLoggingOut ? "Logging out..." : "Logout"}
-                        </button>
-                      </li>
-                    )}
-                  </ul>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       <SpinnerOrbit />
-      <Outlet />
+      <main className="mt-24">
+        <Outlet />
+      </main>
 
       {/* --- FOOTER --- */}
       <footer className="mt-auto bg-[#0E0A1A] text-white">

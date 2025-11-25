@@ -3,109 +3,108 @@ import Select from "react-select";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../../context/AuthContext";
+import { countries } from "../../../data/fakeData";
 
 /* ---------------- i18n ---------------- */
 const T = {
-  signup: "Sign Up",
-  agent: "Agent",
+  signup: "Create Account",
+  agent: "Agent Portal",
   name: "Full Name",
-  select_country: "Select Country",
+  select_country: "Country",
   phone: "Phone Number",
-  email: "Email",
+  email: "Work Email",
   password: "Password",
   confirm_password: "Confirm Password",
-  by_signup_i_agree_to_terms_and_policy: "By signing up, I agree to the Terms and Policy",
+  by_signup_i_agree_to_terms_and_policy: "I agree to the Terms of Service & Privacy Policy",
   agency_name: "Agency Name",
-  agency_license: "Agency License",
-  agency_city: "Agency City",
-  agency_address: "Agency Address",
+  agency_license: "License Number / IATA",
+  agency_city: "City",
+  agency_address: "Street Address",
   continue: "Continue",
   back: "Back",
-  create_account: "Create Account",
-  already_have_account: "Already have an account?",
-  sign_in: "Sign in",
-
-  // Marketing copy
-  hero_title: "Join Fly Gasal as an Agent",
-  hero_sub:
-    "Access wholesale rates, manage bookings, and grow your travel business with a dashboard built for agencies.",
-  cta_get_started: "Get Started",
-  why_join_title: "Why join Fly Gasal?",
-  why_join_sub: "Access wholesale rates and premium inventory to boost your travel agency's revenue.",
-  feat1_title: "Wholesale Rates",
-  feat1_desc: "Exclusive B2B fares and room rates to maximize your margins.",
-  feat2_title: "Premium Inventory",
-  feat2_desc: "Book flights and stays across global carriers and top hotels.",
-  feat3_title: "Agent Dashboard",
-  feat3_desc: "Manage bookings, invoices, markups, and reports in one place.",
-  feat4_title: "Dedicated Support",
-  feat4_desc: "Priority, 24/7 support tailored for travel agencies.",
-  how_title: "How it works",
-  how_sub: "Start booking with wholesale rates today.",
-  step1_t: "Register as an Agent",
-  step1_d: "Complete a quick verification of your agency credentials.",
-  step2_t: "Access Your Dashboard",
-  step2_d: "Log in and unlock wholesale rates and premium inventory.",
-  step3_t: "Make Bookings",
-  step3_d: "Search, filter, and confirm bookings in real time.",
-  step4_t: "Grow Your Business",
-  step4_d: "Track performance, manage clients, and scale profitably.",
+  create_account: "Complete Registration",
+  already_have_account: "Already a partner?",
+  sign_in: "Log in",
+  
+  // Side Panel Copy
+  side_title: "Grow your travel business.",
+  side_sub: "Join thousands of agencies booking wholesale rates today.",
+  feat1: "Exclusive B2B Fares",
+  feat2: "Instant Ticketing",
+  feat3: "24/7 Priority Support",
 };
 
-/* ---------------- Countries (your new shape; example subset) ----------------
-   Each item:
-   {
-     code: "KE", iso3:"KEN", name:"Kenya", flag:"/assets/img/flags/ke.png",
-     capital:"Nairobi", cities:["Nairobi"], callingCode:"+254", callingCodes: ["+254"],
-     currency:{ code:"KES", name:"Kenyan shilling", symbol:"KSh" }, region:"Africa", ...
-   }
---------------------------------------------------------------------------- */
-
-import { countries } from "../../../data/fakeData";
-
 /* ---------------- Styles for react-select ---------------- */
-const selectStyles = {
-  control: (p, s) => ({
-    ...p,
-    borderRadius: 12,
-    minHeight: 48,
-    borderColor: s.isFocused ? "#F68221" : "#e5e7eb",
-    boxShadow: s.isFocused ? "0 0 0 3px rgba(246,130,33,.18)" : "none",
-    ":hover": { borderColor: "#f5a46a" },
+const customSelectStyles = {
+  control: (provided, state) => ({
+    ...provided,
+    backgroundColor: "#ffffff",
+    border: state.isFocused ? "1px solid #F68221" : "1px solid #e5e7eb",
+    borderRadius: "0.5rem", // matches tailwind rounded-lg
+    minHeight: "50px",
+    boxShadow: state.isFocused ? "0 0 0 4px rgba(246, 130, 33, 0.1)" : "none",
+    transition: "all 0.2s ease",
+    "&:hover": { borderColor: "#F68221" }
   }),
-  menu: (p) => ({ ...p, borderRadius: 12, overflow: "hidden" }),
-  option: (p, s) => ({
-    ...p,
-    padding: "10px 12px",
-    background: s.isFocused ? "#fff7ee" : "white",
-    color: "#1f2937",
+  valueContainer: (provided) => ({
+    ...provided,
+    padding: "0 1rem",
+  }),
+  input: (provided) => ({
+    ...provided,
+    margin: 0,
+    padding: 0,
+  }),
+  placeholder: (provided) => ({
+    ...provided,
+    color: "#9ca3af",
+  }),
+  singleValue: (provided) => ({
+    ...provided,
+    color: "#111827",
+    fontWeight: 500,
+  }),
+  menu: (provided) => ({
+    ...provided,
+    borderRadius: "0.75rem",
+    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+    border: "1px solid #e5e7eb",
+    zIndex: 50,
+  }),
+  option: (provided, state) => ({
+    ...provided,
+    backgroundColor: state.isFocused ? "#FFF7EE" : "white",
+    color: state.isSelected ? "#F68221" : "#374151",
+    cursor: "pointer",
+    padding: "10px 1rem",
+    "&:active": { backgroundColor: "#FFEAD5" }
   }),
 };
 
 const CountryOption = ({ innerProps, data }) => (
-  <div {...innerProps} className="d-flex align-items-center px-3 py-2">
-    <img src={data.flag} alt="" width={18} height={12} className="me-2 rounded" />
-    <span className="me-2">{data.name}</span>
-    <span className="text-muted small">{data.callingCode || "—"}</span>
+  <div {...innerProps} className="d-flex align-items-center justify-content-between px-3 py-2">
+    <div className="d-flex align-items-center">
+      <img src={data.flag} alt="" width={20} className="me-3 rounded-1 shadow-sm" />
+      <span className="fw-medium">{data.name}</span>
+    </div>
+    <span className="text-muted small bg-light px-2 py-1 rounded">{data.callingCode}</span>
   </div>
 );
 
 const CountrySingleValue = ({ innerProps, data }) => (
   <div {...innerProps} className="d-flex align-items-center">
-    <img src={data.flag} alt="" width={18} height={12} className="me-2 rounded" />
-    <span className="me-2">{data.name}</span>
-    <span className="text-muted small">{data.callingCode || "—"}</span>
+    <img src={data.flag} alt="" width={20} className="me-2 rounded-1" />
+    <span>{data.name}</span>
   </div>
 );
 
-/* ---------------- Helpers ---------------- */
+/* ---------------- Logic Helpers ---------------- */
 const digitsOnly = (v) => v.replace(/\D+/g, "");
 const strength = (pwd) => {
   let sc = 0;
   if (pwd.length >= 8) sc++;
   if (/[A-Z]/.test(pwd)) sc++;
-  if (/[a-z]/.test(pwd)) sc++;
-  if (/\d/.test(pwd)) sc++;
+  if (/[0-9]/.test(pwd)) sc++;
   if (/[^A-Za-z0-9]/.test(pwd)) sc++;
   return Math.min(sc, 4);
 };
@@ -119,11 +118,11 @@ const Register = ({
   const { register } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const [step, setStep] = useState(1); // 1: account, 2: agency
+  // State
+  const [step, setStep] = useState(1);
   const [isAgreed, setIsAgreed] = useState(false);
   const [isCaptchaOk, setIsCaptchaOk] = useState(false);
   const captchaRef = useRef(null);
-
   const [isLoading, setIsLoading] = useState(false);
   const [formErrors, setFormErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -132,7 +131,7 @@ const Register = ({
 
   const [form, setForm] = useState({
     name: "",
-    country: null, // holds the full country object (with code, name, callingCode, flag, etc.)
+    country: null,
     phone: "",
     email: "",
     password: "",
@@ -143,29 +142,28 @@ const Register = ({
     agency_address: "",
   });
 
-  /* -------- Validation -------- */
-  const step1Errors = () => {
+  /* -------- Validation Logic -------- */
+  const validateStep1 = () => {
     const e = {};
-    if (!form.name.trim()) e.name = "Full name is required.";
-    if (!form.country) e.country = "Country is required.";
-    if (!form.phone.trim()) e.phone = "Phone number is required.";
-    else if (!/^\d{7,15}$/.test(form.phone.trim())) e.phone = "Phone must be 7–15 digits.";
-    if (!form.email.trim()) e.email = "Email is required.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = "Invalid email format.";
-    if (!form.password) e.password = "Password is required.";
-    else if (form.password.length < 8) e.password = "Use at least 8 characters.";
-    if (!form.confirm_password) e.confirm_password = "Please confirm your password.";
-    else if (form.confirm_password !== form.password) e.confirm_password = "Passwords do not match.";
+    if (!form.name.trim()) e.name = "Full name is required";
+    if (!form.country) e.country = "Select your country";
+    if (!form.phone.trim()) e.phone = "Phone number is required";
+    if (!form.email.trim()) e.email = "Email is required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = "Invalid email address";
+    if (!form.password) e.password = "Password is required";
+    else if (form.password.length < 8) e.password = "Min 8 characters";
+    if (form.confirm_password !== form.password) e.confirm_password = "Passwords do not match";
     return e;
   };
-  const step2Errors = () => {
+
+  const validateStep2 = () => {
     const e = {};
-    if (!form.agency_name.trim()) e.agency_name = "Agency name is required.";
-    if (!form.agency_license.trim()) e.agency_license = "Agency license is required.";
-    if (!form.agency_city.trim()) e.agency_city = "Agency city is required.";
-    if (!form.agency_address.trim()) e.agency_address = "Agency address is required.";
-    if (!isAgreed) e.terms = "You must agree to the Terms and Policy.";
-    if (!isCaptchaOk) e.recaptcha = "Please complete the verification.";
+    if (!form.agency_name.trim()) e.agency_name = "Agency name is required";
+    if (!form.agency_license.trim()) e.agency_license = "License number is required";
+    if (!form.agency_city.trim()) e.agency_city = "City is required";
+    if (!form.agency_address.trim()) e.agency_address = "Address is required";
+    if (!isAgreed) e.terms = "Please accept the terms";
+    if (!isCaptchaOk) e.recaptcha = "Please verify you are human";
     return e;
   };
 
@@ -185,29 +183,22 @@ const Register = ({
   };
 
   const goNext = () => {
-    const e = step1Errors();
+    const e = validateStep1();
     if (Object.keys(e).length) {
       setFormErrors(e);
-      const first = Object.keys(e)[0];
-      const el = document.getElementById(first);
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
-      el?.focus();
+      setTouched({ name: true, phone: true, email: true, password: true, confirm_password: true, country: true });
       return;
     }
     setFormErrors({});
     setStep(2);
-    setTimeout(() => document.getElementById("agency_name")?.focus(), 50);
   };
-  const goBack = () => setStep(1);
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    const e2 = step2Errors();
+    const e2 = validateStep2();
     if (Object.keys(e2).length) {
       setFormErrors(e2);
-      const first = Object.keys(e2)[0];
-      const el = document.getElementById(first === "recaptcha" ? "hcaptcha-box" : first);
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setTouched((prev) => ({ ...prev, agency_name: true, agency_license: true, agency_city: true, agency_address: true }));
       return;
     }
 
@@ -218,8 +209,8 @@ const Register = ({
         email: form.email.trim().toLowerCase(),
         password: form.password,
         phone_number: form.phone.trim(),
-        phone_country_code: stripPlus(form.country?.callingCode || ""), // numeric dial code
-        phone_country_iso: form.country?.code || null, // e.g., "KE"
+        phone_country_code: stripPlus(form.country?.callingCode || ""),
+        phone_country_iso: form.country?.code || null,
         agency_name: form.agency_name.trim(),
         agency_license: form.agency_license.trim(),
         agency_city: form.agency_city.trim(),
@@ -228,23 +219,6 @@ const Register = ({
         form_token: formToken,
       };
       await register(payload);
-
-      // reset
-      setForm({
-        name: "",
-        country: null,
-        phone: "",
-        email: "",
-        password: "",
-        confirm_password: "",
-        agency_name: "",
-        agency_license: "",
-        agency_city: "",
-        agency_address: "",
-      });
-      setIsAgreed(false);
-      setIsCaptchaOk(false);
-      setFormErrors({});
       navigate("/signup-success", { replace: true });
     } catch (err) {
       const msg = err?.response?.data?.message || "Registration failed. Please try again.";
@@ -254,569 +228,425 @@ const Register = ({
     }
   };
 
-  /* -------- Visual helpers -------- */
+  /* -------- Render Helpers -------- */
   const pwdScore = strength(form.password);
-  const pwdBars = ["#fee2e2", "#fde68a", "#bbf7d0", "#86efac"];
-  const pwdBarColor = pwdScore ? pwdBars[pwdScore - 1] : "#e5e7eb";
-
-  const canContinue = useMemo(() => Object.keys(step1Errors()).length === 0, [form]);
-  const canCreate = useMemo(() => Object.keys(step2Errors()).length === 0, [form, isAgreed, isCaptchaOk]);
-
-  const dial = form.country?.callingCode || "—";
+  const pwdBars = ["#ef4444", "#f59e0b", "#84cc16", "#22c55e"]; // red, orange, lime, green
+  
+  // Dynamic CSS for focus states
+  const getFieldClass = (fieldName) => {
+    const base = "form-control modern-input";
+    if (touched[fieldName] && formErrors[fieldName]) return `${base} is-invalid`;
+    return base;
+  };
 
   return (
     <>
-      {/* Brand tokens + subtle phone prefix style */}
       <style>{`
-        :root{
-          --brand:#F68221;
-          --brand-600:#F5740A;
-          --brand-700:#E96806;
-          --brand-50:#FFF7EE;
-          --ink:#1f2937;
+        :root {
+          --brand-primary: #F68221;
+          --brand-hover: #e06d0e;
+          --brand-soft: #FFF7EE;
+          --text-main: #111827;
+          --text-sub: #6B7280;
+          --border-color: #E5E7EB;
         }
-        .hero-grad{background: radial-gradient(800px 300px at 10% 0%, rgba(246,130,33,.08), transparent 60%), linear-gradient(180deg,#ffffff, #fbfbfb)}
-        .card-glass{backdrop-filter:saturate(180%) blur(6px); background:rgba(255,255,255,.9); border:1px solid rgba(246,130,33,.12)}
-        .feature-card{transition:transform .2s ease, box-shadow .2s ease}
-        .feature-card:hover{transform:translateY(-2px); box-shadow:0 10px 20px rgba(0,0,0,.06)}
-        .step-dot{width:28px;height:28px;border-radius:9999px; display:flex; align-items:center; justify-content:center}
-        .step-dot.active{background:var(--brand);color:#fff}
-        .step-dot.done{background:#22c55e;color:#fff}
-        .field-focus:focus{
-          border-color: var(--brand) !important;
-          box-shadow:0 0 0 .2rem rgba(246,130,33,.15) !important;
+        body { background-color: #F9FAFB; }
+        
+        /* Modern Input Reset */
+        .modern-input {
+          height: 50px;
+          border-radius: 0.5rem;
+          border: 1px solid var(--border-color);
+          padding: 0.75rem 1rem;
+          font-size: 0.95rem;
+          background-color: #fff;
+          transition: all 0.2s ease;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
-        .brand-btn{ background:var(--brand); border-color:var(--brand); }
-        .brand-btn:hover{ background:var(--brand-600); border-color:var(--brand-600); }
-        .brand-light{ background:var(--brand-50); border:1px solid rgba(246,130,33,.2); }
-        .link-brand{ color:var(--brand-700); text-decoration:none; }
-        .link-brand:hover{ color:var(--brand-600); text-decoration:underline; }
+        .modern-input:focus {
+          border-color: var(--brand-primary);
+          box-shadow: 0 0 0 4px rgba(246, 130, 33, 0.1);
+        }
+        .modern-input.is-invalid {
+          border-color: #EF4444;
+          background-image: none; /* Remove default bootstrap x icon */
+        }
+        
+        /* Floating Labelsish - making labels cleaner */
+        .form-label {
+          font-weight: 500;
+          font-size: 0.875rem;
+          color: #374151;
+          margin-bottom: 0.35rem;
+        }
 
-        /* Subtle phone prefix – simple, not flashy */
-        .phone-prefix{
-          background:#fff;
-          color:#6b7280;
-          border-right:0;
-          font-weight:500;
+        /* Buttons */
+        .btn-brand {
+          background-color: var(--brand-primary);
+          color: white;
+          border: none;
+          height: 50px;
+          font-weight: 600;
+          border-radius: 0.5rem;
+          transition: transform 0.1s ease, box-shadow 0.2s ease;
         }
-        .eye-toggle{
-          display:inline-grid;
-          place-items:center;
-          width:44px;
-          border:0;
-          background:transparent;
-          cursor:pointer;
+        .btn-brand:hover {
+          background-color: var(--brand-hover);
+          color: white;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 6px -1px rgba(246, 130, 33, 0.2);
         }
-        .eye-toggle:focus{
-          outline:none;
-          box-shadow:0 0 0 .2rem rgba(246,130,33,.15);
-          border-radius:.5rem;
+        .btn-brand:active { transform: translateY(0); }
+        .btn-brand:disabled { opacity: 0.7; transform: none; }
+
+        .btn-outline-back {
+          border: 1px solid var(--border-color);
+          background: white;
+          color: var(--text-sub);
+          height: 50px;
+          border-radius: 0.5rem;
+          font-weight: 500;
+        }
+        .btn-outline-back:hover { background: #f3f4f6; color: var(--text-main); }
+
+        /* Progress Steps */
+        .step-indicator { display: flex; gap: 8px; margin-bottom: 2rem; }
+        .step-pill { height: 4px; flex: 1; border-radius: 2px; background: #E5E7EB; transition: all 0.3s ease; }
+        .step-pill.active { background: var(--brand-primary); }
+
+        /* Eye Icon */
+        .pwd-toggle {
+          position: absolute;
+          right: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          border: none;
+          background: none;
+          color: #9CA3AF;
+          cursor: pointer;
+          padding: 4px;
+        }
+        .pwd-toggle:hover { color: #6B7280; }
+
+        /* Layout Utilities */
+        .split-layout { min-height: 100vh; display: flex; }
+        .split-left { 
+          flex: 1; 
+          background: white; 
+          display: flex; 
+          flex-direction: column; 
+          justify-content: center; 
+          padding: 2rem; 
+          position: relative;
+        }
+        .split-right { 
+          flex: 0 0 500px; 
+          background: #111827; 
+          position: relative; 
+          overflow: hidden; 
+          display: none; /* Hidden on mobile */
+        }
+        .bg-img-cover {
+          position: absolute; inset: 0; width: 100%; height: 100%;
+          object-fit: cover; opacity: 0.4; mix-blend-mode: overlay;
+        }
+        .right-content {
+          position: relative; z-index: 2; padding: 4rem; height: 100%;
+          display: flex; flex-direction: column; justify-content: center; color: white;
+        }
+
+        /* Checkbox Custom */
+        .custom-check { accent-color: var(--brand-primary); width: 1.1rem; height: 1.1rem; }
+
+        @media (min-width: 992px) {
+          .split-right { display: block; flex: 1; max-width: 50%; }
+          .split-left { max-width: 50%; padding: 4rem 6rem; }
         }
       `}</style>
 
-      {/* Hero */}
-      <section className="hero-grad py-5">
-        <div className="container">
-          <div className="row align-items-center g-4">
-            <div className="col-lg-6">
-              <span className="badge brand-light rounded-pill mb-3">B2B Agents</span>
-              <h1 className="fw-bold mb-3" style={{ color: "var(--ink)" }}>
-                {T.hero_title}
-              </h1>
-              <p className="text-muted mb-4">{T.hero_sub}</p>
-              <a href="#signup-form" className="btn btn-lg brand-btn text-white px-4">
-                {T.cta_get_started}
-              </a>
-            </div>
-            <div className="col-lg-6">
-              <img src="/assets/img/before-booking.webp" alt="Agent" className="img-fluid rounded-4 shadow-sm" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Why Join / Advantages */}
-      <section className="py-5 bg-white">
-        <div className="container">
-          <div className="text-center mb-4">
-            <h2 className="fw-semibold">{T.why_join_title}</h2>
-            <p className="text-muted">{T.why_join_sub}</p>
-          </div>
-
-          <div className="row g-4">
-            <div className="col-md-3">
-              <div className="feature-card h-100 p-4 rounded-4 border bg-white">
-                <img src="/assets/img/ico1.png" alt="" width={48} className="mb-3" />
-                <h5 className="fw-semibold mb-1">{T.feat1_title}</h5>
-                <p className="text-muted small mb-0">{T.feat1_desc}</p>
-              </div>
-            </div>
-            <div className="col-md-3">
-              <div className="feature-card h-100 p-4 rounded-4 border bg-white">
-                <img src="/assets/img/ico2.png" alt="" width={48} className="mb-3" />
-                <h5 className="fw-semibold mb-1">{T.feat2_title}</h5>
-                <p className="text-muted small mb-0">{T.feat2_desc}</p>
-              </div>
-            </div>
-            <div className="col-md-3">
-              <div className="feature-card h-100 p-4 rounded-4 border bg-white">
-                <img src="/assets/img/ico3.png" alt="" width={48} className="mb-3" />
-                <h5 className="fw-semibold mb-1">{T.feat3_title}</h5>
-                <p className="text-muted small mb-0">{T.feat3_desc}</p>
-              </div>
-            </div>
-            <div className="col-md-3">
-              <div className="feature-card h-100 p-4 rounded-4 border bg-white">
-                <img src="/assets/img/ico4.png" alt="" width={48} className="mb-3" />
-                <h5 className="fw-semibold mb-1">{T.feat4_title}</h5>
-                <p className="text-muted small mb-0">{T.feat4_desc}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section className="py-5 bg-light">
-        <div className="container">
-          <div className="text-center mb-4">
-            <h2 className="fw-semibold">{T.how_title}</h2>
-            <p className="text-muted">{T.how_sub}</p>
-          </div>
-          <div className="row align-items-center g-4">
-            <div className="col-lg-6">
-              <ol className="list-unstyled m-0">
-                {[
-                  { n: 1, t: T.step1_t, d: T.step1_d },
-                  { n: 2, t: T.step2_t, d: T.step2_d },
-                  { n: 3, t: T.step3_t, d: T.step3_d },
-                  { n: 4, t: T.step4_t, d: T.step4_d },
-                ].map((s) => (
-                  <li key={s.n} className="d-flex align-items-start mb-3">
-                    <div
-                      className="me-3 d-flex align-items-center justify-content-center rounded-circle bg-white border"
-                      style={{ width: 40, height: 40 }}
-                    >
-                      <strong>{s.n}</strong>
-                    </div>
-                    <div>
-                      <h6 className="mb-1">{s.t}</h6>
-                      <p className="text-muted small mb-0">{s.d}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </div>
-            <div className="col-lg-6">
-              <img src="/assets/img/home.jpg" alt="How it works" className="img-fluid rounded-4 shadow-sm w-100" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Form */}
-      <section className="py-4 bg-light" id="signup-form">
-        <div className="container">
-          <div className="col-lg-9 mx-auto">
-            <div className="card card-glass border-0 shadow-sm rounded-4">
-              <div className="card-body p-4 p-md-5">
-                {/* Header + Stepper */}
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                  <h3 className="mb-0 fw-semibold">
-                    {T.signup} <span style={{ color: "var(--brand)" }}>{T.agent}</span>
-                  </h3>
-                  <a href="/login" className="text-sm text-decoration-none link-brand">
-                    {T.already_have_account} <strong>{T.sign_in}</strong>
-                  </a>
-                </div>
-
-                <div className="d-flex align-items-center gap-3 mb-4">
-                  <div className={`step-dot ${step === 1 ? "active" : "done"}`}>1</div>
-                  <div className="flex-fill" style={{ height: 2, background: "#e5e7eb" }} />
-                  <div className={`step-dot ${step === 2 ? "active" : ""}`}>2</div>
-                </div>
-
-                {formErrors.general && <div className="alert alert-danger">{formErrors.general}</div>}
-
-                <form onSubmit={onSubmit} noValidate>
-                  {step === 1 && (
-                    <>
-                      <div className="row g-3">
-                        <div className="col-md-12">
-                          <label htmlFor="name" className="form-label fw-semibold">
-                            * {T.name}
-                          </label>
-                          <input
-                            id="name"
-                            name="name"
-                            type="text"
-                            className={`form-control form-control-lg field-focus ${
-                              touched.name && formErrors.name ? "is-invalid" : ""
-                            }`}
-                            value={form.name}
-                            onChange={onInput}
-                            onBlur={() => markTouched("name")}
-                            placeholder="Jane Doe"
-                            autoComplete="name"
-                          />
-                          {touched.name && formErrors.name && (
-                            <div className="invalid-feedback">{formErrors.name}</div>
-                          )}
-                        </div>
-
-                        <div className="col-md-6">
-                          <label htmlFor="country" className="form-label fw-semibold">
-                            * {T.select_country}
-                          </label>
-                          <Select
-                            inputId="country"
-                            classNamePrefix="react-select"
-                            options={countries}
-                            value={form.country}
-                            onChange={onCountry}
-                            styles={selectStyles}
-                            components={{ Option: CountryOption, SingleValue: CountrySingleValue }}
-                            getOptionValue={(o) => o.code}
-                            placeholder={T.select_country}
-                          />
-                          {touched.country && formErrors.country && (
-                            <div className="text-danger small mt-1">{formErrors.country}</div>
-                          )}
-                        </div>
-
-                        <div className="col-md-6">
-                          <label htmlFor="phone" className="form-label fw-semibold">
-                            * {T.phone}
-                          </label>
-                          <div className="input-group input-group-lg">
-                            <span className="input-group-text phone-prefix">
-                              {dial}
-                            </span>
-                            <input
-                              id="phone"
-                              name="phone"
-                              type="tel"
-                              className={`form-control field-focus ${
-                                touched.phone && formErrors.phone ? "is-invalid" : ""
-                              }`}
-                              value={form.phone}
-                              onChange={onInput}
-                              onBlur={() => markTouched("phone")}
-                              placeholder="712345678"
-                              inputMode="numeric"
-                              autoComplete="tel"
-                            />
-                            {touched.phone && formErrors.phone && (
-                              <div className="invalid-feedback">{formErrors.phone}</div>
-                            )}
-                          </div>
-                          <div className="form-text">
-                            Enter digits only. We’ll combine it with the country code above.
-                          </div>
-                        </div>
-
-                        <div className="col-md-6">
-                          <label htmlFor="email" className="form-label fw-semibold">
-                            * {T.email}
-                          </label>
-                          <input
-                            id="email"
-                            name="email"
-                            type="email"
-                            className={`form-control form-control-lg field-focus ${
-                              touched.email && formErrors.email ? "is-invalid" : ""
-                            }`}
-                            value={form.email}
-                            onChange={onInput}
-                            onBlur={() => markTouched("email")}
-                            placeholder="you@company.com"
-                            autoComplete="email"
-                          />
-                          {touched.email && formErrors.email && (
-                            <div className="invalid-feedback">{formErrors.email}</div>
-                          )}
-                        </div>
-
-                        <div className="col-md-6">
-                          <label htmlFor="password" className="form-label fw-semibold">
-                            * {T.password}
-                          </label>
-                          <div className="input-group input-group-lg">
-                            <input
-                              id="password"
-                              name="password"
-                              type={showPwd ? "text" : "password"}
-                              className={`form-control field-focus ${
-                                touched.password && formErrors.password ? "is-invalid" : ""
-                              }`}
-                              value={form.password}
-                              onChange={onInput}
-                              onBlur={() => markTouched("password")}
-                              placeholder="••••••••"
-                              autoComplete="new-password"
-                            />
-                            <button
-                              type="button"
-                              className="eye-toggle"
-                              onClick={() => setShowPwd((s) => !s)}
-                              aria-label={showPwd ? "Hide password" : "Show password"}
-                              aria-pressed={showPwd}
-                              title={showPwd ? "Hide password" : "Show password"}
-                            >
-                              {showPwd ? (
-                                // eye-off
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
-                                  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-10-8-10-8a18.29 18.29 0 0 1 5.06-6.94" />
-                                  <path d="M1 1l22 22" />
-                                  <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 10 8 10 8a18.41 18.41 0 0 1-4.26 5.15" />
-                                  <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88" />
-                                </svg>
-                              ) : (
-                                // eye
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
-                                  <path d="M1 12s3-8 11-8 11 8 11 8-3 8-11 8-11-8-11-8Z" />
-                                  <circle cx="12" cy="12" r="3" />
-                                </svg>
-                              )}
-                            </button>
-                          </div>
-                          <div className="mt-2 d-flex gap-1">
-                            {[0, 1, 2, 3].map((i) => (
-                              <div
-                                key={i}
-                                style={{
-                                  height: 6,
-                                  flex: 1,
-                                  borderRadius: 4,
-                                  background: i < strength(form.password) ? pwdBarColor : "#e5e7eb",
-                                }}
-                              />
-                            ))}
-                          </div>
-                          {touched.password && formErrors.password && (
-                            <div className="invalid-feedback d-block">{formErrors.password}</div>
-                          )}
-                        </div>
-
-                        <div className="col-md-6">
-                          <label htmlFor="confirm_password" className="form-label fw-semibold">
-                            * {T.confirm_password}
-                          </label>
-                          <div className="input-group input-group-lg">
-                            <input
-                              id="confirm_password"
-                              name="confirm_password"
-                              type={showPwd2 ? "text" : "password"}
-                              className={`form-control field-focus ${
-                                touched.confirm_password && formErrors.confirm_password ? "is-invalid" : ""
-                              }`}
-                              value={form.confirm_password}
-                              onChange={onInput}
-                              onBlur={() => markTouched("confirm_password")}
-                              placeholder="••••••••"
-                              autoComplete="new-password"
-                            />
-                            <button
-                              type="button"
-                              className="eye-toggle"
-                              onClick={() => setShowPwd2((s) => !s)}
-                              aria-label={showPwd2 ? "Hide password" : "Show password"}
-                              aria-pressed={showPwd2}
-                              title={showPwd2 ? "Hide password" : "Show password"}
-                            >
-                              {showPwd2 ? (
-                                // eye-off
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
-                                  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-10-8-10-8a18.29 18.29 0 0 1 5.06-6.94" />
-                                  <path d="M1 1l22 22" />
-                                  <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 10 8 10 8a18.41 18.41 0 0 1-4.26 5.15" />
-                                  <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88" />
-                                </svg>
-                              ) : (
-                                // eye
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
-                                  <path d="M1 12s3-8 11-8 11 8 11 8-3 8-11 8-11-8-11-8Z" />
-                                  <circle cx="12" cy="12" r="3" />
-                                </svg>
-                              )}
-                            </button>
-                          </div>
-                          {touched.confirm_password && formErrors.confirm_password && (
-                            <div className="invalid-feedback">{formErrors.confirm_password}</div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="mt-4 d-flex justify-content-end">
-                        <button
-                          type="button"
-                          className="btn btn-lg brand-btn text-white px-4"
-                          onClick={goNext}
-                          disabled={!canContinue}
-                          title={!canContinue ? "Please complete required fields" : undefined}
-                        >
-                          {T.continue}
-                        </button>
-                      </div>
-                    </>
-                  )}
-
-                  {step === 2 && (
-                    <>
-                      <div className="row g-3">
-                        <div className="col-md-6">
-                          <label htmlFor="agency_name" className="form-label fw-semibold">
-                            * {T.agency_name}
-                          </label>
-                          <input
-                            id="agency_name"
-                            name="agency_name"
-                            type="text"
-                            className={`form-control form-control-lg field-focus ${
-                              touched.agency_name && formErrors.agency_name ? "is-invalid" : ""
-                            }`}
-                            value={form.agency_name}
-                            onChange={onInput}
-                            onBlur={() => markTouched("agency_name")}
-                            placeholder="Awesome Travels Ltd."
-                          />
-                          {touched.agency_name && formErrors.agency_name && (
-                            <div className="invalid-feedback">{formErrors.agency_name}</div>
-                          )}
-                        </div>
-
-                        <div className="col-md-6">
-                          <label htmlFor="agency_license" className="form-label fw-semibold">
-                            * {T.agency_license}
-                          </label>
-                          <input
-                            id="agency_license"
-                            name="agency_license"
-                            type="text"
-                            className={`form-control form-control-lg field-focus ${
-                              touched.agency_license && formErrors.agency_license ? "is-invalid" : ""
-                            }`}
-                            value={form.agency_license}
-                            onChange={onInput}
-                            onBlur={() => markTouched("agency_license")}
-                            placeholder="IATA / Local License"
-                          />
-                          {touched.agency_license && formErrors.agency_license && (
-                            <div className="invalid-feedback">{formErrors.agency_license}</div>
-                          )}
-                        </div>
-
-                        <div className="col-md-6">
-                          <label htmlFor="agency_city" className="form-label fw-semibold">
-                            * {T.agency_city}
-                          </label>
-                          <input
-                            id="agency_city"
-                            name="agency_city"
-                            type="text"
-                            className={`form-control form-control-lg field-focus ${
-                              touched.agency_city && formErrors.agency_city ? "is-invalid" : ""
-                            }`}
-                            value={form.agency_city}
-                            onChange={onInput}
-                            onBlur={() => markTouched("agency_city")}
-                            placeholder="Nairobi"
-                          />
-                          {touched.agency_city && formErrors.agency_city && (
-                            <div className="invalid-feedback">{formErrors.agency_city}</div>
-                          )}
-                        </div>
-
-                        <div className="col-md-6">
-                          <label htmlFor="agency_address" className="form-label fw-semibold">
-                            * {T.agency_address}
-                          </label>
-                          <input
-                            id="agency_address"
-                            name="agency_address"
-                            type="text"
-                            className={`form-control form-control-lg field-focus ${
-                              touched.agency_address && formErrors.agency_address ? "is-invalid" : ""
-                            }`}
-                            value={form.agency_address}
-                            onChange={onInput}
-                            onBlur={() => markTouched("agency_address")}
-                            placeholder="123 Riverside Rd."
-                          />
-                          {touched.agency_address && formErrors.agency_address && (
-                            <div className="invalid-feedback">{formErrors.agency_address}</div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Terms + Captcha */}
-                      <div className="form-check mt-4">
-                        <input
-                          id="terms"
-                          className="form-check-input"
-                          type="checkbox"
-                          checked={isAgreed}
-                          onChange={(e) => setIsAgreed(e.target.checked)}
-                        />
-                        <label htmlFor="terms" className="form-check-label ms-2">
-                          {T.by_signup_i_agree_to_terms_and_policy}
-                        </label>
-                        {formErrors.terms && <div className="text-danger small mt-1">{formErrors.terms}</div>}
-                      </div>
-
-                      <div className="mt-3" id="hcaptcha-box">
-                        <HCaptcha
-                          sitekey={hcaptchaSiteKey}
-                          onVerify={() => setIsCaptchaOk(true)}
-                          onExpire={() => setIsCaptchaOk(false)}
-                          onError={() => setIsCaptchaOk(false)}
-                          ref={captchaRef}
-                        />
-                        {formErrors.recaptcha && (
-                          <div className="text-danger small mt-1">{formErrors.recaptcha}</div>
-                        )}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="mt-4 d-flex justify-content-between">
-                        <button type="button" className="btn btn-light btn-lg" onClick={goBack}>
-                          {T.back}
-                        </button>
-                        <button
-                          type="submit"
-                          className="btn btn-lg brand-btn text-white px-4"
-                          disabled={isLoading || !canCreate}
-                          title={!canCreate ? "Please complete required fields" : undefined}
-                        >
-                          {isLoading ? (
-                            <>
-                              <span
-                                className="spinner-border spinner-border-sm me-2"
-                                role="status"
-                                aria-hidden="true"
-                              />
-                              {T.create_account}
-                            </>
-                          ) : (
-                            T.create_account
-                          )}
-                        </button>
-                      </div>
-                    </>
-                  )}
-
-                  <input type="hidden" name="user_type" value="agent" />
-                  <input type="hidden" name="form_token" value={formToken} />
-                </form>
-              </div>
-            </div>
-
-            <p className="text-center mt-3 text-muted">
-              {T.already_have_account} <a href="/login" className="link-brand">{T.sign_in}</a>
+      <div className="split-layout">
+        
+        {/* LEFT PANEL: FORM */}
+        <div className="split-left">
+          
+          {/* Header */}
+          <div className="mb-4">
+            <h1 className="h3 fw-bold text-dark mb-1">{T.signup}</h1>
+            <p className="text-muted">
+              {T.already_have_account} <a href="/login" style={{ color: "var(--brand-primary)", textDecoration:'none', fontWeight: 600 }}>{T.sign_in}</a>
             </p>
           </div>
+
+          {/* Progress Bar */}
+          <div className="step-indicator">
+            <div className={`step-pill ${step >= 1 ? "active" : ""}`} />
+            <div className={`step-pill ${step >= 2 ? "active" : ""}`} />
+          </div>
+
+          {/* Error Banner */}
+          {formErrors.general && (
+            <div className="alert alert-danger border-0 d-flex align-items-center mb-4 small" style={{background: "#FEF2F2", color: "#991B1B"}}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-exclamation-circle-fill me-2" viewBox="0 0 16 16">
+                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
+              </svg>
+              {formErrors.general}
+            </div>
+          )}
+
+          <form onSubmit={onSubmit} noValidate>
+            
+            {/* STEP 1: Account Details */}
+            {step === 1 && (
+              <div className="fade-in-up">
+                <div className="mb-3">
+                  <label className="form-label">{T.name}</label>
+                  <input
+                    type="text"
+                    name="name"
+                    className={getFieldClass("name")}
+                    placeholder="Jane Doe"
+                    value={form.name}
+                    onChange={onInput}
+                    onBlur={() => markTouched("name")}
+                  />
+                  {touched.name && formErrors.name && <div className="text-danger small mt-1">{formErrors.name}</div>}
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">{T.select_country}</label>
+                  <Select
+                    options={countries}
+                    value={form.country}
+                    onChange={onCountry}
+                    styles={customSelectStyles}
+                    components={{ Option: CountryOption, SingleValue: CountrySingleValue }}
+                    placeholder="Select Country..."
+                    getOptionValue={(o) => o.code}
+                  />
+                  {touched.country && formErrors.country && <div className="text-danger small mt-1">{formErrors.country}</div>}
+                </div>
+
+                <div className="row g-3 mb-3">
+                  <div className="col-5 col-md-4">
+                    <label className="form-label">Code</label>
+                    <div className="modern-input bg-light text-muted d-flex align-items-center justify-content-center">
+                      {form.country?.callingCode || "+ --"}
+                    </div>
+                  </div>
+                  <div className="col-7 col-md-8">
+                    <label className="form-label">{T.phone}</label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      className={getFieldClass("phone")}
+                      placeholder="712 345 678"
+                      value={form.phone}
+                      onChange={onInput}
+                      onBlur={() => markTouched("phone")}
+                    />
+                  </div>
+                </div>
+                {touched.phone && formErrors.phone && <div className="text-danger small mb-3 mt-n2">{formErrors.phone}</div>}
+
+                <div className="mb-3">
+                  <label className="form-label">{T.email}</label>
+                  <input
+                    type="email"
+                    name="email"
+                    className={getFieldClass("email")}
+                    placeholder="agent@company.com"
+                    value={form.email}
+                    onChange={onInput}
+                    onBlur={() => markTouched("email")}
+                  />
+                  {touched.email && formErrors.email && <div className="text-danger small mt-1">{formErrors.email}</div>}
+                </div>
+
+                <div className="row g-3 mb-4">
+                  <div className="col-md-6">
+                    <label className="form-label">{T.password}</label>
+                    <div className="position-relative">
+                      <input
+                        type={showPwd ? "text" : "password"}
+                        name="password"
+                        className={getFieldClass("password")}
+                        value={form.password}
+                        onChange={onInput}
+                        onBlur={() => markTouched("password")}
+                      />
+                      <button type="button" className="pwd-toggle" onClick={() => setShowPwd(!showPwd)}>
+                        {showPwd ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                    {/* Tiny strength meter */}
+                    {form.password && (
+                      <div className="d-flex gap-1 mt-2">
+                        {[1, 2, 3, 4].map((i) => (
+                          <div key={i} style={{height: 3, flex:1, borderRadius:2, background: i <= pwdScore ? pwdBars[pwdScore-1] : '#f3f4f6'}} />
+                        ))}
+                      </div>
+                    )}
+                    {touched.password && formErrors.password && <div className="text-danger small mt-1">{formErrors.password}</div>}
+                  </div>
+                  
+                  <div className="col-md-6">
+                    <label className="form-label">{T.confirm_password}</label>
+                    <div className="position-relative">
+                      <input
+                        type={showPwd2 ? "text" : "password"}
+                        name="confirm_password"
+                        className={getFieldClass("confirm_password")}
+                        value={form.confirm_password}
+                        onChange={onInput}
+                        onBlur={() => markTouched("confirm_password")}
+                      />
+                      <button type="button" className="pwd-toggle" onClick={() => setShowPwd2(!showPwd2)}>
+                        {showPwd2 ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                    {touched.confirm_password && formErrors.confirm_password && <div className="text-danger small mt-1">{formErrors.confirm_password}</div>}
+                  </div>
+                </div>
+
+                <button type="button" onClick={goNext} className="btn-brand w-100 mt-2">
+                  {T.continue}
+                </button>
+              </div>
+            )}
+
+            {/* STEP 2: Agency Details */}
+            {step === 2 && (
+              <div className="fade-in-up">
+                <div className="mb-3">
+                  <label className="form-label">{T.agency_name}</label>
+                  <input
+                    type="text"
+                    name="agency_name"
+                    className={getFieldClass("agency_name")}
+                    value={form.agency_name}
+                    onChange={onInput}
+                    onBlur={() => markTouched("agency_name")}
+                  />
+                  {touched.agency_name && formErrors.agency_name && <div className="text-danger small mt-1">{formErrors.agency_name}</div>}
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">{T.agency_license}</label>
+                  <input
+                    type="text"
+                    name="agency_license"
+                    className={getFieldClass("agency_license")}
+                    placeholder="e.g. IATA-123456"
+                    value={form.agency_license}
+                    onChange={onInput}
+                    onBlur={() => markTouched("agency_license")}
+                  />
+                  {touched.agency_license && formErrors.agency_license && <div className="text-danger small mt-1">{formErrors.agency_license}</div>}
+                </div>
+
+                <div className="row g-3 mb-3">
+                  <div className="col-md-6">
+                    <label className="form-label">{T.agency_city}</label>
+                    <input
+                      type="text"
+                      name="agency_city"
+                      className={getFieldClass("agency_city")}
+                      value={form.agency_city}
+                      onChange={onInput}
+                      onBlur={() => markTouched("agency_city")}
+                    />
+                    {touched.agency_city && formErrors.agency_city && <div className="text-danger small mt-1">{formErrors.agency_city}</div>}
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label">{T.agency_address}</label>
+                    <input
+                      type="text"
+                      name="agency_address"
+                      className={getFieldClass("agency_address")}
+                      value={form.agency_address}
+                      onChange={onInput}
+                      onBlur={() => markTouched("agency_address")}
+                    />
+                    {touched.agency_address && formErrors.agency_address && <div className="text-danger small mt-1">{formErrors.agency_address}</div>}
+                  </div>
+                </div>
+
+                <div className="d-flex align-items-start mb-3">
+                  <input
+                    id="terms"
+                    type="checkbox"
+                    className="custom-check mt-1"
+                    checked={isAgreed}
+                    onChange={(e) => setIsAgreed(e.target.checked)}
+                  />
+                  <div className="ms-2">
+                    <label htmlFor="terms" className="small text-muted cursor-pointer">
+                      {T.by_signup_i_agree_to_terms_and_policy}
+                    </label>
+                    {formErrors.terms && <div className="text-danger small d-block">{formErrors.terms}</div>}
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <HCaptcha
+                    sitekey={hcaptchaSiteKey}
+                    onVerify={() => setIsCaptchaOk(true)}
+                    onExpire={() => setIsCaptchaOk(false)}
+                    onError={() => setIsCaptchaOk(false)}
+                    ref={captchaRef}
+                  />
+                  {formErrors.recaptcha && <div className="text-danger small mt-1">{formErrors.recaptcha}</div>}
+                </div>
+
+                <div className="d-flex gap-3">
+                  <button type="button" onClick={() => setStep(1)} className="btn-outline-back w-25">
+                    {T.back}
+                  </button>
+                  <button type="submit" disabled={isLoading} className="btn-brand w-75 d-flex justify-content-center align-items-center">
+                    {isLoading ? <span className="spinner-border spinner-border-sm" /> : T.create_account}
+                  </button>
+                </div>
+              </div>
+            )}
+            
+          </form>
+          
+          <div className="mt-auto pt-4 text-center text-muted small">
+            &copy; {new Date().getFullYear()} Fly Gasal. All rights reserved.
+          </div>
         </div>
-      </section>
+
+        {/* RIGHT PANEL: VISUALS */}
+        <div className="split-right">
+          <img src="/assets/img/before-booking.webp" alt="Travel" className="bg-img-cover" />
+          <div className="right-content">
+            <h2 className="display-5 fw-bold mb-3">{T.side_title}</h2>
+            <p className="lead mb-5 opacity-75">{T.side_sub}</p>
+            
+            <ul className="list-unstyled">
+              <li className="d-flex align-items-center mb-3">
+                <div className="rounded-circle bg-white text-dark d-flex align-items-center justify-content-center me-3" style={{width: 32, height:32}}>
+                  ✓
+                </div>
+                <span className="fs-5">{T.feat1}</span>
+              </li>
+              <li className="d-flex align-items-center mb-3">
+                <div className="rounded-circle bg-white text-dark d-flex align-items-center justify-content-center me-3" style={{width: 32, height:32}}>
+                  ✓
+                </div>
+                <span className="fs-5">{T.feat2}</span>
+              </li>
+              <li className="d-flex align-items-center mb-3">
+                <div className="rounded-circle bg-white text-dark d-flex align-items-center justify-content-center me-3" style={{width: 32, height:32}}>
+                  ✓
+                </div>
+                <span className="fs-5">{T.feat3}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
     </>
   );
 };
