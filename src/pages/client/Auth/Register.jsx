@@ -329,7 +329,7 @@ const Register = ({
               </a>
             </div>
             <div className="col-lg-6">
-              <img src="/assets/img/agent.jpg" alt="Agent" className="img-fluid rounded-4 shadow-sm" />
+              <img src="/assets/img/before-booking.webp" alt="Agent" className="img-fluid rounded-4 shadow-sm" />
             </div>
           </div>
         </div>
@@ -408,7 +408,7 @@ const Register = ({
               </ol>
             </div>
             <div className="col-lg-6">
-              <img src="/assets/img/agent2.jpg" alt="How it works" className="img-fluid rounded-4 shadow-sm w-100" />
+              <img src="/assets/img/home.jpg" alt="How it works" className="img-fluid rounded-4 shadow-sm w-100" />
             </div>
           </div>
         </div>
