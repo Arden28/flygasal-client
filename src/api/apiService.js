@@ -1,8 +1,7 @@
 // src/api/apiService.js
 
 // A simple utility to make authenticated API requests to the Laravel backend.
-const API_BASE_URL = 'https://flygasal.mova-mobility.com/api'; // Replace with your Laravel API URL
-// const API_BASE_URL = 'https://flygasal.koverae.com/api'; // Replace with your Laravel API URL
+const API_BASE_URL = 'https://api.flygasal.net/api'; // Replace with your Laravel API URL
 
 const apiService = {
     // Helper to get the auth token from local storage

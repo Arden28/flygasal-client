@@ -1,7 +1,7 @@
 // countriesService.js
 import axios from 'axios';
 
-const API_BASE_URL = 'https://flygasal.koverae.com/api';
+const API_BASE_URL = 'https://api.flygasal.net/api';
 const API_KEY = 'YOUR_API_KEY_HERE'; // Replace with your actual API key
 
 const api = axios.create({
