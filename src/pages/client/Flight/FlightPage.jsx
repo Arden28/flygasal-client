@@ -627,7 +627,7 @@ const FlightPage = () => {
 
         const res = await flygasal.searchFlights(params, { signal: abort.signal });
 
-        console.info('Search Results: ', res);
+        // console.info('Search Results: ', res);
         
 
         // Keep offers as-is, but stash a raw copy on __sourcePB for safety

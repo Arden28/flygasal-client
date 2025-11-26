@@ -425,7 +425,7 @@ const { downloadETicket, isDownloadingPdf } = useETicketPdf({ brandColor });
         }
       };
       const response = await flygasal.ticketing(ticketCriteria);
-      console.info('Ticketing: ', response);
+      // console.info('Ticketing: ', response);
       const okay = response?.success === true;
       
       if (!okay) {

@@ -186,7 +186,7 @@ export default function Transactions() {
   const handleApproveDecision = async (decision) => {
       if(!activeModal.data) return;
       setDecisionLoading(true);
-      console.log("Decision:", activeModal.data.id, "Note:", approveNote);
+    //   console.log("Decision:", activeModal.data.id, "Note:", approveNote);
       try {
           await apiService.post("/transactions/approve", {
               transaction_id: activeModal.data.id,

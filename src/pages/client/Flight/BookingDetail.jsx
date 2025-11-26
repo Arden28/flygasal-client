@@ -526,7 +526,7 @@ const BookingDetail = () => {
 
         // console.info("Pricing with params", params);
         const priceResp = await flygasal.precisePricing(params);
-        console.info("Pricing Resp: ", priceResp);
+        // console.info("Pricing Resp: ", priceResp);
         
         if (priceResp.errorCode !== "0" || priceResp.errorMsg !== "ok") {
           const msg = priceResp.errorMsg || "We couldn’t confirm pricing for this itinerary.";
@@ -537,7 +537,7 @@ const BookingDetail = () => {
         // transformPreciseData returns [offer] when response contains `offer`
         const offers = flygasal.transformPreciseData(priceResp.offer) || [];
         const offer = offers[0];
-        console.log("Using offer:", offer);
+        // console.log("Using offer:", offer);
         setFlight(offer || null);
         if (!offer) {
           setError("We couldn’t confirm your selected flight. Please try again.");
@@ -563,7 +563,7 @@ const BookingDetail = () => {
         const outbound = legs[0] || null;
         const returnFlight = tripType === "return" ? (legs[1] || null) : null;
 
-        console.log({ legs, outbound, returnFlight });
+        // console.log({ legs, outbound, returnFlight });
 
         // Compute totals from single-offer price breakdown
         const currencyFromOffer = offer?.priceBreakdown?.currency || params.currency || "USD";
@@ -759,7 +759,7 @@ const BookingDetail = () => {
         agent_fee: markup || 0,
         payment_method: workingForm.payment_method || "wallet",
       };
-      console.log("Booking with details:", bookingDetails);
+      // console.log("Booking with details:", bookingDetails);
 
       const resp = await flygasal.createBooking(bookingDetails);
       const booking = resp?.data?.booking;

@@ -41,7 +41,7 @@ const DepositModal = ({ bankTransfer, onSuccess }) => {
 
         try {
             const response = await apiService.post('/transactions/add', formData);
-            console.log('Deposit Response:', response.data);
+            // console.log('Deposit Response:', response.data);
             if (response.data.status === 'true') {
                 Swal.fire({
                     title: 'Success!',
