@@ -357,7 +357,7 @@ export default function BookingConfirmation() {
                                                 <img 
                                                     src={`/assets/img/airlines/${getAirlineLogo(seg.airline)}.png`} 
                                                     alt={seg.airline} 
-                                                    className="h-6 w-auto object-contain"
+                                                    className="h-6 w-auto object-contain rounded-full"
                                                     onError={(e) => e.target.src = "https://placehold.co/32x32?text=✈️"}
                                                 />
                                                 <div className="text-sm">
@@ -454,11 +454,11 @@ export default function BookingConfirmation() {
                     <div className="space-y-3 mb-6">
                         <div className="flex justify-between text-sm text-slate-600">
                             <span>Base Fare</span>
-                            <span className="font-mono">{money(amountDue * 0.85, currency)}</span>
+                            <span className="font-mono">{money(amountDue, currency)}</span>
                         </div>
                         <div className="flex justify-between text-sm text-slate-600">
                             <span>Taxes & Fees</span>
-                            <span className="font-mono">{money(amountDue * 0.15, currency)}</span>
+                            {/* <span className="font-mono">{money(amountDue * 0.15, currency)}</span> */}
                         </div>
                         <div className="h-px bg-slate-100 my-2"></div>
                         <div className="flex justify-between text-lg font-bold text-slate-900">
