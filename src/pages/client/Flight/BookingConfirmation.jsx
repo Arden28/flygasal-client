@@ -4,40 +4,53 @@ import flygasal from "../../../api/flygasalService";
 import { getAirlineLogo, getAirlineName, getAirportName } from "../../../utils/utils";
 import { formatDate, formatTime } from "../../../utils/dateFormatter";
 import { AuthContext } from "../../../context/AuthContext";
-import { Check, Download, Share2, Printer, Wallet, CreditCard, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
-import jsPDF from "jspdf";
+import { 
+  Check, Download, Printer, Wallet, CreditCard, 
+  AlertCircle, Loader2, ArrowLeft, Clock, User,
+  Plane, FileText, Copy, RefreshCcw, XCircle, Calendar, Luggage
+} from "lucide-react";
 import DepositModal from "../../../components/client/Account/DepositModal";
 import apiService from "../../../api/apiService";
 import useETicketPdf from "../../../hooks/useETicketPdf";
 import BookingHeader from "../../../components/client/Flight/BookingHeader";
-
-/* --- Constants --- */
-const paymentGateways = [
-  { value: "wallet", name: "Wallet Balance", img: "/assets/img/gateways/wallet_balance.png" },
-  { value: "pay_later", name: "Pay Later", img: "/assets/img/gateways/pay_later.png" },
-];
+import confetti from "canvas-confetti";
 
 /* --- Helpers --- */
 const money = (n, c = "USD") => (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency: c });
 
 const StatusChip = ({ status }) => {
+    // Exact mapping from your legacy code to new UI
     const config = {
-        ISSED: { bg: "bg-green-100", text: "text-green-700", label: "Ticket Issued" },
-        TO_BE_PAID: { bg: "bg-amber-100", text: "text-amber-700", label: "Payment Required" },
-        CNCL: { bg: "bg-red-100", text: "text-red-700", label: "Cancelled" },
-        REFD: { bg: "bg-purple-100", text: "text-purple-700", label: "Refunded" },
-        UNDER_REVIEW: { bg: "bg-blue-100", text: "text-blue-700", label: "Processing" },
+        ISSED: { bg: "bg-green-100", text: "text-green-700", label: "Ticket Issued", icon: Check },
+        PAID: { bg: "bg-green-100", text: "text-green-700", label: "Paid", icon: Check },
+        CHGD: { bg: "bg-green-100", text: "text-green-700", label: "Changed", icon: Check },
+        
+        TO_BE_PAID: { bg: "bg-amber-100", text: "text-amber-700", label: "Payment Required", icon: Clock },
+        CHG_TO_BE_PAID: { bg: "bg-amber-100", text: "text-amber-700", label: "Change Unpaid", icon: Clock },
+        TO_BE_RSV: { bg: "bg-amber-100", text: "text-amber-700", label: "To Be Reserved", icon: Clock },
+        
+        ISS_PRC: { bg: "bg-blue-100", text: "text-blue-700", label: "Issuing...", icon: Loader2 },
+        CHG_PRC: { bg: "bg-blue-100", text: "text-blue-700", label: "Processing Change", icon: Loader2 },
+        UNDER_REVIEW: { bg: "bg-blue-100", text: "text-blue-700", label: "Under Review", icon: Loader2 },
+        
+        CNCL: { bg: "bg-red-100", text: "text-red-700", label: "Cancelled", icon: XCircle },
+        RSV_FAIL: { bg: "bg-red-100", text: "text-red-700", label: "Failed", icon: XCircle },
+        REFD: { bg: "bg-purple-100", text: "text-purple-700", label: "Refunded", icon: RefreshCcw },
+        VOID: { bg: "bg-purple-100", text: "text-purple-700", label: "Voided", icon: RefreshCcw },
     };
-    const theme = config[status] || { bg: "bg-slate-100", text: "text-slate-600", label: status || "Unknown" };
-    
+
+    let theme = config[status] || { bg: "bg-slate-100", text: "text-slate-600", label: status || "Unknown", icon: FileText };
+    if (status?.includes("PRC") && !config[status]) theme = config.ISS_PRC;
+
+    const Icon = theme.icon;
+
     return (
-        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${theme.bg} ${theme.text}`}>
+        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${theme.bg} ${theme.text}`}>
+            <Icon size={14} />
             {theme.label}
         </span>
     );
 };
-
-const Skeleton = ({ className }) => <div className={`animate-pulse bg-slate-100 rounded ${className}`}></div>;
 
 export default function BookingConfirmation() {
   const { user } = useContext(AuthContext);
@@ -49,76 +62,148 @@ export default function BookingConfirmation() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [bankTransfer, setBankTransfer] = useState(null);
-  const [selectedGateway, setSelectedGateway] = useState("wallet");
+  
+  // Payment State
   const [showPayModal, setShowPayModal] = useState(false);
   const [wallet, setWallet] = useState({ balance: 0, currency: "USD", loading: false });
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  
+  // Timer
+  const TOTAL_SECONDS = 30 * 60;
+  const [secondsLeft, setSecondsLeft] = useState(TOTAL_SECONDS);
+  const intervalRef = useRef(null);
 
   // PDF Hook
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
   const { downloadETicket, isDownloadingPdf } = useETicketPdf({ brandColor: "#EB7313" });
 
-  // Fetch Data
+  // --- 1. Fetch Data ---
   useEffect(() => {
+    let mounted = true;
     const init = async () => {
         try {
+            setLoading(true);
             const [resBooking, resGateway] = await Promise.all([
                 flygasal.getBookingDetails(orderNumber),
                 apiService.post("/payment_gateways", { api_key: "none" })
             ]);
 
+            if (!mounted) return;
+
             if (resBooking?.data?.booking) {
                 setBookingData(resBooking.data.booking);
+                setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(window.location.href)}`);
             } else {
-                throw new Error(resBooking?.data?.errorMsg || "Booking not found");
+                const { errorCode, errorMsg } = resBooking?.data || {};
+                throw new Error(errorMsg || `Error ${errorCode || "Unknown"}`);
             }
 
             if (resGateway?.data?.status === "true") {
                 setBankTransfer(resGateway.data.data?.[0]);
             }
+
         } catch (e) {
             console.error(e);
-            setError(e.message || "Failed to load booking");
+            if (mounted) setError(e.message || "Failed to load booking details");
         } finally {
-            setLoading(false);
+            if (mounted) setLoading(false);
         }
     };
     init();
+    return () => { mounted = false; };
   }, [orderNumber]);
 
-  // Derived State
+  // --- Logic Extraction ---
   const orderStatus = bookingData?.orderStatus;
-  const isPaid = bookingData?.payStatus?.toLowerCase() === "paid";
-  const amountDue = Number(bookingData?.buyerAmount || bookingData?.solutions?.[0]?.buyerAmount || 0);
-  const currency = bookingData?.currency || "USD";
-  const requiresPayment = !isPaid && ["TO_BE_PAID", "CHG_TO_BE_PAID"].includes(orderStatus) && amountDue > 0;
+  const payStatus = bookingData?.payStatus?.toLowerCase();
+  const isPaid = payStatus === "paid";
+  
+  const solutions0 = bookingData?.solutions?.[0];
+  const currency = solutions0?.currency || bookingData?.currency || "USD";
+  const amount = solutions0?.buyerAmount ?? bookingData?.buyerAmount;
+  const amountDue = Number(amount || 0);
+  
+  // Safe date handling (Booking Date)
+  const rawBookingDate = bookingData?.createdTime || bookingData?.booking_date || bookingData?.createdAt;
+  const bookingDateDisplay = rawBookingDate ? formatDate(rawBookingDate) : "N/A";
 
-  // Handlers
-  const handlePayment = async () => {
-     if (selectedGateway === "wallet") {
-         setWallet(prev => ({ ...prev, loading: true }));
-         setShowPayModal(true);
-         // Fetch real wallet balance here if needed
-         const balRes = await apiService.get("/wallet/balance"); 
-         setWallet({ 
-             balance: balRes?.data?.balance || user?.wallet_balance || 0, 
-             currency: balRes?.data?.currency || "USD", 
-             loading: false 
-         });
-     } else {
-         // Handle other gateways (redirect)
-         alert("Redirecting to payment gateway...");
-     }
+  const terminalStatuses = ["ISSUED", "CLOSED", "CNCL", "CNCL_REIMED", "REFD", "REFD_REIMED", "VOID", "VOID_REIMED"];
+  const isTerminal = terminalStatuses.includes(orderStatus);
+  
+  // Payment Required Logic
+  const requiresPayment = !isPaid && !isTerminal && ["TO_BE_PAID", "CHG_TO_BE_PAID"].includes(orderStatus) && amountDue > 0;
+
+  // --- Timer ---
+  useEffect(() => {
+    if (!requiresPayment) return;
+    intervalRef.current = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(intervalRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(intervalRef.current);
+  }, [requiresPayment]);
+
+  const formatTimer = (s) => {
+      const m = Math.floor(s / 60).toString().padStart(2, '0');
+      const sec = (s % 60).toString().padStart(2, '0');
+      return `${m}:${sec}`;
   };
 
-  const confirmWalletPay = async () => {
+  // --- Handlers ---
+
+  // 1. Open Modal & Fetch Fresh Balance
+  const handleWalletCheck = async () => {
+      if (secondsLeft <= 0) return;
+      
+      setWallet(prev => ({ ...prev, loading: true }));
+      setShowPayModal(true);
+      
+      try {
+          const res = await apiService.get("/wallet/balance");
+          const data = res?.data?.data || res?.data;
+          const status = res?.data?.status || res?.status;
+
+          // Handle various API response shapes
+          if (status === "true" || status === 200 || data) {
+              setWallet({ 
+                  balance: Number(data?.balance ?? user?.wallet_balance ?? 0), 
+                  currency: data?.currency || user?.currency || "USD", 
+                  loading: false 
+              });
+          } else {
+             throw new Error("Failed to fetch balance");
+          }
+      } catch (e) {
+          // Fallback to context
+          setWallet({ 
+             balance: Number(user?.wallet_balance || 0), 
+             currency: user?.currency || "USD", 
+             loading: false 
+          });
+      }
+  };
+
+  const refreshBooking = async () => {
+    try {
+      const fresh = await flygasal.getBookingDetails(orderNumber);
+      if (fresh?.data?.booking) setBookingData(fresh.data.booking);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleConfirmPayment = async () => {
       setPaying(true);
       setPayError(null);
       try {
-          if (wallet.balance < amountDue) throw new Error("Insufficient balance");
-          
-          await flygasal.payOrderWithWallet({
+          if (wallet.balance < amountDue) throw new Error("Insufficient wallet balance. Please top up.");
+
+          const payRes = await flygasal.payOrderWithWallet({
               user_id: user.id,
               order_num: orderNumber,
               amount: amountDue,
@@ -127,48 +212,64 @@ export default function BookingConfirmation() {
               payment_gateway: "wallet_balance"
           });
 
-          // Issue Ticket
-          await flygasal.ticketing({
+          if (payRes?.data?.status !== "completed" && payRes?.data?.success !== true) {
+              throw new Error(payRes?.data?.errorMsg || "Payment failed.");
+          }
+
+          const ticketRes = await flygasal.ticketing({
               orderNum: orderNumber,
               pnr: bookingData?.pnr,
               contact: { name: user.name, email: user.email, telNum: user.phone_number }
           });
 
-          setShowSuccess(true);
+          if (!ticketRes?.success) {
+              throw new Error(ticketRes?.error || "Ticketing failed. Contact support.");
+          }
+
           setShowPayModal(false);
-          setBookingData(prev => ({ ...prev, payStatus: "paid", orderStatus: "ISSED" })); // Optimistic update
+          setShowSuccess(true);
+          setBookingData(prev => ({ ...prev, payStatus: "paid", orderStatus: "ISSED" })); 
+          confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+
+          setTimeout(() => {
+              downloadETicket({ bookingData, qrCodeUrl, user, getAirlineLogo, getAirlineName, getAirportName });
+          }, 1000);
+
+          await refreshBooking();
+
       } catch (e) {
-          setPayError(e.message || "Payment failed");
+          setPayError(e.message);
       } finally {
           setPaying(false);
       }
   };
 
-  // Loading State
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-            <Loader2 className="h-10 w-10 animate-spin text-[#EB7313] mx-auto mb-4" />
-            <p className="text-slate-500 font-medium">Retrieving booking details...</p>
+        <div className="flex flex-col items-center">
+            <Loader2 className="h-10 w-10 animate-spin text-[#EB7313] mb-4" />
+            <p className="text-slate-500 font-medium animate-pulse">Retrieving itinerary...</p>
         </div>
     </div>
   );
 
-  // Error State
   if (error) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-md text-center">
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 max-w-md text-center">
             <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
                 <AlertCircle size={32} />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Booking Not Found</h3>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Booking Error</h3>
             <p className="text-slate-500 mb-6">{error}</p>
-            <button onClick={() => navigate("/")} className="px-6 py-2.5 bg-slate-900 text-white rounded-xl font-semibold hover:bg-slate-800 transition-colors">
+            <button onClick={() => navigate("/")} className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors">
                 Return Home
             </button>
         </div>
     </div>
   );
+
+  const passengers = bookingData?.passengers || [];
+  const journeys = bookingData?.journeys || [];
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans pb-20">
@@ -179,77 +280,131 @@ export default function BookingConfirmation() {
         formatDate={formatDate}
       />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
          
-         {/* Status Banner */}
-         <div className={`mb-8 p-4 rounded-2xl border flex items-start gap-4 ${
-            isPaid ? "bg-green-50 border-green-100 text-green-800" : 
-            requiresPayment ? "bg-amber-50 border-amber-100 text-amber-800" : 
-            "bg-white border-slate-200 text-slate-600"
+         {/* 1. Status & Timer Banner */}
+         <div className={`mb-8 p-5 rounded-3xl border flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm ${
+            isPaid ? "bg-emerald-50 border-emerald-100" : 
+            requiresPayment ? "bg-amber-50 border-amber-100" : 
+            "bg-white border-slate-200"
          }`}>
-            <div className={`p-2 rounded-full ${isPaid ? "bg-green-200/50" : requiresPayment ? "bg-amber-200/50" : "bg-slate-100"}`}>
-                {isPaid ? <Check size={20} /> : requiresPayment ? <Wallet size={20} /> : <CreditCard size={20} />}
+            <div className="flex items-start gap-4">
+                <div className={`p-3 rounded-2xl ${
+                    isPaid ? "bg-emerald-100 text-emerald-600" : 
+                    requiresPayment ? "bg-amber-100 text-amber-600" : 
+                    "bg-slate-100 text-slate-500"
+                }`}>
+                    {isPaid ? <Check size={24} strokeWidth={3} /> : requiresPayment ? <Clock size={24} strokeWidth={3} /> : <FileText size={24} />}
+                </div>
+                <div>
+                    <h3 className={`text-lg font-bold ${isPaid ? "text-emerald-900" : requiresPayment ? "text-amber-900" : "text-slate-900"}`}>
+                        {isPaid ? "Booking Confirmed & Ticketed" : requiresPayment ? "Payment Required" : `Status: ${orderStatus}`}
+                    </h3>
+                    <p className={`text-sm mt-1 ${isPaid ? "text-emerald-700" : requiresPayment ? "text-amber-700" : "text-slate-500"}`}>
+                        {isPaid 
+                           ? "Your e-ticket has been issued. You can download it below." 
+                           : requiresPayment 
+                           ? `Please complete payment within ${formatTimer(secondsLeft)} to secure your seat.` 
+                           : "Your booking status is currently updating."
+                        }
+                    </p>
+                </div>
             </div>
-            <div>
-                <h3 className="font-bold text-lg">
-                    {isPaid ? "Booking Confirmed & Paid" : requiresPayment ? "Payment Required" : "Booking Processed"}
-                </h3>
-                <p className="text-sm opacity-90 mt-1">
-                    {isPaid ? "Your e-ticket has been issued. Safe travels!" : requiresPayment ? `Please pay ${money(amountDue, currency)} to confirm your seat.` : "Check details below."}
-                </p>
-            </div>
+
+            {requiresPayment && secondsLeft > 0 && (
+                <div className="bg-white px-4 py-2 rounded-xl border border-amber-200 flex items-center gap-2 text-amber-700 font-mono font-bold shadow-sm">
+                    <Clock size={16} />
+                    <span>{formatTimer(secondsLeft)}</span>
+                </div>
+            )}
+            {requiresPayment && secondsLeft <= 0 && (
+                <div className="bg-red-100 px-4 py-2 rounded-xl text-red-700 font-bold text-sm">Expired</div>
+            )}
          </div>
 
          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            {/* Left: Booking Details */}
+            {/* Left Column: Details */}
             <div className="lg:col-span-2 space-y-6">
                 
-                {/* Flight Card */}
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                        <h4 className="font-bold text-slate-900">Flight Itinerary</h4>
-                        <span className="text-xs font-mono text-slate-500 bg-white border px-2 py-1 rounded">PNR: {bookingData.pnr || "Processing"}</span>
+                {/* Flight Details Card (Restored Logic + New Design) */}
+                <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="px-8 py-3 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                        <h4 className="font-bold text-slate-900 flex items-center gap-2">
+                            <Plane size={18} className="text-[#EB7313]" /> Itinerary
+                        </h4>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 text-sm">
+                             {/* Booking Date - Explicitly Added */}
+                             <div className="flex items-center gap-1.5 text-slate-500 font-medium">
+                                <Calendar size={14} />
+                                <span>{bookingData?.createdTime ? `${formatDate(bookingData.createdTime)} ${formatTime(bookingData.createdTime)}` : "—"}</span>
+                             </div>
+                             <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">PNR</span>
+                                <span className="font-mono font-bold text-slate-900 bg-white px-2 py-1 rounded border border-slate-200">{bookingData.pnr || "PENDING"}</span>
+                             </div>
+                        </div>
                     </div>
-                    <div className="p-6 space-y-8">
-                        {bookingData.journeys.map((journey, jIdx) => (
-                            <div key={jIdx} className="relative pl-4 border-l-2 border-slate-100 space-y-8">
-                                {journey.segments.map((seg, sIdx) => (
-                                    <div key={sIdx} className="relative">
-                                        {/* Airline Info */}
-                                        <div className="flex items-center gap-3 mb-3">
-                                            <img 
-                                                src={`/assets/img/airlines/${getAirlineLogo(seg.airline)}.png`} 
-                                                alt={seg.airline} 
-                                                className="w-8 h-8 object-contain"
-                                                onError={(e) => e.target.src = "https://placehold.co/32x32?text=✈️"}
-                                            />
-                                            <div>
-                                                <p className="text-sm font-bold text-slate-900">{getAirlineName(seg.airline)}</p>
-                                                <p className="text-xs text-slate-500">{seg.airline} {seg.flightNum} • {seg.cabin || "Economy"}</p>
+                    
+                    <div className="p-8 space-y-10">
+                        {journeys?.map((journey, jIdx) => (
+                            <div key={jIdx} className="space-y-8">
+                                {journey?.segments?.map((seg, sIdx) => (
+                                    <div key={sIdx} className="relative group">
+                                        {/* Airline & Baggage Info (Restored from old version logic) */}
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                            <div className="flex items-center gap-3">
+                                                <img 
+                                                    src={`/assets/img/airlines/${getAirlineLogo(seg.airline)}.png`} 
+                                                    alt={seg.airline} 
+                                                    className="h-6 w-auto object-contain"
+                                                    onError={(e) => e.target.src = "https://placehold.co/32x32?text=✈️"}
+                                                />
+                                                <div className="text-sm">
+                                                    <span className="font-bold text-slate-900 mr-2">{getAirlineName(seg.airline)}</span>
+                                                    <span className="font-mono text-slate-500 text-xs">{seg.airline}{seg.flightNum}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-4 text-xs text-slate-600">
+                                                <span className="bg-white px-2 py-1 rounded border border-slate-200">{seg.cabin || "Economy"}</span>
+                                                <div className="flex items-center gap-1">
+                                                    <Luggage size={12} /> 
+                                                    <span>{seg.checkedBaggage || "Check rules"}</span>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        {/* Times & Route */}
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <p className="text-lg font-bold text-slate-900">{formatTime(seg.departureTime)}</p>
-                                                <p className="text-xs text-slate-500">{getAirportName(seg.origin)} ({seg.origin})</p>
-                                                <p className="text-xs text-slate-400 mt-1">{formatDate(seg.departureDate)}</p>
-                                            </div>
-                                            
-                                            {/* Duration Line */}
-                                            <div className="flex-1 px-4 flex flex-col items-center mt-2">
-                                                <p className="text-[10px] text-slate-400 mb-1">{seg.duration}</p>
-                                                <div className="w-full h-px bg-slate-300 relative">
-                                                    <div className="absolute right-0 -top-1 w-2 h-2 bg-slate-300 rounded-full"></div>
-                                                </div>
+                                        {/* Route Visual */}
+                                        <div className="flex justify-between items-start px-2">
+                                            {/* Origin */}
+                                            <div className="text-left min-w-[100px]">
+                                                <div className="text-2xl font-black text-slate-900">{formatDate(seg.departureDate)}</div>
+                                                <div className="text-xs text-slate-500 mt-1 max-w-[120px]">{seg.departureTime}</div>
+                                                <div className="text-lg font-bold text-[#EB7313]">{seg.departure}</div>
+                                                <div className="text-xs text-slate-500 mt-1 max-w-[120px]">{getAirportName(seg.departure)}</div>
+                                                <div className="text-xs font-medium text-slate-400 mt-1">{formatDate(seg.departureDate)}</div>
                                             </div>
 
-                                            <div className="text-right">
-                                                <p className="text-lg font-bold text-slate-900">{formatTime(seg.arrivalTime)}</p>
-                                                <p className="text-xs text-slate-500">{getAirportName(seg.arrival)} ({seg.arrival})</p>
-                                                <p className="text-xs text-slate-400 mt-1">{formatDate(seg.arrivalDate)}</p>
+                                            {/* Duration Graphic */}
+                                            <div className="flex-1 px-4 sm:px-8 flex flex-col items-center mt-3">
+                                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{seg.duration}</div>
+                                                <div className="w-full h-[2px] bg-slate-200 relative">
+                                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-slate-300 rounded-full"></div>
+                                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-slate-300 rounded-full"></div>
+                                                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#F8FAFC] px-2">
+                                                        {/* <Plane size={14} className="text-slate-300 rotate-90" /> */}
+                                                    </div>
+                                                </div>
+                                                {/* Removed "Stops" as requested */}
+                                            </div>
+
+                                            {/* Destination */}
+                                            <div className="text-right min-w-[100px]">
+                                                <div className="text-2xl font-black text-slate-900">{formatDate(seg.arrivalDate)}</div>
+                                                <div className="text-xs text-slate-500 mt-1 max-w-[120px]">{seg.arrivalTime}</div>
+                                                <div className="text-lg font-bold text-[#EB7313]">{seg.arrival}</div>
+                                                <div className="text-xs text-slate-500 mt-1 max-w-[120px] ml-auto">{getAirportName(seg.arrival)}</div>
+                                                <div className="text-xs font-medium text-slate-400 mt-1">{formatDate(seg.arrivalDate)}</div>
                                             </div>
                                         </div>
                                     </div>
@@ -259,22 +414,28 @@ export default function BookingConfirmation() {
                     </div>
                 </div>
 
-                {/* Passengers */}
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
-                    <h4 className="font-bold text-slate-900 mb-4">Passengers</h4>
-                    <div className="space-y-3">
-                        {bookingData.passengers.map((p, i) => (
-                            <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-slate-500 font-bold shadow-sm">
-                                    {p.firstName[0]}
+                {/* Passengers (Restored Logic) */}
+                <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-8">
+                    <h4 className="font-bold text-slate-900 mb-6 flex items-center gap-2">
+                        <User size={18} className="text-[#EB7313]" /> Passengers
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {passengers.map((p, i) => (
+                            <div key={i} className="flex items-center gap-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
+                                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-slate-500 font-bold border border-slate-200 shadow-sm">
+                                    {p.firstName?.[0]}
                                 </div>
                                 <div>
                                     <p className="text-sm font-bold text-slate-900">{p.firstName} {p.lastName}</p>
                                     <p className="text-xs text-slate-500 capitalize">{p.type || "Adult"}</p>
+                                    <p className="text-xs text-slate-500 capitalize">{p.cardNum}</p>
+                                    <p className="text-xs text-slate-500 capitalize">{p.ticketNum}</p>
                                 </div>
                                 {p.ticketNum && (
-                                    <div className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-mono">
-                                        Ticket: {p.ticketNum}
+                                    <div className="ml-auto">
+                                        <span className="text-[10px] font-mono bg-green-100 text-green-700 px-2 py-1 rounded border border-green-200">
+                                            {p.ticketNum}
+                                        </span>
                                     </div>
                                 )}
                             </div>
@@ -284,20 +445,20 @@ export default function BookingConfirmation() {
 
             </div>
 
-            {/* Right: Payment & Actions */}
+            {/* Right Column: Summary & Actions */}
             <div className="lg:col-span-1 space-y-6">
                 
-                {/* Price Breakdown */}
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
-                    <h4 className="font-bold text-slate-900 mb-4">Summary</h4>
+                {/* Price Card */}
+                <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6">
+                    <h4 className="font-bold text-slate-900 mb-6">Payment Summary</h4>
                     <div className="space-y-3 mb-6">
                         <div className="flex justify-between text-sm text-slate-600">
                             <span>Base Fare</span>
-                            <span>{money(amountDue * 0.8, currency)}</span>
+                            <span className="font-mono">{money(amountDue * 0.85, currency)}</span>
                         </div>
                         <div className="flex justify-between text-sm text-slate-600">
                             <span>Taxes & Fees</span>
-                            <span>{money(amountDue * 0.2, currency)}</span>
+                            <span className="font-mono">{money(amountDue * 0.15, currency)}</span>
                         </div>
                         <div className="h-px bg-slate-100 my-2"></div>
                         <div className="flex justify-between text-lg font-bold text-slate-900">
@@ -306,57 +467,64 @@ export default function BookingConfirmation() {
                         </div>
                     </div>
 
-                    {requiresPayment && (
+                    {/* Payment Button */}
+                    {requiresPayment ? (
                         <div className="space-y-3">
-                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                                <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Payment Method</label>
-                                <div className="flex gap-2">
-                                    {paymentGateways.map(gw => (
-                                        <button 
-                                            key={gw.value}
-                                            onClick={() => setSelectedGateway(gw.value)}
-                                            className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${
-                                                selectedGateway === gw.value 
-                                                ? "bg-white border-[#EB7313] text-[#EB7313] shadow-sm" 
-                                                : "border-transparent hover:bg-white hover:border-slate-200 text-slate-500"
-                                            }`}
-                                        >
-                                            {gw.name}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <button 
-                                onClick={handlePayment}
-                                className="w-full py-3 bg-[#EB7313] hover:bg-[#d6660f] text-white font-bold rounded-xl shadow-lg shadow-orange-500/20 transition-all transform active:scale-95"
-                            >
-                                Pay Now
-                            </button>
+                             <div className="p-3 bg-orange-50 rounded-xl border border-orange-100 text-center">
+                                 <p className="text-xs font-bold text-orange-800 uppercase tracking-wide mb-1">Method</p>
+                                 <div className="flex items-center justify-center gap-2 text-orange-900 font-bold">
+                                     <Wallet size={18} /> Wallet Balance
+                                 </div>
+                             </div>
+                             <button 
+                                onClick={handleWalletCheck}
+                                disabled={secondsLeft <= 0}
+                                className="w-full py-3.5 bg-[#EB7313] hover:bg-[#d6660f] text-white font-bold rounded-xl shadow-lg shadow-orange-500/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                             >
+                                Pay {money(amountDue, currency)}
+                             </button>
+                             {secondsLeft <= 0 && (
+                                 <p className="text-xs text-red-500 text-center font-medium">Session expired. Please re-book.</p>
+                             )}
+                        </div>
+                    ) : (
+                        <div className="w-full py-3 bg-slate-100 text-slate-500 font-bold rounded-xl text-center flex items-center justify-center gap-2 cursor-default">
+                            <Check size={18} /> Paid
                         </div>
                     )}
                 </div>
 
-                {/* Actions */}
-                <div className="grid grid-cols-2 gap-3">
-                    <button 
-                        onClick={() => downloadETicket({ bookingData, qrCodeUrl: "", user, getAirlineLogo, getAirlineName, getAirportName })}
-                        disabled={isDownloadingPdf}
-                        className="col-span-2 flex items-center justify-center gap-2 py-3 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all"
-                    >
-                        {isDownloadingPdf ? <Loader2 className="animate-spin" size={18}/> : <Download size={18}/>}
-                        Download Ticket
-                    </button>
-                    {/* <button className="flex items-center justify-center gap-2 py-3 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all">
-                        <Printer size={18} /> Print
-                    </button>
-                    <button className="flex items-center justify-center gap-2 py-3 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all">
-                        <Share2 size={18} /> Share
-                    </button> */}
-                </div>
-                
-                {/* Support */}
-                <div className="text-center text-xs text-slate-400 mt-4">
-                    Need help? <a href="#" className="text-[#EB7313] hover:underline">Contact Support</a>
+                {/* Actions Card */}
+                <div className="bg-white rounded-[2rem] p-6 text-black  shadow-sm border border-slate-200 p-8">
+                    <h4 className="font-bold mb-4 text-black">Actions</h4>
+                    <div className="space-y-3">
+                        <button 
+                            onClick={() => downloadETicket({ bookingData, qrCodeUrl, user, getAirlineLogo, getAirlineName, getAirportName })}
+                            // disabled={isDownloadingPdf || !isPaid}
+                            className="w-full flex items-center justify-between px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl transition-all disabled:opacity-50"
+                        >
+                            <span className="text-sm font-bold flex items-center gap-2">
+                               {isDownloadingPdf ? <Loader2 className="animate-spin" size={16}/> : <Download size={16}/>}
+                               Download Ticket
+                            </span>
+                            <ArrowLeft className="rotate-180 w-4 h-4 text-slate-400" />
+                        </button>
+
+                        <button 
+                            onClick={() => window.print()}
+                            className="w-full flex items-center justify-between px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl transition-all"
+                        >
+                            <span className="text-sm font-bold flex items-center gap-2">
+                               <Printer size={16} /> Print Itinerary
+                            </span>
+                            <ArrowLeft className="rotate-180 w-4 h-4 text-slate-400" />
+                        </button>
+                    </div>
+                    
+                    <div className="mt-6 pt-6 border-t border-white/10 text-center">
+                        <p className="text-xs text-slate-400 mb-2">Need modifications?</p>
+                        <a href="mailto:support@flygasal.com" className="text-sm font-bold text-[#EB7313] hover:text-white transition-colors">Contact Support</a>
+                    </div>
                 </div>
 
             </div>
@@ -364,43 +532,88 @@ export default function BookingConfirmation() {
 
       </div>
 
-      {/* Wallet Payment Modal */}
-      {showPayModal && (
+      {/* --- Payment Modal --- */}
+      {showPayModal && requiresPayment && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowPayModal(false)}></div>
-              <div className="relative bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-                  <h3 className="text-xl font-bold text-slate-900 mb-4">Confirm Payment</h3>
+              <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !paying && setShowPayModal(false)}></div>
+              <div className="relative bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in-95 duration-200">
                   
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-6">
-                      <div className="flex justify-between text-sm mb-2">
-                          <span className="text-slate-500">Wallet Balance</span>
-                          <span className="font-bold text-slate-900">{money(wallet.balance, wallet.currency)}</span>
+                  <div className="text-center mb-6">
+                      <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4 text-[#EB7313]">
+                          <Wallet size={32} />
                       </div>
-                      <div className="flex justify-between text-sm mb-2">
-                          <span className="text-slate-500">Amount Due</span>
-                          <span className="font-bold text-[#EB7313]">{money(amountDue, currency)}</span>
-                      </div>
-                      <div className="h-px bg-slate-200 my-2"></div>
-                      <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">Remaining</span>
-                          <span className={`font-bold ${wallet.balance >= amountDue ? 'text-green-600' : 'text-red-500'}`}>
-                             {money(wallet.balance - amountDue, currency)}
-                          </span>
-                      </div>
+                      <h3 className="text-2xl font-bold text-slate-900">Confirm Payment</h3>
+                      <p className="text-slate-500 text-sm mt-1">Using your wallet balance</p>
                   </div>
 
-                  {payError && <p className="text-xs text-red-500 mb-4 text-center">{payError}</p>}
+                  {wallet.loading ? (
+                      <div className="py-8 text-center">
+                          <Loader2 className="h-8 w-8 animate-spin text-slate-300 mx-auto" />
+                      </div>
+                  ) : (
+                      <div className="space-y-4 mb-8">
+                          <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                              <span className="text-sm font-medium text-slate-500">Current Balance</span>
+                              <span className="font-bold text-slate-900">{money(wallet.balance, wallet.currency)}</span>
+                          </div>
+                          
+                          <div className="flex justify-between items-center px-4">
+                              <span className="text-sm font-bold text-slate-900">Payment Amount</span>
+                              <span className="font-bold text-[#EB7313] text-lg">{money(amountDue, currency)}</span>
+                          </div>
+
+                          <div className="h-px bg-slate-100"></div>
+
+                          <div className="flex justify-between items-center px-4">
+                              <span className="text-sm font-medium text-slate-500">Balance After</span>
+                              <span className={`font-bold ${wallet.balance >= amountDue ? 'text-green-600' : 'text-red-500'}`}>
+                                  {money(wallet.balance - amountDue, currency)}
+                              </span>
+                          </div>
+
+                          {wallet.balance < amountDue && (
+                              <div className="p-3 bg-red-50 text-red-700 text-xs font-bold rounded-xl text-center border border-red-100">
+                                  Insufficient funds.
+                              </div>
+                          )}
+                      </div>
+                  )}
+
+                  {payError && <p className="text-xs text-red-500 font-bold text-center mb-4">{payError}</p>}
 
                   <div className="flex gap-3">
-                      <button onClick={() => setShowPayModal(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors">Cancel</button>
                       <button 
-                         onClick={confirmWalletPay}
-                         disabled={wallet.balance < amountDue || paying}
-                         className="flex-1 py-3 bg-[#EB7313] text-white font-bold rounded-xl hover:bg-[#d6660f] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex justify-center gap-2"
+                          onClick={() => setShowPayModal(false)} 
+                          disabled={paying}
+                          className="flex-1 py-3.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all"
                       >
-                         {paying && <Loader2 className="animate-spin" size={20} />}
-                         {paying ? "Processing..." : "Confirm Pay"}
+                          Cancel
                       </button>
+                      
+                      {!wallet.loading && wallet.balance < amountDue ? (
+                          <DepositModal 
+                              user={user} 
+                              bankTransfer={bankTransfer} 
+                              onSuccess={() => { 
+                                  setShowPayModal(false); 
+                                  setTimeout(handleWalletCheck, 1500); 
+                              }} 
+                              trigger={
+                                  <button className="flex-1 py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all">
+                                      Top Up Now
+                                  </button>
+                              }
+                          />
+                      ) : (
+                          <button 
+                              onClick={handleConfirmPayment}
+                              disabled={paying || wallet.loading}
+                              className="flex-1 py-3.5 bg-[#EB7313] text-white font-bold rounded-xl hover:bg-[#d6660f] shadow-lg shadow-orange-500/20 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+                          >
+                              {paying && <Loader2 className="animate-spin" size={18} />}
+                              {paying ? "Processing..." : "Confirm"}
+                          </button>
+                      )}
                   </div>
               </div>
           </div>
@@ -409,14 +622,16 @@ export default function BookingConfirmation() {
       {/* Success Modal */}
       {showSuccess && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <div className="absolute inset-0 bg-green-900/20 backdrop-blur-md" onClick={() => setShowSuccess(false)}></div>
-              <div className="relative bg-white w-full max-w-sm rounded-3xl p-8 text-center shadow-2xl animate-in zoom-in-95">
-                  <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600">
-                      <Check size={40} strokeWidth={3} />
+              <div className="absolute inset-0 bg-green-900/30 backdrop-blur-md" onClick={() => setShowSuccess(false)}></div>
+              <div className="relative bg-white w-full max-w-sm rounded-[2.5rem] p-8 text-center shadow-2xl animate-in zoom-in-95">
+                  <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600 shadow-inner">
+                      <Check size={48} strokeWidth={4} />
                   </div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-2">Payment Successful!</h3>
-                  <p className="text-slate-500 mb-8">Your booking has been confirmed and ticketed.</p>
-                  <button onClick={() => setShowSuccess(false)} className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all">
+                  <h3 className="text-2xl font-black text-slate-900 mb-2">All Set!</h3>
+                  <p className="text-slate-500 mb-8 leading-relaxed">
+                      Your payment was successful and your e-ticket has been issued.
+                  </p>
+                  <button onClick={() => setShowSuccess(false)} className="w-full py-3.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-lg">
                       View Ticket
                   </button>
               </div>
