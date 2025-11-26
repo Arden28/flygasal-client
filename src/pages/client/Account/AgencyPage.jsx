@@ -1,281 +1,151 @@
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import Headbar from "../../../components/client/Headbar";
 import { AuthContext } from "../../../context/AuthContext";
 import { T } from "../../../utils/translation";
 import apiService from "../../../api/apiService";
+import { Building2, FileText, MapPin, DollarSign, Save, CheckCircle2 } from "lucide-react";
 
-/**
- * AgencyPage (Refined)
- * - Cleaner visual hierarchy: contained width, card layout, section headers
- * - Consistent spacing & grid, mobile-first, accessible labels & help text
- * - Inline success/error banners, subtle loading skeletons
- * - Safer inputs (number for % with min/max), readOnly license field styling
- * - Prevents submit when unchanged; shows "Saved" pulse after success
- */
+// --- FIX: Component Defined Outside ---
+const InputGroup = ({ label, icon: Icon, children }) => (
+  <div className="mb-6">
+     <label className="block text-sm font-bold text-slate-700 mb-2.5 flex items-center gap-2">
+        {Icon && <Icon size={16} className="text-slate-400" />} 
+        {label}
+     </label>
+     {children}
+  </div>
+);
+
 const AgencyPage = ({ rootUrl = "/" }) => {
-  const { user, loading } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
+  const [formData, setFormData] = useState({});
+  const [status, setStatus] = useState("idle");
 
-  const [formData, setFormData] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState("");
-
-  // Initialize form data from user once available
   useEffect(() => {
-    if (user) {
-      setFormData({
-        agency_name: user.agency_name || "",
-        agency_license: user.agency_license || "",
-        agency_city: user.agency_city || "",
-        country_code: user.country_code || "",
-        agency_address: user.agency_address || "",
-        agency_logo: user.agency_logo || "",
-        agency_markup: user.agency_markup ?? "",
-      });
-    }
+    if (user) setFormData({
+       agency_name: user.agency_name || "",
+       agency_license: user.agency_license || "",
+       agency_city: user.agency_city || "",
+       agency_address: user.agency_address || "",
+       agency_markup: user.agency_markup || 0
+    });
   }, [user]);
-
-  const initialSnapshot = useMemo(() => ({
-    agency_name: user?.agency_name || "",
-    agency_license: user?.agency_license || "",
-    agency_city: user?.agency_city || "",
-    country_code: user?.country_code || "",
-    agency_address: user?.agency_address || "",
-    agency_logo: user?.agency_logo || "",
-    agency_markup: user?.agency_markup ?? "",
-  }), [user]);
-
-  const isChanged = useMemo(() => {
-    if (!formData) return false;
-    return Object.keys(initialSnapshot).some(k => String(formData[k] ?? "") !== String(initialSnapshot[k] ?? ""));
-  }, [formData, initialSnapshot]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    if (success) setSuccess(false);
-    if (error) setError("");
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isChanged) return;
-
-    setIsSubmitting(true);
-    setSuccess(false);
-    setError("");
-
+    setStatus("saving");
     try {
-      await apiService.put(`/profile/${user.id}`, formData);
-      setSuccess(true);
-    } catch (err) {
-      console.error("Error updating profile", err);
-      setError(T.something_went_wrong || "Something went wrong. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+       await apiService.put(`/profile/${user.id}`, formData);
+       setStatus("success");
+       setTimeout(() => setStatus("idle"), 2000);
+    } catch { setStatus("error"); }
   };
 
-  if (loading || !formData) {
-    return (
-      <div>
-        <Headbar T={T} rootUrl={rootUrl} user={user} />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-          <div className="bg-white rounded-2xl shadow-sm p-6 animate-pulse">
-            <div className="h-6 w-48 bg-gray-200 rounded mb-6" />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="space-y-2">
-                  <div className="h-4 w-24 bg-gray-200 rounded" />
-                  <div className="h-10 w-full bg-gray-200 rounded" />
-                </div>
-              ))}
-              <div className="md:col-span-2 mt-2 h-11 bg-gray-200 rounded" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const inputClass = "w-full px-4 py-3.5 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#EB7313] focus:ring-4 focus:ring-[#EB7313]/10 transition-all outline-none font-medium text-slate-900 placeholder:text-slate-400";
 
   return (
-    <div>
+    <div className="min-h-screen bg-[#F8FAFC] font-sans pb-20">
       <Headbar T={T} rootUrl={rootUrl} user={user} />
+      
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
+         <div className="mb-10 pb-6 border-b border-slate-200">
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Agency Settings</h1>
+            <p className="text-slate-500 mt-2 text-lg">Manage your business profile and operational configurations.</p>
+         </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 mb-10">
-        {/* Page header */}
-        <div className="mb-4">
-          <h1 className="text-2xl font-semibold tracking-tight">{T.agencyinformation}</h1>
-          <p className="text-sm text-gray-600 mt-1">{T.update_your_agency_profile || "Update your agency details and pricing preferences."}</p>
-        </div>
-
-        {/* Alerts */}
-        {success && (
-          <div className="flex items-start gap-3 mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">
-            <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-600 text-white text-xs">✓</span>
-            <div>
-              <p className="font-medium">{T.agencyupdatedsuccessfully}</p>
-              <p className="text-sm opacity-80">{T.changes_saved || "Your changes have been saved."}</p>
+         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+            
+            {/* Context */}
+            <div className="lg:col-span-1 space-y-6">
+               <div>
+                  <h3 className="text-lg font-bold text-slate-900">General Details</h3>
+                  <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                     This information appears on customer invoices and booking confirmations. Keep it up to date to ensure compliance.
+                  </p>
+               </div>
+               <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100/50">
+                  <h4 className="text-blue-800 font-bold text-sm mb-1">Pro Tip</h4>
+                  <p className="text-blue-600 text-xs leading-relaxed">Your markup is applied globally but can be overridden on individual bookings.</p>
+               </div>
             </div>
-          </div>
-        )}
 
-        {error && (
-          <div className="flex items-start gap-3 mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-800">
-            <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs">!</span>
-            <div>
-              <p className="font-medium">{T.update_failed || "Update failed"}</p>
-              <p className="text-sm opacity-80">{error}</p>
-            </div>
-          </div>
-        )}
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <form onSubmit={handleSubmit} className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Agency Name */}
-              <div>
-                <label htmlFor="agency_name" className="block text-sm font-medium text-gray-700 mb-1">{T.agency_name}</label>
-                <input
-                  id="agency_name"
-                  type="text"
-                  name="agency_name"
-                  value={formData.agency_name}
-                  onChange={handleChange}
-                  required
-                  placeholder={T.company_placeholder || "e.g., FlyGasal Ltd"}
-                  className="block w-full rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 px-3 py-2.5 transition"
-                />
-              </div>
-
-              {/* License (read-only) */}
-              <div>
-                <label htmlFor="agency_license" className="block text-sm font-medium text-gray-700 mb-1">{T.agency_license}</label>
-                <input
-                  id="agency_license"
-                  type="text"
-                  name="agency_license"
-                  value={formData.agency_license}
-                  readOnly
-                  className="block w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-gray-600"
-                />
-                <p className="mt-1 text-xs text-gray-500">{T.license_readonly_hint || "This field is managed by compliance."}</p>
-              </div>
-
-              {/* City */}
-              <div>
-                <label htmlFor="agency_city" className="block text-sm font-medium text-gray-700 mb-1">{T.agency_city}</label>
-                <input
-                  id="agency_city"
-                  type="text"
-                  name="agency_city"
-                  value={formData.agency_city}
-                  onChange={handleChange}
-                  placeholder={T.city_placeholder || "e.g., Nairobi"}
-                  className="block w-full rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 px-3 py-2.5 transition"
-                />
-              </div>
-
-              {/* Address */}
-              <div>
-                <label htmlFor="agency_address" className="block text-sm font-medium text-gray-700 mb-1">{T.agency_address}</label>
-                <input
-                  id="agency_address"
-                  type="text"
-                  name="agency_address"
-                  value={formData.agency_address}
-                  onChange={handleChange}
-                  placeholder={T.address_placeholder || "Street, Building, Suite"}
-                  className="block w-full rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 px-3 py-2.5 transition"
-                />
-              </div>
-
-              {/* Logo URL */}
-              <div className="md:col-span-2">
-                <label htmlFor="agency_logo" className="block text-sm font-medium text-gray-700 mb-1">{T.agency_logo || "Agency Logo (URL)"}</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    id="agency_logo"
-                    type="url"
-                    name="agency_logo"
-                    value={formData.agency_logo}
-                    onChange={handleChange}
-                    placeholder={T.logo_url_placeholder || "https://..."}
-                    className="block w-full rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 px-3 py-2.5 transition"
+            {/* Form */}
+            <div className="lg:col-span-2 bg-white rounded-[2rem] border border-slate-200 shadow-sm p-8 lg:p-10">
+               
+               <InputGroup label="Agency Name" icon={Building2}>
+                  <input 
+                     type="text" 
+                     value={formData.agency_name || ""} 
+                     onChange={e => setFormData({...formData, agency_name: e.target.value})}
+                     className={inputClass}
+                     placeholder="e.g. FlyGasal Travels"
                   />
-                  {formData.agency_logo ? (
-                    <img
-                      src={formData.agency_logo}
-                      alt="Logo preview"
-                      className="h-10 w-10 rounded-lg object-contain border border-gray-200"
-                      onError={(e) => (e.currentTarget.style.display = "none")}
-                    />
-                  ) : null}
-                </div>
-                <p className="mt-1 text-xs text-gray-500">{T.logo_help || "Paste a public image URL for best results."}</p>
-              </div>
-            </div>
+               </InputGroup>
 
-            {/* Divider */}
-            <div className="my-6 h-px w-full bg-gray-100" />
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <InputGroup label="License Number" icon={FileText}>
+                     <input 
+                        type="text" 
+                        readOnly
+                        value={formData.agency_license || ""} 
+                        className="w-full px-4 py-3.5 rounded-xl bg-slate-100 border border-transparent text-slate-500 font-mono cursor-not-allowed"
+                     />
+                  </InputGroup>
+                  <InputGroup label="City" icon={MapPin}>
+                     <input 
+                        type="text" 
+                        value={formData.agency_city || ""} 
+                        onChange={e => setFormData({...formData, agency_city: e.target.value})}
+                        className={inputClass}
+                     />
+                  </InputGroup>
+               </div>
 
-            {/* Markups */}
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold tracking-tight">{T.markupsinformation}</h2>
-              <p className="text-sm text-gray-600 mt-1">{T.markup_help || "Set a default markup applied to fares (0–100%)."}</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="agency_markup" className="block text-sm font-medium text-gray-700 mb-1">{T.agency_markup}</label>
-                <div className="relative">
-                  <input
-                    id="agency_markup"
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    max={100}
-                    step="0.1"
-                    name="agency_markup"
-                    value={formData.agency_markup}
-                    onChange={handleChange}
-                    placeholder="0"
-                    className="block w-full rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 pr-12 px-3 py-2.5 transition"
+               <InputGroup label="Full Address">
+                  <textarea 
+                     rows="3"
+                     value={formData.agency_address || ""} 
+                     onChange={e => setFormData({...formData, agency_address: e.target.value})}
+                     className={inputClass + " resize-none"}
                   />
-                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-500">%</span>
-                </div>
-                <p className="mt-1 text-xs text-gray-500">{T.markup_note || "You can override this per booking or fare class."}</p>
-              </div>
+               </InputGroup>
+
+               <div className="pt-8 border-t border-slate-100 mt-8">
+                  <InputGroup label="Global Markup (%)" icon={DollarSign}>
+                     <div className="relative max-w-[200px]">
+                        <input 
+                           type="number" 
+                           value={formData.agency_markup || ""} 
+                           onChange={e => setFormData({...formData, agency_markup: e.target.value})}
+                           className="w-full pl-5 pr-12 py-3.5 rounded-xl bg-white border-2 border-slate-200 focus:border-[#EB7313] focus:ring-4 focus:ring-[#EB7313]/10 transition-all outline-none font-bold text-xl text-slate-900"
+                           placeholder="0.0"
+                        />
+                        <span className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+                     </div>
+                  </InputGroup>
+               </div>
+
+               <div className="flex justify-end mt-10">
+                  <button 
+                     type="submit" 
+                     disabled={status === 'saving'}
+                     className={`px-10 py-4 rounded-xl text-white font-bold shadow-xl transition-all flex items-center gap-2 transform active:scale-95 text-sm ${
+                        status === 'success' ? 'bg-green-600 hover:bg-green-700 shadow-green-600/20' : 
+                        status === 'saving' ? 'bg-slate-400 cursor-wait' : 
+                        'bg-[#EB7313] hover:bg-[#d6660f] shadow-orange-500/20'
+                     }`}
+                  >
+                     {status === 'saving' && <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"/>}
+                     {status === 'success' ? (
+                        <><CheckCircle2 size={20} /> Saved Successfully</>
+                     ) : (
+                        <><Save size={20} /> Save Changes</>
+                     )}
+                  </button>
+               </div>
+
             </div>
-
-            {/* Actions */}
-            <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <button
-                type="submit"
-                disabled={isSubmitting || !isChanged}
-                className={`inline-flex justify-center items-center gap-2 rounded-xl px-4 py-2.5 text-white shadow-sm transition focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed ${
-                  isSubmitting || !isChanged ? "bg-blue-500" : "bg-blue-600 hover:bg-blue-700"
-                }`}
-              >
-                {isSubmitting ? (T.updating || "Updating…") : (T.updateagency)}
-              </button>
-
-              {success && (
-                <span className="inline-flex items-center gap-2 text-sm text-green-700">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-                  </span>
-                  {T.saved_just_now || "Saved just now"}
-                </span>
-              )}
-
-              {!isChanged && !isSubmitting && (
-                <span className="text-sm text-gray-500">{T.no_changes || "No changes to save"}</span>
-              )}
-            </div>
-          </form>
-        </div>
+         </form>
       </div>
     </div>
   );

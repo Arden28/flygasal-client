@@ -11,40 +11,36 @@ export default function AdminLayout() {
   const location = useLocation();
 
   // Close mobile drawer on route change
-  useEffect(() => {
-    setIsSidebarOpen(false);
-  }, [location.pathname]);
+  useEffect(() => setIsSidebarOpen(false), [location.pathname]);
 
-  // Auth guard (after loading)
+  // Auth guard
   useEffect(() => {
     if (!loading && user?.role !== "admin") navigate("/dashboard");
   }, [loading, user, navigate]);
 
   if (loading) {
     return (
-      <div className="grid min-h-screen place-items-center bg-gray-50">
-        <div className="text-gray-600">Loading…</div>
+      <div className="grid min-h-screen place-items-center bg-slate-50">
+        <div className="w-10 h-10 border-4 border-slate-200 border-t-[#EB7313] rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    // Full viewport, 2-column flex: Sidebar (shrink-0) + Content (flex-1)
-    <div className="h-screen w-screen bg-gray-50 flex overflow-hidden">
+    <div className="h-screen w-screen bg-slate-50 flex overflow-hidden font-sans antialiased text-slate-900">
+      {/* Sidebar (Collapsible on Desktop, Drawer on Mobile) */}
       <Sidebar
         isOpen={isSidebarOpen}
         toggleSidebar={() => setIsSidebarOpen((v) => !v)}
         setIsSidebarOpen={setIsSidebarOpen}
       />
 
-      {/* Content column */}
-      <div className="flex-1 min-w-0 flex flex-col">
-        {/* If your Header is sticky, it can sit here without affecting layout */}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header toggleSidebar={() => setIsSidebarOpen((v) => !v)} />
 
-        {/* Main scroll area */}
-        <main className="flex-1 min-h-0 overflow-y-auto px-2 py-2 sm:px-4 sm:py-4">
-          <div className="mx-auto">
+        <main className="flex-1 overflow-y-auto focus:outline-none scroll-smooth">
+          <div className="max-w-7xl mx-auto">
             <Outlet />
           </div>
         </main>

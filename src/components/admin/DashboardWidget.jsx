@@ -1,168 +1,90 @@
-import { ArrowTrendingUpIcon, ArrowTrendingDownIcon } from "@heroicons/react/24/outline";
+import { ArrowTrendingUpIcon, ArrowTrendingDownIcon, MinusIcon } from "@heroicons/react/24/outline";
 
-/**
- * Props:
- * - title: string
- * - value: string | number
- * - icon: HeroIcon
- * - color: "indigo" | "emerald" | "rose" | "amber" | "violet" | "blue" | "cyan"
- * - delta: string (e.g. "+8%")
- * - deltaTone: "up" | "down"
- * - subtitle?: string
- * - trend?: number[]  // small array for sparkline (<= 24 points recommended)
- * - formatValue?: (n:number)=>string
- */
+// Simple SVG Sparkline Component
+const Sparkline = ({ data = [], color = "#CBD5E1" }) => {
+  if (!data || data.length < 2) return null;
+  
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const height = 32;
+  const width = 100;
+  const step = width / (data.length - 1);
+
+  const points = data.map((val, i) => {
+    const x = i * step;
+    const normalized = (val - min) / range;
+    const y = height - (normalized * height);
+    return `${x},${y}`;
+  }).join(" ");
+
+  return (
+    <svg width="100%" height="32" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="overflow-visible">
+      <polyline
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        points={points}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
+};
+
 export default function DashboardWidget({
   title,
   value,
   icon: Icon,
-  color = "indigo",
-  delta,
-  deltaTone = "up",
-  subtitle,
-  trend = [],
+  trend = { label: "0%", tone: "neutral" }, 
+  color = "orange", // Default to brand
+  sparklineData = []
 }) {
-  const variants = {
-    indigo: {
-      card: "bg-gradient-to-br from-blue-50 to-white ring-blue-100",
-      iconWrap: "bg-blue-100 text-blue-700",
-      text: "text-blue-800",
-      accent: "text-blue-600",
-      spark: "#6366F1",
-    },
-    emerald: {
-      card: "bg-gradient-to-br from-emerald-50 to-white ring-emerald-100",
-      iconWrap: "bg-emerald-100 text-emerald-700",
-      text: "text-emerald-800",
-      accent: "text-emerald-600",
-      spark: "#10B981",
-    },
-    rose: {
-      card: "bg-gradient-to-br from-rose-50 to-white ring-rose-100",
-      iconWrap: "bg-rose-100 text-rose-700",
-      text: "text-rose-800",
-      accent: "text-rose-600",
-      spark: "#F43F5E",
-    },
-    amber: {
-      card: "bg-gradient-to-br from-amber-50 to-white ring-amber-100",
-      iconWrap: "bg-amber-100 text-amber-700",
-      text: "text-amber-800",
-      accent: "text-amber-600",
-      spark: "#F59E0B",
-    },
-    violet: {
-      card: "bg-gradient-to-br from-violet-50 to-white ring-violet-100",
-      iconWrap: "bg-violet-100 text-violet-700",
-      text: "text-violet-800",
-      accent: "text-violet-600",
-      spark: "#8B5CF6",
-    },
-    blue: {
-      card: "bg-gradient-to-br from-blue-50 to-white ring-blue-100",
-      iconWrap: "bg-blue-100 text-blue-700",
-      text: "text-blue-800",
-      accent: "text-blue-600",
-      spark: "#3B82F6",
-    },
-    cyan: {
-      card: "bg-gradient-to-br from-cyan-50 to-white ring-cyan-100",
-      iconWrap: "bg-cyan-100 text-cyan-700",
-      text: "text-cyan-800",
-      accent: "text-cyan-600",
-      spark: "#06B6D4",
-    },
+  
+  // Design Tokens
+  const themes = {
+    orange: { bg: "bg-[#EB7313]/10", text: "text-[#EB7313]", spark: "#EB7313" },
+    blue:   { bg: "bg-blue-50", text: "text-blue-600", spark: "#3B82F6" },
+    indigo: { bg: "bg-indigo-50", text: "text-indigo-600", spark: "#6366F1" },
+    red:    { bg: "bg-rose-50", text: "text-rose-600", spark: "#F43F5E" },
+    emerald:{ bg: "bg-emerald-50", text: "text-emerald-600", spark: "#10B981" },
   };
-  const v = variants[color] || variants.indigo;
+  const theme = themes[color] || themes.orange;
+
+  // Trend Colors
+  const trendConfig = {
+    green: { text: "text-emerald-600", bg: "bg-emerald-50", icon: ArrowTrendingUpIcon },
+    red:   { text: "text-rose-600", bg: "bg-rose-50", icon: ArrowTrendingDownIcon },
+    neutral: { text: "text-slate-500", bg: "bg-slate-100", icon: MinusIcon }
+  };
+  const trendStyle = trendConfig[trend.tone] || trendConfig.neutral;
+  const TrendIcon = trendStyle.icon;
 
   return (
-    <div
-      className={`group relative overflow-hidden rounded-xl border border-white/60 ring-1 ${v.card} p-3 sm:p-4 transition-all duration-200 hover:shadow-lg focus-within:shadow-lg`}
-      tabIndex={0}
-      role="region"
-      aria-label={title}
-    >
-      {/* Top row */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${v.iconWrap} ring-1 ring-black/5`}>
-            <Icon className="h-5 w-5" aria-hidden="true" />
-            <span className="sr-only">{title} icon</span>
-          </span>
-          <div>
-            <p className="text-[11px] uppercase tracking-wide text-gray-500">{title}</p>
-            <p className="text-base sm:text-lg font-semibold text-gray-800">{value}</p>
+    <div className="relative bg-white rounded-[1.25rem] p-5 border border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-[#EB7313]/30 transition-all duration-300 group">
+       
+       <div className="flex justify-between items-start mb-3">
+          <div className={`p-2.5 rounded-xl ${theme.bg} ${theme.text} transition-transform group-hover:scale-105 duration-300`}>
+             <Icon className="h-5 w-5" strokeWidth={2} />
           </div>
-        </div>
-
-        {/* Delta */}
-        {delta && (
-          <div
-            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-              deltaTone === "up"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : "border-rose-200 bg-rose-50 text-rose-700"
-            }`}
-            title={deltaTone === "up" ? "Improved vs prior period" : "Down vs prior period"}
-          >
-            {deltaTone === "up" ? (
-              <ArrowTrendingUpIcon className="h-3.5 w-3.5" />
-            ) : (
-              <ArrowTrendingDownIcon className="h-3.5 w-3.5" />
-            )}
-            {delta}
+          
+          {/* Trend Badge */}
+          <div className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold ${trendStyle.bg} ${trendStyle.text}`}>
+             <TrendIcon className="h-3 w-3" strokeWidth={3} />
+             {trend.label}
           </div>
-        )}
-      </div>
+       </div>
 
-      {/* Subtitle */}
-      {subtitle && <p className="mt-1 text-[11px] text-gray-500">{subtitle}</p>}
+       <div>
+          <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">{title}</p>
+          <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{value}</h3>
+       </div>
 
-      {/* Sparkline */}
-      {trend?.length > 1 && (
-        <Sparkline
-          className="mt-3 h-12 w-full"
-          data={trend}
-          stroke={v.spark}
-          strokeWidth={2}
-          fill="currentColor"
-          fillOpacity={0.12}
-        />
-      )}
-
-      {/* Hover ripple */}
-      <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-white/60 blur-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-60" />
+       {/* Sparkline Area */}
+       <div className="mt-3 h-8 opacity-40 group-hover:opacity-100 transition-opacity">
+          <Sparkline data={sparklineData} color={theme.spark} />
+       </div>
     </div>
-  );
-}
-
-/** Tiny, dependency-free sparkline (SVG) */
-function Sparkline({ data = [], className = "", stroke = "#6366F1", strokeWidth = 2, fill = "none", fillOpacity = 0 }) {
-  if (!data.length) return null;
-  const w = 240; // logical width
-  const h = 48; // logical height
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const pad = 4;
-  const range = max - min || 1;
-  const stepX = (w - pad * 2) / (data.length - 1);
-
-  const points = data.map((v, i) => {
-    const x = pad + i * stepX;
-    const y = h - pad - ((v - min) / range) * (h - pad * 2);
-    return [x, y];
-  });
-
-  const path = points
-    .map((p, i) => (i === 0 ? `M ${p[0]} ${p[1]}` : `L ${p[0]} ${p[1]}`))
-    .join(" ");
-
-  const area = `${path} L ${points[points.length - 1][0]} ${h - pad} L ${points[0][0]} ${h - pad} Z`;
-
-  return (
-    <svg className={className} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
-      {fill !== "none" && <path d={area} fill={fill} opacity={fillOpacity} />}
-      <path d={path} fill="none" stroke={stroke} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke" />
-    </svg>
   );
 }

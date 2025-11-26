@@ -1,69 +1,31 @@
-import { Link, NavLink, useLocation } from "react-router-dom";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import PropTypes from "prop-types";
+import { NavLink, useLocation, Link } from "react-router-dom";
+import { useContext, useEffect, useState } from "react";
 import {
-  HomeIcon,
-  UsersIcon,
-  ChartBarIcon,
-  CogIcon,
-  ChevronDownIcon,
-  Bars3Icon,
-  XMarkIcon,
-  ArrowRightOnRectangleIcon,
+  HomeIcon, UsersIcon, Cog6ToothIcon, ChevronDownIcon, 
+  XMarkIcon, ArrowRightOnRectangleIcon, BanknotesIcon, 
+  TicketIcon, ChartBarIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon
 } from "@heroicons/react/24/outline";
-import { FaMoneyCheck } from "react-icons/fa";
-import { Ticket } from "lucide-react";
 import { AuthContext } from "../../context/AuthContext";
 
-/* ============ Helpers ============ */
-const cx = (...classes) => classes.filter(Boolean).join(" ");
-const getInitials = (name) =>
-  (name || "User")
-    .split(" ")
-    .map((p) => p[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
-/* Media query hook to know when we're on desktop (md+) */
-const useMediaQuery = (query) => {
-  const getMatch = () => {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia(query).matches;
-  };
-  const [matches, setMatches] = useState(getMatch);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mq = window.matchMedia(query);
-    const handler = (e) => setMatches(e.matches);
-    if (mq.addEventListener) mq.addEventListener("change", handler);
-    else mq.addListener(handler);
-    return () => {
-      if (mq.removeEventListener) mq.removeEventListener("change", handler);
-      else mq.removeListener(handler);
-    };
-  }, [query]);
-
-  return matches;
-};
-
-/* ============ Example defaults (optional) ============ */
-export const defaultNavItems = [
+// Default Navigation
+const defaultNavItems = [
+  { section: "Overview" },
   { name: "Dashboard", path: "/admin", icon: HomeIcon },
+  { name: "Bookings", path: "/admin/flights/bookings", icon: TicketIcon },
+  { name: "Transactions", path: "/admin/transactions", icon: BanknotesIcon },
+  
+  { section: "Management" },
   { name: "Users", path: "/admin/users", icon: UsersIcon },
-  { name: "Bookings", path: "/admin/flights/bookings", icon: Ticket, badge: "12" },
-  { divider: true },
-  { section: "Finance" },
-  { name: "Transactions", path: "/admin/transactions", icon: FaMoneyCheck },
+  
   { section: "System" },
+  { name: "Reports", path: "/admin/reports", icon: ChartBarIcon },
   {
     name: "Settings",
-    path: "/admin",
-    icon: CogIcon,
+    path: "/admin/settings",
+    icon: Cog6ToothIcon,
     subItems: [
-      { name: "General Settings", path: "/admin/settings" },
-      { name: "User Roles", path: "/admin/settings/user-roles", badge: "New" },
+      { name: "General", path: "/admin/settings" },
+      { name: "Roles & Perms", path: "/admin/settings/roles" },
     ],
   },
 ];
@@ -71,459 +33,212 @@ export const defaultNavItems = [
 export default function Sidebar({
   isOpen,
   toggleSidebar,
-  setIsSidebarOpen,
   navItems = defaultNavItems,
   logoUrl = "/assets/img/logo/flygasal.png",
-  rootUrl = "/",
-  userName = "Arden Bouet",
-  userEmail = "arden@company.com",
-  onLogout,
-  onThemeToggle,
 }) {
-  const { user, logout, loading } = useContext(AuthContext);
-
-  userName = user ? user.name : 'Guest';
-  userEmail = user ? user.eamil : 'guest@example.com';
-
+  const { user, logout } = useContext(AuthContext);
   const location = useLocation();
-  const isDesktop = useMediaQuery("(min-width: 768px)"); // md
   const [openDropdowns, setOpenDropdowns] = useState({});
+  
+  // Desktop Collapsed State (Persisted)
   const [collapsed, setCollapsed] = useState(() => {
-    const saved = localStorage.getItem("sidebar:collapsed");
-    return saved ? JSON.parse(saved) : false;
+     const saved = localStorage.getItem("sidebar:collapsed");
+     return saved ? JSON.parse(saved) : false;
   });
-  const [query, setQuery] = useState("");
-  const searchRef = useRef(null);
-
-  // collapse is desktop-only; on mobile, we force expanded
-  const sidebarCollapsed = isDesktop ? collapsed : false;
 
   useEffect(() => {
-    localStorage.setItem("sidebar:collapsed", JSON.stringify(collapsed));
+     localStorage.setItem("sidebar:collapsed", JSON.stringify(collapsed));
   }, [collapsed]);
 
-  // Auto-open the dropdown that contains the active route
-  useEffect(() => {
-    const activeParents = {};
-    navItems.forEach((item) => {
-      if (item && item.subItems && item.subItems.length) {
-        const active = item.subItems.some((s) =>
-          location.pathname.startsWith(s.path)
-        );
-        if (active && item.name) activeParents[item.name] = true;
-      }
-    });
-    setOpenDropdowns((prev) => ({ ...prev, ...activeParents }));
-  }, [location.pathname, navItems]);
-
-  const toggleDropdown = (name) => {
-    if (!name) return;
-    setOpenDropdowns((prev) => ({ ...prev, [name]: !prev[name] }));
+  // --- FIX: Smart Active Route Check ---
+  // This prevents "Dashboard" (/admin) from being active when on "/admin/users"
+  const checkActive = (itemPath, subItems) => {
+    // 1. Check if any sub-item is active
+    if (subItems?.some(s => location.pathname.startsWith(s.path))) return true;
+    
+    // 2. Strict check for Root Admin path
+    if (itemPath === "/admin") return location.pathname === "/admin";
+    
+    // 3. Standard prefix check for other paths (e.g. /admin/users matches /admin/users/new)
+    return itemPath ? location.pathname.startsWith(itemPath) : false;
   };
 
-  const isSubRouteActive = (subs) =>
-    subs?.some((s) => location.pathname.startsWith(s.path));
-
-  // Filter by search query
-  const filteredItems = useMemo(() => {
-    if (!query.trim()) return navItems;
-    const q = query.toLowerCase();
-    return navItems
-      .map((item) => {
-        if (item.section || item.divider) return item;
-        const matchesSelf =
-          (item.name && item.name.toLowerCase().includes(q)) ||
-          (item.path && item.path.toLowerCase().includes(q));
-        const filteredSubs = item.subItems?.filter(
-          (s) =>
-            s.name.toLowerCase().includes(q) || s.path.toLowerCase().includes(q)
-        );
-        if (matchesSelf || (filteredSubs && filteredSubs.length)) {
-          return {
-            ...item,
-            subItems:
-              filteredSubs && filteredSubs.length ? filteredSubs : item.subItems,
-          };
-        }
-        return null;
-      })
-      .filter(Boolean);
-  }, [navItems, query]);
-
-  // Close on Esc (mobile) & focus search with '/' (desktop)
-  const asideRef = useRef(null);
+  // Auto-open dropdowns
   useEffect(() => {
-    const handleKey = (e) => {
-      if (isOpen && e.key === "Escape") {
-        toggleSidebar();
+    const active = {};
+    navItems.forEach(item => {
+      if (item.subItems?.some(s => location.pathname.startsWith(s.path))) {
+        active[item.name] = true;
       }
-      if (!sidebarCollapsed && e.key === "/" && isDesktop) {
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [isOpen, isDesktop, sidebarCollapsed, toggleSidebar]);
+    });
+    setOpenDropdowns(prev => ({ ...prev, ...active }));
+  }, [location.pathname, navItems]);
 
-  // Lock body scroll when drawer is open on mobile
-  useEffect(() => {
-    if (!isDesktop) {
-      document.body.style.overflow = isOpen ? "hidden" : "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [isDesktop, isOpen]);
-
-  const ItemBadge = ({ badge }) =>
-    badge ? (
-      <span
-        className={cx(
-          "ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold",
-          typeof badge === "string"
-            ? "bg-amber-500/15 text-amber-400 ring-1 ring-amber-400/30"
-            : "bg-white/10 text-white"
-        )}
-      >
-        {badge}
-      </span>
-    ) : null;
-
-  // Width: 18rem (w-72) on mobile; desktop can collapse to 76px
-  const widthClass = sidebarCollapsed ? "w-72 md:w-[76px]" : "w-72";
+  const toggleDropdown = (name) => setOpenDropdowns(prev => ({ ...prev, [name]: !prev[name] }));
 
   return (
     <>
-      {/* Backdrop (mobile) */}
-      <div
-        className={cx(
-          "fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden transition-opacity",
-          isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        )}
-        onClick={toggleSidebar}
-        aria-hidden="true"
+      {/* Mobile Backdrop */}
+      <div 
+        className={`fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-sm transition-opacity md:hidden ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`} 
+        onClick={toggleSidebar} 
       />
 
+      {/* Sidebar Container */}
       <aside
-        ref={asideRef}
-        className={cx(
-          // Fixed to viewport; independent from page content
-          "fixed md:static z-50 inset-y-0 left-0",
-          "h-screen overscroll-contain",                // lock to viewport height
-          "flex flex-col overflow-hidden",               // internal scroll only
-          widthClass,
-          "md:translate-x-0 transform transition-transform duration-300 ease-in-out motion-reduce:transition-none",
-          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
-          // Colors
-          "bg-[#101827] text-white",
-          "border-r border-white/10 supports-[backdrop-filter]:bg-[#101827]/95 supports-[backdrop-filter]:backdrop-blur-xl"
-        )}
-        role="navigation"
-        aria-label="Sidebar"
+        className={`
+          fixed md:static z-50 inset-y-0 left-0 flex flex-col border-r border-slate-200 bg-white
+          transform transition-all duration-300 ease-out shadow-xl md:shadow-none
+          ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+          ${collapsed ? "w-[80px]" : "w-72"}
+        `}
       >
-        {/* Sticky Header */}
-        <div className="sticky top-0 z-20 bg-[#101827]/90 backdrop-blur-sm border-b border-white/10">
-          <div className="flex items-center gap-2 px-3 py-3">
-            <button
-              className="md:hidden inline-flex p-2 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-colors"
-              onClick={toggleSidebar}
-              aria-label="Close sidebar"
-            >
-              <XMarkIcon className="h-5 w-5" />
-            </button>
-
-            <Link
-              to={rootUrl}
-              className="flex items-center gap-3 min-w-0"
-              onClick={() => setIsSidebarOpen(false)}
-              title="Home"
-            >
-              {!sidebarCollapsed ? (
+        {/* 1. Header */}
+        <div className={`h-20 flex items-center border-b border-slate-100 shrink-0 ${collapsed ? 'justify-center px-0' : 'px-6'}`}>
+           <Link to="/admin" className="flex items-center gap-3 overflow-hidden">
+              {!collapsed ? (
                 <img src={logoUrl} alt="Logo" className="h-8 w-auto object-contain rounded" />
               ) : (
                 <img src={logoUrl} alt="Logo" className="h-8 w-8 object-cover rounded" />
               )}
-              {/* {!sidebarCollapsed && <span className="truncate font-semibold">FlyGasal Admin</span>} */}
-            </Link>
-
-            <div className="ml-auto flex items-center gap-1">
-              {/* Collapse is desktop-only; hidden on mobile */}
-              <button
-                className="hidden md:inline-flex p-2 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-colors"
-                onClick={() => setCollapsed((v) => !v)}
-                aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                title={sidebarCollapsed ? "Expand" : "Collapse"}
-              >
-                <Bars3Icon className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Search (white bg, dark text) — hidden when collapsed */}
-          {!sidebarCollapsed && (
-            <div className="px-3 pb-3">
-              <label className="sr-only" htmlFor="sidebar-search">Search navigation</label>
-              <div className="relative">
-                <input
-                  id="sidebar-search"
-                  ref={searchRef}
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search…"
-                  className="w-full rounded-xl bg-white text-gray-900 text-sm placeholder:text-gray-500 pl-3 pr-3 py-2 outline-none ring-1 ring-white/10 focus:ring-white/20"
-                />
-              </div>
-            </div>
-          )}
+           </Link>
+           <button onClick={toggleSidebar} className="md:hidden ml-auto text-slate-400 hover:text-slate-600">
+              <XMarkIcon className="h-6 w-6" />
+           </button>
         </div>
 
-        {/* Scrollable Nav Area (takes remaining height) */}
-        <nav className="flex-1 overflow-y-auto px-2 py-3 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-          <ul role="menu" className="space-y-1">
-            {filteredItems.map((item, idx) => {
-              if (item.divider) {
-                return <li key={`div-${idx}`} className="my-2 h-px bg-white/10" />;
-              }
+        {/* 2. Scrollable Nav */}
+        <nav className="flex-1 overflow-y-auto px-3 space-y-1 scrollbar-thin scrollbar-thumb-slate-200">
+           {navItems.map((item, i) => {
+              
+              // Section Header
               if (item.section) {
-                return (
-                  <li key={`sec-${item.section}`} className={cx("px-3 pt-4", idx === 0 && "pt-1")}>
-                    {!sidebarCollapsed && (
-                      <div className="text-[11px] uppercase tracking-wider text-white/60">
-                        {item.section}
-                      </div>
-                    )}
-                  </li>
-                );
+                 if (collapsed) return <div key={i} className="h-px bg-slate-100 my-4 mx-2" />;
+                 return (
+                    <div key={i} className="px-3 mt-6 mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 transition-opacity duration-300">
+                       {item.section}
+                    </div>
+                 );
               }
 
-              const isActive =
-                (item.path && location.pathname === item.path) ||
-                isSubRouteActive(item.subItems);
+              const isActive = checkActive(item.path, item.subItems);
+              const hasSubs = item.subItems?.length > 0;
 
-              // leaf
-              if (!item.subItems?.length) {
-                const Inner = (
-                  <>
-                    {/* left active indicator bar */}
-                    <span
-                      aria-hidden="true"
-                      className={cx(
-                        "absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded transition-colors",
-                        isActive ? "bg-white/60" : "bg-transparent"
-                      )}
-                    />
-                    {item.icon && <item.icon className="h-5 w-5 shrink-0 text-white" />}
-                    {!sidebarCollapsed && (
-                      <>
-                        <span className="truncate text-white">{item.name}</span>
-                        <ItemBadge badge={item.badge} />
-                      </>
-                    )}
-                  </>
-                );
-
-                return (
-                  <li key={item.name} role="none" className="relative">
-                    {item.external ? (
-                      <a
-                        href={item.path}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={cx(
-                          "group flex items-center gap-3 rounded-xl px-3 py-2 text-sm ring-1 ring-transparent transition-colors motion-reduce:transition-none",
-                          isActive
-                            ? "bg-white/10 text-white ring-white/10"
-                            : " text-white hover:text-white hover:bg-white/10"
-                        )}
-                        title={sidebarCollapsed ? item.name : undefined}
-                        role="menuitem"
-                      >
-                        {Inner}
-                      </a>
-                    ) : (
-                      <NavLink
-                        to={item.path || "#"}
-                        className={({ isActive: exact }) =>
-                          cx(
-                            "group flex items-center gap-3 text-white rounded-xl px-3 py-2 text-sm ring-1 ring-transparent transition-colors motion-reduce:transition-none",
-                            (isActive || exact)
-                              ? "bg-white/10 text-white ring-white/10"
-                              : " text-white hover:text-white hover:bg-white/10"
-                          )
-                        }
-                        onClick={() => setIsSidebarOpen(false)}
-                        title={sidebarCollapsed ? item.name : undefined}
-                        role="menuitem"
-                        aria-current={isActive ? "page" : undefined}
-                      >
-                        {Inner}
-                      </NavLink>
-                    )}
-                  </li>
-                );
+              // Dropdown Item
+              if (hasSubs) {
+                 const isOpen = openDropdowns[item.name];
+                 return (
+                    <div key={item.name}>
+                       <button
+                          onClick={() => !collapsed && toggleDropdown(item.name)}
+                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group
+                             ${isActive 
+                                ? 'text-[#EB7313] bg-[#EB7313]/5' 
+                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                             }
+                             ${collapsed ? 'justify-center' : ''}
+                          `}
+                          title={collapsed ? item.name : ""}
+                       >
+                          <div className="flex items-center gap-3">
+                             <item.icon className={`h-5 w-5 shrink-0 transition-colors ${isActive ? 'text-[#EB7313]' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                             {!collapsed && <span className="truncate">{item.name}</span>}
+                          </div>
+                          {!collapsed && <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} ${isActive ? 'text-[#EB7313]' : 'text-slate-400'}`} />}
+                       </button>
+                       
+                       {/* Sub Items */}
+                       {!collapsed && (
+                          <div className={`overflow-hidden transition-all duration-300 ${isOpen ? 'max-h-96 mt-1' : 'max-h-0'}`}>
+                             {item.subItems.map(sub => {
+                                const isSubActive = location.pathname === sub.path;
+                                return (
+                                   <NavLink 
+                                      key={sub.path} 
+                                      to={sub.path}
+                                      className={`
+                                         flex items-center pl-11 pr-3 py-2 rounded-lg text-[13px] font-medium transition-colors
+                                         ${isSubActive 
+                                            ? 'text-[#EB7313] bg-white shadow-sm ring-1 ring-slate-100' 
+                                            : 'text-slate-500 hover:text-slate-800'
+                                         }
+                                      `}
+                                   >
+                                      {sub.name}
+                                   </NavLink>
+                                );
+                             })}
+                          </div>
+                       )}
+                    </div>
+                 );
               }
 
-              // group
-              const groupOpen = openDropdowns[item.name] ?? isActive;
-
+              // Single Item
               return (
-                <li key={item.name} className="relative">
-                  <button
-                    onClick={() => toggleDropdown(item.name)}
-                    className={cx(
-                      "w-full flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ring-1 ring-transparent motion-reduce:transition-none",
-                      isActive
-                        ? "bg-white/10 text-white ring-white/10"
-                        : " text-white hover:text-white hover:bg-white/10"
+                 <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={`
+                       relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group
+                       ${isActive 
+                          ? 'text-[#EB7313] bg-[#EB7313]/5 shadow-sm ring-1 ring-[#EB7313]/10' 
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                       }
+                       ${collapsed ? 'justify-center' : ''}
+                    `}
+                    title={collapsed ? item.name : ""}
+                 >
+                    <item.icon className={`h-5 w-5 shrink-0 transition-colors ${isActive ? 'text-[#EB7313]' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                    {!collapsed && <span className="flex-1 truncate">{item.name}</span>}
+                    
+                    {/* Badge */}
+                    {!collapsed && item.badge && (
+                       <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${isActive ? 'bg-[#EB7313] text-white' : 'bg-slate-100 text-slate-600'}`}>
+                          {item.badge}
+                       </span>
                     )}
-                    aria-expanded={groupOpen}
-                    aria-controls={`group-${item.name}`}
-                    title={sidebarCollapsed ? item.name : undefined}
-                    role="menuitem"
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={cx(
-                        "absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded transition-colors",
-                        isActive ? "bg-white/60" : "bg-transparent"
-                      )}
-                    />
-                    {item.icon && <item.icon className="h-5 w-5 shrink-0" />}
-                    {!sidebarCollapsed && (
-                      <>
-                        <span className="truncate">{item.name}</span>
-                        <ItemBadge badge={item.badge} />
-                        <ChevronDownIcon
-                          className={cx(
-                            "h-4 w-4 ml-auto transition-transform motion-reduce:transition-none",
-                            groupOpen && "rotate-180"
-                          )}
-                        />
-                      </>
-                    )}
-                  </button>
 
-                  <div
-                    id={`group-${item.name}`}
-                    className={cx(
-                      "grid overflow-hidden transition-all motion-reduce:transition-none",
-                      sidebarCollapsed
-                        ? "grid-rows-[0fr]"
-                        : groupOpen
-                        ? "grid-rows-[1fr] mt-1"
-                        : "grid-rows-[0fr]"
+                    {/* Collapsed Indicator Line */}
+                    {collapsed && isActive && (
+                       <div className="absolute left-0 top-1/4 bottom-1/4 w-1 rounded-r-full bg-[#EB7313]" />
                     )}
-                  >
-                    <ul className="min-h-0 space-y-1 pl-10 pr-3" role="menu">
-                      {!sidebarCollapsed &&
-                        item.subItems.map((sub) => {
-                          const subActive = location.pathname === sub.path;
-                          return (
-                            <li key={sub.name} role="none">
-                              <NavLink
-                                to={sub.path}
-                                className={({ isActive: exact }) =>
-                                  cx(
-                                    "flex items-center gap-2 rounded-lg px-2 py-2 text-[13px] ring-1 ring-transparent transition-colors motion-reduce:transition-none",
-                                    (subActive || exact)
-                                      ? "bg-white/10 text-white ring-white/10"
-                                      : " text-white hover:text-white hover:bg-white/10"
-                                  )
-                                }
-                                onClick={() => setIsSidebarOpen(false)}
-                                role="menuitem"
-                                aria-current={subActive ? "page" : undefined}
-                              >
-                                <span className="truncate">{sub.name}</span>
-                                <ItemBadge badge={sub.badge} />
-                              </NavLink>
-                            </li>
-                          );
-                        })}
-                    </ul>
-                  </div>
-                </li>
+                 </NavLink>
               );
-            })}
-          </ul>
+           })}
         </nav>
 
-        {/* Sticky Footer — always visible; compact when collapsed */}
-        <div className="sticky bottom-0 z-20 bg-[#101827]/90 backdrop-blur-sm border-t border-white/10">
-          <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-            <div
-              className={cx(
-                "flex items-center rounded-xl px-3 py-2 bg-white/[0.03] ring-1 ring-white/10",
-                sidebarCollapsed ? "justify-center gap-2" : "gap-3"
-              )}
-            >
-              <div className="h-9 w-9 rounded-full bg-white/10 grid place-items-center text-sm font-semibold">
-                {getInitials(userName)}
+        {/* 3. Footer Actions */}
+        <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+           
+           {/* User Profile */}
+           <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
+              <div className="h-9 w-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-sm font-bold text-[#EB7313] shadow-sm">
+                 {user?.name?.[0] || "A"}
               </div>
-
-              {!sidebarCollapsed && (
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium">{userName}</div>
-                  <div className="truncate text-[12px] text-white/70">{userEmail}</div>
-                </div>
+              {!collapsed && (
+                 <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-slate-900 truncate">{user?.name || "Admin"}</p>
+                    <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                 </div>
               )}
+              {!collapsed && (
+                 <button onClick={logout} className="text-slate-400 hover:text-red-600 transition-colors p-1" title="Logout">
+                    <ArrowRightOnRectangleIcon className="h-5 w-5" />
+                 </button>
+              )}
+           </div>
 
-              <div className={cx("ml-auto flex", sidebarCollapsed ? "flex-col gap-1" : "flex-row gap-1")}>
-                {onThemeToggle && (
-                  <button
-                    onClick={onThemeToggle}
-                    className="p-2 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-colors"
-                    title="Toggle theme"
-                    aria-label="Toggle theme"
-                  >
-                    <ChartBarIcon className="h-5 w-5" />
-                  </button>
-                )}
-                <button
-                  onClick={onLogout}
-                  className="p-2 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/20 transition-colors"
-                  title="Sign out"
-                  aria-label="Sign out"
-                >
-                  <ArrowRightOnRectangleIcon className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-          </div>
+           {/* Desktop Collapse Button */}
+           <button 
+              onClick={() => setCollapsed(!collapsed)}
+              className="hidden md:flex w-full mt-4 items-center justify-center p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+           >
+              {collapsed ? <ChevronDoubleRightIcon className="h-4 w-4" /> : <ChevronDoubleLeftIcon className="h-4 w-4" />}
+           </button>
         </div>
       </aside>
     </>
   );
 }
-
-Sidebar.propTypes = {
-  isOpen: PropTypes.bool.isRequired,
-  toggleSidebar: PropTypes.func.isRequired,
-  setIsSidebarOpen: PropTypes.func.isRequired,
-  navItems: PropTypes.arrayOf(
-    PropTypes.shape({
-      name: PropTypes.string,
-      path: PropTypes.string,
-      icon: PropTypes.any,
-      badge: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-      external: PropTypes.bool,
-      section: PropTypes.string,
-      divider: PropTypes.bool,
-      subItems: PropTypes.arrayOf(
-        PropTypes.shape({
-          name: PropTypes.string.isRequired,
-          path: PropTypes.string.isRequired,
-          badge: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-        })
-      ),
-    })
-  ),
-  logoUrl: PropTypes.string,
-  rootUrl: PropTypes.string,
-  userName: PropTypes.string,
-  userEmail: PropTypes.string,
-  onLogout: PropTypes.func,
-  onThemeToggle: PropTypes.func,
-};

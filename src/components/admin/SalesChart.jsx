@@ -12,32 +12,28 @@ import {
   Filler,
 } from "chart.js";
 import apiService from "../../api/apiService";
+import { Download } from "lucide-react";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
 export default function SalesChart({ range = "30d", currency = "USD", prefetched }) {
   const chartRef = useRef(null);
-
-  // If parent passed prefetched summary trends, use them; otherwise fetch once here.
   const [labels, setLabels] = useState(prefetched?.labels || []);
   const [sales, setSales] = useState(prefetched?.revenue || []);
   const [bookings, setBookings] = useState(prefetched?.bookings || []);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (prefetched && prefetched.labels?.length) {
+    if (prefetched?.labels?.length) {
       setLabels(prefetched.labels);
       setSales(prefetched.revenue || []);
       setBookings(prefetched.bookings || []);
-      setError("");
       return;
     }
 
     let cancel = false;
-    (async () => {
-      setError("");
+    const fetchChartData = async () => {
       try {
-        // Pull everything from /dashboard/summary to get aligned labels + both series
         const res = await apiService.get("/admin/dashboard/summary", { params: { range } });
         const data = res?.data?.data;
         if (!data) throw new Error("Invalid chart payload");
@@ -46,24 +42,21 @@ export default function SalesChart({ range = "30d", currency = "USD", prefetched
         setSales((data.trends?.revenue || []).map(Number));
         setBookings((data.trends?.bookings || []).map(Number));
       } catch (e) {
-        console.error(e);
-        if (!cancel) setError("Failed to load chart.");
+        if (!cancel) setError("Failed to load chart data.");
       }
-    })();
-    return () => {
-      cancel = true;
     };
+    fetchChartData();
+    return () => { cancel = true; };
   }, [range, prefetched?.labels]);
 
   const data = useMemo(() => {
-    // gradient fill for sales
-    const gradientFactory = (ctx) => {
+    const createGradient = (ctx, colorStart, colorEnd) => {
       const chart = ctx.chart;
       const { ctx: c, chartArea } = chart;
-      if (!chartArea) return "rgba(99,102,241,0.12)"; // fallback before first render
+      if (!chartArea) return colorStart;
       const g = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-      g.addColorStop(0, "rgba(99,102,241,0.25)");
-      g.addColorStop(1, "rgba(99,102,241,0)");
+      g.addColorStop(0, colorStart);
+      g.addColorStop(1, colorEnd);
       return g;
     };
 
@@ -73,23 +66,30 @@ export default function SalesChart({ range = "30d", currency = "USD", prefetched
         {
           label: "Revenue",
           data: sales,
-          borderColor: "#6366F1",
-          backgroundColor: gradientFactory,
+          borderColor: "#EB7313", // Brand Orange
+          backgroundColor: (ctx) => createGradient(ctx, "rgba(235, 115, 19, 0.2)", "rgba(235, 115, 19, 0)"),
           fill: true,
-          tension: 0.35,
-          pointRadius: 2,
-          pointHoverRadius: 4,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointBackgroundColor: "#EB7313",
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
           borderWidth: 2,
         },
         {
           label: "Bookings",
           data: bookings,
-          borderColor: "#10B981",
+          borderColor: "#94A3B8", // Slate 400
           backgroundColor: "transparent",
           fill: false,
-          tension: 0.35,
-          pointRadius: 2,
-          pointHoverRadius: 4,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointBackgroundColor: "#94A3B8",
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
+          borderDash: [5, 5],
           borderWidth: 2,
           yAxisID: "y1",
         },
@@ -97,76 +97,84 @@ export default function SalesChart({ range = "30d", currency = "USD", prefetched
     };
   }, [labels, sales, bookings]);
 
-  const options = useMemo(
-    () => ({
-      responsive: true,
-      maintainAspectRatio: false, // key for responsiveness w/ fixed height wrapper
-      interaction: { intersect: false, mode: "index" },
-      plugins: {
-        legend: {
-          position: "top",
-          labels: { usePointStyle: true, pointStyle: "line", boxWidth: 10 },
-        },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => {
-              const label = ctx.dataset.label || "";
-              const v = ctx.raw ?? 0;
-              if (label === "Revenue") {
-                try {
-                  return `${label}: ${new Intl.NumberFormat(undefined, {
-                    style: "currency",
-                    currency,
-                  }).format(v)}`;
-                } catch {
-                  return `${label}: ${currency} ${Number(v).toFixed(2)}`;
-                }
-              }
-              return `${label}: ${v}`;
-            },
-          },
-        },
-        title: {
-          display: true,
-          text: "Sales Overview",
-          font: { weight: "600", size: 14 },
-          color: "#111827",
+  const options = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { intersect: false, mode: "index" },
+    plugins: {
+      legend: {
+        position: "top",
+        align: "end",
+        labels: { 
+           usePointStyle: true, 
+           boxWidth: 8,
+           font: { family: "'Inter', sans-serif", size: 11, weight: '600' },
+           color: '#64748B' // Slate 500
         },
       },
-      scales: {
-        y: {
-          beginAtZero: true,
-          grid: { color: "rgba(17,24,39,0.06)" },
-          ticks: {
-            callback: (v) => {
+      tooltip: {
+        backgroundColor: 'rgba(15, 23, 42, 0.9)', // Slate 900
+        titleFont: { family: "'Inter', sans-serif", size: 13 },
+        bodyFont: { family: "'Inter', sans-serif", size: 12 },
+        padding: 10,
+        cornerRadius: 8,
+        displayColors: false,
+        callbacks: {
+          label: (ctx) => {
+            const label = ctx.dataset.label || "";
+            const v = ctx.raw ?? 0;
+            if (label === "Revenue") {
               try {
-                return new Intl.NumberFormat(undefined, {
-                  style: "currency",
-                  currency,
-                  maximumFractionDigits: 0,
-                }).format(v);
+                return `${label}: ${new Intl.NumberFormat(undefined, { style: "currency", currency }).format(v)}`;
               } catch {
-                return `${currency} ${v}`;
+                return `${label}: ${currency} ${Number(v).toFixed(2)}`;
               }
-            },
-            maxTicksLimit: 6,
+            }
+            return `${label}: ${v}`;
           },
         },
-        y1: {
-          beginAtZero: true,
-          position: "right",
-          grid: { drawOnChartArea: false },
-          ticks: { maxTicksLimit: 6 },
-        },
-        x: {
-          grid: { display: false },
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        border: { display: false },
+        grid: { color: "#F1F5F9" }, // Slate 100
+        ticks: {
+          font: { family: "'Inter', sans-serif", size: 10 },
+          color: '#94A3B8',
+          callback: (v) => {
+            try {
+              return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 0 }).format(v);
+            } catch { return v; }
+          },
+          maxTicksLimit: 6,
         },
       },
-    }),
-    [currency]
-  );
+      y1: {
+        beginAtZero: true,
+        position: "right",
+        border: { display: false },
+        grid: { drawOnChartArea: false },
+        ticks: { 
+           font: { family: "'Inter', sans-serif", size: 10 },
+           color: '#94A3B8',
+           maxTicksLimit: 6 
+        },
+      },
+      x: {
+        grid: { display: false },
+        border: { display: false },
+        ticks: {
+           font: { family: "'Inter', sans-serif", size: 10 },
+           color: '#94A3B8',
+           maxTicksLimit: 8,
+           maxRotation: 0
+        }
+      },
+    },
+  }), [currency]);
 
-  // simple PNG export
   const exportPNG = () => {
     const chart = chartRef.current;
     if (!chart) return;
@@ -177,47 +185,32 @@ export default function SalesChart({ range = "30d", currency = "USD", prefetched
     a.click();
   };
 
-  // keep gradient responsive on resize
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
-    const handler = () => chart.update("none");
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
-  }, []);
-
   return (
-    <div className="relative">
-      <div className="absolute right-0 top-0 z-10">
+    <div className="relative h-full flex flex-col">
+      <div className="absolute right-0 -top-10 z-10">
         <button
           onClick={exportPNG}
-          className="text-xs rounded-lg border bg-white px-2 py-1 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50"
+          className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-[#EB7313] transition-colors bg-white px-2 py-1 rounded-lg border border-slate-100 hover:border-orange-100"
         >
-          Download PNG
+          <Download size={12} /> Export
         </button>
       </div>
 
-      {/* Responsive height wrapper prevents overflow on small screens */}
-      <div className="h-72 sm:h-80">
-        {/* react-chartjs-2 v5 forwards the Chart instance to ref */}
+      <div className="flex-1 w-full min-h-[300px]">
         <Line
           ref={(instance) => {
-            // expose only the methods we use
-            if (!instance) {
-              chartRef.current = null;
-              return;
+            if (instance) {
+               chartRef.current = {
+                  toBase64Image: (...args) => instance.toBase64Image?.(...args),
+                  update: (...args) => instance.update?.(...args),
+               };
             }
-            chartRef.current = {
-              toBase64Image: (...args) => instance.toBase64Image?.(...args),
-              update: (...args) => instance.update?.(...args),
-            };
           }}
           data={data}
           options={options}
         />
       </div>
-
-      {error && <p className="mt-2 text-[11px] text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-xs text-red-500 font-medium">{error}</p>}
     </div>
   );
 }

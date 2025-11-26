@@ -2,138 +2,135 @@ import React, { useContext, useEffect, useMemo, useState } from "react";
 import { AuthContext } from "../../context/AuthContext";
 import { useLocation, Link } from "react-router-dom";
 
-/**
- * Headbar (Refined)
- * - Tailwind-only, responsive, accessible, keyboard-friendly
- * - Active link highlighting based on current pathname
- * - Mobile menu with smooth toggle + outside click/escape close
- * - Supports optional T prop (falls back to keys if missing)
- * - Accepts rootUrl but uses <Link> for SPA navigation
- */
 export default function Headbar({ rootUrl = "/", T = {} }) {
   const { user } = useContext(AuthContext);
   const location = useLocation();
-
   const [isOpen, setIsOpen] = useState(false);
 
-  // Close menu on route change
-  useEffect(() => {
-    setIsOpen(false);
-  }, [location.pathname]);
+  useEffect(() => setIsOpen(false), [location.pathname]);
 
-  // Close on ESC
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === "Escape") setIsOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  // Close when clicking outside
-  useEffect(() => {
-    const onClick = (e) => {
-      const menu = document.getElementById("headbar-menu");
-      const btn = document.getElementById("headbar-toggle");
-      if (!menu || !btn) return;
-      if (isOpen && !menu.contains(e.target) && !btn.contains(e.target)) setIsOpen(false);
-    };
-    window.addEventListener("click", onClick);
-    return () => window.removeEventListener("click", onClick);
-  }, [isOpen]);
-
-  const items = useMemo(() => (
-    [
-      { to: "/dashboard", label: T.dashboard || "Dashboard", icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
-      )},
-      { to: "/bookings", label: T.mybookings || "My Bookings", icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.5 12H16c-.7 2-2 3-4 3s-3.3-1-4-3H2.5"/><path d="M5.5 5.1L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.4-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.8 1.1z"/></svg>
-      )},
-      { to: "/deposits", label: T.deposits || "Deposits", icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-currency-exchange" viewBox="0 0 16 16">
-            <path d="M0 5a5 5 0 0 0 4.027 4.905 6.5 6.5 0 0 1 .544-2.073C3.695 7.536 3.132 6.864 3 5.91h-.5v-.426h.466V5.05q-.001-.07.004-.135H2.5v-.427h.511C3.236 3.24 4.213 2.5 5.681 2.5c.316 0 .59.031.819.085v.733a3.5 3.5 0 0 0-.815-.082c-.919 0-1.538.466-1.734 1.252h1.917v.427h-1.98q-.004.07-.003.147v.422h1.983v.427H3.93c.118.602.468 1.03 1.005 1.229a6.5 6.5 0 0 1 4.97-3.113A5.002 5.002 0 0 0 0 5m16 5.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0m-7.75 1.322c.069.835.746 1.485 1.964 1.562V14h.54v-.62c1.259-.086 1.996-.74 1.996-1.69 0-.865-.563-1.31-1.57-1.54l-.426-.1V8.374c.54.06.884.347.966.745h.948c-.07-.804-.779-1.433-1.914-1.502V7h-.54v.629c-1.076.103-1.808.732-1.808 1.622 0 .787.544 1.288 1.45 1.493l.358.085v1.78c-.554-.08-.92-.376-1.003-.787zm1.96-1.895c-.532-.12-.82-.364-.82-.732 0-.41.311-.719.824-.809v1.54h-.005zm.622 1.044c.645.145.943.38.943.796 0 .474-.37.8-1.02.86v-1.674z"/>
-        </svg>
-      )},
-      { to: "/agency", label: T.agency || "Agency", icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-sliders" viewBox="0 0 16 16">
-            <path fill-rule="evenodd" d="M11.5 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3M9.05 3a2.5 2.5 0 0 1 4.9 0H16v1h-2.05a2.5 2.5 0 0 1-4.9 0H0V3zM4.5 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3M2.05 8a2.5 2.5 0 0 1 4.9 0H16v1H6.95a2.5 2.5 0 0 1-4.9 0H0V8zm9.45 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3m-2.45 1a2.5 2.5 0 0 1 4.9 0H16v1h-2.05a2.5 2.5 0 0 1-4.9 0H0v-1z"/>
-        </svg>
-      )},
-      { to: "/profile", label: T.myprofile || "My Profile", icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5.52 19c.64-2.2 1.84-3 3.22-3h6.52c1.38 0 2.58.8 3.22 3"/><circle cx="12" cy="10" r="3"/><circle cx="12" cy="12" r="10"/></svg>
-      )},
-    ]
-  ), [T]);
+const items = useMemo(() => ([
+  { 
+    to: "/dashboard", 
+    label: T.dashboard || "Overview", 
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>
+      </svg>
+    )
+  },
+  { 
+    to: "/bookings", 
+    label: T.mybookings || "Bookings", 
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <path d="M14 2v6h6"/>
+        <path d="M16 13H8"/>
+        <path d="M16 17H8"/>
+        <path d="M10 9H8"/>
+      </svg>
+    )
+  },
+  { 
+    to: "/deposits", 
+    label: T.deposits || "Wallet", 
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/>
+        <path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/>
+        <path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>
+      </svg>
+    )
+  },
+  { 
+    to: "/agency", 
+    label: T.agency || "Agency", 
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 21h18"/>
+        <path d="M5 21V7l8-4 8 4v14"/>
+        <path d="M17 21v-8.5a1.5 1.5 0 0 0-1.5-1.5h-5a1.5 1.5 0 0 0-1.5 1.5V21"/>
+      </svg>
+    )
+  },
+  { 
+    to: "/profile", 
+    label: T.myprofile || "Settings", 
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    )
+  },
+]), [T]);
 
   const isActive = (to) => location.pathname === to || location.pathname.startsWith(`${to}/`);
 
   return (
-    <header className="sticky top-0 z-40 backdrop-blur border-b border-gray-100" style={{ backgroundColor: "#EEF4FB" }}>
+    <header className="sticky top-0 z-40 w-full bg-white/80 backdrop-blur-md border-b border-slate-200/60">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-14 items-center justify-between">
+        <div className="flex h-16 items-center justify-between">
+          {/* Logo Area / Breadcrumb Context */}
+          <div className="flex items-center gap-4">
+             <div className="font-bold text-lg tracking-tight text-slate-900">FlyGasal<span className="text-blue-600">.</span></div>
+             <div className="hidden md:block h-4 w-px bg-slate-200"></div>
+             <div className="hidden md:block text-sm font-medium text-slate-500">Agent Portal</div>
+          </div>
 
-          {/* Desktop nav */}
-          <nav aria-label="Primary" className="hidden md:block">
-            <ul className="flex items-center gap-1">
-              {items.map((it) => (
-                <li key={it.to}>
-                  <Link
-                    to={it.to}
-                    className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition ${
-                      isActive(it.to)
-                        ? "bg-blue-50 text-blue-700"
-                        : "text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    <span className="text-gray-600">{it.icon}</span>
-                    <span>{it.label}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+          {/* Desktop Nav */}
+          <nav className="hidden md:flex items-center gap-1 bg-slate-100/50 p-1 rounded-full border border-slate-200/50">
+            {items.map((it) => {
+              const active = isActive(it.to);
+              return (
+                <Link
+                  key={it.to}
+                  to={it.to}
+                  className={`relative px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
+                    active ? "bg-white text-blue-600 shadow-sm ring-1 ring-black/5" : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                  }`}
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    {it.icon}
+                  </svg>
+                  {it.label}
+                </Link>
+              );
+            })}
           </nav>
 
-
-          {/* Mobile toggle */}
+          {/* Mobile Toggle */}
           <button
-            id="headbar-toggle"
-            className="md:hidden inline-flex items-center justify-center h-9 w-9 rounded-lg border border-gray-200 text-gray-700"
-            onClick={() => setIsOpen((v) => !v)}
-            aria-expanded={isOpen}
-            aria-controls="headbar-menu"
-            aria-label="Toggle navigation"
+            onClick={() => setIsOpen(!isOpen)}
+            className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {isOpen ? <path d="M18 6L6 18M6 6l12 12"/> : <path d="M3 12h18M3 6h18M3 18h18"/>}
             </svg>
           </button>
         </div>
       </div>
 
-      {/* Mobile menu */}
-      <div
-        id="headbar-menu"
-        className={`md:hidden border-t border-gray-100 bg-white shadow-sm ${isOpen ? "block" : "hidden"}`}
-      >
-        <nav aria-label="Mobile" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-2">
-          <ul className="flex flex-col gap-1">
-            {items.map((it) => (
-              <li key={it.to}>
-                <Link
-                  to={it.to}
-                  className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition ${
-                    isActive(it.to) ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  <span className="text-gray-600">{it.icon}</span>
-                  <span>{it.label}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </div>
+      {/* Mobile Menu */}
+      {isOpen && (
+        <div className="md:hidden absolute top-16 left-0 w-full bg-white border-b border-slate-200 shadow-lg p-4 flex flex-col gap-2 animate-in slide-in-from-top-2">
+          {items.map((it) => (
+            <Link
+              key={it.to}
+              to={it.to}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium ${
+                isActive(it.to) ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                {it.icon}
+              </svg>
+              {it.label}
+            </Link>
+          ))}
+        </div>
+      )}
     </header>
   );
 }

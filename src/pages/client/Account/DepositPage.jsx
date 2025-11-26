@@ -4,276 +4,207 @@ import DepositModal from "../../../components/client/Account/DepositModal";
 import { AuthContext } from "../../../context/AuthContext";
 import { T } from "../../../utils/translation";
 import apiService from "../../../api/apiService";
+import { Wallet, ArrowUpRight, ArrowDownLeft, CreditCard, RefreshCcw, TrendingUp, TrendingDown } from "lucide-react";
 
-/**
- * DepositPage (Refined)
- * - Unified response handling (accepts {success:"true"} or {data:{status:"true"}})
- * - Inline alerts + retry, notifies only on real request failures
- * - Responsive layout; table on desktop, cards on mobile
- * - Loading skeletons & empty state
- * - Utilities: format amount/date, status chip
- */
 const DepositPage = ({ rootUrl = "/", apiUrl = "/api/" }) => {
-  const { user, loading } = useContext(AuthContext);
-
+  const { user } = useContext(AuthContext);
   const [deposits, setDeposits] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
   const [bankTransfer, setBankTransfer] = useState(null);
 
-  const canFetch = useMemo(() => !!user?.id, [user]);
+  // Derived Stats
+  const stats = useMemo(() => {
+    if (!deposits.length) return { lastDeposit: 0, totalSpent: 0 };
+    
+    const lastDep = deposits.find(d => Number(d.amount) > 0);
+    const spent = deposits.reduce((acc, curr) => {
+       const amt = Number(curr.amount);
+       return amt < 0 ? acc + Math.abs(amt) : acc;
+    }, 0);
+
+    return {
+       lastDeposit: lastDep ? Number(lastDep.amount) : 0,
+       totalSpent: spent
+    };
+  }, [deposits]);
 
   useEffect(() => {
-    if (!canFetch) return;
-
-    const fetchDeposits = async () => {
+    if (!user) return;
+    const fetchData = async () => {
       setIsLoading(true);
-      setError("");
       try {
-        const res = await apiService.get("/transactions");
-        console.log("Fetch deposits response:", res);
-        // Normalize success flag across possible backends
-        const ok = res?.success === true;
-
-        const rows = res?.data?.data ?? res?.data?.rows ?? res?.data ?? [];
-
-        if (ok) {
-          setDeposits(Array.isArray(rows) ? rows : []);
-        } else {
-          setError(res?.data?.message || res?.message || "Failed to fetch deposits");
+        const [txRes, gwRes] = await Promise.all([
+           apiService.get("/transactions"),
+           apiService.post("/payment_gateways", { api_key: "none" })
+        ]);
+        
+        const rows = txRes?.data?.data ?? [];
+        setDeposits(Array.isArray(rows) ? rows : []);
+        
+        if (gwRes?.data?.status === "true") {
+           setBankTransfer(gwRes.data.data?.[0] || null);
         }
-      } catch (e) {
-        console.error("Fetch deposits error:", e);
-        setError(T.fetch_error || "Error fetching deposits");
-      } finally {
-        setIsLoading(false);
-      }
+      } catch (e) { console.error(e); } 
+      finally { setIsLoading(false); }
     };
+    fetchData();
+  }, [user]);
 
-    const fetchPaymentGateways = async () => {
-      try {
-        const res = await apiService.post("/payment_gateways", { api_key: "none" });
-        const ok = res?.data?.status === "true" || res?.status === "true";
-        if (ok) {
-          const first = Array.isArray(res?.data?.data) ? res.data.data[0] : null;
-          setBankTransfer(first || null);
-        } else {
-          console.warn("Payment gateways not available", res);
-        }
-      } catch (e) {
-        console.error("Fetch payment gateways error:", e);
-      }
-    };
-
-    fetchDeposits();
-    fetchPaymentGateways();
-  }, [apiUrl, canFetch, user]);
-
-  const handleDepositSuccess = () => {
-    // Re-fetch instead of hard reload for better UX
-    if (!user?.id) return;
-    (async () => {
-      setIsLoading(true);
-      setError("");
-      try {
-        const res = await apiService.post("/transactions", { user_id: user.id });
-        const ok =
-          res?.data?.status === "true" ||
-          res?.status === "true" ||
-          res?.success === "true" ||
-          res?.data?.success === "true" ||
-          res?.data?.ok === true;
-        const rows = res?.data?.data ?? res?.data?.rows ?? res?.data ?? [];
-        if (ok) setDeposits(Array.isArray(rows) ? rows : []);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  };
+  const handleDepositSuccess = () => { window.location.reload(); };
 
   const formatAmount = (amt, curr) => {
-    const num = Number(amt);
-    if (Number.isNaN(num)) return amt ?? "";
-    try {
-      return new Intl.NumberFormat(undefined, { style: "currency", currency: curr || "USD" }).format(num);
-    } catch {
-      return `${num.toLocaleString()} ${curr || ""}`.trim();
-    }
-  };
-
-  const formatDate = (d) => {
-    if (!d) return "—";
-    const dt = new Date(d);
-    return isNaN(dt) ? d : dt.toLocaleString();
-  };
-
-  const StatusChip = ({ value }) => {
-    const v = String(value || "").toLowerCase();
-    const map = {
-      completed: "bg-green-100 text-green-700 border-green-200",
-      success: "bg-green-100 text-green-700 border-green-200",
-      pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
-      processing: "bg-blue-100 text-blue-700 border-blue-200",
-      failed: "bg-red-100 text-red-700 border-red-200",
-      cancelled: "bg-gray-100 text-gray-600 border-gray-200",
-    };
-    const cls = map[v] || "bg-gray-100 text-gray-600 border-gray-200";
-    return (
-      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${cls}`}>
-        {value || "—"}
-      </span>
-    );
+    try { return new Intl.NumberFormat(undefined, { style: "currency", currency: curr || "USD" }).format(amt); }
+    catch { return amt; }
   };
 
   return (
-    <div>
+    <div className="min-h-screen bg-[#F8FAFC] pb-20 font-sans">
       <Headbar T={T} rootUrl={rootUrl} user={user} />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 mb-10">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{T.deposits}</h1>
-            <p className="text-sm text-gray-600">{T.deposits_subtitle || "Manage and review your wallet top‑ups."}</p>
-          </div>
-          <button
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2"
-            data-bs-toggle="modal"
-            data-bs-target="#depositModal"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2z"/></svg>
-            {T.request_deposit || "Request Deposit"}
-          </button>
-        </div>
-
-        {/* Alerts */}
-        {error && (
-          <div className="flex items-start gap-3 mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-800">
-            <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white text-xs">!</span>
-            <div className="flex-1">
-              <p className="font-medium">{T.fetch_error_title || "Could not load deposits"}</p>
-              <p className="text-sm opacity-80">{error}</p>
-            </div>
-            <button
-              onClick={() => {
-                // trigger re-fetch by toggling a quick effect
-                if (!user?.id) return;
-                setIsLoading(true); setError("");
-                apiService.post("/transactions", { user_id: user.id })
-                  .then((res) => {
-                    const ok = res?.data?.status === "true" || res?.status === "true" || res?.success === "true" || res?.data?.success === "true" || res?.data?.ok === true;
-                    const rows = res?.data?.data ?? res?.data?.rows ?? res?.data ?? [];
-                    if (ok) setDeposits(Array.isArray(rows) ? rows : []); else setError(res?.data?.message || res?.message || "Failed to fetch deposits");
-                  })
-                  .catch(() => setError(T.fetch_error || "Error fetching deposits"))
-                  .finally(() => setIsLoading(false));
-              }}
-              className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm text-red-700 hover:bg-red-100"
-            >
-              {T.retry || "Retry"}
-            </button>
-          </div>
-        )}
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 sm:p-6">
-            {/* Loading skeleton */}
-            {isLoading ? (
-              <div className="space-y-3 animate-pulse">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="h-12 w-full bg-gray-100 rounded" />
-                ))}
-              </div>
-            ) : deposits.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="mx-auto mb-3 h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="text-gray-400"><path d="M12 1a9 9 0 019 9c0 7-9 13-9 13S3 17 3 10a9 9 0 019-9zm0 4a5 5 0 100 10 5 5 0 000-10z"/></svg>
-                </div>
-                <h3 className="text-base font-medium">{T.no_deposits || "No deposits yet"}</h3>
-                <p className="text-sm text-gray-600 mt-1">{T.no_deposits_help || "When you add funds, they'll appear here."}</p>
-                <div className="mt-4">
-                  <button
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-white shadow-sm hover:bg-blue-700"
-                    data-bs-toggle="modal"
-                    data-bs-target="#depositModal"
-                  >
-                    {T.add_funds || "Add Funds"}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="-mx-4 sm:mx-0">
-                {/* Table (desktop) */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-gray-600 border-b">
-                        <th className="py-3 pr-3">{T.id || "ID"}</th>
-                        <th className="py-3 pr-3">{T.date || "Date"}</th>
-                        <th className="py-3 pr-3">{T.amount || "Amount"}</th>
-                        <th className="py-3 pr-3">{T.currency || "Currency"}</th>
-                        <th className="py-3 pr-3">{T.payment_method || "Payment Method"}</th>
-                        <th className="py-3 pr-3">{T.status || "Status"}</th>
-                        <th className="py-3">{T.details || "Details"}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {deposits.map((d) => (
-                        <tr key={d.trx_id || d.id} className="border-b last:border-b-0">
-                          <td className="py-3 pr-3 font-medium">#{d.trx_id || d.id}</td>
-                          <td className="py-3 pr-3">{formatDate(d.date)}</td>
-                          <td className="py-3 pr-3">{formatAmount(d.amount, d.currency)}</td>
-                          <td className="py-3 pr-3">{d.currency || "—"}</td>
-                          <td className="py-3 pr-3">{d.payment_gateway || d.method || "—"}</td>
-                          <td className="py-3 pr-3"><StatusChip value={d.status} /></td>
-                          <td className="py-3">{d.description || d.details || "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Cards (mobile) */}
-                <div className="md:hidden space-y-3">
-                  {deposits.map((d) => (
-                    <div key={d.trx_id || d.id} className="rounded-xl border border-gray-100 p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="font-medium">#{d.trx_id || d.id}</div>
-                        <StatusChip value={d.status} />
-                      </div>
-                      <div className="mt-2 text-sm text-gray-700">{formatDate(d.date)}</div>
-                      <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <div className="text-gray-500">{T.amount || "Amount"}</div>
-                          <div className="font-medium">{formatAmount(d.amount, d.currency)}</div>
-                        </div>
-                        <div>
-                          <div className="text-gray-500">{T.payment_method || "Payment Method"}</div>
-                          <div className="font-medium">{d.payment_gateway || d.method || "—"}</div>
-                        </div>
-                        <div className="col-span-2">
-                          <div className="text-gray-500">{T.details || "Details"}</div>
-                          <div className="font-medium">{d.description || d.details || "—"}</div>
-                        </div>
-                      </div>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+           {/* Wallet Summary Card */}
+           <div className="md:col-span-2 relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#EB7313] via-[#d6620a] to-[#b8560b] text-white shadow-2xl shadow-orange-500/25 p-8 flex flex-col justify-between min-h-[260px]">
+              {/* Abstract Shapes */}
+              <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+              <div className="absolute bottom-0 left-0 w-60 h-60 bg-black/10 rounded-full blur-3xl -ml-10 -mb-10 pointer-events-none"></div>
+              
+              <div className="relative z-10 flex justify-between items-start">
+                 <div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/10 text-sm font-medium mb-4">
+                       <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                       <span>Active Wallet</span>
                     </div>
-                  ))}
-                </div>
+                    <p className="text-orange-100 text-lg">Available Balance</p>
+                    <h2 className="text-5xl font-bold tracking-tight mt-1">{formatAmount(user?.wallet_balance || 0, user?.currency)}</h2>
+                 </div>
+                 <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/10 shadow-lg">
+                    <CreditCard size={24} className="text-white" />
+                 </div>
               </div>
-            )}
-          </div>
+
+              <div className="relative z-10 mt-auto pt-8 flex flex-wrap gap-4">
+                 <button 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#depositModal"
+                    className="px-8 py-3.5 bg-white text-[#EB7313] font-bold rounded-2xl shadow-xl hover:bg-orange-50 hover:scale-[1.02] transition-all flex items-center gap-2.5"
+                 >
+                    <ArrowDownLeft size={20} strokeWidth={2.5} />
+                    {T.add_funds || "Add Funds"}
+                 </button>
+                 <button className="px-8 py-3.5 bg-black/20 backdrop-blur-md border border-white/20 hover:bg-black/30 text-white font-semibold rounded-2xl transition-all">
+                    View Reports
+                 </button>
+              </div>
+           </div>
+
+           {/* Real Stats Card */}
+           <div className="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm flex flex-col justify-center relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
+                 <Wallet size={120} className="text-[#EB7313]" />
+              </div>
+              
+              <h3 className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-6">Overview</h3>
+              
+              <div className="space-y-8 relative z-10">
+                 <div>
+                    <div className="flex items-center gap-2 mb-1 text-green-600">
+                       <div className="p-1.5 bg-green-100 rounded-lg"><TrendingUp size={14} /></div>
+                       <span className="text-sm font-bold">Last Deposit</span>
+                    </div>
+                    <div className="text-2xl font-bold text-slate-900">{formatAmount(stats.lastDeposit, user?.currency)}</div>
+                 </div>
+                 
+                 <div className="w-full h-px bg-slate-100"></div>
+                 
+                 <div>
+                    <div className="flex items-center gap-2 mb-1 text-slate-500">
+                       <div className="p-1.5 bg-slate-100 rounded-lg"><TrendingDown size={14} /></div>
+                       <span className="text-sm font-bold">Total Spent</span>
+                    </div>
+                    <div className="text-2xl font-bold text-slate-900">{formatAmount(stats.totalSpent, user?.currency)}</div>
+                 </div>
+              </div>
+           </div>
         </div>
+
+        {/* Transactions List */}
+        <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+           <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                 <h3 className="font-bold text-lg text-slate-800">Transaction History</h3>
+                 <span className="px-2.5 py-0.5 bg-slate-200 text-slate-600 rounded-full text-xs font-bold">{deposits.length}</span>
+              </div>
+              <button 
+                 onClick={() => window.location.reload()} 
+                 className="p-2.5 text-slate-400 hover:text-[#EB7313] hover:bg-orange-50 rounded-xl transition-all"
+                 title="Refresh"
+              >
+                 <RefreshCcw size={18} />
+              </button>
+           </div>
+           
+           <div className="divide-y divide-slate-50">
+              {isLoading ? (
+                 [...Array(5)].map((_,i) => <div key={i} className="p-6 h-20 bg-slate-50/30 animate-pulse"></div>)
+              ) : deposits.length === 0 ? (
+                 <div className="p-20 text-center">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                       <RefreshCcw size={24} />
+                    </div>
+                    <p className="text-slate-500 font-medium">No transactions found yet.</p>
+                 </div>
+              ) : (
+                 deposits.map((d) => {
+                    const isPositive = Number(d.amount) > 0;
+                    return (
+                       <div key={d.id} className="px-8 py-5 flex items-center justify-between hover:bg-[#FFF7ED]/40 transition-colors group cursor-default">
+                          <div className="flex items-center gap-5">
+                             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm border border-white ${
+                                isPositive ? 'bg-green-50 text-green-600' : 'bg-slate-50 text-slate-500'
+                             }`}>
+                                {isPositive ? <ArrowDownLeft size={24} /> : <ArrowUpRight size={24} />}
+                             </div>
+                             <div>
+                                <div className="font-bold text-slate-900 text-base mb-0.5">
+                                  {d.trx_id || d.id}
+                                  {/* 2. The Badge */}
+                                  <span className={`
+                                    inline-flex items-center ml-2 px-2 py-0.5 rounded-full border 
+                                    text-[11px] font-medium uppercase tracking-wide
+                                    
+                                  `}>
+                                    {d.payment_gateway || d.method || (isPositive ? "Wallet Top-up" : "Purchase")}
+                                  </span>
+                                </div>
+                                <div className="text-xs font-medium text-slate-400 flex items-center gap-2">
+                                   <span>{new Date(d.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>
+                                   <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                   <span className="font-mono">#{d.trx_id}</span>
+                                </div>
+                             </div>
+                          </div>
+                          <div className="text-right">
+                             <div className={`font-bold text-lg font-mono mb-1 ${isPositive ? 'text-green-600' : 'text-slate-900'}`}>
+                                {isPositive ? '+' : ''}{formatAmount(d.amount, d.currency)}
+                             </div>
+                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                                d.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
+                             }`}>
+                                {d.status}
+                             </span>
+                          </div>
+                       </div>
+                    );
+                 })
+              )}
+           </div>
+        </div>
+
       </div>
 
-      <DepositModal
-        apiUrl={apiUrl}
-        rootUrl={rootUrl}
-        user={user}
-        bankTransfer={bankTransfer}
-        onSuccess={handleDepositSuccess}
-      />
+      <DepositModal apiUrl={apiUrl} rootUrl={rootUrl} user={user} bankTransfer={bankTransfer} onSuccess={handleDepositSuccess} />
     </div>
   );
 };

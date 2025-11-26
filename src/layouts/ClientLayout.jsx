@@ -13,11 +13,11 @@ export default function ClientLayout() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [acctOpen, setAcctOpen] = useState(false);
 
+  // 1. Routes that don't use the standard layout wrapper (No Navbar/Footer)
   const noLayoutPatterns = [
-    /^\/flight\/availability$/,
+    /^\/flight\/availability$/, // Optional: Remove this line if you WANT Navbar on availability page
     /^\/flight\/booking-confirmation$/,
     /^\/flight\/booking\/details$/,
     /^\/flight\/booking\/invoice\/[^/]+$/,
@@ -25,29 +25,46 @@ export default function ClientLayout() {
   ];
   const isNoLayout = noLayoutPatterns.some((pattern) => pattern.test(location.pathname));
 
+  // 2. REDIRECT LOGIC
   useEffect(() => {
-    const allowed = ["/signup", "/forgot-password", "/reset-password", "/signup-success"];
-    if (!loading && !user && !allowed.includes(location.pathname)) navigate("/login");
+    // === PUBLIC ROUTES (Guests Allowed) ===
+    const publicPaths = [
+      "/",                    // Home
+      "/about",               // About
+      // "/flight/availability", // Flight Search Results
+      "/login",
+      "/signup",
+      "/forgot-password",
+      "/reset-password",
+      "/signup-success"
+    ];
+
+    const isPublic = publicPaths.includes(location.pathname);
+
+    // If not loading, not logged in, and NOT a public path -> Go to Login
+    if (!loading && !user && !isPublic) {
+      navigate("/login");
+    }
+
+    // If logged in but account inactive -> Go to Success/Pending page
     if (!loading && user && user.is_active === 0 && location.pathname !== "/signup-success") {
       navigate("/signup-success");
     }
   }, [loading, user, navigate, location.pathname]);
-
-  const userDisplayName = user?.name || user?.email || "Account";
 
   // Close menus on route change
   useEffect(() => {
     setAcctOpen(false);
   }, [location.pathname]);
 
-  // Esc to close
+  // Esc to close menu
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && setAcctOpen(false);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Click outside to close
+  // Click outside to close menu
   const rootRef = useRef(null);
   useEffect(() => {
     const handleClick = (e) => {
@@ -59,43 +76,47 @@ export default function ClientLayout() {
   }, []);
 
   const handleLogout = async () => {
-    setIsLoggingOut(true);
     try {
       await logout();
       navigate("/login");
     } catch {
       alert("Failed to log out. Please try again.");
-    } finally {
-      setIsLoggingOut(false);
     }
   };
 
   if (isNoLayout) return <Outlet />;
 
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* --- NAVBAR (kept minimal, hero-friendly, no shadows) --- */}
+    <div className="flex min-h-screen flex-col bg-white">
+      {/* --- NAVBAR --- */}
       <Navbar />
 
       <SpinnerOrbit />
-      <main className="mt-24">
+      
+      {/* Main Content */}
+      <main className="w-full">
         <Outlet />
       </main>
 
-      {/* --- FOOTER --- */}
-      <footer className="mt-auto bg-[#0E0A1A] text-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
-          {/* Newsletter */}
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8 backdrop-blur">
-            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+      {/* --- LIGHT MODERN FOOTER --- */}
+      <footer className="mt-auto border-t border-gray-100 bg-gray-50 text-slate-600">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
+          
+          {/* Newsletter Section - White Card Style */}
+          <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm lg:p-10">
+            <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
               <div className="max-w-xl">
-                <div className="inline-flex items-center gap-2 rounded-full border border-orange-400/30 bg-orange-400/10 px-3 py-1 text-xs text-orange-200">
+                <div className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-3 py-1 text-xs font-medium text-orange-600">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+                  </span>
                   Stay in the loop
                 </div>
-                <h4 className="mt-3 text-2xl font-semibold leading-tight">
+                <h4 className="mt-4 text-2xl font-bold leading-tight text-slate-900">
                   Exclusive flight tips, fare drops & product updates.
                 </h4>
-                <p className="mt-1 text-white/70 text-sm">
+                <p className="mt-2 text-slate-500">
                   No spam. Just useful stuff from Fly Gasal, unsubscribe anytime.
                 </p>
               </div>
@@ -106,22 +127,22 @@ export default function ClientLayout() {
                   e.preventDefault();
                 }}
               >
-                <div className="flex rounded-full border border-white/15 bg-white/10 p-1.5 focus-within:border-white/25">
+                <div className="flex rounded-full border border-gray-200 bg-gray-50 p-1.5 focus-within:border-orange-300 focus-within:bg-white focus-within:ring-4 focus-within:ring-orange-100 transition-all">
                   <input
                     type="email"
                     required
                     placeholder="Your email address"
-                    className="w-full rounded-full bg-transparent px-4 py-3 text-sm text-white placeholder-white/50 focus:outline-none"
+                    className="w-full rounded-full bg-transparent px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none"
                   />
                   <button
                     type="submit"
-                    className="ml-1 inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium text-white transition"
+                    className="shrink-0 rounded-full px-6 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 shadow-md shadow-orange-200"
                     style={{ backgroundColor: ORANGE }}
                   >
                     Subscribe
                   </button>
                 </div>
-                <p className="mt-2 text-[12px] text-white/60">
+                <p className="mt-3 ml-2 text-[12px] text-slate-400">
                   By subscribing you agree to our Terms &amp; Privacy.
                 </p>
               </form>
@@ -129,31 +150,31 @@ export default function ClientLayout() {
           </div>
 
           {/* Footer links */}
-          <div className="mt-10 grid gap-10 md:grid-cols-4">
+          <div className="mt-16 grid gap-12 sm:grid-cols-2 md:grid-cols-4">
             <div className="space-y-4">
               <Link to="/" className="flex items-center gap-2">
-                <img src={logo} alt="FlyGasal" className="h-8 w-auto" />
+                <img src={logo} alt="FlyGasal" className="h-9 w-auto" />
               </Link>
-              <p className="text-sm text-white/70">
-                Your one stop travel solutions, simple, flexible and reliable.
+              <p className="text-sm leading-relaxed text-slate-500">
+                Your one stop travel solutions. Simple, flexible, and reliable for every journey.
               </p>
             </div>
 
-            <FooterColumn title="Book with us" links={["Search & book", "Multi-city search"]} />
-            <FooterColumn title="My booking" links={["Manage my booking", "Help centre", "Contact us"]} />
-            <FooterColumn title="Company" links={["About us", "Reviews", "Blog"]} />
+            <FooterColumn title="Book with us" links={["Search & book", "Multi-city search", "Flight status"]} />
+            <FooterColumn title="My booking" links={["Manage my booking", "Check-in", "Help centre"]} />
+            <FooterColumn title="Company" links={["About us", "Reviews", "Blog", "Careers"]} />
           </div>
 
           {/* Bottom bar */}
-          <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-6 text-sm md:flex-row">
-            <div className="flex items-center gap-2">
+          <div className="mt-16 flex flex-col items-center justify-between gap-4 border-t border-gray-200 pt-8 text-sm md:flex-row">
+            <div className="flex items-center gap-1 text-slate-500">
               <span>© {new Date().getFullYear()} Fly Gasal.</span>
               <span className="hidden sm:inline">All rights reserved.</span>
             </div>
-            <ul className="flex items-center gap-4">
-              <li><a href="#" className="text-white hover:opacity-90">Terms</a></li>
-              <li><a href="#" className="text-white hover:opacity-90">Privacy</a></li>
-              <li><a href="#" className="text-white hover:opacity-90">Cookies</a></li>
+            <ul className="flex items-center gap-6">
+              <li><a href="#" className="font-medium text-slate-500 hover:text-[#F68221] transition-colors">Terms</a></li>
+              <li><a href="#" className="font-medium text-slate-500 hover:text-[#F68221] transition-colors">Privacy</a></li>
+              <li><a href="#" className="font-medium text-slate-500 hover:text-[#F68221] transition-colors">Cookies</a></li>
             </ul>
           </div>
         </div>
@@ -165,25 +186,16 @@ export default function ClientLayout() {
 function FooterColumn({ title, links }) {
   return (
     <div>
-      <h5 className="text-sm font-semibold tracking-wide text-white">{title}</h5>
-      <ul className="mt-3 space-y-2">
+      <h5 className="font-semibold tracking-wide text-slate-900">{title}</h5>
+      <ul className="mt-4 space-y-3">
         {links.map((text) => (
           <li key={text}>
-            {/* Force white (not black), normal size */}
-            <a href="#" className="text-white hover:opacity-90">
+            <a href="#" className="text-sm text-slate-500 hover:text-[#F68221] transition-colors duration-200">
               {text}
             </a>
           </li>
         ))}
       </ul>
     </div>
-  );
-}
-
-function Caret() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-      <path d="M6 9l6 6 6-6" />
-    </svg>
   );
 }

@@ -99,10 +99,10 @@ export default function Navbar() {
   const showBackground = !isHome || isScrolled;
 
   const headerClasses = `
-    fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ease-in-out
+    top-0 left-0 right-0 z-[100] transition-all duration-300 ease-in-out
     ${showBackground 
       ? "bg-white/90 backdrop-blur-lg shadow-sm border-b border-slate-200/50 py-2" 
-      : "bg-transparent py-4"
+      : "bg-transparent py-2"
     }
   `;
 

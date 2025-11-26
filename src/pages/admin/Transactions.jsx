@@ -1,1512 +1,594 @@
-// src/pages/admin/Transactions.jsx
-import { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  CreditCardIcon,
-  DocumentArrowDownIcon,
-  PencilIcon,
-  TrashIcon,
-  CheckIcon,
-  XMarkIcon,
-  DocumentTextIcon,
-  FunnelIcon,
-  ArrowsUpDownIcon,
-  ArrowDownTrayIcon,
-  ClipboardDocumentCheckIcon,
-} from "@heroicons/react/24/outline";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import apiService from "../../api/apiService";
+import { 
+  Search, Filter, Download, Calendar, XCircle, Trash2, 
+  FileText, Edit2, RefreshCcw, 
+  Wallet, CreditCard, ArrowUpRight, ArrowDownLeft,
+  Printer, CheckIcon, MoreVertical
+} from "lucide-react";
 
-/* ---------------- Small UI helpers (minimalist look) ---------------- */
+/* --- Utils & Helpers --- */
 const cx = (...c) => c.filter(Boolean).join(" ");
+
 const money = (n, c = "USD") => {
   const x = Number(n);
   if (!isFinite(x)) return `${c} 0.00`;
-  try {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency: c }).format(x);
-  } catch {
-    return `${c} ${x.toFixed(2)}`;
-  }
+  try { return new Intl.NumberFormat(undefined, { style: "currency", currency: c }).format(x); } 
+  catch { return `${c} ${x.toFixed(2)}`; }
 };
-const titleCase = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
-const safeStr = (v) => (v == null ? "" : String(v));
-const parseD = (s) => {
-  const d = new Date(s);
-  return isNaN(d) ? null : d;
+
+const formatDate = (d) => {
+    if(!d) return "—";
+    return new Date(d).toLocaleDateString(undefined, { 
+        year: 'numeric', month: 'short', day: 'numeric', 
+        hour: '2-digit', minute: '2-digit' 
+    });
 };
-const inRange = (d, start, end) => {
-  if (!d) return false;
-  const t = d.getTime();
-  if (start && t < start.getTime()) return false;
-  if (end && t > end.getTime()) return false;
-  return true;
-};
+
 const normalizeType = (val) => {
-  const s = safeStr(val).toLowerCase().trim();
-  if (["wallet deposit", "wallet_deposit", "wallet topup", "wallet-topup", "topup", "deposit"].includes(s))
-    return "wallet_topup";
+  const s = String(val || "").toLowerCase().trim();
+  if (["wallet deposit", "wallet_topup", "topup", "deposit"].some(x => s.includes(x))) return "wallet_topup";
   if (s === "bookings") return "booking";
   if (s === "refunds") return "refund";
   return s || "booking";
 };
-const normalizeStatus = (val) => {
-  const s = safeStr(val).toLowerCase().trim();
-  if (s.startsWith("comp") || s === "approved") return "completed";
-  if (s.startsWith("pend")) return "pending";
-  if (s.startsWith("fail") || s === "rejected" || s === "cancelled" || s === "canceled") return "failed";
-  return s || "pending";
+
+/* --- Components --- */
+
+const StatusBadge = ({ status }) => {
+  const s = String(status || "").toLowerCase();
+  const config = {
+    completed: { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" },
+    approved: { bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" },
+    pending: { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" },
+    failed: { bg: "bg-rose-50", text: "text-rose-700", dot: "bg-rose-500" },
+    cancelled: { bg: "bg-slate-100", text: "text-slate-600", dot: "bg-slate-400" },
+  };
+  const theme = config[s] || config.pending;
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border border-transparent ${theme.bg} ${theme.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${theme.dot}`} />
+      <span className="capitalize">{status}</span>
+    </span>
+  );
 };
 
-function Badge({ tone = "gray", children }) {
-  const tones = {
-    green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    red: "bg-rose-50 text-rose-700 ring-rose-200",
-    amber: "bg-amber-50 text-amber-800 ring-amber-200",
-    gray: "bg-gray-50 text-gray-700 ring-gray-200",
-    indigo: "bg-blue-50 text-blue-700 ring-blue-200",
-  };
-  return <span className={cx("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1", tones[tone])}>{children}</span>;
-}
-function Pill({ active, onClick, children }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cx(
-        "min-w-[110px] px-3 py-2 rounded-full text-xs font-medium border transition-colors",
-        active ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-function Modal({ open, title, onClose, footer, children }) {
-  useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && onClose?.();
-    if (open) window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+const Modal = ({ open, title, onClose, children, footer }) => {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center p-4" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
-      <div className="relative z-10 w-full max-w-md rounded-2xl bg-white ring-1 ring-gray-200" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-          <div className="text-sm font-semibold text-gray-900">{title}</div>
-          <button className="p-1 rounded hover:bg-gray-50" onClick={onClose} aria-label="Close">
-            <XMarkIcon className="h-5 w-5 text-gray-500" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl ring-1 ring-black/5 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-200/50 text-slate-500 transition-colors">
+            <XCircle size={20} />
           </button>
         </div>
-        <div className="p-4">{children}</div>
-        {footer && <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">{footer}</div>}
+        <div className="p-6">{children}</div>
+        {footer && <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">{footer}</div>}
       </div>
     </div>
   );
-}
-function TableSkeleton() {
-  return (
-    <div className="bg-white ring-1 ring-gray-200 rounded-xl overflow-hidden">
-      <table className="min-w-full">
-        <thead className="bg-gray-50">
-          <tr>{Array.from({ length: 11 }).map((_, i) => <th key={i} className="p-3 text-left text-xs text-gray-600" />)}</tr>
-        </thead>
-        <tbody>
-          {Array.from({ length: 8 }).map((_, r) => (
-            <tr key={r} className="border-t border-gray-100">
-              {Array.from({ length: 11 }).map((__, c) => (
-                <td key={c} className="p-3">
-                  <div className="h-3 w-full max-w-[180px] bg-gray-100 animate-pulse rounded" />
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+};
 
-/* -------------------------------- Component -------------------------------- */
 export default function Transactions() {
   const navigate = useNavigate();
 
-  // search / filters
+  // --- State ---
+  const [loading, setLoading] = useState(true);
+  const [transactions, setTransactions] = useState([]);
   const [query, setQuery] = useState("");
-  const [debouncedQ, setDebouncedQ] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
+  
+  // Filters
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [dateFilter, setDateFilter] = useState({ start: "", end: "" });
+  const [dateRange, setDateRange] = useState({ start: "", end: "" });
 
-  // sort/pagination/density
-  const [sortConfig, setSortConfig] = useState({ key: "date", direction: "desc" });
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
-  const [density, setDensity] = useState("comfortable"); // 'comfortable' | 'compact'
+  const itemsPerPage = 10; // Fixed spacing issue
 
-  // selection
-  const [selectedIds, setSelectedIds] = useState([]);
-
-  // data
-  const [transactions, setTransactions] = useState([]);
-  const [auditLog, setAuditLog] = useState([]);
-
-  // modals
-  const [editTransaction, setEditTransaction] = useState(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(null);
-  const [showReportModal, setShowReportModal] = useState(false);
-  const [reportType, setReportType] = useState("dateRange");
-  const [reportMonth, setReportMonth] = useState("");
-  const [reportDateRange, setReportDateRange] = useState({ start: "", end: "" });
-  const [approveTx, setApproveTx] = useState(null);
-  const [approveAmount, setApproveAmount] = useState("");
-  const [approveNote, setApproveNote] = useState("");
+  // Modals
+  const [activeModal, setActiveModal] = useState({ type: null, data: null });
   const [decisionLoading, setDecisionLoading] = useState(false);
+  const [approveNote, setApproveNote] = useState("");
+  const [editData, setEditData] = useState(null);
 
-  // ui
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  // column visibility (persisted)
-  const COLS = [
-    { key: "id", label: "Transaction ID", always: true },
-    { key: "date", label: "Date" },
-    { key: "type", label: "Type" },
-    { key: "amount", label: "Amount" },
-    { key: "status", label: "Status" },
-    { key: "traveller", label: "Traveller" },
-    { key: "email", label: "Email" },
-    { key: "bookingId", label: "Booking ID" },
-    { key: "paymentMethod", label: "Payment Method" },
-    { key: "actions", label: "Actions", always: true },
-  ];
-  const defaultVisible = () => {
-    const obj = {};
-    COLS.forEach((c) => (obj[c.key] = c.always || ["date", "type", "amount", "status", "traveller", "email", "paymentMethod"].includes(c.key)));
-    return obj;
-  };
-  const [visibleCols, setVisibleCols] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("tx_col_vis_v1") || "null") || defaultVisible();
-    } catch {
-      return defaultVisible();
-    }
-  });
+  // --- Fetch ---
   useEffect(() => {
-    localStorage.setItem("tx_col_vis_v1", JSON.stringify(visibleCols));
-  }, [visibleCols]);
-
-  // debounce search
-  const qTimer = useRef();
-  useEffect(() => {
-    clearTimeout(qTimer.current);
-    qTimer.current = setTimeout(() => setDebouncedQ(query.trim().toLowerCase()), 300);
-    return () => clearTimeout(qTimer.current);
-  }, [query]);
-
-  // fetch
-  useEffect(() => {
-    let cancel = false;
-    (async () => {
+    const fetchData = async () => {
       setLoading(true);
-      setError("");
       try {
         const res = await apiService.get("/transactions");
-        const rows = res?.data?.data || [];
-        const formatted = rows.map((t) => {
-          const type = normalizeType(t.type || t.transaction_type);
-          const status = normalizeStatus(t.status);
-          return {
-            id: safeStr(t.trx_id || ""),        // human id / code
-            dbId: t.id ?? "",                   // internal id for backend
-            date: safeStr(t.date || t.created_at || ""),
-            type,
-            amount: Number(t.amount) || 0,
-            currency: safeStr(t.currency || "USD"),
-            status,
-            traveller: safeStr(t.name || t.traveller || "N/A"),
-            email: safeStr(t.email || "N/A"),
-            bookingId: safeStr(t.booking_num || "N/A"),
-            paymentMethod: safeStr(t.payment_gateway || t.paymentMethod || "bank"),
-          };
-        });
-        if (!cancel) setTransactions(formatted);
-      } catch (e) {
-        console.error(e);
-        if (!cancel) setError("We couldn’t load transactions. Please try again.");
-      } finally {
-        if (!cancel) setLoading(false);
+        const raw = res?.data?.data || [];
+        const clean = raw.map(t => ({
+            ...t,
+            id: t.id,
+            trx_id: t.trx_id,
+            type: normalizeType(t.type || t.transaction_type),
+            amount: Number(t.amount),
+            date: t.date || t.created_at,
+            paymentMethod: t.payment_gateway || t.paymentMethod || "System"
+        }));
+        setTransactions(clean);
+      } catch (e) { 
+         toast.error("Failed to load transactions."); 
+      } finally { 
+         setLoading(false); 
       }
-    })();
-    return () => {
-      cancel = true;
     };
+    fetchData();
   }, []);
 
-  // sort
-  const sorted = useMemo(() => {
-    const arr = [...transactions];
-    const dir = sortConfig.direction === "asc" ? 1 : -1;
-    arr.sort((a, b) => {
-      const k = sortConfig.key;
-      if (k === "amount") {
-        const A = Number(a.amount) || 0;
-        const B = Number(b.amount) || 0;
-        return A === B ? 0 : A > B ? dir : -dir;
+  // --- Filtering ---
+  const filteredData = useMemo(() => {
+    return transactions.filter(t => {
+      const q = query.toLowerCase();
+      const matchesSearch = !q || 
+        String(t.id).toLowerCase().includes(q) || 
+        String(t.email || "").toLowerCase().includes(q) || 
+        String(t.traveller || "").toLowerCase().includes(q);
+
+      const matchesType = !typeFilter || t.type === typeFilter;
+      const matchesStatus = !statusFilter || t.status === statusFilter;
+      
+      let matchesDate = true;
+      if (dateRange.start) matchesDate = new Date(t.date) >= new Date(dateRange.start);
+      if (dateRange.end) {
+          const end = new Date(dateRange.end);
+          end.setHours(23, 59, 59);
+          matchesDate = matchesDate && new Date(t.date) <= end;
       }
-      if (k === "date") {
-        const A = parseD(a.date)?.getTime() || 0;
-        const B = parseD(b.date)?.getTime() || 0;
-        return A === B ? 0 : A > B ? dir : -dir;
-      }
-      const A = safeStr(a[k]).toLowerCase();
-      const B = safeStr(b[k]).toLowerCase();
-      return A === B ? 0 : A > B ? dir : -dir;
+
+      return matchesSearch && matchesType && matchesStatus && matchesDate;
     });
-    return arr;
-  }, [transactions, sortConfig]);
+  }, [transactions, query, typeFilter, statusFilter, dateRange]);
 
-  // filter
-  const startD = useMemo(() => (dateFilter.start ? parseD(dateFilter.start) : null), [dateFilter.start]);
-  const endD = useMemo(() => (dateFilter.end ? parseD(dateFilter.end) : null), [dateFilter.end]);
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredData.slice(start, start + itemsPerPage);
+  }, [filteredData, currentPage, itemsPerPage]);
 
-  const baseForStatusCounts = useMemo(() => {
-    return sorted.filter((t) => {
-      const q = debouncedQ;
-      const qMatch =
-        !q ||
-        safeStr(t.id).toLowerCase().includes(q) ||
-        safeStr(t.traveller).toLowerCase().includes(q) ||
-        safeStr(t.email).toLowerCase().includes(q);
-      const typeOk = !typeFilter || t.type === typeFilter;
-      const dOk = inRange(parseD(t.date), startD, endD);
-      return qMatch && typeOk && dOk;
-    });
-  }, [sorted, debouncedQ, typeFilter, startD, endD]);
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
-  const filtered = useMemo(() => {
-    return baseForStatusCounts.filter((t) => !statusFilter || t.status === statusFilter);
-  }, [baseForStatusCounts, statusFilter]);
-
-  // pagination & selection resets
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const pageStart = (currentPage - 1) * perPage;
-  const pageRows = useMemo(() => filtered.slice(pageStart, pageStart + perPage), [filtered, pageStart, perPage]);
-  useEffect(() => {
-    setSelectedIds([]);
-    setCurrentPage(1);
-  }, [debouncedQ, typeFilter, statusFilter, dateFilter, perPage]);
-
-  // summary (for insights)
-  const summary = useMemo(() => {
-    const sum = (arr) => arr.reduce((s, t) => s + (Number(t.amount) || 0), 0);
-    const completed = baseForStatusCounts.filter((t) => t.status === "completed");
-    const pending = baseForStatusCounts.filter((t) => t.status === "pending");
-    const failed = baseForStatusCounts.filter((t) => t.status === "failed");
-    const ccy = baseForStatusCounts[0]?.currency || "USD";
-    return {
-      currency: ccy,
-      totals: {
-        completed: sum(completed),
-        pending: sum(pending),
-        failed: sum(failed),
-        all: sum(baseForStatusCounts),
-      },
-      counts: {
-        all: baseForStatusCounts.length,
-        completed: completed.length,
-        pending: pending.length,
-        failed: failed.length,
-      },
-    };
-  }, [baseForStatusCounts]);
-
-  /* ---------------- Actions ---------------- */
-  const handleSort = (key) =>
-    setSortConfig((prev) => ({
-      key,
-      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
-    }));
-
-  const allOnPageSelected = pageRows.length > 0 && pageRows.every((r) => selectedIds.includes(r.id));
-  const toggleSelectAllPage = () => {
-    setSelectedIds((prev) =>
-      allOnPageSelected ? prev.filter((id) => !pageRows.some((r) => r.id === id)) : [...new Set([...prev, ...pageRows.map((r) => r.id)])]
-    );
+  // --- Handlers ---
+  const handleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
-  const toggleSelect = (id) =>
-    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  const handleBulk = (action) => {
-    if (!selectedIds.length) return;
-    const toStatus = action === "complete" ? "completed" : "failed";
-    setTransactions((rows) => rows.map((r) => (selectedIds.includes(r.id) ? { ...r, status: toStatus } : r)));
-    setAuditLog((l) => [...l, { action: `Bulk ${action} (${selectedIds.length})`, timestamp: new Date().toISOString() }]);
-    toast.success(`Marked ${selectedIds.length} as ${titleCase(toStatus)}.`);
-    setSelectedIds([]);
+  const handleBulkAction = (action) => {
+     setTransactions(prev => prev.map(t => selectedIds.includes(t.id) ? { ...t, status: action === 'complete' ? 'completed' : 'failed' } : t));
+     toast.success(`${selectedIds.length} transactions updated.`);
+     setSelectedIds([]);
   };
 
   const handleDelete = (id) => {
-    setTransactions((rows) => rows.filter((r) => r.id !== id));
-    setAuditLog((l) => [...l, { action: `Deleted transaction ${id}`, timestamp: new Date().toISOString() }]);
-    toast.success("Transaction deleted.");
-    setShowDeleteModal(null);
+     setTransactions(prev => prev.filter(t => t.id !== id));
+     toast.success("Transaction deleted.");
+     setActiveModal({ type: null, data: null });
   };
 
-  const saveEdit = (e) => {
-    e.preventDefault();
-    const a = Number(editTransaction?.amount);
-    if (!isFinite(a) || a < 0) return toast.error("Enter a valid amount.");
-    setTransactions((rows) => rows.map((r) => (r.id === editTransaction.id ? { ...editTransaction, amount: a } : r)));
-    setAuditLog((l) => [...l, { action: `Edited transaction ${editTransaction.id}`, timestamp: new Date().toISOString() }]);
-    toast.success("Transaction updated.");
-    setEditTransaction(null);
+  const handleSaveEdit = (e) => {
+      e.preventDefault();
+      setTransactions(prev => prev.map(t => t.id === editData.id ? { ...editData } : t));
+      toast.success("Transaction updated.");
+      setActiveModal({ type: null, data: null });
   };
 
-  const handleInvoice = async (t) => {
-    if (t.type === "booking") {
-      navigate(`/flight/booking/invoice/${t.bookingId || t.order_num}`);
-    } else {
-      generateInvoicePDF(t);
-    }
-  };
-
-
-  // ---- Invoice PDF (minimal, elegant, lightweight) ----
-  const LOGO_URL = "/assets/img/logo/flygasal.png";
-
-  const generateInvoicePDF = async (t) => {
-    try {
-      const doc = new jsPDF({ unit: "pt", format: "a4" }); // points for precise spacing
-      const pageW = doc.internal.pageSize.getWidth();
-      const pageH = doc.internal.pageSize.getHeight();
-      const margin = 40;
-      let y = margin;
-
-      // Helper: load logo as data URL (works with dev/prod bundlers)
-      const loadDataURL = async (url) => {
-        try {
-          const res = await fetch(url, { cache: "reload" });
-          const blob = await res.blob();
-          return await new Promise((resolve, reject) => {
-            const fr = new FileReader();
-            fr.onload = () => resolve(fr.result);
-            fr.onerror = reject;
-            fr.readAsDataURL(blob);
+  const handleApproveDecision = async (decision) => {
+      if(!activeModal.data) return;
+      setDecisionLoading(true);
+      console.log("Decision:", activeModal.data.id, "Note:", approveNote);
+      try {
+          await apiService.post("/transactions/approve", {
+              transaction_id: activeModal.data.id,
+              amount: activeModal.data.amount,
+              status: decision,
+              note: approveNote
           });
-        } catch {
-          return null; // fail silently if image not found
-        }
-      };
-
-      // Header
-      const logoData = await loadDataURL(LOGO_URL);
-      const headerH = 60;
-      if (logoData) {
-        // logo left
-        const logoW = 120;
-        const logoH = 34;
-        doc.addImage(logoData, "PNG", margin, y, logoW, logoH);
+          setTransactions(prev => prev.map(t => t.id === activeModal.data.id ? { ...t, status: decision === 'approved' ? 'completed' : 'failed' } : t));
+          toast.success(`Top-up ${decision === 'approved' ? 'Approved' : 'Rejected'}`);
+          setActiveModal({ type: null, data: null });
+      } catch(e) {
+          toast.error("Action failed. Please try again.");
+      } finally {
+          setDecisionLoading(false);
       }
-      // company name/right side title
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(18);
-      const title = "Transaction Invoice";
-      const titleW = doc.getTextWidth(title);
-      doc.text(title, pageW - margin - titleW, y + 22);
-
-      y += headerH;
-
-      // Thin divider
-      doc.setDrawColor(230);
-      doc.line(margin, y, pageW - margin, y);
-      y += 18;
-
-      // Invoice meta block (right) + Bill to (left)
-      doc.setFontSize(10);
-      doc.setTextColor(120);
-      doc.text("BILL TO", margin, y);
-      doc.setTextColor(20);
-      doc.setFont("helvetica", "bold");
-      doc.text(safeStr(t.traveller || "N/A"), margin, y + 16);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(80);
-      doc.text(safeStr(t.email || "N/A"), margin, y + 30);
-
-      // Right column meta
-      const rightX = pageW - margin - 220;
-      const meta = [
-        ["Invoice No.", `INV-${t.id}`],
-        ["Date", safeStr(t.date || "")],
-        ["Transaction ID", safeStr(t.id)],
-        ["Booking ID", safeStr(t.bookingId || "N/A")],
-      ];
-      doc.setTextColor(120);
-      doc.text("INVOICE", rightX, y);
-      doc.setTextColor(20);
-      y += 16;
-      meta.forEach(([k, v], i) => {
-        const rowY = y + i * 16;
-        doc.setFont("helvetica", "bold");
-        doc.text(`${k}:`, rightX, rowY);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(60);
-        doc.text(String(v), rightX + 90, rowY);
-        doc.setTextColor(20);
-      });
-      y += meta.length * 16 + 20;
-
-      // Section: Payment details
-      doc.setTextColor(120);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.text("Payment Details", margin, y);
-      y += 12;
-
-      // subtle box
-      const boxY = y;
-      const boxH = 96;
-      doc.setDrawColor(235);
-      doc.setFillColor(249, 250, 251); // slate-50 vibe
-      doc.roundedRect(margin, boxY, pageW - margin * 2, boxH, 6, 6, "F");
-
-      // Left column key-values
-      doc.setFontSize(10);
-      doc.setTextColor(80);
-      const leftPairs = [
-        ["Type", safeStr(t.type)],
-        ["Payment Method", safeStr(t.paymentMethod)],
-      ];
-      let kvY = boxY + 20;
-      leftPairs.forEach(([k, v]) => {
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(60);
-        doc.text(`${k}`, margin + 16, kvY);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(30);
-        doc.text(String(v), margin + 130, kvY);
-        kvY += 18;
-      });
-
-      // Right column: Amount + Status chip
-      const rX = pageW - margin - 260;
-      const amountLabel = "Amount";
-      const amountVal = money(t.amount, t.currency);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(60);
-      doc.text(amountLabel, rX, boxY + 20);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.setTextColor(20);
-      doc.text(amountVal, rX + 90, boxY + 20);
-      doc.setFontSize(10);
-
-      // Status chip
-      const status = titleCase(t.status);
-      const chipX = rX;
-      const chipY = boxY + 48;
-      const chipPadX = 8;
-      const chipPadY = 5;
-      const chipTextW = doc.getTextWidth(status);
-      const chipW = chipTextW + chipPadX * 2;
-      const chipH = 20;
-      const tone =
-        t.status === "completed" ? { fill: [236, 253, 245], stroke: [209, 250, 229], text: [4, 120, 87] } : // emerald
-        t.status === "failed"    ? { fill: [254, 242, 242], stroke: [254, 226, 226], text: [185, 28, 28] } :  // rose
-                                   { fill: [255, 251, 235], stroke: [254, 243, 199], text: [146, 64, 14] };   // amber
-      doc.setDrawColor(...tone.stroke);
-      doc.setFillColor(...tone.fill);
-      doc.roundedRect(chipX, chipY, chipW, chipH, 10, 10, "FD");
-      doc.setTextColor(...tone.text);
-      doc.setFont("helvetica", "bold");
-      doc.text(status, chipX + chipPadX, chipY + chipH - chipPadY - 3);
-
-      y = boxY + boxH + 24;
-
-      // Notes
-      doc.setTextColor(120);
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      doc.text("Notes", margin, y);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(80);
-      doc.text(
-        "Thank you for your business. This document serves as a receipt for the transaction listed above.",
-        margin,
-        y + 16
-      );
-
-      // Footer
-      const footerY = pageH - margin + 6;
-      doc.setDrawColor(235);
-      doc.line(margin, footerY - 22, pageW - margin, footerY - 22);
-      doc.setFontSize(9);
-      doc.setTextColor(120);
-      doc.text("FlyGasal · www.flygasal.com", margin, footerY);
-      const pg = `Page 1 / 1`;
-      const pgW = doc.getTextWidth(pg);
-      doc.text(pg, pageW - margin - pgW, footerY);
-
-      // Save
-      doc.save(`invoice_${t.id}.pdf`);
-      toast.success("Invoice downloaded.");
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to generate PDF.");
-    }
   };
 
-  const exportExcel = (dataset, filename = "transactions.xlsx") => {
-    const exportData = dataset.map((t) => ({
-      "Transaction ID": t.id,
-      Date: t.date,
-      Type: t.type,
-      Amount: t.amount,
-      Currency: t.currency,
-      Status: t.status,
-      Traveller: t.traveller,
-      Email: t.email,
-      "Booking ID": t.bookingId || "N/A",
-      "Payment Method": t.paymentMethod,
-    }));
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    ws["!cols"] = Object.keys(exportData[0] || {}).map((k) => ({
-      wch: Math.max(k.length, ...exportData.map((r) => String(r[k] || "").length)) + 2,
-    }));
+  // --- Invoice PDF ---
+  const generatePDF = (t) => {
+      try {
+        const doc = new jsPDF();
+        doc.setFontSize(18);
+        doc.text("Transaction Invoice", 14, 22);
+        doc.setFontSize(11);
+        doc.text(`Transaction ID: ${t.id}`, 14, 40);
+        doc.text(`Date: ${new Date(t.date).toLocaleString()}`, 14, 50);
+        doc.text(`Amount: ${money(t.amount, t.currency)}`, 14, 60);
+        doc.text(`Status: ${t.status}`, 14, 70);
+        doc.text(`Payment Method: ${t.paymentMethod}`, 14, 80);
+        
+        doc.save(`invoice_${t.id}.pdf`);
+        toast.success("Invoice downloaded");
+      } catch(e) {
+          toast.error("Could not generate PDF");
+      }
+  };
+
+  const exportExcel = (data, filename) => {
+    const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Transactions");
     XLSX.writeFile(wb, filename);
-  };
-  const exportCSV = (dataset, filename = "transactions.csv") => {
-    const headers = ["Transaction ID", "Date", "Type", "Amount", "Currency", "Status", "Traveller", "Email", "Booking ID", "Payment Method"];
-    const rows = dataset.map((t) => [
-      t.id,
-      t.date,
-      t.type,
-      t.amount,
-      t.currency,
-      t.status,
-      t.traveller,
-      t.email,
-      t.bookingId || "N/A",
-      t.paymentMethod,
-    ]);
-    const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    toast.success("Excel exported successfully");
   };
 
-  // approval flow
-  const openApproveModal = (t) => {
-    setApproveTx(t);
-    setApproveAmount(String(t.amount || ""));
-    setApproveNote("");
-  };
-  const submitTopupDecision = async (decision /* 'approved' | 'rejected' */) => {
-    if (!approveTx) return;
-    const amt = Number(approveAmount);
-    if (!isFinite(amt) || amt < 0) return toast.error("Enter a valid amount.");
-
-    const txIdForApi =
-      approveTx?.dbId != null
-        ? approveTx.dbId
-        : Number(approveTx?.id) && !isNaN(Number(approveTx.id))
-        ? Number(approveTx.id)
-        : null;
-    if (!txIdForApi) return toast.error("Cannot proceed: missing internal transaction id.");
-
-    setDecisionLoading(true);
-    try {
-      const res = await apiService.post("/transactions/approve", {
-        transaction_id: txIdForApi,
-        amount: amt,
-        status: decision,
-        note: approveNote,
-      });
-
-      if (!(res && (res.status === 200 || res.status === 201))) throw new Error(res?.data?.message || "Request failed");
-
-      const serverStatus = safeStr(res?.data?.data?.status).toLowerCase();
-      let normalized = normalizeStatus(serverStatus);
-      if (normalized === "pending") normalized = decision === "approved" ? "completed" : "failed";
-
-      const newAmount = Number(res?.data?.data?.amount) || amt;
-      const newCurrency = safeStr(res?.data?.data?.currency) || approveTx.currency;
-
-      setTransactions((rows) => rows.map((r) => (r.id === approveTx.id ? { ...r, status: normalized, amount: newAmount, currency: newCurrency } : r)));
-      setAuditLog((l) => [
-        ...l,
-        {
-          action: decision === "approved" ? `Approved wallet top-up ${approveTx.id} (${money(newAmount, newCurrency)})` : `Declined wallet top-up ${approveTx.id}`,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
-      toast.success(decision === "approved" ? "Top-up approved & credited." : "Top-up declined.");
-      setApproveTx(null);
-    } catch (e) {
-      console.error(e);
-      toast.error(e?.message || "Action failed.");
-    } finally {
-      setDecisionLoading(false);
-    }
-  };
-
-  // ui helpers
-  const densityRowPad = density === "compact" ? "py-2" : "py-3";
+  // --- Render Helper: Action Buttons ---
+  const ActionButtons = ({ t, mobile = false }) => (
+    <div className={`flex ${mobile ? 'flex-wrap gap-2 mt-3' : 'justify-end gap-1'}`}>
+        {/* Approve Button (Special) */}
+        {t.type === 'wallet_topup' && t.status === 'pending' && (
+            <button 
+                onClick={() => setActiveModal({ type: 'approve', data: t })} 
+                className={`flex items-center gap-1 px-2.5 py-1.5 bg-[#EB7313] hover:bg-[#d6660f] text-white text-xs font-bold rounded-lg shadow-sm transition-all ${mobile ? 'w-full justify-center py-2' : ''}`}
+                title="Approve or Reject"
+            >
+                <CheckIcon size={14} />
+                <span>Review</span>
+            </button>
+        )}
+        
+        {/* Standard Actions */}
+        <button onClick={() => generatePDF(t)} className="p-2 text-slate-400 hover:text-[#EB7313] hover:bg-orange-50 rounded-lg transition-colors" title="Download Invoice">
+            {t.type === 'booking' ? <ArrowUpRight size={16} /> : <Printer size={16} />}
+        </button>
+        
+        <button onClick={() => { setEditData(t); setActiveModal({ type: 'edit', data: t }); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
+            <Edit2 size={16} />
+        </button>
+        
+        <button onClick={() => setActiveModal({ type: 'delete', data: t })} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+            <Trash2 size={16} />
+        </button>
+    </div>
+  );
 
   return (
-    <div className="p-3 sm:p-4">
-      {/* Top bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Transactions</h1>
-          <p className="text-gray-500 text-sm">Search, filter, export, and manage approvals.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowReportModal(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            <DocumentArrowDownIcon className="h-5 w-5" />
-            Generate Report
-          </button>
-          <Link to="/admin" className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
-            Back
-          </Link>
-        </div>
-      </div>
-
-      {/* Command bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-        {/* search */}
-        <div className="col-span-2">
-          <div className="relative">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search transaction ID, traveller, or email…"
-              className="w-full h-10 rounded-lg bg-white text-gray-900 text-sm placeholder:text-gray-500 pl-10 pr-28 outline-none ring-1 ring-gray-200 focus:ring-gray-300"
-              aria-label="Search transactions"
-            />
-            <FunnelIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <div className="absolute inset-y-0 right-2 flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setQuery("");
-                  setTypeFilter("");
-                  setStatusFilter("");
-                  setDateFilter({ start: "", end: "" });
-                }}
-                className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-              >
-                Reset
-              </button>
-              <details className="relative">
-                <summary className="list-none rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50 cursor-pointer">
-                  Columns
-                </summary>
-                <div className="absolute right-0 mt-2 w-56 rounded-lg bg-white ring-1 ring-gray-200 p-2 z-10">
-                  {COLS.map((c) => (
-                    <label key={c.key} className={cx("flex items-center gap-2 px-2 py-1 rounded", c.always ? "opacity-60" : "hover:bg-gray-50")}>
-                      <input
-                        type="checkbox"
-                        checked={!!visibleCols[c.key]}
-                        disabled={c.always}
-                        onChange={(e) => setVisibleCols((v) => ({ ...v, [c.key]: e.target.checked }))}
-                      />
-                      <span className="text-sm text-gray-700">{c.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </details>
-            </div>
-          </div>
-        </div>
-
-        {/* density */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-600">Density</label>
-          <select
-            value={density}
-            onChange={(e) => setDensity(e.target.value)}
-            className="h-10 rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
-          >
-            <option value="comfortable">Comfortable</option>
-            <option value="compact">Compact</option>
-          </select>
-        </div>
-
-        {/* exports */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              exportExcel(filtered, "transactions.xlsx");
-              toast.success("Exported to Excel.");
-            }}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            <DocumentArrowDownIcon className="h-5 w-5" />
-            Excel
-          </button>
-          <button
-            onClick={() => {
-              exportCSV(filtered, "transactions.csv");
-              toast.success("Exported to CSV.");
-            }}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-          >
-            <ArrowDownTrayIcon className="h-5 w-5" />
-            CSV
-          </button>
-        </div>
-      </div>
-
-      {/* Quick type & status chips + summary */}
-      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <div className="bg-white ring-1 ring-gray-200 rounded-xl p-3">
-          <div className="flex overflow-x-auto gap-2">
-            {[
-              { label: "All Types", value: "" },
-              { label: "Booking", value: "booking_payment" },
-              { label: "Refund", value: "refund" },
-              { label: "Wallet Deposit", value: "wallet_topup" },
-            ].map(({ label, value }) => (
-              <Pill key={value || "all"} active={typeFilter === value} onClick={() => setTypeFilter(value)}>
-                {label}
-              </Pill>
-            ))}
-          </div>
-          <div className="mt-2 flex overflow-x-auto gap-2">
-            {[
-              { label: "All", value: "" },
-              { label: "Completed", value: "completed", tone: "green" },
-              { label: "Pending", value: "pending", tone: "amber" },
-              { label: "Failed", value: "failed", tone: "red" },
-            ].map(({ label, value, tone }) => (
-              <Pill key={label} active={statusFilter === value} onClick={() => setStatusFilter(value)}>
-                <span className="mr-1">{label}</span>
-                <Badge tone={statusFilter === value ? "indigo" : tone || "gray"}>
-                  {value ? summary.counts[value] : summary.counts.all}
-                </Badge>
-              </Pill>
-            ))}
-          </div>
-        </div>
-
-        {/* Summary numbers */}
-        <div className="bg-white ring-1 ring-gray-200 rounded-xl p-3">
-          <div className="grid grid-cols-2 gap-3">
+    <div className="min-h-screen bg-[#F8FAFC] pb-20 font-sans text-slate-900">
+      <ToastContainer position="bottom-right" theme="colored" />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+        
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
             <div>
-              <div className="text-xs text-gray-500">Total (filtered)</div>
-              <div className="text-sm font-semibold text-gray-900">{money(summary.totals.all, summary.currency)}</div>
+                <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Transactions</h1>
+                <p className="text-slate-500 mt-1">Financial overview, wallet top-ups, and audit logs.</p>
             </div>
-            <div>
-              <div className="text-xs text-gray-500">Completed</div>
-              <div className="text-sm font-semibold text-gray-900">{money(summary.totals.completed, summary.currency)}</div>
+            <div className="flex gap-3">
+                <button onClick={() => setActiveModal({ type: 'report', data: null })} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl shadow-sm hover:bg-slate-50 transition-all">
+                    <FileText size={16} /> Reports
+                </button>
+                <Link to="/admin" className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl shadow-sm hover:bg-slate-50 transition-all">
+                    Back
+                </Link>
             </div>
-            <div>
-              <div className="text-xs text-gray-500">Pending</div>
-              <div className="text-sm font-semibold text-gray-900">{money(summary.totals.pending, summary.currency)}</div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500">Failed</div>
-              <div className="text-sm font-semibold text-gray-900">{money(summary.totals.failed, summary.currency)}</div>
-            </div>
-          </div>
         </div>
 
-        {/* Date filters */}
-        <div className="bg-white ring-1 ring-gray-200 rounded-xl p-3">
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs text-gray-600">From</label>
-              <input
-                type="date"
-                value={dateFilter.start}
-                onChange={(e) => setDateFilter((d) => ({ ...d, start: e.target.value }))}
-                className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-600">To</label>
-              <input
-                type="date"
-                value={dateFilter.end}
-                onChange={(e) => setDateFilter((d) => ({ ...d, end: e.target.value }))}
-                className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Loading / error / empty */}
-      <div className="mt-4">
-        {loading && <TableSkeleton />}
-        {!loading && error && (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
-            <div className="font-medium">Something went wrong</div>
-            <div className="text-sm">{error}</div>
-            <div className="mt-3">
-              <button
-                onClick={() => window.location.reload()}
-                className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-sm text-rose-700 hover:bg-rose-50"
-              >
-                Retry
-              </button>
-            </div>
-          </div>
-        )}
-        {!loading && !error && filtered.length === 0 && (
-          <div className="rounded-xl border border-gray-200 bg-white p-6 text-center">
-            <div className="text-gray-900 font-medium">No transactions found</div>
-            <div className="text-gray-500 text-sm">Try adjusting search or filters.</div>
-            <div className="mt-3">
-              <button
-                onClick={() => {
-                  setQuery("");
-                  setTypeFilter("");
-                  setStatusFilter("");
-                  setDateFilter({ start: "", end: "" });
-                }}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                Reset filters
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Desktop table */}
-      {!loading && !error && filtered.length > 0 && (
-        <div className="hidden md:block bg-white ring-1 ring-gray-200 rounded-xl overflow-x-auto mt-4">
-          <table className="min-w-[1000px] table-fixed">
-            <thead className="bg-gray-50 sticky top-0 z-10">
-              <tr>
-                <th className="w-10 p-3">
-                  <input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectAllPage} aria-label="Select all on page" />
-                </th>
-
-                {/* dynamic columns */}
-                {visibleCols.id && (
-                  <th className="p-3 text-left text-xs font-semibold text-gray-600" onClick={() => handleSort("id")}>
-                    <span className="inline-flex items-center gap-1 cursor-pointer select-none">
-                      Transaction ID <ArrowsUpDownIcon className="h-4 w-4 text-gray-400" />
-                    </span>
-                  </th>
-                )}
-                {visibleCols.date && (
-                  <th className="p-3 text-left text-xs font-semibold text-gray-600" onClick={() => handleSort("date")}>
-                    <span className="inline-flex items-center gap-1 cursor-pointer select-none">
-                      Date <ArrowsUpDownIcon className="h-4 w-4 text-gray-400" />
-                    </span>
-                  </th>
-                )}
-                {visibleCols.type && (
-                  <th className="p-3 text-left text-xs font-semibold text-gray-600" onClick={() => handleSort("type")}>
-                    <span className="inline-flex items-center gap-1 cursor-pointer select-none">
-                      Type <ArrowsUpDownIcon className="h-4 w-4 text-gray-400" />
-                    </span>
-                  </th>
-                )}
-                {visibleCols.amount && (
-                  <th className="p-3 text-left text-xs font-semibold text-gray-600" onClick={() => handleSort("amount")}>
-                    <span className="inline-flex items-center gap-1 cursor-pointer select-none">
-                      Amount <ArrowsUpDownIcon className="h-4 w-4 text-gray-400" />
-                    </span>
-                  </th>
-                )}
-                {visibleCols.status && <th className="p-3 text-left text-xs font-semibold text-gray-600">Status</th>}
-                {visibleCols.traveller && <th className="p-3 text-left text-xs font-semibold text-gray-600">Traveller</th>}
-                {visibleCols.email && <th className="p-3 text-left text-xs font-semibold text-gray-600">Email</th>}
-                {visibleCols.bookingId && <th className="p-3 text-left text-xs font-semibold text-gray-600">Booking ID</th>}
-                {visibleCols.paymentMethod && <th className="p-3 text-left text-xs font-semibold text-gray-600">Payment Method</th>}
-                <th className="p-3 text-left text-xs font-semibold text-gray-600">Actions</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-gray-100">
-              {pageRows.map((t) => (
-                <tr key={t.id} className="hover:bg-gray-50">
-                  <td className={cx("px-3", densityRowPad)}>
-                    <input type="checkbox" checked={selectedIds.includes(t.id)} onChange={() => toggleSelect(t.id)} aria-label={`Select ${t.id}`} />
-                  </td>
-                  {visibleCols.id && (
-                    <td className={cx("px-3 text-sm text-gray-900", densityRowPad)}>
-                      <button
-                        onClick={async () => {
-                          await navigator.clipboard.writeText(t.id);
-                          toast.success("Transaction ID copied.");
-                        }}
-                        className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
-                        title="Copy ID"
-                      >
-                        <ClipboardDocumentCheckIcon className="h-4 w-4 text-gray-500" />
-                        {t.id}
-                      </button>
-                    </td>
-                  )}
-                  {visibleCols.date && <td className={cx("px-3 text-sm text-gray-700", densityRowPad)}>{t.date || "—"}</td>}
-                  {visibleCols.type && <td className={cx("px-3 text-sm text-gray-700", densityRowPad)}>{t.type}</td>}
-                  {visibleCols.amount && (
-                    <td className={cx("px-3 text-sm text-gray-900", densityRowPad)}>
-                      <strong>{money(t.amount, t.currency)}</strong>
-                    </td>
-                  )}
-                  {visibleCols.status && (
-                    <td className={cx("px-3", densityRowPad)}>
-                      <Badge tone={t.status === "completed" ? "green" : t.status === "failed" ? "red" : "amber"}>{titleCase(t.status)}</Badge>
-                    </td>
-                  )}
-                  {visibleCols.traveller && <td className={cx("px-3 text-sm text-gray-900 truncate", densityRowPad)}>{t.traveller}</td>}
-                  {visibleCols.email && <td className={cx("px-3 text-sm text-gray-700 truncate", densityRowPad)} title={t.email}>{t.email}</td>}
-                  {visibleCols.bookingId && <td className={cx("px-3 text-sm text-gray-700", densityRowPad)}>{t.bookingId || "N/A"}</td>}
-                  {visibleCols.paymentMethod && <td className={cx("px-3 text-sm text-gray-700", densityRowPad)}>{t.paymentMethod}</td>}
-
-                  <td className={cx("px-3", densityRowPad)}>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {t.type === "wallet_topup" && t.status === "pending" && (
-                        <button
-                          onClick={() => openApproveModal(t)}
-                          className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                        >
-                          <CheckIcon className="h-4 w-4" />
-                          Approve / Decline
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleInvoice(t)}
-                        className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                      >
-                        <DocumentTextIcon className="h-4 w-4" />
-                        Invoice
-                      </button>
-                      <button
-                        onClick={() => setEditTransaction({ ...t })}
-                        className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                      >
-                        <PencilIcon className="h-4 w-4" />
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => setShowDeleteModal(t.id)}
-                        className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-
-            {/* footer / pagination */}
-            <tfoot>
-              <tr>
-                <td colSpan={12} className="p-3 border-t border-gray-200">
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-600">Rows</span>
-                      <select
-                        value={perPage}
-                        onChange={(e) => setPerPage(parseInt(e.target.value, 10))}
-                        className="h-8 rounded bg-white text-gray-900 text-xs ring-1 ring-gray-200 focus:ring-gray-300 px-2"
-                      >
-                        {[10, 25, 50].map((n) => (
-                          <option key={n} value={n}>
-                            {n}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="text-xs text-gray-600">per page</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                        disabled={currentPage === 1}
-                        className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 disabled:opacity-50"
-                      >
-                        Previous
-                      </button>
-                      <span className="text-xs text-gray-600">
-                        Page {currentPage} of {totalPages}
-                      </span>
-                      <button
-                        onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-                        disabled={currentPage === totalPages}
-                        className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 disabled:opacity-50"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      )}
-
-      {/* Mobile cards */}
-      {!loading && !error && filtered.length > 0 && (
-        <div className="md:hidden space-y-3 mt-4">
-          {pageRows.map((t) => (
-            <div key={t.id} className="rounded-xl bg-white ring-1 ring-gray-200 p-3">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(t.id)}
-                  onChange={() => toggleSelect(t.id)}
-                  className="mr-2"
-                  aria-label={`Select ${t.id}`}
+        {/* Command Bar */}
+        <div className="bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm mb-6 flex flex-col lg:flex-row gap-2">
+            <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input 
+                    type="text" 
+                    placeholder="Search ID, Email, Amount..." 
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 hover:bg-slate-100 focus:bg-white border-transparent focus:border-[#EB7313] rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:ring-0 transition-all outline-none"
                 />
-                <CreditCardIcon className="h-5 w-5 text-gray-400 mr-2" />
-                <div className="font-medium text-sm text-gray-900">{t.id}</div>
-              </div>
-              <div className="mt-1 text-xs text-gray-600">Date: {t.date || "—"}</div>
-              <div className="mt-1 text-xs text-gray-600">Type: {t.type}</div>
-              <div className="mt-1 text-xs text-gray-600">Amount: {money(t.amount, t.currency)}</div>
-              <div className="mt-1 text-xs text-gray-600">
-                Status: <Badge tone={t.status === "completed" ? "green" : t.status === "failed" ? "red" : "amber"}>{titleCase(t.status)}</Badge>
-              </div>
-              <div className="mt-1 text-xs text-gray-600">Traveller: {t.traveller}</div>
-              <div className="mt-1 text-xs text-gray-600 break-all" title={t.email}>
-                Email: {t.email}
-              </div>
-              {t.bookingId && <div className="mt-1 text-xs text-gray-600">Booking ID: {t.bookingId}</div>}
-              <div className="mt-1 text-xs text-gray-600">Payment Method: {t.paymentMethod}</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {t.type === "wallet_topup" && t.status === "pending" && (
-                  <button
-                    onClick={() => openApproveModal(t)}
-                    className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                  >
-                    <CheckIcon className="h-4 w-4" />
-                    Approve / Decline
-                  </button>
-                )}
-                <button
-                  onClick={() => handleInvoice(t)}
-                  className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                >
-                  <DocumentTextIcon className="h-4 w-4" />
-                  Invoice
-                </button>
-                <button
-                  onClick={() => setEditTransaction({ ...t })}
-                  className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                >
-                  <PencilIcon className="h-4 w-4" />
-                  Edit
-                </button>
-                <button
-                  onClick={() => setShowDeleteModal(t.id)}
-                  className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                >
-                  <TrashIcon className="h-4 w-4" />
-                  Delete
-                </button>
-              </div>
             </div>
-          ))}
-
-          {/* mobile pagination */}
-          <div className="flex items-center justify-between pt-1">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <span className="text-xs text-gray-600">
-              Page {currentPage} of {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
+            <div className="hidden lg:flex items-center gap-2 bg-slate-50 px-3 rounded-xl border border-transparent hover:border-slate-200 transition-colors">
+                <Calendar size={16} className="text-slate-500" />
+                <input 
+                    type="date" 
+                    className="bg-transparent border-none text-sm text-slate-600 focus:ring-0 p-0"
+                    onChange={e => setDateRange({...dateRange, start: e.target.value})}
+                />
+            </div>
+            <div className="h-8 w-px bg-slate-200 hidden lg:block self-center mx-1"></div>
+            <div className="flex items-center bg-slate-100/50 p-1 rounded-xl overflow-x-auto scrollbar-none">
+                {['all', 'wallet_topup', 'booking', 'refund'].map(t => (
+                    <button 
+                        key={t}
+                        onClick={() => setTypeFilter(t === 'all' ? '' : t)}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold capitalize transition-all whitespace-nowrap ${
+                            (typeFilter === t || (t === 'all' && !typeFilter))
+                                ? 'bg-white text-[#EB7313] shadow-sm' 
+                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                        }`}
+                    >
+                        {t === 'all' ? 'All Types' : t.replace('_', ' ')}
+                    </button>
+                ))}
+            </div>
         </div>
-      )}
 
-      {/* Sticky bulk bar */}
-      {selectedIds.length > 0 && (
-        <div className="fixed bottom-3 left-3 right-3 z-20">
-          <div className="mx-auto max-w-7xl rounded-xl bg-white ring-1 ring-gray-200 px-3 py-2 flex items-center justify-between">
-            <div className="text-sm text-gray-700">{selectedIds.length} selected</div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleBulk("complete")}
-                className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-              >
-                Mark Completed
-              </button>
-              <button
-                onClick={() => handleBulk("fail")}
-                className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-              >
-                Mark Failed
-              </button>
-              <button
-                onClick={() => {
-                  const selected = transactions.filter((t) => selectedIds.includes(t.id));
-                  if (!selected.length) return toast.info("No selected rows to export.");
-                  exportExcel(selected, "transactions_selected.xlsx");
-                  toast.success("Selected exported.");
-                }}
-                className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-              >
-                Export Selected
-              </button>
-              <button onClick={() => setSelectedIds([])} className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">
-                Clear
-              </button>
+        {/* Data Content */}
+        <div className="bg-white rounded-[1.5rem] border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    {filteredData.length} Transactions
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={() => exportExcel(filteredData, "transactions.xlsx")} className="p-2 hover:bg-white rounded-lg text-slate-400 hover:text-[#EB7313] transition-colors" title="Export Excel">
+                        <Download size={16} />
+                    </button>
+                    <button onClick={() => {setQuery(""); setTypeFilter(""); setStatusFilter("");}} className="p-2 hover:bg-white rounded-lg text-slate-400 hover:text-[#EB7313] transition-colors" title="Reset Filters">
+                        <RefreshCcw size={16} />
+                    </button>
+                </div>
             </div>
-          </div>
+
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 border-b border-slate-100 text-xs uppercase text-slate-500 font-semibold tracking-wide">
+                        <tr>
+                            <th className="w-10 p-4">
+                               <input type="checkbox" className="rounded border-slate-300 text-[#EB7313] focus:ring-[#EB7313]" />
+                            </th>
+                            <th className="px-6 py-4">ID / Date</th>
+                            <th className="px-6 py-4">Type</th>
+                            <th className="px-6 py-4">Details</th>
+                            <th className="px-6 py-4 text-center">Status</th>
+                            <th className="px-6 py-4 text-right">Amount</th>
+                            <th className="px-6 py-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                        {loading ? (
+                           [...Array(5)].map((_,i) => <tr key={i}><td colSpan="7" className="h-16 animate-pulse bg-slate-50/30" /></tr>)
+                        ) : paginatedData.length === 0 ? (
+                           <tr><td colSpan="7" className="p-12 text-center text-slate-400">No transactions found.</td></tr>
+                        ) : (
+                           paginatedData.map((t) => {
+                               const isPositive = Number(t.amount) > 0 && t.type === 'wallet_topup';
+                               return (
+                                   <tr key={t.id} className="group hover:bg-[#FFF7ED]/30 transition-colors">
+                                       <td className="p-4">
+                                          <input 
+                                             type="checkbox" 
+                                             checked={selectedIds.includes(t.id)}
+                                             onChange={() => handleSelect(t.id)}
+                                             className="rounded border-slate-300 text-[#EB7313] focus:ring-[#EB7313]" 
+                                          />
+                                       </td>
+                                       <td className="px-6 py-4">
+                                           <div className="font-mono font-bold text-slate-900">{t.trx_id}</div>
+                                           <div className="text-xs text-slate-400 mt-0.5">{formatDate(t.date)}</div>
+                                       </td>
+                                       <td className="px-6 py-4">
+                                           <div className="flex items-center gap-2">
+                                               <span className={`p-1.5 rounded-lg ${isPositive ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                   {t.type === 'wallet_topup' ? <Wallet size={14} /> : <CreditCard size={14} />}
+                                               </span>
+                                               <span className="capitalize font-medium text-slate-700">{(t.type || "").replace('_', ' ')}</span>
+                                           </div>
+                                       </td>
+                                       <td className="px-6 py-4">
+                                           <div className="font-medium text-slate-900">{t.traveller || "System"}</div>
+                                           <div className="text-xs text-slate-400">{t.email}</div>
+                                           <div className="text-[10px] text-slate-400 mt-0.5">{t.paymentMethod}</div>
+                                       </td>
+                                       <td className="px-6 py-4 text-center"><StatusBadge status={t.status} /></td>
+                                       <td className={`px-6 py-4 text-right font-mono font-bold text-base ${isPositive ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                           {isPositive ? '+' : ''}{money(t.amount, t.currency)}
+                                       </td>
+                                       <td className="px-6 py-4 text-right">
+                                           {/* Buttons are always visible (removed opacity-0) for better UX */}
+                                           <ActionButtons t={t} mobile={false} />
+                                       </td>
+                                   </tr>
+                               );
+                           })
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Mobile Card View (Responsive Fix) */}
+            <div className="md:hidden divide-y divide-slate-100">
+               {loading ? (
+                  [...Array(3)].map((_,i) => <div key={i} className="p-4 h-24 bg-slate-50/30 animate-pulse" />)
+               ) : paginatedData.length === 0 ? (
+                  <div className="p-12 text-center text-slate-400">No transactions found.</div>
+               ) : (
+                  paginatedData.map(t => {
+                     const isPositive = Number(t.amount) > 0 && t.type === 'wallet_topup';
+                     return (
+                        <div key={t.id} className="p-4 bg-white hover:bg-slate-50 transition-colors">
+                           <div className="flex justify-between items-start mb-2">
+                              <div className="flex items-center gap-3">
+                                 <div className={`p-2 rounded-lg ${isPositive ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                                    {t.type === 'wallet_topup' ? <Wallet size={16} /> : <CreditCard size={16} />}
+                                 </div>
+                                 <div>
+                                    <div className="font-bold text-slate-900 text-sm">{(t.type || "").replace('_', ' ')}</div>
+                                    <div className="text-xs text-slate-400 font-mono">{t.id}</div>
+                                 </div>
+                              </div>
+                              <StatusBadge status={t.status} />
+                           </div>
+                           
+                           <div className="flex justify-between items-end mt-3">
+                              <div className="text-xs text-slate-500">
+                                 <div>{formatDate(t.date)}</div>
+                                 <div>{t.email}</div>
+                              </div>
+                              <div className={`font-bold font-mono ${isPositive ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                 {isPositive ? '+' : ''}{money(t.amount, t.currency)}
+                              </div>
+                           </div>
+
+                           <ActionButtons t={t} mobile={true} />
+                        </div>
+                     );
+                  })
+               )}
+            </div>
+
+            {/* Footer Pagination */}
+            {!loading && filteredData.length > 0 && (
+               <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center text-xs text-slate-500">
+                  <span>Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} entries</span>
+                  <div className="flex gap-1">
+                     <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-3 py-1 rounded-md bg-white border border-slate-200 shadow-sm hover:bg-slate-50 disabled:opacity-50">Prev</button>
+                     <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-3 py-1 rounded-md bg-white border border-slate-200 shadow-sm hover:bg-slate-50 disabled:opacity-50">Next</button>
+                  </div>
+               </div>
+            )}
         </div>
-      )}
-
-      {/* Audit log */}
-      {!loading && !error && auditLog.length > 0 && (
-        <details className="mt-6 rounded-xl bg-white ring-1 ring-gray-200">
-          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-gray-900 border-b border-gray-200">Audit Log</summary>
-          <ul className="p-4 space-y-2">
-            {auditLog.map((log, i) => (
-              <li key={i} className="text-xs text-gray-700">
-                {log.timestamp}: {log.action}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-
-      {/* Edit Modal */}
-      <Modal
-        open={!!editTransaction}
-        onClose={() => setEditTransaction(null)}
-        title="Edit Transaction"
-        footer={
-          <div className="flex justify-end gap-2">
-            <button onClick={() => setEditTransaction(null)} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
-              Cancel
-            </button>
-            <button onClick={saveEdit} className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700">
-              Save
-            </button>
-          </div>
-        }
-      >
-        {editTransaction && (
-          <form onSubmit={saveEdit} className="grid grid-cols-1 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700">Amount</label>
-              <input
-                type="number"
-                step="0.01"
-                value={editTransaction.amount}
-                onChange={(e) => setEditTransaction({ ...editTransaction, amount: e.target.value })}
-                className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
-                min="0"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700">Currency</label>
-              <select
-                value={editTransaction.currency}
-                onChange={(e) => setEditTransaction({ ...editTransaction, currency: e.target.value })}
-                className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
-                required
-              >
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-                <option value="GBP">GBP</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700">Status</label>
-              <select
-                value={editTransaction.status}
-                onChange={(e) => setEditTransaction({ ...editTransaction, status: e.target.value })}
-                className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
-                required
-              >
-                <option value="pending">Pending</option>
-                <option value="completed">Completed</option>
-                <option value="failed">Failed</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700">Payment Method</label>
-              <select
-                value={editTransaction.paymentMethod}
-                onChange={(e) => setEditTransaction({ ...editTransaction, paymentMethod: e.target.value })}
-                className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
-                required
-              >
-                <option>bank</option>
-                <option>Visa</option>
-                <option>MasterCard</option>
-                <option>PayPal</option>
-              </select>
-            </div>
-          </form>
-        )}
-      </Modal>
-
-      {/* Delete Modal */}
-      <Modal
-        open={!!showDeleteModal}
-        onClose={() => setShowDeleteModal(null)}
-        title="Delete Transaction"
-        footer={
-          <div className="flex justify-end gap-2">
-            <button onClick={() => setShowDeleteModal(null)} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
-              Cancel
-            </button>
-            <button onClick={() => handleDelete(showDeleteModal)} className="rounded-lg bg-rose-600 px-3 py-1.5 text-sm text-white hover:bg-rose-700">
-              Delete
-            </button>
-          </div>
-        }
-      >
-        <p className="text-sm text-gray-700">Are you sure you want to delete this transaction?</p>
-      </Modal>
-
-      {/* Approve/Decline Top-up Modal */}
-      <Modal
-        open={!!approveTx}
-        onClose={() => setApproveTx(null)}
-        title="Approve or Decline Wallet Top-up"
-        footer={
-          <div className="flex justify-between items-center w-full">
-            <button
-              type="button"
-              onClick={() => setApproveTx(null)}
-              className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-              disabled={decisionLoading}
-            >
-              Close
-            </button>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => submitTopupDecision("rejected")}
-                className="rounded-lg bg-rose-600 px-3 py-1.5 text-sm text-white hover:bg-rose-700 disabled:opacity-60"
-                disabled={decisionLoading}
-              >
-                {decisionLoading ? "Processing..." : "Decline"}
-              </button>
-              <button
-                type="button"
-                onClick={() => submitTopupDecision("approved")}
-                className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
-                disabled={decisionLoading}
-              >
-                {decisionLoading ? "Processing..." : "Approve & Credit"}
-              </button>
-            </div>
-          </div>
-        }
-      >
-        {approveTx && (
-          <div className="space-y-3">
-            <p className="text-xs text-gray-600">
-              Transaction <span className="font-mono">{approveTx.id}</span> • {approveTx.email || "N/A"}
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-gray-700 mb-1">Type</label>
-                <div className="text-xs font-medium">Wallet Deposit</div>
+        
+        {/* Bulk Actions */}
+        {selectedIds.length > 0 && (
+           <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-6 z-40 animate-in slide-in-from-bottom-4">
+              <span className="text-sm font-bold">{selectedIds.length} selected</span>
+              <div className="h-4 w-px bg-slate-700"></div>
+              <div className="flex gap-2">
+                 <button onClick={() => handleBulkAction('complete')} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-xs font-bold transition-colors">Mark Completed</button>
+                 <button onClick={() => handleBulkAction('fail')} className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 rounded-lg text-xs font-bold transition-colors">Mark Failed</button>
               </div>
-              <div>
-                <label className="block text-xs text-gray-700 mb-1">Status</label>
-                <div className="text-xs font-medium">{titleCase(approveTx.status)}</div>
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-700 mb-1">Amount ({approveTx.currency})</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={approveAmount}
-                onChange={(e) => setApproveAmount(e.target.value)}
-                className="w-full h-10 rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
-                required
-              />
-              <p className="mt-1 text-[11px] text-gray-500">Adjust if bank deposit differs from requested amount.</p>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-700 mb-1">Note (optional)</label>
-              <textarea
-                value={approveNote}
-                onChange={(e) => setApproveNote(e.target.value)}
-                rows={3}
-                className="w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2 py-2"
-                placeholder="Reference / bank slip / internal note"
-              />
-            </div>
-          </div>
+              <button onClick={() => setSelectedIds([])} className="ml-2 text-slate-400 hover:text-white"><XCircle size={18}/></button>
+           </div>
         )}
-      </Modal>
+
+      </div>
+
+      {/* --- Modals --- */}
 
       {/* Report Modal */}
       <Modal
-        open={showReportModal}
-        onClose={() => setShowReportModal(false)}
-        title="Generate Report"
-        footer={
-          <div className="flex justify-end gap-2">
-            <button onClick={() => setShowReportModal(false)} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
-              Cancel
-            </button>
-            <button
-              onClick={() => {
-                // build dataset
-                let rangeFiltered = [];
-                if (reportType === "dateRange") {
-                  const s = reportDateRange.start ? parseD(reportDateRange.start) : null;
-                  const e = reportDateRange.end ? parseD(reportDateRange.end) : null;
-                  if (!s || !e) return toast.error("Pick start and end dates.");
-                  rangeFiltered = transactions.filter((t) => inRange(parseD(t.date), s, e));
-                } else {
-                  if (!reportMonth) return toast.error("Pick a month.");
-                  rangeFiltered = transactions.filter((t) => safeStr(t.date).startsWith(reportMonth));
-                }
-                if (!rangeFiltered.length) return toast.info("No data for the chosen period.");
-                exportExcel(rangeFiltered, `transactions_report_${reportType === "dateRange" ? "range" : reportMonth}.xlsx`);
-                toast.success("Report exported.");
-                setShowReportModal(false);
-              }}
-              className="rounded-lg bg-green-600 px-3 py-1.5 text-sm text-white hover:bg-green-700"
-            >
-              Excel
-            </button>
-            <button
-              onClick={() => {
-                let rangeFiltered = [];
-                if (reportType === "dateRange") {
-                  const s = reportDateRange.start ? parseD(reportDateRange.start) : null;
-                  const e = reportDateRange.end ? parseD(reportDateRange.end) : null;
-                  if (!s || !e) return toast.error("Pick start and end dates.");
-                  rangeFiltered = transactions.filter((t) => inRange(parseD(t.date), s, e));
-                } else {
-                  if (!reportMonth) return toast.error("Pick a month.");
-                  rangeFiltered = transactions.filter((t) => safeStr(t.date).startsWith(reportMonth));
-                }
-                if (!rangeFiltered.length) return toast.info("No data for the chosen period.");
-                try {
-                  const doc = new jsPDF();
-                  doc.setFontSize(16);
-                  doc.text("Transactions Report", 14, 18);
-                  doc.setFontSize(11);
-                  const total = rangeFiltered.reduce((s, t) => s + (Number(t.amount) || 0), 0);
-                  const ccy = rangeFiltered[0]?.currency || "USD";
-                  const summary = [
-                    ["Transactions", String(rangeFiltered.length)],
-                    ["Total Amount", money(total, ccy)],
-                    ["Completed", String(rangeFiltered.filter((t) => t.status === "completed").length)],
-                    ["Pending", String(rangeFiltered.filter((t) => t.status === "pending").length)],
-                    ["Failed", String(rangeFiltered.filter((t) => t.status === "failed").length)],
-                  ];
-                  let y = 30;
-                  summary.forEach(([k, v]) => {
-                    doc.text(`${k}:`, 14, y);
-                    doc.text(String(v), 70, y);
-                    y += 7;
-                  });
-                  y += 6;
-                  doc.text("Rows:", 14, y);
-                  y += 6;
-                  rangeFiltered.slice(0, 40).forEach((t) => {
-                    doc.text(`${t.id} | ${t.date} | ${t.type} | ${money(t.amount, t.currency)} | ${titleCase(t.status)}`, 14, y);
-                    y += 6;
-                    if (y > 280) {
-                      doc.addPage();
-                      y = 20;
-                    }
-                  });
-                  const fname = `transactions_report_${reportType === "dateRange" ? "range" : reportMonth}.pdf`;
-                  doc.save(fname);
-                  toast.success("Report downloaded.");
-                } catch {
-                  toast.error("Failed to generate PDF.");
-                }
-                setShowReportModal(false);
-              }}
-              className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
-            >
-              PDF
-            </button>
-          </div>
-        }
+         open={activeModal.type === 'report'}
+         title="Generate Report"
+         onClose={() => setActiveModal({ type: null })}
+         footer={
+            <>
+               <button onClick={() => setActiveModal({ type: null })} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+               <button onClick={() => { exportExcel(filteredData, "report.xlsx"); setActiveModal({ type: null }); }} className="px-4 py-2 text-sm font-semibold text-white bg-[#EB7313] hover:bg-[#d6660f] rounded-lg shadow-lg shadow-orange-500/20">Download Excel</button>
+            </>
+         }
       >
-        <form className="grid grid-cols-1 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-700">Report Type</label>
-            <select
-              value={reportType}
-              onChange={(e) => setReportType(e.target.value)}
-              className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
-            >
-              <option value="dateRange">Date Range</option>
-              <option value="monthly">Monthly</option>
-            </select>
-          </div>
-          {reportType === "dateRange" ? (
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-medium text-gray-700">Start Date</label>
-                <input
-                  type="date"
-                  value={reportDateRange.start}
-                  onChange={(e) => setReportDateRange((r) => ({ ...r, start: e.target.value }))}
-                  className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700">End Date</label>
-                <input
-                  type="date"
-                  value={reportDateRange.end}
-                  onChange={(e) => setReportDateRange((r) => ({ ...r, end: e.target.value }))}
-                  className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
-                  required
-                />
-              </div>
-            </div>
-          ) : (
-            <div>
-              <label className="block text-xs font-medium text-gray-700">Month</label>
-              <input
-                type="month"
-                value={reportMonth}
-                onChange={(e) => setReportMonth(e.target.value)}
-                className="mt-1 h-10 w-full rounded-lg bg-white text-gray-900 text-sm ring-1 ring-gray-200 focus:ring-gray-300 px-2"
-                required
-              />
-            </div>
-          )}
-        </form>
+         <div className="space-y-4">
+             <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Report Type</label>
+                <select className="w-full rounded-xl border-slate-200 focus:border-[#EB7313] focus:ring-[#EB7313] text-sm">
+                    <option>All Transactions</option>
+                    <option>Wallet Deposits Only</option>
+                    <option>Refunds Only</option>
+                </select>
+             </div>
+             <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Date Range</label>
+                <div className="flex gap-2">
+                    <input type="date" className="w-full rounded-xl border-slate-200 focus:border-[#EB7313] text-sm" />
+                    <input type="date" className="w-full rounded-xl border-slate-200 focus:border-[#EB7313] text-sm" />
+                </div>
+             </div>
+         </div>
       </Modal>
 
-      <ToastContainer position="top-right" autoClose={3000} />
+      {/* Approve Modal */}
+      <Modal
+         open={activeModal.type === 'approve'}
+         title="Process Top-up"
+         onClose={() => setActiveModal({ type: null })}
+         footer={
+             <div className="flex justify-end gap-2 w-full">
+                 <button onClick={() => handleApproveDecision('rejected')} disabled={decisionLoading} className="px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50 rounded-lg">Reject</button>
+                 <button onClick={() => handleApproveDecision('approved')} disabled={decisionLoading} className="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm">
+                    {decisionLoading ? 'Processing...' : 'Approve & Credit'}
+                 </button>
+             </div>
+         }
+      >
+         <div className="space-y-4">
+             <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">
+                Reviewing transaction <span className="font-mono font-bold text-slate-900">{activeModal.data?.trx_id}</span> for <span className="font-bold">{money(activeModal.data?.amount, activeModal.data?.currency)}</span>.
+             </p>
+             <div>
+                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Internal Note</label>
+                 <textarea 
+                    rows="3" 
+                    value={approveNote}
+                    onChange={e => setApproveNote(e.target.value)}
+                    className="w-full rounded-xl border-slate-200 focus:border-[#EB7313] focus:ring-[#EB7313] text-sm"
+                    placeholder="Reason for approval/rejection..."
+                 />
+             </div>
+         </div>
+      </Modal>
+
+      {/* Delete Modal */}
+      <Modal 
+         open={activeModal.type === 'delete'} 
+         title="Delete Transaction" 
+         onClose={() => setActiveModal({ type: null })}
+         footer={
+            <>
+               <button onClick={() => setActiveModal({ type: null })} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+               <button onClick={() => handleDelete(activeModal.data?.id)} className="px-4 py-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-lg shadow-rose-500/20">Delete</button>
+            </>
+         }
+      >
+         <p className="text-slate-600">Are you sure you want to delete transaction <span className="font-mono font-bold text-slate-900">{activeModal.data?.id}</span>? This action affects financial records.</p>
+      </Modal>
+
+      {/* Edit Modal */}
+      <Modal
+         open={activeModal.type === 'edit'}
+         title="Edit Transaction"
+         onClose={() => setActiveModal({ type: null })}
+      >
+         {editData && (
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+               <div className="grid grid-cols-2 gap-4">
+                   <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Amount</label>
+                      <input type="number" value={editData.amount} onChange={e => setEditData({...editData, amount: e.target.value})} className="w-full rounded-xl border-slate-200 focus:border-[#EB7313] focus:ring-[#EB7313] text-sm" />
+                   </div>
+                   <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Currency</label>
+                      <select value={editData.currency} onChange={e => setEditData({...editData, currency: e.target.value})} className="w-full rounded-xl border-slate-200 focus:border-[#EB7313] focus:ring-[#EB7313] text-sm">
+                         <option value="USD">USD</option>
+                         <option value="EUR">EUR</option>
+                      </select>
+                   </div>
+               </div>
+               <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
+                  <select value={editData.status} onChange={e => setEditData({...editData, status: e.target.value})} className="w-full rounded-xl border-slate-200 focus:border-[#EB7313] focus:ring-[#EB7313] text-sm">
+                     <option value="pending">Pending</option>
+                     <option value="completed">Completed</option>
+                     <option value="failed">Failed</option>
+                  </select>
+               </div>
+               <div className="flex justify-end gap-2 mt-6">
+                  <button type="button" onClick={() => setActiveModal({ type: null })} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                  <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-[#EB7313] hover:bg-[#d6660f] rounded-lg shadow-lg shadow-orange-500/20">Save Changes</button>
+               </div>
+            </form>
+         )}
+      </Modal>
+
     </div>
   );
 }

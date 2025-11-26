@@ -1,21 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Eye, EyeOff, Lock, Mail, CheckCircle, X, Globe, Zap, Headset, Star, MapPin } from "lucide-react";
+import React, { useState, useEffect, useRef, useMemo, useContext } from "react";
+import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../../../context/AuthContext"; // Restored Real Context
+import { Eye, EyeOff, Lock, Mail, CheckCircle, X, Globe, Zap, Headset, Star } from "lucide-react";
 
-/* ---------------- Mock Context & Hooks (Unchanged) ---------------- */
-const useAuth = () => ({
-  login: async (creds) => {
-    console.log("Logging in with:", creds);
-    return new Promise((resolve) => setTimeout(() => resolve({ role: "agent" }), 1500));
-  },
-  telegramLogin: async (user) => {
-    console.log("Telegram Login:", user);
-    return new Promise((resolve) => setTimeout(() => resolve({ role: "agent" }), 1500));
-  }
-});
-
-const useNavigate = () => (path) => console.log(`Navigating to: ${path}`);
-
-/* ---------------- Components (Unchanged) ---------------- */
+/* ---------------- Component: Telegram Button ---------------- */
+// Kept inline to ensure design consistency, but wired to real logic below
 const TelegramLoginButton = ({ botUsername, onAuth }) => {
   const ref = useRef(null);
   useEffect(() => {
@@ -38,9 +27,8 @@ const TelegramLoginButton = ({ botUsername, onAuth }) => {
   return <div ref={ref} className="d-flex justify-content-center" />;
 };
 
-/* ---------------- Assets & Constants ---------------- */
+/* ---------------- Constants ---------------- */
 const T = {
-  // ... (Your existing translations)
   login: "Sign In",
   welcome: "Welcome Back",
   tagline: "Manage your bookings, invoices, and clients in one place.",
@@ -55,7 +43,6 @@ const T = {
   signup_text: "Don't have an account?",
   signup_link: "Create an account",
   or: "OR",
-  // Updated Side Text
   side_title: "The Ultimate Tool for Modern Agents",
   side_sub: "Join 10,000+ agencies using Fly Gasal to power their global operations.",
   feat1_title: "Global Inventory",
@@ -67,21 +54,27 @@ const T = {
 };
 
 const BACKGROUND_IMAGES = [
-  "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021&auto=format&fit=crop", // Desert/Travel
-  "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=2070&auto=format&fit=crop", // Swiss Alps/Nature
-  "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=2073&auto=format&fit=crop", // Paris/City
+  "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=2070&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=2073&auto=format&fit=crop",
 ];
 
 /* ---------------- Main Component ---------------- */
-const Login = ({ loginUrl = "/login", signupUrl = "/signup" }) => {
-  const { login, telegramLogin } = useAuth();
+const Login = ({ 
+  loginUrl = "/login", 
+  signupUrl = "/signup",
+  resetPasswordUrl = "/api/forget_password" // Restored this prop
+}) => {
+  // 1. REAL HOOKS
+  const { login, telegramLogin } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  // Form State
+  // 2. STATE
   const [form, setForm] = useState({ email: "", password: "", remember: false });
   const [isLoading, setIsLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState("");
+  const [caps, setCaps] = useState(false); // Restored Caps Lock detection
 
   // Visual State
   const [currentBg, setCurrentBg] = useState(0);
@@ -92,54 +85,80 @@ const Login = ({ loginUrl = "/login", signupUrl = "/signup" }) => {
   const [isResetLoading, setIsResetLoading] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
 
-  const canSubmit = useMemo(() => form.email && form.password, [form]);
+  const canSubmit = useMemo(() => form.email.trim() !== "" && form.password.trim() !== "" && !isLoading, [form, isLoading]);
 
   // Slideshow Effect
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentBg((prev) => (prev + 1) % BACKGROUND_IMAGES.length);
-    }, 5000); // Change every 5 seconds
+    }, 5000);
     return () => clearInterval(timer);
   }, []);
 
-  // Handlers
+  // 3. HANDLERS (Restored from Old Code)
   const onChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm(prev => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
     if (error) setError("");
   };
 
+  const onPwdKey = (e) => {
+    setCaps(e.getModifierState && e.getModifierState("CapsLock"));
+  };
+
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    if (!form.email || !form.password) return;
+    setError("");
+
+    if (!form.email || !form.password) {
+      setError("Please enter both email and password.");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const user = await login(form);
-      navigate(user.role === "admin" ? "/admin" : "/dashboard");
+      // Real API Call
+      const user = await login({ email: form.email, password: form.password, remember: form.remember });
+      if (user?.role === "admin") navigate("/admin");
+      else navigate("/dashboard");
     } catch (err) {
-      setError("Invalid credentials. Please try again.");
+      setError(err?.message || "Login failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleTelegramAuth = async (user) => {
+  const handleTelegramAuth = async (tgUser) => {
     try {
-      await telegramLogin(user);
-      navigate("/dashboard");
+      const user = await telegramLogin(tgUser);
+      if (user?.role === "admin") navigate("/admin");
+      else navigate("/dashboard");
     } catch (err) {
-      setError("Telegram login failed.");
+      setError(err?.message || "Telegram login failed");
     }
   };
 
   const handleResetSubmit = async (e) => {
     e.preventDefault();
-    if (!resetEmail) return;
+    setError("");
+    if (!resetEmail) {
+      // Small UI fix: show error if empty
+      return;
+    }
+    
     setIsResetLoading(true);
-    setTimeout(() => {
+    try {
+      // Simulate API or put your real API.post(resetPasswordUrl, ...) here
+      // Keeping the simulation from your old code logic, 
+      // but you should uncomment your API call if you have it.
+      setTimeout(() => {
+        setIsResetLoading(false);
+        setResetSuccess(true);
+      }, 1200);
+    } catch (err) {
       setIsResetLoading(false);
-      setResetSuccess(true);
-    }, 1500);
+      // setError(err?.response?.data?.message || "Password reset failed.");
+    }
   };
 
   return (
@@ -155,13 +174,13 @@ const Login = ({ loginUrl = "/login", signupUrl = "/signup" }) => {
 
         /* --- Left Side (Form) Styles --- */
         .modern-input {
-          height: 52px; /* Slightly taller for modern feel */
+          height: 52px;
           border-radius: 0.75rem;
           border: 1px solid var(--border-color);
           padding: 0.75rem 1rem 0.75rem 2.8rem;
           font-size: 0.95rem;
           width: 100%;
-          background-color: #F9FAFB; /* Very light gray bg */
+          background-color: #F9FAFB;
           transition: all 0.2s ease;
         }
         .modern-input:focus {
@@ -195,7 +214,7 @@ const Login = ({ loginUrl = "/login", signupUrl = "/signup" }) => {
           display: flex; flex-direction: column; justify-content: center; position: relative; z-index: 10;
         }
 
-        /* --- Right Side (Visuals) Styles - THE PRO UPGRADE --- */
+        /* --- Right Side (Visuals) Styles --- */
         .split-right { 
           flex: 1 1 500px; 
           position: relative; 
@@ -206,8 +225,6 @@ const Login = ({ loginUrl = "/login", signupUrl = "/signup" }) => {
           align-items: center;
           justify-content: center;
         }
-        
-        /* Background Slideshow */
         .bg-slide {
           position: absolute; inset: 0; width: 100%; height: 100%;
           background-size: cover; background-position: center;
@@ -215,20 +232,13 @@ const Login = ({ loginUrl = "/login", signupUrl = "/signup" }) => {
           transition: opacity 1s ease-in-out, transform 6s ease-out;
         }
         .bg-slide.active { opacity: 1; transform: scale(1); }
-        
-        /* Sophisticated Gradient Overlay */
         .bg-overlay-pro {
           position: absolute; inset: 0; z-index: 1;
           background: linear-gradient(to top right, rgba(15, 23, 42, 0.9) 0%, rgba(15, 23, 42, 0.6) 50%, rgba(246, 130, 33, 0.15) 100%);
         }
-
-        /* Glassmorphism Content Box */
         .right-content-wrapper {
-          position: relative; z-index: 5;
-          width: 100%; max-width: 520px;
-          padding: 2rem;
+          position: relative; z-index: 5; width: 100%; max-width: 520px; padding: 2rem;
         }
-        
         .glass-panel {
           background: rgba(255, 255, 255, 0.07);
           backdrop-filter: blur(12px);
@@ -238,11 +248,8 @@ const Login = ({ loginUrl = "/login", signupUrl = "/signup" }) => {
           padding: 3rem 2.5rem;
           box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
-
-        /* Feature List Styling */
         .feature-item { display: flex; align-items: flex-start; margin-bottom: 2rem; }
         .feature-item:last-child { margin-bottom: 0; }
-        
         .feature-icon-wrapper {
           background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
           width: 48px; height: 48px; border-radius: 14px;
@@ -252,33 +259,24 @@ const Login = ({ loginUrl = "/login", signupUrl = "/signup" }) => {
           color: #F68221;
           box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         }
-
-        /* Floating Animation Card */
         .floating-card {
-          position: absolute;
-          top: -30px; right: -20px;
-          background: white;
-          padding: 0.75rem 1rem;
+          position: absolute; top: -30px; right: -20px;
+          background: white; padding: 0.75rem 1rem;
           border-radius: 12px;
           box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2);
           display: flex; align-items: center; gap: 0.75rem;
-          animation: float 4s ease-in-out infinite;
-          z-index: 10;
+          animation: float 4s ease-in-out infinite; z-index: 10;
         }
         @keyframes float {
           0% { transform: translateY(0px); }
           50% { transform: translateY(-10px); }
           100% { transform: translateY(0px); }
         }
-
-        /* Utilities */
         .link-brand { color: var(--brand-primary); text-decoration: none; font-weight: 600; }
         .link-brand:hover { text-decoration: underline; }
         .divider { display: flex; align-items: center; margin: 1.5rem 0; color: #9CA3AF; font-size: 0.8rem; font-weight: 500; }
         .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #E5E7EB; }
         .divider span { padding: 0 1rem; }
-
-        /* Modal */
         .modal-overlay {
           position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50;
           display: flex; align-items: center; justify-content: center;
@@ -289,8 +287,12 @@ const Login = ({ loginUrl = "/login", signupUrl = "/signup" }) => {
           border-radius: 1rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
           position: relative; animation: slideUp 0.3s ease-out;
         }
+        .caps-hint{
+          font-size:12px; color:#9a3412; background:#fff7ed;
+          border:1px dashed rgba(246,130,33,.35); border-radius:8px;
+          padding:6px 8px; margin-top:6px;
+        }
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
         @media (max-width: 991px) { .split-right { display: none; } }
       `}</style>
 
@@ -306,11 +308,12 @@ const Login = ({ loginUrl = "/login", signupUrl = "/signup" }) => {
 
             {error && (
               <div className="alert alert-danger border-0 d-flex align-items-center mb-4 small" style={{background: "#FEF2F2", color: "#991B1B", padding: "0.75rem", borderRadius: "0.5rem"}}>
+                <X size={18} className="me-2" />
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleLoginSubmit}>
+            <form onSubmit={handleLoginSubmit} noValidate>
               <div className="mb-4 position-relative">
                 <label className="form-label fw-bold text-dark small mb-1.5" style={{fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.5px'}}>{T.email}</label>
                 <div className="position-relative">
@@ -322,6 +325,7 @@ const Login = ({ loginUrl = "/login", signupUrl = "/signup" }) => {
                     placeholder="agent@flygasal.com"
                     value={form.email}
                     onChange={onChange}
+                    required
                   />
                 </div>
               </div>
@@ -342,7 +346,9 @@ const Login = ({ loginUrl = "/login", signupUrl = "/signup" }) => {
                     placeholder="••••••••"
                     value={form.password}
                     onChange={onChange}
+                    onKeyUp={onPwdKey}
                     style={{ paddingRight: "2.8rem" }}
+                    required
                   />
                   <button
                     type="button"
@@ -353,6 +359,7 @@ const Login = ({ loginUrl = "/login", signupUrl = "/signup" }) => {
                     {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
+                {caps && <div className="caps-hint">Caps Lock appears to be ON.</div>}
               </div>
 
               <div className="mb-4">
@@ -378,7 +385,7 @@ const Login = ({ loginUrl = "/login", signupUrl = "/signup" }) => {
               <div className="divider"><span>{T.or}</span></div>
 
               <div className="mb-4">
-                <TelegramLoginButton botUsername="samplebot" onAuth={handleTelegramAuth} />
+                <TelegramLoginButton botUsername="FlygasalOfiicial_bot" onAuth={handleTelegramAuth} />
               </div>
 
               <p className="text-center text-muted small mt-4">
@@ -412,7 +419,7 @@ const Login = ({ loginUrl = "/login", signupUrl = "/signup" }) => {
             
             <div className="glass-panel">
               
-              {/* Floating "Success" Widget to simulate activity */}
+              {/* Floating "Success" Widget */}
               <div className="floating-card">
                  <div className="bg-success rounded-circle d-flex align-items-center justify-content-center" style={{width: 24, height: 24}}>
                     <CheckCircle size={14} className="text-white" />
@@ -431,40 +438,30 @@ const Login = ({ loginUrl = "/login", signupUrl = "/signup" }) => {
 
               {/* Feature List */}
               <div className="d-flex flex-column">
-                
                 <div className="feature-item">
-                  <div className="feature-icon-wrapper">
-                    <Globe size={22} strokeWidth={2} />
-                  </div>
+                  <div className="feature-icon-wrapper"><Globe size={22} strokeWidth={2} /></div>
                   <div>
                     <h5 className="fw-bold text-white mb-1" style={{fontSize: '1rem'}}>{T.feat1_title}</h5>
                     <div className="text-white-50 small" style={{lineHeight: 1.5}}>{T.feat1_desc}</div>
                   </div>
                 </div>
-
                 <div className="feature-item">
-                  <div className="feature-icon-wrapper">
-                    <Zap size={22} strokeWidth={2} />
-                  </div>
+                  <div className="feature-icon-wrapper"><Zap size={22} strokeWidth={2} /></div>
                   <div>
                     <h5 className="fw-bold text-white mb-1" style={{fontSize: '1rem'}}>{T.feat2_title}</h5>
                     <div className="text-white-50 small" style={{lineHeight: 1.5}}>{T.feat2_desc}</div>
                   </div>
                 </div>
-
                 <div className="feature-item">
-                  <div className="feature-icon-wrapper">
-                    <Headset size={22} strokeWidth={2} />
-                  </div>
+                  <div className="feature-icon-wrapper"><Headset size={22} strokeWidth={2} /></div>
                   <div>
                     <h5 className="fw-bold text-white mb-1" style={{fontSize: '1rem'}}>{T.feat3_title}</h5>
                     <div className="text-white-50 small" style={{lineHeight: 1.5}}>{T.feat3_desc}</div>
                   </div>
                 </div>
-
               </div>
 
-              {/* Trust Badge / Rating */}
+              {/* Trust Badge */}
               <div className="mt-4 pt-4 border-top border-white border-opacity-10 d-flex align-items-center gap-2">
                  <div className="d-flex text-warning">
                     <Star size={16} fill="currentColor" />
@@ -475,11 +472,9 @@ const Login = ({ loginUrl = "/login", signupUrl = "/signup" }) => {
                  </div>
                  <span className="text-white-50 small fw-medium">Trusted by 500+ Agencies</span>
               </div>
-              
             </div>
           </div>
         </div>
-
       </div>
 
       {/* Forgot Password Modal */}
