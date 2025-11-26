@@ -5,21 +5,23 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import apiService from "../../api/apiService";
 import { 
-  Search, Filter, Download, Plus, MoreHorizontal, 
-  CheckCircle2, XCircle, Trash2, Edit2, Wallet, 
-  Shield, User, MapPin, Mail, Phone, RefreshCcw,
-  ArrowDown, ArrowUp
+  Search, Filter, Download, Plus, 
+  CheckCircle2, XCircle, Trash2, Edit2, 
+  Shield, User, MapPin, Mail, Phone, 
+  ArrowDown, ArrowUp,
+  ArrowUpCircle,
+  ArrowDownCircle
 } from "lucide-react";
 
-// Keep your existing modal imports
+// Import your specific wallet modals
 import TopUpWalletModal from "../../components/admin/Account/TopUpWalletModal";
 import DeductWalletModal from "../../components/admin/Account/DeductWalletModal";
 
 /* --- Utils --- */
 const cx = (...c) => c.filter(Boolean).join(" ");
 const toCurrency = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(n || 0));
-
 const getInitials = (name) => (name || "U").split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
+const asNumber = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
 
 /* --- UI Components --- */
 
@@ -97,12 +99,25 @@ export default function Users() {
   const itemsPerPage = 10;
 
   // Modals
-  const [activeModal, setActiveModal] = useState({ type: null, data: null }); // edit, add, delete, approve
+  const [activeModal, setActiveModal] = useState({ type: null, data: null }); // edit, add, delete
   const [topUpFor, setTopUpFor] = useState(null);
   const [deductFor, setDeductFor] = useState(null);
 
-  // Form State (for Add/Edit)
-  const [formData, setFormData] = useState({});
+  // Form State (Using exact structure from old version)
+  const [formData, setFormData] = useState({
+      id: "",
+      name: "",
+      email: "",
+      phone: "",
+      password: "",
+      type: "client",
+      status: "Active",
+      walletBalance: 0,
+      agency_license: "",
+      agency_country: "",
+      agency_city: "",
+      agency_address: "",
+  });
 
   // Fetch
   const fetchUsers = async () => {
@@ -110,17 +125,26 @@ export default function Users() {
     try {
       const res = await apiService.get("/admin/users");
       const raw = res?.data?.data?.data || [];
+      
+      // Map exact fields from old version
       const clean = raw.map(u => ({
          id: u.id,
          name: u.name,
          email: u.email,
          phone: u.phone_number || "N/A",
-         role: u.roles?.[0]?.name || "Client",
+         // Normalized role mapping
+         role: (u.roles?.[0]?.name || "client").toLowerCase(),
          status: u.is_active ? "Active" : "Inactive",
          walletBalance: Number(u.wallet_balance || 0),
+         // Agency fields flat
+         agency_license: u.agency_license || "",
+         agency_name: u.agency_name || "",
+         agency_country: u.agency_country || "",
+         agency_city: u.agency_city || "",
+         agency_address: u.agency_address || "",
+         // Grouped for display convenience
          agency: u.agency_name ? {
              name: u.agency_name,
-             license: u.agency_license,
              city: u.agency_city
          } : null
       }));
@@ -136,7 +160,7 @@ export default function Users() {
     return users.filter(u => {
       const q = query.toLowerCase();
       const matchesSearch = !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
-      const matchesRole = roleFilter === 'all' || u.role.toLowerCase() === roleFilter.toLowerCase();
+      const matchesRole = roleFilter === 'all' || u.role === roleFilter.toLowerCase();
       const matchesStatus = statusFilter === 'all' || u.status.toLowerCase() === statusFilter.toLowerCase();
       return matchesSearch && matchesRole && matchesStatus;
     });
@@ -152,22 +176,36 @@ export default function Users() {
   // Handlers
   const handleSaveUser = async (e) => {
       e.preventDefault();
-      // Simple validation
-      if(!formData.name || !formData.email) return toast.error("Name and Email are required");
+      
+      // Validation from old version
+      if(!formData.name || !formData.email || !formData.type || !formData.status || Number(formData.walletBalance) < 0) {
+          return toast.error("Please fill all fields correctly.");
+      }
+      
+      // Agent specific validation
+      if (formData.type.toLowerCase() === "agent" && (!formData.agency_license || !formData.agency_city || !formData.agency_address)) {
+        return toast.error("Please complete all agency details for agents.");
+      }
 
       try {
           if(activeModal.type === 'edit') {
               await apiService.put(`/admin/users/${formData.id}`, formData);
-              setUsers(prev => prev.map(u => u.id === formData.id ? { ...u, ...formData } : u));
+              setUsers(prev => prev.map(u => u.id === formData.id ? { ...u, ...formData, role: formData.type } : u));
               toast.success("User updated successfully");
           } else {
-              // Add Logic
+              // Add Logic (RESTORED: Manually setting ID placeholder until refresh)
+              const newUser = { ...formData, id: `user_${Date.now()}`, role: formData.type.toLowerCase() };
               await apiService.post("/admin/users", formData);
               toast.success("User added successfully");
-              fetchUsers(); // Refresh for ID
+              // Optimistic add + fetch
+              setUsers(prev => [...prev, newUser]);
+              fetchUsers(); 
           }
           setActiveModal({ type: null, data: null });
-      } catch(e) { toast.error("Operation failed"); }
+      } catch(e) { 
+          console.error("Save failed:", e);
+          toast.error("Operation failed. Check inputs."); 
+      }
   };
 
   const handleDelete = async () => {
@@ -179,14 +217,41 @@ export default function Users() {
       } catch(e) { toast.error("Delete failed"); }
   };
 
-  const handleStatusChange = async (id, newStatus) => {
+  const handleApprove = async (id) => {
       try {
-         // API Call here
-         if(newStatus === 'Active') await apiService.post(`/admin/users/${id}/approve`);
-         // Optimistic Update
-         setUsers(prev => prev.map(u => u.id === id ? { ...u, status: newStatus } : u));
-         toast.success(`User marked as ${newStatus}`);
-      } catch(e) { toast.error("Status update failed"); }
+         await apiService.post(`/admin/users/${id}/approve`);
+         setUsers(prev => prev.map(u => u.id === id ? { ...u, status: "Active" } : u));
+         toast.success(`User approved successfully`);
+      } catch(e) { toast.error("Approval failed"); }
+  };
+
+  const handleAddClick = () => {
+      setFormData({
+          id: "",
+          name: "",
+          email: "",
+          phone: "",
+          password: "",
+          type: "client",
+          status: "Active",
+          walletBalance: 0,
+          agency_name: "",
+          agency_license: "",
+          agency_country: "",
+          agency_city: "",
+          agency_address: "",
+      });
+      setActiveModal({ type: 'add', data: null });
+  };
+
+  const handleEditClick = (u) => {
+      // Map table row data back to form structure
+      setFormData({
+          ...u,
+          type: u.role.charAt(0).toUpperCase() + u.role.slice(1), // Ensure capitalization matches select options
+          password: "" // Clear password on edit
+      });
+      setActiveModal({ type: 'edit', data: u });
   };
 
   const exportExcel = () => {
@@ -195,6 +260,60 @@ export default function Users() {
       XLSX.utils.book_append_sheet(wb, ws, "Users");
       XLSX.writeFile(wb, "users_list.xlsx");
   };
+
+  /* --- Helper Render: Action Buttons --- */
+  const ActionButtons = ({ u, mobile = false }) => (
+    <div className={`flex ${mobile ? 'flex-wrap gap-2 mt-4 justify-end' : 'justify-end gap-1'}`}>
+       
+       {/* 1. Approval (Only if not active) */}
+       {u.status !== 'Active' && (
+          <button 
+             onClick={() => handleApprove(u.id)} 
+             className="p-1.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
+             title="Approve User"
+          >
+             <CheckCircle2 size={18} />
+          </button>
+       )}
+       
+       {/* 2. Wallet Actions */}
+       <button 
+          onClick={() => setTopUpFor(u)} 
+          className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+          title="Top Up Wallet"
+       >
+          <ArrowUpCircle size={18} />
+       </button>
+
+       <button 
+          onClick={() => setDeductFor(u)} 
+          className="p-1.5 text-[#EB7313] bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors"
+          title="Deduct Balance"
+       >
+          <ArrowDownCircle size={18} />
+       </button>
+
+       {/* Divider */}
+       {!mobile && <div className="w-px h-4 bg-slate-200 mx-1 self-center"></div>}
+
+       {/* 3. Manage Actions */}
+       <button 
+          onClick={() => handleEditClick(u)} 
+          className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+          title="Edit Details"
+       >
+          <Edit2 size={18} />
+       </button>
+
+       <button 
+          onClick={() => setActiveModal({ type: 'delete', data: u })} 
+          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+          title="Delete User"
+       >
+          <Trash2 size={18} />
+       </button>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-20 font-sans text-slate-900">
@@ -213,7 +332,7 @@ export default function Users() {
                     <Download size={16} /> Export
                 </button>
                 <button 
-                    onClick={() => { setFormData({ type: 'Client', status: 'Active', walletBalance: 0 }); setActiveModal({ type: 'add', data: null }); }}
+                    onClick={handleAddClick}
                     className="flex items-center gap-2 px-5 py-2.5 bg-[#EB7313] hover:bg-[#d6660f] text-white text-sm font-semibold rounded-xl shadow-lg shadow-orange-500/20 transition-all transform active:scale-95"
                 >
                     <Plus size={18} /> Add User
@@ -290,7 +409,7 @@ export default function Users() {
                                            </div>
                                            <div>
                                                <div className="font-bold text-slate-900">{u.name}</div>
-                                               {/* <div className="text-xs text-slate-400">{u.id}</div> */}
+                                               <div className="text-xs text-slate-400 font-mono">{u.agency_name || ""}</div>
                                            </div>
                                        </div>
                                    </td>
@@ -306,16 +425,8 @@ export default function Users() {
                                        <StatusBadge status={u.status} />
                                    </td>
                                    <td className="px-6 py-4">
-                                       <div className="font-mono font-bold text-slate-700">
+                                       <div className="font-mono font-bold text-slate-700 flex items-center gap-1">
                                           {toCurrency(u.walletBalance)}
-                                       </div>
-                                       <div className="flex gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                           <button onClick={() => setTopUpFor(u)} className="text-[10px] font-bold text-emerald-600 hover:underline flex items-center gap-0.5">
-                                              <ArrowUp size={10} /> Top Up
-                                           </button>
-                                           <button onClick={() => setDeductFor(u)} className="text-[10px] font-bold text-rose-600 hover:underline flex items-center gap-0.5">
-                                              <ArrowDown size={10} /> Deduct
-                                           </button>
                                        </div>
                                    </td>
                                    <td className="px-6 py-4">
@@ -325,20 +436,8 @@ export default function Users() {
                                        </div>
                                    </td>
                                    <td className="px-6 py-4 text-right pr-8">
-                                       <div className="flex justify-end gap-2">
-                                           <button 
-                                              onClick={() => { setFormData(u); setActiveModal({ type: 'edit', data: u }); }} 
-                                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                           >
-                                              <Edit2 size={16} />
-                                           </button>
-                                           <button 
-                                              onClick={() => setActiveModal({ type: 'delete', data: u })} 
-                                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                           >
-                                              <Trash2 size={16} />
-                                           </button>
-                                       </div>
+                                       {/* Action buttons - visible on hover for desktop */}
+                                       <ActionButtons u={u} mobile={false} />
                                    </td>
                                </tr>
                            ))}
@@ -363,7 +462,7 @@ export default function Users() {
 
       {/* --- Modals --- */}
 
-      {/* Add/Edit Modal */}
+      {/* Add/Edit Modal (Restored Form Layout) */}
       <Modal
          open={activeModal.type === 'add' || activeModal.type === 'edit'}
          title={activeModal.type === 'edit' ? "Edit User" : "Add New User"}
@@ -393,7 +492,7 @@ export default function Users() {
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Role</label>
-                    <select value={formData.role || "Client"} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full rounded-xl border-slate-200 focus:border-[#EB7313] focus:ring-[#EB7313] text-sm">
+                    <select value={formData.type || "client"} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full rounded-xl border-slate-200 focus:border-[#EB7313] focus:ring-[#EB7313] text-sm">
                         <option value="client">Client</option>
                         <option value="agent">Agent</option>
                         <option value="admin">Admin</option>
@@ -402,16 +501,60 @@ export default function Users() {
                 <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
                     <select value={formData.status || "Active"} onChange={e => setFormData({...formData, status: e.target.value})} className="w-full rounded-xl border-slate-200 focus:border-[#EB7313] focus:ring-[#EB7313] text-sm">
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="pending">Pending</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                        <option value="Pending">Pending</option>
                     </select>
                 </div>
+            </div>
+            <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Wallet Balance</label>
+                <input 
+                    type="number" 
+                    step="0.01" 
+                    min="0" 
+                    value={formData.walletBalance || 0} 
+                    onChange={e => setFormData({...formData, walletBalance: parseFloat(e.target.value) || 0})} 
+                    className="w-full rounded-xl border-slate-200 focus:border-[#EB7313] focus:ring-[#EB7313] text-sm" 
+                />
             </div>
             {activeModal.type === 'add' && (
                 <div>
                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Password</label>
                     <input type="password" value={formData.password || ""} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full rounded-xl border-slate-200 focus:border-[#EB7313] focus:ring-[#EB7313] text-sm" />
+                </div>
+            )}
+            
+            {/* Agent Specifics (Exact Logic Restored) */}
+            {formData.type?.toLowerCase() === "agent" && (
+                <div className="pt-4 mt-2 border-t border-slate-100">
+                    <div className="text-xs font-bold text-[#EB7313] uppercase mb-3">Agency Details</div>
+                    <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Agency Name</label>
+                                <input type="text" value={formData.agency_name || ""} onChange={e => setFormData({...formData, agency_name: e.target.value})} className="w-full rounded-xl border-slate-200 focus:border-[#EB7313] focus:ring-[#EB7313] text-sm" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">License No.</label>
+                                <input type="text" value={formData.agency_license || ""} onChange={e => setFormData({...formData, agency_license: e.target.value})} className="w-full rounded-xl border-slate-200 focus:border-[#EB7313] focus:ring-[#EB7313] text-sm" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Country</label>
+                                <input type="text" value={formData.agency_country || ""} onChange={e => setFormData({...formData, agency_country: e.target.value})} className="w-full rounded-xl border-slate-200 focus:border-[#EB7313] focus:ring-[#EB7313] text-sm" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">City</label>
+                                <input type="text" value={formData.agency_city || ""} onChange={e => setFormData({...formData, agency_city: e.target.value})} className="w-full rounded-xl border-slate-200 focus:border-[#EB7313] focus:ring-[#EB7313] text-sm" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Address</label>
+                            <input type="text" value={formData.agency_address || ""} onChange={e => setFormData({...formData, agency_address: e.target.value})} className="w-full rounded-xl border-slate-200 focus:border-[#EB7313] focus:ring-[#EB7313] text-sm" />
+                        </div>
+                    </div>
                 </div>
             )}
          </form>

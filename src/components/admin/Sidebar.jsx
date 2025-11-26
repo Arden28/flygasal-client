@@ -18,16 +18,17 @@ const defaultNavItems = [
   { name: "Users", path: "/admin/users", icon: UsersIcon },
   
   { section: "System" },
-  { name: "Reports", path: "/admin/reports", icon: ChartBarIcon },
-  {
-    name: "Settings",
-    path: "/admin/settings",
-    icon: Cog6ToothIcon,
-    subItems: [
-      { name: "General", path: "/admin/settings" },
-      { name: "Roles & Perms", path: "/admin/settings/roles" },
-    ],
-  },
+  { name: "Settings", path: "/admin/settings", icon: Cog6ToothIcon },
+//   { name: "Reports", path: "/admin/reports", icon: ChartBarIcon },
+//   {
+//     name: "Settings",
+//     path: "/admin/settings",
+//     icon: Cog6ToothIcon,
+//     subItems: [
+//       { name: "General", path: "/admin/settings" },
+//       { name: "Roles & Perms", path: "/admin/settings/roles" },
+//     ],
+//   },
 ];
 
 export default function Sidebar({
