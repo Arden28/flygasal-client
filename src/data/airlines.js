@@ -652,6 +652,7 @@ export const rawAirlines = [
   { code: '8V', name: 'Astral Aviation', logo: '/assets/img/airlines/8V.png' },
   { code: '5H', name: 'Fly540', logo: '/assets/img/airlines/5H.png' },
   { code: 'KQ', name: 'Kenya Airways', logo: '/assets/img/airlines/KQ.png' },
+  { code: 'F2', name: 'Safarilink Aviation', logo: '/assets/img/airlines/F2.png' },
 
   // -- Kiribati --
   { code: '4A', name: 'Air Kiribati', logo: '/assets/img/airlines/4A.png' },
