@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { AuthContext } from "../../../context/AuthContext"; // Restored Real Context
+import { AuthContext } from "../../../context/AuthContext"; 
 import { Eye, EyeOff, Lock, Mail, CheckCircle, X, Globe, Zap, Headset, Star } from "lucide-react";
 
 /* ---------------- Component: Telegram Button ---------------- */
-// Kept inline to ensure design consistency, but wired to real logic below
 const TelegramLoginButton = ({ botUsername, onAuth }) => {
   const ref = useRef(null);
   useEffect(() => {
@@ -63,7 +62,7 @@ const BACKGROUND_IMAGES = [
 const Login = ({ 
   loginUrl = "/login", 
   signupUrl = "/signup",
-  resetPasswordUrl = "/api/forget_password" // Restored this prop
+  resetPasswordUrl = "/api/forget_password" 
 }) => {
   // 1. REAL HOOKS
   const { login, telegramLogin } = useContext(AuthContext);
@@ -74,7 +73,7 @@ const Login = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState("");
-  const [caps, setCaps] = useState(false); // Restored Caps Lock detection
+  const [caps, setCaps] = useState(false); 
 
   // Visual State
   const [currentBg, setCurrentBg] = useState(0);
@@ -95,7 +94,7 @@ const Login = ({
     return () => clearInterval(timer);
   }, []);
 
-  // 3. HANDLERS (Restored from Old Code)
+  // 3. HANDLERS 
   const onChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm(prev => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
@@ -117,10 +116,10 @@ const Login = ({
 
     setIsLoading(true);
     try {
-      // Real API Call
       const user = await login({ email: form.email, password: form.password, remember: form.remember });
       if (user?.role === "admin") navigate("/admin");
       else navigate("/dashboard");
+    
     } catch (err) {
       setError(err?.message || "Login failed. Please try again.");
     } finally {
@@ -130,6 +129,7 @@ const Login = ({
 
   const handleTelegramAuth = async (tgUser) => {
     try {
+      // Logic handles sending tgUser data to Laravel to verify hash
       const user = await telegramLogin(tgUser);
       if (user?.role === "admin") navigate("/admin");
       else navigate("/dashboard");
@@ -141,23 +141,17 @@ const Login = ({
   const handleResetSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    if (!resetEmail) {
-      // Small UI fix: show error if empty
-      return;
-    }
+    if (!resetEmail) return;
     
     setIsResetLoading(true);
     try {
-      // Simulate API or put your real API.post(resetPasswordUrl, ...) here
-      // Keeping the simulation from your old code logic, 
-      // but you should uncomment your API call if you have it.
+      // API call placeholder
       setTimeout(() => {
         setIsResetLoading(false);
         setResetSuccess(true);
       }, 1200);
     } catch (err) {
       setIsResetLoading(false);
-      // setError(err?.response?.data?.message || "Password reset failed.");
     }
   };
 
@@ -171,8 +165,6 @@ const Login = ({
           --text-sub: #6B7280;
           --border-color: #E5E7EB;
         }
-
-        /* --- Left Side (Form) Styles --- */
         .modern-input {
           height: 52px;
           border-radius: 0.75rem;
@@ -207,14 +199,11 @@ const Login = ({
           box-shadow: 0 8px 15px -3px rgba(246, 130, 33, 0.25);
         }
         .btn-brand:disabled { opacity: 0.7; transform: none; cursor: not-allowed; }
-        
         .split-layout { min-height: 100vh; display: flex; flex-wrap: wrap; font-family: 'Inter', sans-serif; overflow: hidden; }
         .split-left { 
           flex: 1 1 480px; background: white; padding: 2rem; 
           display: flex; flex-direction: column; justify-content: center; position: relative; z-index: 10;
         }
-
-        /* --- Right Side (Visuals) Styles --- */
         .split-right { 
           flex: 1 1 500px; 
           position: relative; 
@@ -385,7 +374,8 @@ const Login = ({
               <div className="divider"><span>{T.or}</span></div>
 
               <div className="mb-4">
-                <TelegramLoginButton botUsername="FlygasalOfiicial_bot" onAuth={handleTelegramAuth} />
+                {/* --- FIXED: UPDATED BOT USERNAME HERE --- */}
+                <TelegramLoginButton botUsername="Flygasal_bot" onAuth={handleTelegramAuth} />
               </div>
 
               <p className="text-center text-muted small mt-4">
@@ -401,7 +391,6 @@ const Login = ({
 
         {/* RIGHT PANEL: PRO DESIGN */}
         <div className="split-right">
-          
           {/* 1. Dynamic Background Slider */}
           {BACKGROUND_IMAGES.map((img, index) => (
             <div 
@@ -410,16 +399,11 @@ const Login = ({
               style={{ backgroundImage: `url(${img})` }}
             />
           ))}
-
           {/* 2. Gradient Overlay */}
           <div className="bg-overlay-pro"></div>
-
           {/* 3. Glass Content */}
           <div className="right-content-wrapper">
-            
             <div className="glass-panel">
-              
-              {/* Floating "Success" Widget */}
               <div className="floating-card">
                  <div className="bg-success rounded-circle d-flex align-items-center justify-content-center" style={{width: 24, height: 24}}>
                     <CheckCircle size={14} className="text-white" />
@@ -429,14 +413,10 @@ const Login = ({
                     <div className="text-muted" style={{fontSize: '0.65rem'}}>JED to LHR • Just now</div>
                  </div>
               </div>
-
-              {/* Main Text */}
               <div className="mb-5 position-relative">
                 <h2 className="display-6 fw-bold text-white mb-3" style={{ letterSpacing: '-0.5px' }}>{T.side_title}</h2>
                 <p className="text-white-50" style={{ fontSize: '1.05rem', lineHeight: 1.6 }}>{T.side_sub}</p>
               </div>
-
-              {/* Feature List */}
               <div className="d-flex flex-column">
                 <div className="feature-item">
                   <div className="feature-icon-wrapper"><Globe size={22} strokeWidth={2} /></div>
@@ -460,8 +440,6 @@ const Login = ({
                   </div>
                 </div>
               </div>
-
-              {/* Trust Badge */}
               <div className="mt-4 pt-4 border-top border-white border-opacity-10 d-flex align-items-center gap-2">
                  <div className="d-flex text-warning">
                     <Star size={16} fill="currentColor" />
