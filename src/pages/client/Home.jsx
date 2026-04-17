@@ -373,11 +373,12 @@ const Home = () => {
                                </div>
                                <ArrowUpRight className="text-slate-500 group-hover:text-white transition-colors" />
                            </a>
-                           <a href="#" className="flex items-center justify-between bg-white/10 hover:bg-white/20 p-4 rounded-2xl transition-all group">
+                           <a href="tel:+254111919901" className="flex items-center justify-between bg-white/10 hover:bg-white/20 p-4 rounded-2xl transition-all group">
                                <div className="flex items-center gap-4">
                                    <div className="bg-blue-500 p-2 rounded-full text-white"><Phone size={20} /></div>
                                    <div>
                                        <div className="font-bold text-sm text-white">Call Support</div>
+                                       <div className="text-xs text-slate-400">+254 01 11 91 9901</div>
                                        <div className="text-xs text-slate-400">Toll-free, 24/7</div>
                                    </div>
                                </div>
