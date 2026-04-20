@@ -345,7 +345,7 @@ export default function Settings() {
                <NavItem id="system" label="System" icon={Cog6ToothIcon} />
                <NavItem id="email" label="Email API" icon={EnvelopeIcon} />
                <NavItem id="pkfare" label="PKfare API" icon={PaperAirplaneIcon} />
-               <NavItem id="notification" label="Notifications" icon={BellIcon} />
+               {/* <NavItem id="notification" label="Notifications" icon={BellIcon} /> */}
             </div>
 
             {/* Main Content */}
