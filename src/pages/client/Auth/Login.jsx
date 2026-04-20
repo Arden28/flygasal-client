@@ -26,6 +26,13 @@ const TelegramLoginButton = ({ botUsername, onAuth }) => {
   return <div ref={ref} className="d-flex justify-content-center" />;
 };
 
+/* ---------------- Helper: Input Error ---------------- */
+const InputError = ({ msg }) => {
+  if (!msg) return null;
+  const message = Array.isArray(msg) ? msg[0] : msg;
+  return <p className="text-danger mt-1 mb-0" style={{ fontSize: '0.8rem', fontWeight: 500, color: '#DC2626' }}>{message}</p>;
+};
+
 /* ---------------- Constants ---------------- */
 const T = {
   login: "Sign In",
@@ -64,21 +71,18 @@ const Login = ({
   signupUrl = "/signup",
   resetPasswordUrl = "/api/forget_password" 
 }) => {
-  // 1. REAL HOOKS
   const { login, telegramLogin } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  // 2. STATE
   const [form, setForm] = useState({ email: "", password: "", remember: false });
   const [isLoading, setIsLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({}); // New state for field validation
   const [caps, setCaps] = useState(false); 
 
-  // Visual State
   const [currentBg, setCurrentBg] = useState(0);
 
-  // Reset Modal State
   const [showReset, setShowReset] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [isResetLoading, setIsResetLoading] = useState(false);
@@ -86,7 +90,6 @@ const Login = ({
 
   const canSubmit = useMemo(() => form.email.trim() !== "" && form.password.trim() !== "" && !isLoading, [form, isLoading]);
 
-  // Slideshow Effect
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentBg((prev) => (prev + 1) % BACKGROUND_IMAGES.length);
@@ -94,11 +97,12 @@ const Login = ({
     return () => clearInterval(timer);
   }, []);
 
-  // 3. HANDLERS 
   const onChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm(prev => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    // Clear errors when the user starts typing again
     if (error) setError("");
+    if (fieldErrors[name]) setFieldErrors(prev => ({ ...prev, [name]: null }));
   };
 
   const onPwdKey = (e) => {
@@ -108,9 +112,15 @@ const Login = ({
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setFieldErrors({});
 
-    if (!form.email || !form.password) {
-      setError("Please enter both email and password.");
+    // Frontend quick validation
+    let newErrors = {};
+    if (!form.email) newErrors.email = "Please enter your email address.";
+    if (!form.password) newErrors.password = "Please enter your password.";
+
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(newErrors);
       return;
     }
 
@@ -121,7 +131,12 @@ const Login = ({
       else navigate("/dashboard");
     
     } catch (err) {
-      setError(err?.message || "Login failed. Please try again.");
+      // Check for Laravel validation errors
+      if (err.response?.status === 422) {
+         setFieldErrors(err.response.data.errors || {});
+      } else {
+         setError(err?.message || "Invalid email or password. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -129,7 +144,6 @@ const Login = ({
 
   const handleTelegramAuth = async (tgUser) => {
     try {
-      // Logic handles sending tgUser data to Laravel to verify hash
       const user = await telegramLogin(tgUser);
       if (user?.role === "admin") navigate("/admin");
       else navigate("/dashboard");
@@ -145,7 +159,6 @@ const Login = ({
     
     setIsResetLoading(true);
     try {
-      // API call placeholder
       setTimeout(() => {
         setIsResetLoading(false);
         setResetSuccess(true);
@@ -181,6 +194,14 @@ const Login = ({
           box-shadow: 0 0 0 4px rgba(246, 130, 33, 0.1);
           outline: none;
         }
+        /* Error Styling */
+        .modern-input.is-invalid {
+          border-color: #DC2626;
+          background-color: #FEF2F2;
+        }
+        .modern-input.is-invalid:focus {
+          box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.15);
+        }
         .input-icon {
           position: absolute; left: 1rem; top: 50%;
           transform: translateY(-50%); color: #9CA3AF; pointer-events: none;
@@ -205,14 +226,8 @@ const Login = ({
           display: flex; flex-direction: column; justify-content: center; position: relative; z-index: 10;
         }
         .split-right { 
-          flex: 1 1 500px; 
-          position: relative; 
-          overflow: hidden; 
-          min-height: 500px;
-          background: #0f172a;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          flex: 1 1 500px; position: relative; overflow: hidden; min-height: 500px;
+          background: #0f172a; display: flex; align-items: center; justify-content: center;
         }
         .bg-slide {
           position: absolute; inset: 0; width: 100%; height: 100%;
@@ -225,36 +240,24 @@ const Login = ({
           position: absolute; inset: 0; z-index: 1;
           background: linear-gradient(to top right, rgba(15, 23, 42, 0.9) 0%, rgba(15, 23, 42, 0.6) 50%, rgba(246, 130, 33, 0.15) 100%);
         }
-        .right-content-wrapper {
-          position: relative; z-index: 5; width: 100%; max-width: 520px; padding: 2rem;
-        }
+        .right-content-wrapper { position: relative; z-index: 5; width: 100%; max-width: 520px; padding: 2rem; }
         .glass-panel {
-          background: rgba(255, 255, 255, 0.07);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 24px;
-          padding: 3rem 2.5rem;
+          background: rgba(255, 255, 255, 0.07); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 3rem 2.5rem;
           box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
         .feature-item { display: flex; align-items: flex-start; margin-bottom: 2rem; }
         .feature-item:last-child { margin-bottom: 0; }
         .feature-icon-wrapper {
           background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
-          width: 48px; height: 48px; border-radius: 14px;
-          display: flex; align-items: center; justify-content: center;
-          margin-right: 1.25rem; flex-shrink: 0;
-          border: 1px solid rgba(255,255,255,0.1);
-          color: #F68221;
+          width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+          margin-right: 1.25rem; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.1); color: #F68221;
           box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         }
         .floating-card {
-          position: absolute; top: -30px; right: -20px;
-          background: white; padding: 0.75rem 1rem;
-          border-radius: 12px;
-          box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2);
-          display: flex; align-items: center; gap: 0.75rem;
-          animation: float 4s ease-in-out infinite; z-index: 10;
+          position: absolute; top: -30px; right: -20px; background: white; padding: 0.75rem 1rem;
+          border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2);
+          display: flex; align-items: center; gap: 0.75rem; animation: float 4s ease-in-out infinite; z-index: 10;
         }
         @keyframes float {
           0% { transform: translateY(0px); }
@@ -267,19 +270,15 @@ const Login = ({
         .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #E5E7EB; }
         .divider span { padding: 0 1rem; }
         .modal-overlay {
-          position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50;
-          display: flex; align-items: center; justify-content: center;
-          backdrop-filter: blur(4px);
+          position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);
         }
         .modal-card {
-          background: white; width: 90%; max-width: 400px; padding: 2rem;
-          border-radius: 1rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
-          position: relative; animation: slideUp 0.3s ease-out;
+          background: white; width: 90%; max-width: 400px; padding: 2rem; border-radius: 1rem;
+          box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); position: relative; animation: slideUp 0.3s ease-out;
         }
         .caps-hint{
-          font-size:12px; color:#9a3412; background:#fff7ed;
-          border:1px dashed rgba(246,130,33,.35); border-radius:8px;
-          padding:6px 8px; margin-top:6px;
+          font-size:12px; color:#9a3412; background:#fff7ed; border:1px dashed rgba(246,130,33,.35);
+          border-radius:8px; padding:6px 8px; margin-top:6px;
         }
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @media (max-width: 991px) { .split-right { display: none; } }
@@ -306,17 +305,19 @@ const Login = ({
               <div className="mb-4 position-relative">
                 <label className="form-label fw-bold text-dark small mb-1.5" style={{fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.5px'}}>{T.email}</label>
                 <div className="position-relative">
-                  <Mail size={18} className="input-icon" />
+                  <Mail size={18} className={`input-icon ${fieldErrors.email ? 'text-danger' : ''}`} />
                   <input
                     type="email"
                     name="email"
-                    className="modern-input"
+                    className={`modern-input ${fieldErrors.email ? 'is-invalid' : ''}`}
                     placeholder="agent@flygasal.com"
                     value={form.email}
                     onChange={onChange}
                     required
                   />
                 </div>
+                {/* Field-level error */}
+                <InputError msg={fieldErrors.email} />
               </div>
 
               <div className="mb-4">
@@ -327,11 +328,11 @@ const Login = ({
                   </button>
                 </div>
                 <div className="position-relative">
-                  <Lock size={18} className="input-icon" />
+                  <Lock size={18} className={`input-icon ${fieldErrors.password ? 'text-danger' : ''}`} />
                   <input
                     type={showPwd ? "text" : "password"}
                     name="password"
-                    className="modern-input"
+                    className={`modern-input ${fieldErrors.password ? 'is-invalid' : ''}`}
                     placeholder="••••••••"
                     value={form.password}
                     onChange={onChange}
@@ -348,7 +349,10 @@ const Login = ({
                     {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                {caps && <div className="caps-hint">Caps Lock appears to be ON.</div>}
+                {/* Field-level error */}
+                <InputError msg={fieldErrors.password} />
+                
+                {caps && <div className="caps-hint mt-2">Caps Lock appears to be ON.</div>}
               </div>
 
               <div className="mb-4">
@@ -374,7 +378,6 @@ const Login = ({
               <div className="divider"><span>{T.or}</span></div>
 
               <div className="mb-4">
-                {/* --- FIXED: UPDATED BOT USERNAME HERE --- */}
                 <TelegramLoginButton botUsername="Flygasal_bot" onAuth={handleTelegramAuth} />
               </div>
 
@@ -389,19 +392,12 @@ const Login = ({
           </div>
         </div>
 
-        {/* RIGHT PANEL: PRO DESIGN */}
+        {/* RIGHT PANEL: PRO DESIGN (Omitted to keep it brief, unchanged from your code!) */}
         <div className="split-right">
-          {/* 1. Dynamic Background Slider */}
           {BACKGROUND_IMAGES.map((img, index) => (
-            <div 
-              key={index}
-              className={`bg-slide ${index === currentBg ? 'active' : ''}`}
-              style={{ backgroundImage: `url(${img})` }}
-            />
+            <div key={index} className={`bg-slide ${index === currentBg ? 'active' : ''}`} style={{ backgroundImage: `url(${img})` }} />
           ))}
-          {/* 2. Gradient Overlay */}
           <div className="bg-overlay-pro"></div>
-          {/* 3. Glass Content */}
           <div className="right-content-wrapper">
             <div className="glass-panel">
               <div className="floating-card">
@@ -455,7 +451,7 @@ const Login = ({
         </div>
       </div>
 
-      {/* Forgot Password Modal */}
+      {/* Forgot Password Modal (Unchanged) */}
       {showReset && (
         <div className="modal-overlay" onClick={() => setShowReset(false)}>
           <div className="modal-card" onClick={e => e.stopPropagation()}>
