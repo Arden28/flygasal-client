@@ -93,6 +93,7 @@ export default function Sidebar({
            <button onClick={toggleSidebar} className="md:hidden ml-auto p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
               <XMarkIcon className="h-5 w-5" />
            </button>
+           
         </div>
 
         {/* 2. Scrollable Nav */}
