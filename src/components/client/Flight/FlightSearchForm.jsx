@@ -97,10 +97,12 @@ const clampToToday = (d) => (d < today ? today : d);
 
 const toCabinCode = (raw) => {
   const s = String(raw || "").trim().toUpperCase().replace(/\s+/g, "_");
+  
   if (s.includes("PREMIUM") && s.includes("ECONOMY")) return "PremiumEconomy";
-  if (s.startsWith("BUSI")) return "BUSINESS";
-  if (s.startsWith("FIR")) return "FIRST";
-  return "Economy";
+  if (s.startsWith("BUSI")) return "Business";
+  if (s.startsWith("FIR")) return "First";
+  
+  return "Economy"; // Default fallback
 };
 
 const CABIN_OPTIONS = [
