@@ -19,35 +19,92 @@ import confetti from "canvas-confetti";
 const money = (n, c = "USD") => (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency: c });
 
 const StatusChip = ({ status }) => {
-    // Exact mapping from your legacy code to new UI
-    const config = {
-        ISSED: { bg: "bg-green-100", text: "text-green-700", label: "Ticket Issued", icon: Check },
-        PAID: { bg: "bg-green-100", text: "text-green-700", label: "Paid", icon: Check },
-        CHGD: { bg: "bg-green-100", text: "text-green-700", label: "Changed", icon: Check },
-        
-        TO_BE_PAID: { bg: "bg-amber-100", text: "text-amber-700", label: "Payment Required", icon: Clock },
-        CHG_TO_BE_PAID: { bg: "bg-amber-100", text: "text-amber-700", label: "Change Unpaid", icon: Clock },
-        TO_BE_RSV: { bg: "bg-amber-100", text: "text-amber-700", label: "To Be Reserved", icon: Clock },
-        
-        ISS_PRC: { bg: "bg-blue-100", text: "text-blue-700", label: "Issuing...", icon: Loader2 },
-        CHG_PRC: { bg: "bg-blue-100", text: "text-blue-700", label: "Processing Change", icon: Loader2 },
-        UNDER_REVIEW: { bg: "bg-blue-100", text: "text-blue-700", label: "Under Review", icon: Loader2 },
-        
-        CNCL: { bg: "bg-red-100", text: "text-red-700", label: "Cancelled", icon: XCircle },
-        RSV_FAIL: { bg: "bg-red-100", text: "text-red-700", label: "Failed", icon: XCircle },
-        REFD: { bg: "bg-purple-100", text: "text-purple-700", label: "Refunded", icon: RefreshCcw },
-        VOID: { bg: "bg-purple-100", text: "text-purple-700", label: "Voided", icon: RefreshCcw },
+    // 1. First, map the raw PKFare code to your human-readable phrasing
+    const phraseMap = {
+        'ISS_PRC': 'Issuing...',
+        'CHG_PRC': 'Changing',
+        'REFD_PRC': 'Refunding',
+        'VOID_PRC': 'Voiding',
+        'TO_BE_PAID': 'Pending Payment',
+        'ISSED': 'Issued',
+        'TO_BE_RSV': 'Pending Reservation',
+        'UNDER_REVIEW': 'Under Review',
+        'HOLD': 'On Hold',
+        'RSV_FAIL': 'Reservation Failed',
+        'CLOSED': 'Closed',
+        'CNCL': 'Cancelled',
+        'CNCL_TO_BE_REIM': 'Cancelled Reimbursing',
+        'CNCL_REIMED': 'Cancelled Reimbursed',
+        'CHG_RQ': 'Change Requested',
+        'CHG_TO_BE_PAID': 'Change Pending Payment',
+        'CHG_REJ': 'Change Rejected',
+        'CHGD': 'Changed',
+        'REDF_RQ': 'Refund Requested',
+        'REFD_REJ': 'Refund Rejected',
+        'REFD_TO_BE_REIM': 'Refund Reimbursing',
+        'REFD_REIMED': 'Refund Reimbursed',
+        'REFD': 'Refunded',
+        'VOID_REJ': 'Void Rejected',
+        'VOID_TO_BE_REIM': 'Void Reimbursing',
+        'VOID_REIMED': 'Void Reimbursed',
+        'VOID': 'Voided',
+        'PAID': 'Paid', // Custom UI status
     };
 
-    let theme = config[status] || { bg: "bg-slate-100", text: "text-slate-600", label: status || "Unknown", icon: FileText };
-    if (status?.includes("PRC") && !config[status]) theme = config.ISS_PRC;
+    // 2. Define the visual theme and icon based on the raw code
+    const themeConfig = {
+        // Success states (Green)
+        ISSED: { bg: "bg-green-100", text: "text-green-700", icon: Check },
+        PAID: { bg: "bg-green-100", text: "text-green-700", icon: Check },
+        CHGD: { bg: "bg-green-100", text: "text-green-700", icon: Check },
+        
+        // Pending/Waiting states (Amber)
+        TO_BE_PAID: { bg: "bg-amber-100", text: "text-amber-700", icon: Clock },
+        CHG_TO_BE_PAID: { bg: "bg-amber-100", text: "text-amber-700", icon: Clock },
+        TO_BE_RSV: { bg: "bg-amber-100", text: "text-amber-700", icon: Clock },
+        HOLD: { bg: "bg-amber-100", text: "text-amber-700", icon: Clock },
+        
+        // Processing states (Blue)
+        ISS_PRC: { bg: "bg-blue-100", text: "text-blue-700", icon: Loader2 },
+        CHG_PRC: { bg: "bg-blue-100", text: "text-blue-700", icon: Loader2 },
+        REFD_PRC: { bg: "bg-blue-100", text: "text-blue-700", icon: Loader2 },
+        VOID_PRC: { bg: "bg-blue-100", text: "text-blue-700", icon: Loader2 },
+        UNDER_REVIEW: { bg: "bg-blue-100", text: "text-blue-700", icon: Loader2 },
+        CHG_RQ: { bg: "bg-blue-100", text: "text-blue-700", icon: Loader2 },
+        REDF_RQ: { bg: "bg-blue-100", text: "text-blue-700", icon: Loader2 },
+        
+        // Failure/Cancelled states (Red)
+        CNCL: { bg: "bg-red-100", text: "text-red-700", icon: XCircle },
+        RSV_FAIL: { bg: "bg-red-100", text: "text-red-700", icon: XCircle },
+        CLOSED: { bg: "bg-red-100", text: "text-red-700", icon: XCircle },
+        CHG_REJ: { bg: "bg-red-100", text: "text-red-700", icon: XCircle },
+        REFD_REJ: { bg: "bg-red-100", text: "text-red-700", icon: XCircle },
+        VOID_REJ: { bg: "bg-red-100", text: "text-red-700", icon: XCircle },
+        
+        // Post-Failure processing (Purple)
+        REFD: { bg: "bg-purple-100", text: "text-purple-700", icon: RefreshCcw },
+        VOID: { bg: "bg-purple-100", text: "text-purple-700", icon: RefreshCcw },
+        CNCL_TO_BE_REIM: { bg: "bg-purple-100", text: "text-purple-700", icon: RefreshCcw },
+        CNCL_REIMED: { bg: "bg-purple-100", text: "text-purple-700", icon: RefreshCcw },
+        REFD_TO_BE_REIM: { bg: "bg-purple-100", text: "text-purple-700", icon: RefreshCcw },
+        REFD_REIMED: { bg: "bg-purple-100", text: "text-purple-700", icon: RefreshCcw },
+        VOID_TO_BE_REIM: { bg: "bg-purple-100", text: "text-purple-700", icon: RefreshCcw },
+        VOID_REIMED: { bg: "bg-purple-100", text: "text-purple-700", icon: RefreshCcw },
+    };
 
+    // 3. Fallbacks
+    let theme = themeConfig[status] || { bg: "bg-slate-100", text: "text-slate-600", icon: FileText };
+    // Catch-all for any missed Processing states
+    if (status?.includes("PRC") && !themeConfig[status]) theme = themeConfig.ISS_PRC;
+
+    const label = phraseMap[status] || status || "Unknown";
     const Icon = theme.icon;
 
     return (
-        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${theme.bg} ${theme.text}`}>
-            <Icon size={14} />
-            {theme.label}
+        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-wide ${theme.bg} ${theme.text}`}>
+            <Icon size={14} className={theme.icon === Loader2 ? "animate-spin" : ""} />
+            {/* Displaying the human-readable label */}
+            {label}
         </span>
     );
 };
@@ -306,30 +363,35 @@ export default function BookingConfirmation() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
          
-         {/* 1. Status & Timer Banner */}
+        {/* 1. Status & Timer Banner */}
          <div className={`mb-8 p-5 rounded-3xl border flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm ${
-            isPaid ? "bg-emerald-50 border-emerald-100" : 
+            isPaid && (orderStatus === 'ISSED' || orderStatus === 'ISSUED') ? "bg-emerald-50 border-emerald-100" : 
             requiresPayment ? "bg-amber-50 border-amber-100" : 
             "bg-white border-slate-200"
          }`}>
             <div className="flex items-start gap-4">
                 <div className={`p-3 rounded-2xl ${
-                    isPaid ? "bg-emerald-100 text-emerald-600" : 
+                    isPaid && (orderStatus === 'ISSED' || orderStatus === 'ISSUED') ? "bg-emerald-100 text-emerald-600" : 
                     requiresPayment ? "bg-amber-100 text-amber-600" : 
                     "bg-slate-100 text-slate-500"
                 }`}>
-                    {isPaid ? <Check size={24} strokeWidth={3} /> : requiresPayment ? <Clock size={24} strokeWidth={3} /> : <FileText size={24} />}
+                    {isPaid && (orderStatus === 'ISSED' || orderStatus === 'ISSUED') ? <Check size={24} strokeWidth={3} /> : requiresPayment ? <Clock size={24} strokeWidth={3} /> : <FileText size={24} />}
                 </div>
-                <div>
-                    <h3 className={`text-lg font-bold ${isPaid ? "text-emerald-900" : requiresPayment ? "text-amber-900" : "text-slate-900"}`}>
-                        {isPaid ? "Booking Confirmed & Ticketed" : requiresPayment ? "Payment Required" : `Status: ${orderStatus}`}
-                    </h3>
-                    <p className={`text-sm mt-1 ${isPaid ? "text-emerald-700" : requiresPayment ? "text-amber-700" : "text-slate-500"}`}>
-                        {isPaid 
-                           ? "Your e-ticket has been issued. You can download it below." 
-                           : requiresPayment 
+                <div className="flex flex-col justify-center">
+                    <div className="flex items-center gap-3">
+                        <h3 className={`text-lg font-bold ${isPaid && (orderStatus === 'ISSED' || orderStatus === 'ISSUED') ? "text-emerald-900" : requiresPayment ? "text-amber-900" : "text-slate-900"}`}>
+                            {requiresPayment ? "Payment Required" : "Order Status:"}
+                        </h3>
+                        {/* ALWAYS SHOW THE CHIP UNLESS THEY NEED TO PAY RIGHT NOW */}
+                        {!requiresPayment && <StatusChip status={orderStatus} />}
+                    </div>
+                    
+                    <p className={`text-sm mt-1 ${isPaid && (orderStatus === 'ISSED' || orderStatus === 'ISSUED') ? "text-emerald-700" : requiresPayment ? "text-amber-700" : "text-slate-500"}`}>
+                        {requiresPayment 
                            ? `Please complete payment within ${formatTimer(secondsLeft)} to secure your seat.` 
-                           : "Your booking status is currently updating."
+                           : (orderStatus === 'ISSED' || orderStatus === 'ISSUED')
+                           ? "Your e-ticket has been issued. You can download it below." 
+                           : "Your booking is currently processing or updating."
                         }
                     </p>
                 </div>
