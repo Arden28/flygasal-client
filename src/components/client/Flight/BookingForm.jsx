@@ -146,7 +146,7 @@ const BookingForm = ({
           <PassengerDetailsCard formData={draftForm} handleFormChange={bufferedFormChange} adults={adults} children={children} infants={infants} addTraveler={addTraveler} removeTraveler={removeTraveler} countries={countries} months={months} days={days} dobYears={dobYears} issuanceYears={issuanceYears} expiryYears={expiryYears} getAirlineLogo={getAirlineLogo} getPassengerSummary={getPassengerSummary} />
           <ContactDetailsCard formData={draftForm} handleFormChange={bufferedFormChange} />
           <PaymentSelectionCard formData={draftForm} handleFormChange={bufferedFormChange} isFormValid={isFormValid} totalPrice={totalPrice} />
-          <PriceBreakdownCard formData={draftForm} totalPrice={totalPrice} isAgent={isAgent} agentMarkupPercent={agentMarkupPercent} currency={currency} />
+          <PriceBreakdownCard tripDetails={tripDetails} formData={draftForm} totalPrice={totalPrice} isAgent={isAgent} agentMarkupPercent={agentMarkupPercent} currency={currency} />
 
           <p className="mt-1 text-xs sm:text-sm text-slate-500 leading-relaxed">
             By clicking the <b>“Book now”</b> button above you confirm you have read and accepted the{" "}

@@ -101,6 +101,7 @@ export default function BookingConfirmation() {
             // FIX: flygasalService returns res.data directly, so we check .booking or .data.booking
             const actualBookingData = resBooking?.booking || resBooking?.data?.booking;
 
+            console.info('Fetched booking data:', actualBookingData);
             if (actualBookingData) {
                 setBookingData(actualBookingData);
                 setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(window.location.href)}`);
@@ -142,6 +143,7 @@ export default function BookingConfirmation() {
   // Calculate Base and Markup Amount
   const baseAmount = Number(solutions0?.buyerAmount ?? bookingData?.buyerAmount ?? 0);
   const markupAmount = +(baseAmount * (agentMarkupPercent / 100)).toFixed(2);
+//   const amountDue = baseAmount;
   const amountDue = baseAmount + markupAmount;
   
   // Safe date handling (Booking Date)
@@ -388,7 +390,7 @@ export default function BookingConfirmation() {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-4 text-xs text-slate-600">
-                                                <span className="bg-white px-2 py-1 rounded border border-slate-200">{seg.cabin || "Economy"}</span>
+                                                <span className="bg-white px-2 py-1 rounded border border-slate-200">{seg.cabinClass || "Economy"}</span>
                                                 <div className="flex items-center gap-1">
                                                     <Luggage size={12} /> 
                                                     <span>{seg.checkedBaggage || "Check rules"}</span>
@@ -400,7 +402,7 @@ export default function BookingConfirmation() {
                                         <div className="flex justify-between items-start px-2">
                                             {/* Origin */}
                                             <div className="text-left min-w-[100px]">
-                                                <div className="text-2xl font-black text-slate-900">{formatDate(seg.departureDate)}</div>
+                                                <div className="text-xl font-semibold text-slate-900">{formatDate(seg.departureDate)}</div>
                                                 <div className="text-xs text-slate-500 mt-1 max-w-[120px]">{seg.departureTime}</div>
                                                 <div className="text-lg font-bold text-[#EB7313]">{seg.departure}</div>
                                                 <div className="text-xs text-slate-500 mt-1 max-w-[120px]">{getAirportName(seg.departure)}</div>
@@ -422,7 +424,7 @@ export default function BookingConfirmation() {
 
                                             {/* Destination */}
                                             <div className="text-right min-w-[100px]">
-                                                <div className="text-2xl font-black text-slate-900">{formatDate(seg.arrivalDate)}</div>
+                                                <div className="text-xl font-semibold text-slate-900">{formatDate(seg.arrivalDate)}</div>
                                                 <div className="text-xs text-slate-500 mt-1 max-w-[120px]">{seg.arrivalTime}</div>
                                                 <div className="text-lg font-bold text-[#EB7313]">{seg.arrival}</div>
                                                 <div className="text-xs text-slate-500 mt-1 max-w-[120px] ml-auto">{getAirportName(seg.arrival)}</div>

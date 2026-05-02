@@ -350,6 +350,7 @@ const BookingDetail = () => {
           legs: preciseOffer.summary?.legs || [],
 
           totalPrice: preciseOffer.priceBreakdown?.totals?.grand || 0,
+          priceBreakdown: preciseOffer.priceBreakdown,
           cancellation_policy: "Non-refundable after 24 hours. Cancellations within 24 hours of booking are refundable with a $50 fee.",
         });
 

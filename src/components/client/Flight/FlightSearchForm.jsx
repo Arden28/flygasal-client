@@ -12,7 +12,6 @@ import { format, addDays, startOfToday, isValid } from "date-fns";
 /* --------------------- portal + anchor rect helpers --------------------- */
 function Portal({ children }) {
   const [mountNode, setMountNode] = useState(null);
-  // mount synchronously to avoid a 1-frame flicker
   useLayoutEffect(() => {
     setMountNode(document?.body || null);
   }, []);
@@ -25,7 +24,7 @@ function useAnchorRect(ref, enabled) {
 
   useLayoutEffect(() => {
     if (!enabled || !ref.current) {
-        setRect(null); // Clear rect when disabled
+        setRect(null); 
         return;
     }
 
@@ -34,11 +33,8 @@ function useAnchorRect(ref, enabled) {
       if (!el) return;
       const r = el.getBoundingClientRect();
       
-      // Ensure we have a valid rect before updating
       if (r.width > 0 && r.height > 0) {
         setRect((prev) => {
-          // STRICT EQUALITY CHECK: Breaks the infinite render loop!
-          // If the position hasn't actually changed, return the exact same object reference.
           if (
             prev &&
             prev.top === r.top &&
@@ -65,7 +61,6 @@ function useAnchorRect(ref, enabled) {
       });
     };
 
-    // initial measure
     measure();
     const timeout = setTimeout(measure, 50);
 
@@ -82,27 +77,35 @@ function useAnchorRect(ref, enabled) {
   return rect;
 }
 
-
 /* --------------------- utils --------------------- */
 const MAX_TRAVELLERS = 9;
 const DEFAULT_MENU_COUNT = 30;
 const SEARCH_LIMIT = 120;
 
 const today = startOfToday();
+
+// Ensure YYYY-MM-DD is parsed safely in local timezone to avoid -1 day shifts
 const safeParseDate = (value, fallback = today) => {
-  const d = value ? new Date(value) : null;
+  if (!value) return fallback;
+  if (typeof value === "string") {
+      const [y, m, d] = value.split("T")[0].split("-");
+      if (y && m && d) {
+          const date = new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
+          return isValid(date) ? date : fallback;
+      }
+  }
+  const d = new Date(value);
   return d && isValid(d) ? d : fallback;
 };
+
 const clampToToday = (d) => (d < today ? today : d);
 
 const toCabinCode = (raw) => {
   const s = String(raw || "").trim().toUpperCase().replace(/\s+/g, "_");
-  
   if (s.includes("PREMIUM") && s.includes("ECONOMY")) return "PremiumEconomy";
   if (s.startsWith("BUSI")) return "Business";
   if (s.startsWith("FIR")) return "First";
-  
-  return "Economy"; // Default fallback
+  return "Economy"; 
 };
 
 const CABIN_OPTIONS = [
@@ -254,7 +257,7 @@ export default function FlightSearchForm({
   const [tripType, setTripType] = useState("oneway"); 
   const [flightType, setFlightType] = useState("ECONOMY");
   const [flightsState, setFlightsState] = useState([
-    { origin: null, destination: null, dateRange: { startDate: today, endDate: addDays(today, 5), key: "selection" } },
+    { origin: null, destination: null, dateRange: { startDate: today, endDate: today, key: "selection" } },
   ]);
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
@@ -333,7 +336,7 @@ useEffect(() => {
 
   // 4) Other params 
   const flightTypeRaw = searchParams?.flightType || qp.get("flightType") || "Economy";
-  const retDateRaw = tripTypeEff === "return" ? searchParams?.returnDate || qp.get("returnDate") || format(addDays(today, 5), "yyyy-MM-dd") : null;
+  const retDateRaw = tripTypeEff === "return" ? searchParams?.returnDate || qp.get("returnDate") : null;
 
   const adults = Number.parseInt(searchParams?.adults ?? qp.get("adults") ?? "1", 10) || 1;
   const children = Number.parseInt(searchParams?.children ?? qp.get("children") ?? "0", 10) || 0;
@@ -348,8 +351,9 @@ useEffect(() => {
     const start = clampToToday(safeParseDate(f?.depart));
     let end = start;
     if (tripTypeEff === "return" && i === 0) {
-      const fallback = addDays(start, 5);
-      const rtn = clampToToday(safeParseDate(retDateRaw, fallback));
+      const fallback = addDays(start, 5); 
+      // If a returnDate isn't in URL, use fallback strictly relative to the start date
+      const rtn = retDateRaw ? clampToToday(safeParseDate(retDateRaw, fallback)) : fallback;
       end = rtn < start ? start : rtn;
     }
     const originObj = f?.origin ? airports.find((a) => a.value === f.origin) || null : null;
@@ -368,32 +372,30 @@ useEffect(() => {
   setInfants(infants);
 }, [searchParams, location.search]);
 
-
-  useEffect(() => {
+  // Trip Type Change Handler (Replacing the unstable useEffect)
+  const handleTripTypeChange = (newType) => {
+    setTripType(newType);
     setOpenCal(null);
-    if (tripType === "oneway") {
+    if (newType === "oneway") {
       setFlightsState((prev) => {
-        const first = { ...(prev[0] || {
-          origin: null, destination: null, dateRange: { startDate: today, endDate: today, key: "selection" }
-        }) };
+        const first = { ...(prev[0] || { origin: null, destination: null, dateRange: { startDate: today, endDate: today, key: "selection" } }) };
         first.dateRange = { ...first.dateRange, endDate: first.dateRange.startDate };
         return [first];
       });
-    } else if (tripType === "return") {
+    } else if (newType === "return") {
       setFlightsState((prev) => {
-        const first = { ...(prev[0] || {
-          origin: null, destination: null, dateRange: { startDate: today, endDate: addDays(today, 5), key: "selection" }
-        }) };
-        if ((first.dateRange.endDate || first.dateRange.startDate) < first.dateRange.startDate) {
-          first.dateRange.endDate = first.dateRange.startDate;
+        const first = { ...(prev[0] || { origin: null, destination: null, dateRange: { startDate: today, endDate: addDays(today, 5), key: "selection" } }) };
+        // Ensure a realistic gap if we are switching from One-Way back to Return
+        if (!first.dateRange.endDate || first.dateRange.endDate.getTime() <= first.dateRange.startDate.getTime()) {
+          first.dateRange.endDate = addDays(first.dateRange.startDate || today, 5);
         }
         return [first];
       });
-    } else if (tripType === "multi") {
+    } else if (newType === "multi") {
       setFlightsState((prev) => {
-        const base = prev.length ? prev : [
-          { origin: null, destination: null, dateRange: { startDate: today, endDate: today, key: "selection" } },
-          { origin: null, destination: null, dateRange: { startDate: addDays(today, 1), endDate: addDays(today, 1), key: "selection" } },
+        const base = prev.length >= 2 ? prev : [
+          prev[0] || { origin: null, destination: null, dateRange: { startDate: today, endDate: today, key: "selection" } },
+          { origin: null, destination: null, dateRange: { startDate: addDays(prev[0]?.dateRange?.startDate || today, 1), endDate: addDays(prev[0]?.dateRange?.startDate || today, 1), key: "selection" } },
         ];
         return base.map((f) => ({
           ...f,
@@ -401,7 +403,7 @@ useEffect(() => {
         }));
       });
     }
-  }, [tripType]);
+  };
 
   const travellerSummary = useMemo(() => {
     const p = [];
@@ -427,7 +429,15 @@ useEffect(() => {
     setFlightsState((prev) =>
       prev.map((f, i) => {
         if (i !== idx) return f;
-        const end = tripType === "return" && idx === 0 ? (f.dateRange.endDate < start ? start : f.dateRange.endDate) : start;
+        let end = f.dateRange.endDate;
+        if (tripType === "return" && idx === 0) {
+            // Smart gap: If standard departure completely bypasses current return date, push the return date forward intelligently
+            if (!end || end < start) {
+                end = addDays(start, 5);
+            }
+        } else {
+            end = start;
+        }
         return { ...f, dateRange: { ...f.dateRange, startDate: start, endDate: end } };
       })
     );
@@ -684,7 +694,7 @@ useEffect(() => {
                 ? "bg-[#F58220] text-white"
                 : "text-gray-800 hover:bg-gray-100"
             }`}
-            onClick={() => setTripType(type.value)}
+            onClick={() => handleTripTypeChange(type.value)}
             aria-pressed={tripType === type.value}
           >
             {type.label}
@@ -755,7 +765,6 @@ useEffect(() => {
                 ) : (
                   travellersRect && (
                     <Portal>
-                      {/* FIX: Swapped onMouseDown for onClick with stopPropagation */}
                       <div
                         className="fixed inset-0 z-[99990]"
                         onClick={(e) => { 
@@ -814,7 +823,6 @@ useEffect(() => {
             <AnimatePresence>
                 {isCabinOpen && cabinRect && (
                   <Portal>
-                    {/* FIX: Swapped onMouseDown for onClick with stopPropagation */}
                     <div
                       className="fixed inset-0 z-[99990]"
                       onClick={(e) => {
@@ -832,7 +840,7 @@ useEffect(() => {
                           {CABIN_OPTIONS.map((o) => (
                               <button
                                   key={o.value}
-                                  type="button" // Ensure this button doesn't trigger form submit
+                                  type="button" 
                                   onClick={() => {
                                       setFlightType(o.value);
                                       setIsCabinOpen(false);
@@ -886,7 +894,7 @@ useEffect(() => {
                     ? "bg-[#F58220] text-white"
                     : "text-gray-800 hover:bg-gray-100"
                 }`}
-                onClick={() => setTripType(type.value)}
+                onClick={() => handleTripTypeChange(type.value)}
                 aria-pressed={tripType === type.value}
               >
                 {type.label}
@@ -1141,7 +1149,6 @@ useEffect(() => {
               <AnimatePresence>
                 {openCal?.type === "depart" && departRect && (
                   <Portal>
-                    {/* FIX: Swapped onMouseDown for onClick */}
                     <div
                       className="fixed inset-0 z-[99990]"
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenCal(null); }}
@@ -1203,7 +1210,6 @@ useEffect(() => {
                 <AnimatePresence>
                   {openCal?.type === "return" && returnRect && (
                     <Portal>
-                      {/* FIX: Swapped onMouseDown for onClick */}
                       <div
                         className="fixed inset-0 z-[99990]"
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenCal(null); }}
@@ -1268,7 +1274,7 @@ useEffect(() => {
           </div>
         ) : (
           <div>
-            {/* MULTI-CITY: no hooks in the loop; measure rect on click */}
+            {/* MULTI-CITY */}
             {flightsState.map((leg, idx) => {
               const legDateLabel = leg?.dateRange?.startDate ? format(leg.dateRange.startDate, "EEE d MMM") : "Select date";
               const rectForThisLeg = openCal?.type === "depart" && openCal?.idx === idx ? openCal.rect : null;
@@ -1367,7 +1373,6 @@ useEffect(() => {
                     <AnimatePresence>
                       {openCal?.type === "depart" && openCal?.idx === idx && rectForThisLeg && (
                         <Portal>
-                          {/* FIX: Swapped onMouseDown for onClick */}
                           <div
                             className="fixed inset-0 z-[99990]"
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenCal(null); }}
