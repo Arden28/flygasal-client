@@ -97,7 +97,7 @@ const clampToToday = (d) => (d < today ? today : d);
 
 const toCabinCode = (raw) => {
   const s = String(raw || "").trim().toUpperCase().replace(/\s+/g, "_");
-  if (s.includes("PREMIUM") && s.includes("ECONOMY")) return "PREMIUM_ECONOMY";
+  if (s.includes("PREMIUM") && s.includes("ECONOMY")) return "PremiumEconomy";
   if (s.startsWith("BUSI")) return "BUSINESS";
   if (s.startsWith("FIR")) return "FIRST";
   return "Economy";
@@ -105,9 +105,9 @@ const toCabinCode = (raw) => {
 
 const CABIN_OPTIONS = [
   { value: "Economy", label: "Economy" },
-  { value: "PREMIUM_ECONOMY", label: "Premium Economy" },
-  { value: "BUSINESS", label: "Business" },
-  { value: "FIRST", label: "First" },
+  { value: "PremiumEconomy", label: "Premium Economy" },
+  { value: "Business", label: "Business" },
+  { value: "First", label: "First" },
 ];
 
 const useMedia = (query) => {
@@ -867,7 +867,187 @@ useEffect(() => {
 
       <div className="relative">
         {/* Top controls */}
-        <TopControls />
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+
+          {/* Trip type buttons */}
+          <div className="inline-flex rounded-full bg-white/90 p-1">
+            {[
+              { label: "One way", value: "oneway" },
+              { label: "Return", value: "return" },
+              { label: "Multi-city", value: "multi" },
+            ].map((type) => (
+              <button
+                key={type.value}
+                type="button"
+                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                  tripType === type.value
+                    ? "bg-[#F58220] text-white"
+                    : "text-gray-800 hover:bg-gray-100"
+                }`}
+                onClick={() => setTripType(type.value)}
+                aria-pressed={tripType === type.value}
+              >
+                {type.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Travellers */}
+            <div className="relative text-black">
+              <button
+                ref={travellersBtnRef}
+                type="button"
+                  onClick={() => {
+                    setIsCabinOpen(false);
+                    setIsTravellersOpen((v) => !v);
+                    setTravellersMode(isTravellersOpen ? null : isMobile ? "mobile" : "desktop");
+                  }}
+                className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-800 hover:bg-gray-200"
+                aria-expanded={isTravellersOpen}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-800">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                <span className="text-slate-800">{travellerSummary}</span>
+              </button>
+
+              <AnimatePresence>
+                {isTravellersOpen &&
+                  (travellersMode === "mobile" ? (
+                    <Portal>
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100000] flex flex-col bg-white">
+                        <div className="flex items-center justify-between border-b border-slate-200 p-3">
+                          <div className="text-sm font-medium text-slate-800">Travellers</div>
+                          <span className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-800 cursor-pointer" onClick={() => { setIsTravellersOpen(false); setTravellersMode(null); }}>Close</span>
+                        </div>
+                        <div className="flex-1 overflow-auto p-4">
+                          {[
+                            { key: "Adults", sub: "+12 years", value: adults, set: setAdults, min: 1 },
+                            { key: "Children", sub: "2–11 years", value: children, set: setChildren, min: 0 },
+                            { key: "Infants", sub: "0–2 years", value: infants, set: setInfants, min: 0 },
+                          ].map((row) => (
+                            <div key={row.key} className="mb-4 flex items-center justify-between">
+                              <div>
+                                <div className="font-medium text-slate-800">{row.key}</div>
+                                <div className="text-xs text-slate-500">{row.sub}</div>
+                              </div>
+                              <div className="inline-flex items-center gap-3">
+                                <button type="button" className="h-10 w-10 rounded-full border border-slate-300 text-slate-800" onClick={() => setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)}>–</button>
+                                <span className="w-8 text-center text-sm text-slate-800">{row.value}</span>
+                                <button type="button" className="h-10 w-10 rounded-full border border-slate-300 text-slate-800" onClick={() => setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)}>+</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="border-t border-slate-200 p-3">
+                          <span className="w-full cursor-pointer text-center block rounded-lg bg-slate-900 py-3 text-sm text-white" onClick={() => { setIsTravellersOpen(false); setTravellersMode(null); }}>Done</span>
+                        </div>
+                      </motion.div>
+                    </Portal>
+                  ) : (
+                    travellersRect && (
+                      <Portal>
+                        <div
+                          className="fixed inset-0 z-[99990]"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsTravellersOpen(false);
+                            setTravellersMode(null);
+                          }}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          style={{ position: "fixed", top: travellersRect.bottom + 8, left: Math.min(travellersRect.left, Math.max(16, window.innerWidth - 352 - 16)), width: "min(96vw, 22rem)", zIndex: 100000 }}
+                        >
+                          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-2xl">
+                            {[
+                              { key: "Adults", sub: "+12 years", value: adults, set: setAdults, min: 1 },
+                              { key: "Children", sub: "2–11 years", value: children, set: setChildren, min: 0 },
+                              { key: "Infants", sub: "0–2 years", value: infants, set: setInfants, min: 0 },
+                            ].map((row) => (
+                              <div key={row.key} className="mb-3 flex items-center justify-between last:mb-0">
+                                <div>
+                                  <div className="font-medium text-slate-800">{row.key}</div>
+                                  <div className="text-xs text-slate-500">{row.sub}</div>
+                                </div>
+                                <div className="inline-flex items-center gap-2">
+                                  <button type="button" className="h-8 w-8 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-800" onClick={() => setWithClamp(row.set, row.value - 1, row.min, MAX_TRAVELLERS)}>–</button>
+                                  <span className="w-8 text-center text-sm text-slate-800">{row.value}</span>
+                                  <button type="button" className="h-8 w-8 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-800" onClick={() => setWithClamp(row.set, row.value + 1, row.min, MAX_TRAVELLERS)}>+</button>
+                                </div>
+                              </div>
+                            ))}
+                            <span className="mt-3 w-full inline-block cursor-pointer text-center rounded-lg bg-slate-900 px-6 py-2 text-sm text-white hover:bg-black" onClick={() => { setIsTravellersOpen(false); setTravellersMode(null); }}>Done</span>
+                          </div>
+                        </motion.div>
+                      </Portal>
+                    )
+                  ))}
+              </AnimatePresence>
+            </div>
+
+            {/* Cabin */}
+            <div className="relative text-black">
+              <button
+                ref={cabinBtnRef}
+                type="button"
+                onClick={() => {
+                  setIsTravellersOpen(false);
+                  setTravellersMode(null);
+                  setIsCabinOpen((v) => !v);
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-800 hover:bg-gray-200"
+                aria-expanded={isCabinOpen}
+              >
+                <span className="text-slate-800">{cabinLabel}</span>
+              </button>
+
+              <AnimatePresence>
+                {isCabinOpen && cabinRect && (
+                  <Portal>
+                    <div
+                      className="fixed inset-0 z-[99990]"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsCabinOpen(false);
+                      }}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.18 }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      style={{ position: "fixed", top: cabinRect.bottom + 8, left: Math.min(cabinRect.left, Math.max(16, window.innerWidth - 180 - 16)), width: "180px", zIndex: 100000 }}
+                    >
+                      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-2xl">
+                        {CABIN_OPTIONS.map((o) => (
+                          <button
+                            key={o.value}
+                            type="button"
+                            onClick={() => {
+                              setFlightType(o.value);
+                              setIsCabinOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm rounded-lg transition-colors ${
+                              flightType === o.value ? "bg-[#F68221]/10 text-[#F68221] font-semibold" : "text-slate-700 hover:bg-slate-50"
+                            }`}
+                          >
+                            {o.label}
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  </Portal>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
 
         {/* Main rows */}
         {tripType !== "multi" ? (
