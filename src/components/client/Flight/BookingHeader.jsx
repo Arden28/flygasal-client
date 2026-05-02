@@ -17,6 +17,8 @@ export default function BookingHeader({
   returnFlight,
   tripType = "outbound",
   totalPrice,
+  isAgent,
+  agentMarkupPercent,
   getAirportName,
   formatDate,
   steps = [
@@ -71,16 +73,18 @@ export default function BookingHeader({
   const progressPct = total > 1 ? ((step - 1) / (total - 1)) * 100 : 0;
 
   // currency formatting (safe)
-  const priceLabel =
-    typeof totalPrice === "number"
-      ? Intl.NumberFormat(undefined, {
-          style: "currency",
-          currency,
-          maximumFractionDigits: 0,
-        }).format(totalPrice)
-      : totalPrice
-      ? `${totalPrice} ${currency}`
-      : "—";
+
+  const money = (n, currency = "USD") =>
+    (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
+
+  const priceBreakdown = (totalPrice) => {
+    const base = Number(totalPrice) || 0;
+    const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
+    const price = +(base + markup).toFixed(2);
+    return { base, markup, price };
+  };
+  
+  const { base, markup, price } = priceBreakdown(totalPrice);
 
   return (
     <header
@@ -129,7 +133,7 @@ export default function BookingHeader({
             aria-label="Total price"
             title="Total price"
           >
-            <span className="truncate text-xl font-semibold">{priceLabel}</span>
+            <span className="truncate text-xl font-semibold">{money(price, currency)}</span>
             <div>
               <span className="font-normal text-sm text-slate-500">
                 Total Price ({pax} Pax)

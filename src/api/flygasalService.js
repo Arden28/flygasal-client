@@ -1,23 +1,22 @@
-// src/services/flygasal.js
-
 import apiService from '../api/apiService';
-import { transformPreciseData } from '../lib/pkfare/transformPrecise';
-import { transformPKFareData } from '../lib/pkfare/transformSearch';
 
-// This module abstracts flight-related API calls to your Laravel backend (which proxies PKfare)
-
+/**
+ * Flygasal Service
+ * Abstracts flight-related API calls to the Laravel backend.
+ * Data mapping and normalization is handled on the server.
+ */
 const flygasal = {
 
     /**
-    * Search flights via Laravel backend
-    * @param {Object} criteria
-    * @param {AbortSignal?} opts.signal
-    * @returns {Promise<Object>} raw backend response
-    */
+     * Search flights via Laravel backend
+     * @param {Object} criteria - Search parameters
+     * @param {Object} opts - Optional settings (e.g. AbortSignal)
+     * @returns {Promise<Object>} { message, shoppingKey, searchKey, offers }
+     */
     searchFlights: async (criteria, opts = {}) => {
         try {
-            const res = await apiService.post("/flights/search", criteria, { signal: opts.signal });
-            return res.data; // { message, errorMsg, errorCode, data | offers }
+            const res = await apiService.post("/flights/search", criteria, { signal: opts?.signal });
+            return res.data; 
         } catch (error) {
             console.error('Flight search failed:', error);
             throw error;
@@ -25,293 +24,110 @@ const flygasal = {
     },
 
     /**
-    * Normalize PKFare data (frontend path).
-    * If backend already normalizes, skip this and read `offers` directly.
-    * @param {object} pkData
-    */
-    transformPKFareData(pkData) {
-        return transformPKFareData(pkData);
-    },
-
-    /**
-    * Create a booking
-    * @param {Object} bookingDetails - Includes selected flight, passengers, and contact info
-    * @returns {Promise<Object>} - Booking confirmation
-    */
-    createBooking: async (bookingDetails) => {
-        try {
-        const response = await apiService.post('/flights/bookings', bookingDetails);
-        
-        // console.info('Booking Details', response.data);
-
-        return response;
-        } catch (error) {
-        console.error('Booking failed:', error);
-        throw error;
-        }
-    },
-
-    /**
-    * Create a booking
-    * @param {Object} bookingDetails - Includes selected flight, passengers, and contact info
-    * @returns {Promise<Object>} - Booking confirmation
-    */
-    getBookingDetails: async (bookingReference) => {
-        try {
-        const response = await apiService.get(`/bookings/${bookingReference}`);
-        
-        console.info('Booking Details', response);
-
-        return response;
-        } catch (error) {
-        console.error('Booking failed:', error);
-        throw error;
-        }
-    },
-
-    // /**
-    // * Retrieve booking details by reference code
-    // * @param {String} bookingReference
-    // * @returns {Promise<Object>}
-    // */
-    // getBookingDetails: async (bookingReference) => {
-    //     try {
-    //     const response = await apiService.get(`/flights/booking/${bookingReference}`);
-    //     return response.data;
-    //     } catch (error) {
-    //     console.error('Get booking details failed:', error);
-    //     throw error;
-    //     }
-    // },
-
-    /**
-    * Cancel a booking
-    * @param {String} bookingReference
-    * @returns {Promise<Object>}
-    */
-    cancelBooking: async (bookingReference) => {
-        try {
-        const response = await apiService.post(`/flights/booking/${bookingReference}/cancel`);
-        return response.data;
-        } catch (error) {
-        console.error('Cancel booking failed:', error);
-        throw error;
-        }
-    },
-
-  
-    // transformPKFareData: (pkData) => {
-    //     const segmentMap = Object.fromEntries(
-    //         (pkData.segments || []).map((seg) => [seg.segmentId, seg])
-    //     );
-
-    //     const flightMap = Object.fromEntries(
-    //         (pkData.flights || []).map((flight) => [flight.flightId, flight])
-    //     );
-
-    //     const solutions = pkData.solutions || [];
-
-    //     return solutions.map((solution) => {
-    //         const journeyKeys = Object.keys(solution.journeys || {});
-    //         const flightIds = journeyKeys
-    //         .map((key) => solution.journeys[key])
-    //         .flat();
-
-    //         const allSegmentIds = flightIds
-    //         .map((flightId) => flightMap[flightId]?.segmengtIds || [])
-    //         .flat();
-    //         const tripSegments = allSegmentIds
-    //         .map((segmentId) => segmentMap[segmentId])
-    //         .filter(Boolean);
-
-    //         const outbound = tripSegments[0];
-    //         const finalSegment = tripSegments[tripSegments.length - 1];
-
-    //         if (!outbound || !finalSegment) return null;
-
-    //         const firstFlight = flightMap[flightIds[0]];
-
-    //         return {
-    //             id: outbound.segmentId,
-    //             solutionKey: solution.solutionKey,
-    //             solutionId: solution.solutionId,
-    //             shoppingKey: pkData.shoppingKey,
-    //             // Fares
-    //             fareType: solution.fareType,
-    //             adtFare: solution.adtFare,
-    //             adtTax: solution.adtTax,
-    //             chdFare: solution.chdFare,
-    //             chdTax: solution.chdTax,
-    //             qCharge: solution.qCharge,
-    //             tktFee: solution.tktFee,
-    //             platformServiceFee: solution.platformServiceFee,
-
-    //             airline: outbound.airline,
-    //             plane: outbound.equipment,
-    //             cabin: outbound.cabinClass,
-    //             flightNumber: outbound.flightNum,
-    //             tickets: outbound.availabilityCount,
-    //             origin: outbound.departure,
-    //             availabilityCount: outbound.availabilityCount,
-    //             destination: finalSegment.arrival,
-    //             departureTime: new Date(outbound.departureDate),
-    //             arrivalTime: new Date(outbound.arrivalDate),
-    //             journeyTime: firstFlight?.journeyTime ?? null,
-    //             transferCount: firstFlight?.transferCount ?? null,
-    //             // lastTktTime: firstFlight?.lastTktTime ?? null,
-    //             lastTktTime: solution.lastTktTime ? new Date(solution.lastTktTime) : null,
-    //             expired: solution.lastTktTime ? new Date(solution.lastTktTime) < new Date() : false,
-    //             stops: tripSegments.length - 1,
-    //             segments: tripSegments,
-    //             price: solution.adtFare + solution.adtTax,
-    //             flightIds: flightIds,
-    //             bookingCode: outbound.bookingCode,
-    //         };
-    //     }).filter(Boolean);
-    // },
-
-    /**
-    * Precise price will be shown with specific flight details, including booking code and seat availability. 
-    * If specific cabin class is requested (cabin class should be specified in all segments), the lowest fare corresponding to the specified class will be shown
-    * @param {Object} criteria - Precise pricing criteria (solutionId, destination, dates, etc.)
-    * @returns {Promise<Object>} - Precise pricing results
-    */
+     * Perform precise pricing for a selected solution.
+     * Validates seat availability and checks for price changes.
+     * @param {Object} criteria - Includes solutionId, solutionKey, journeys, etc.
+     * @returns {Promise<Object>} { message, offer }
+     */
     precisePricing: async (criteria) => {
         try {
-        const response = await apiService.post('/flights/precise-pricing', criteria);
-            return response.data;
+            const res = await apiService.post('/flights/precise-pricing', criteria);
+            return res.data;
         } catch (error) {
             console.error('Precise pricing failed:', error);
             throw error;
         }
     },
 
-
     /**
-    * Normalize PKFare data (frontend path).
-    * If backend already normalizes, skip this and read `offers` directly.
-    * @param {object} pkData
-    */
-    transformPreciseData: (pkData) => {
-        return transformPreciseData(pkData);
-    },
-
-
-    // transformPreciseData: (pkData) => {
-    //     const segmentMap = Object.fromEntries(
-    //         (pkData.segments || []).map((seg) => [seg.segmentId, seg])
-    //     );
-
-    //     const flightMap = Object.fromEntries(
-    //         (pkData.flights || []).map((flight) => [flight.flightId, flight])
-    //     );
-
-    //     // Wrap single object in array
-    //     const solutions = pkData.solution ? [pkData.solution] : [];
-
-    //     return solutions.map((solution) => {
-    //         const journeyKeys = Object.keys(solution.journeys || {});
-    //         const flightIds = journeyKeys
-    //             .map((key) => solution.journeys[key])
-    //             .flat();
-
-    //         const allSegmentIds = flightIds
-    //             .map((flightId) => flightMap[flightId]?.segmentIds || [])
-    //             .flat();
-
-    //         const tripSegments = allSegmentIds
-    //             .map((segmentId) => segmentMap[segmentId])
-    //             .filter(Boolean);
-
-    //         const outbound = tripSegments[0];
-    //         const finalSegment = tripSegments[tripSegments.length - 1];
-    //         if (!outbound || !finalSegment) return null;
-
-    //         const firstFlight = flightMap[flightIds[0]];
-
-    //         // Get baggage info from baggageMap (if available)
-    //         const baggageMap = solution.baggageMap || {};
-    //         const baggageInfo = flightIds.map((fid) => baggageMap[fid] || null).filter(Boolean);
-
-    //         // Get ancillary info from ancillaryAvailability (if available)
-    //         const ancillaryAvailability = solution.ancillaryAvailability || {};
-    //         const ancillaryInfo = flightIds.map((fid) => ancillaryAvailability[fid] || null).filter(Boolean);
-
-    //         return {
-    //             id: outbound.segmentId,
-    //             solutionKey: solution.solutionKey,
-    //             solutionId: solution.solutionId,
-
-    //             // Fares
-    //             fareType: solution.fareType,
-    //             adtFare: solution.adtFare,
-    //             adtTax: solution.adtTax,
-    //             chdFare: solution.chdFare,
-    //             chdTax: solution.chdTax,
-    //             qCharge: solution.qCharge,
-    //             tktFee: solution.tktFee,
-    //             platformServiceFee: solution.platformServiceFee,
-
-    //             airline: outbound.airline,
-    //             plane: outbound.equipment,
-    //             cabin: outbound.cabinClass,
-    //             flightNumber: outbound.flightNum,
-    //             tickets: outbound.availabilityCount,
-    //             origin: outbound.departure,
-    //             destination: finalSegment.arrival,
-    //             departureTime: new Date(outbound.departureDate),
-    //             arrivalTime: new Date(finalSegment.arrivalDate),
-    //             journeyTime: firstFlight?.journeyTime ?? null,
-    //             transferCount: firstFlight?.transferCount ?? null,
-    //             lastTktTime: solution.lastTktTime ? new Date(solution.lastTktTime) : null,
-    //             expired: solution.lastTktTime ? new Date(solution.lastTktTime) < new Date() : false,
-    //             stops: tripSegments.length - 1,
-    //             segments: tripSegments,
-    //             price: solution.adtFare + solution.adtTax,
-    //             flightIds: flightIds,
-    //             bookingCode: outbound.bookingCode,
-
-    //             // Extra info
-    //             baggage: baggageInfo,         // Array of baggage rules per flight
-    //             ancillary: ancillaryInfo,     // Array of ancillary options per flight
-    //         };
-    //     }).filter(Boolean);
-    // },
-
-    /**
-    * Ancillary price will be shown with specific flight details, including booking code and seat availability. 
-    * If specific cabin class is requested (cabin class should be specified in all segments), the lowest fare corresponding to the specified class will be shown
-    * @param {Object} criteria - ancillary pricing criteria (solutionId, destination, dates, etc.)
-    * @returns {Promise<Object>} - ancillary pricing results
-    */
+     * Fetch ancillary options (baggage, seats) for a confirmed price.
+     * @param {Object} criteria 
+     * @returns {Promise<Object>} 
+     */
     ancillaryPricing: async (criteria) => {
         try {
-        const response = await apiService.post('/flights/ancillary-pricing', criteria);
-            return response.data;
+            const res = await apiService.post('/flights/ancillary-pricing', criteria);
+            return res.data;
         } catch (error) {
             console.error('Ancillary pricing failed:', error);
             throw error;
         }
     },
 
-    payOrderWithWallet: async (criteria) => {
+    /**
+     * Create a new flight booking (PNR generation).
+     * @param {Object} bookingDetails 
+     * @returns {Promise<Object>} 
+     */
+    createBooking: async (bookingDetails) => {
         try {
-            const response = await apiService.post('/transactions/pay', criteria);
-            return response.data;
+            const res = await apiService.post('/flights/bookings', bookingDetails);
+            return res.data;
         } catch (error) {
-            console.error('Payment failed: ', error);
+            console.error('Booking creation failed:', error);
+            throw error;
         }
     },
 
+    /**
+     * Retrieve live booking details and status.
+     * @param {String} bookingReference - The internal order number.
+     * @returns {Promise<Object>} 
+     */
+    getBookingDetails: async (bookingReference) => {
+        try {
+            const res = await apiService.get(`/bookings/${bookingReference}`);
+            return res.data;
+        } catch (error) {
+            console.error('Failed to fetch booking details:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Cancel an existing unpaid booking.
+     * @param {String} bookingReference 
+     * @returns {Promise<Object>} 
+     */
+    cancelBooking: async (bookingReference) => {
+        try {
+            const res = await apiService.post(`/bookings/${bookingReference}/cancel`);
+            return res.data;
+        } catch (error) {
+            console.error('Cancel booking failed:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Pay for an order using internal wallet balance.
+     * @param {Object} criteria 
+     * @returns {Promise<Object>} 
+     */
+    payOrderWithWallet: async (criteria) => {
+        try {
+            const res = await apiService.post('/transactions/pay', criteria);
+            return res.data;
+        } catch (error) {
+            console.error('Payment failed: ', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Finalize the booking and issue tickets.
+     * @param {Object} criteria 
+     * @returns {Promise<Object>} 
+     */
     ticketing: async (criteria) => {
         try {
-            const response = await apiService.post('/bookings/ticketing', criteria);
-            return response.data;
+            const res = await apiService.post('/bookings/ticketing', criteria);
+            return res.data;
         } catch (error) {
             console.error('Ticketing failed: ', error);
+            throw error;
         }
     }
-  
 };
 
 export default flygasal;

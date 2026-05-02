@@ -48,7 +48,8 @@ export default function PaymentSelectionCard({
                       <div className="px-4 py-2 sm:px-6">
   
                         <p className="warning text-xs p-3 rounded-2xl bg-[#F6F6F7]">
-                            For now, only <strong>Wallet Balance</strong> and <strong>Pay Later</strong> are available as payment methods
+                            For now, only <strong>Wallet Balance</strong> is available as payment method
+                            {/* For now, only <strong>Wallet Balance</strong> and <strong>Pay Later</strong> are available as payment methods */}
                         </p>
                           
                         {paymentError && (
@@ -66,7 +67,7 @@ export default function PaymentSelectionCard({
                                     value="wallet"
                                     checked={formData.payment_method === 'wallet'}
                                     onChange={handleFormChange}
-                                    className="form-check-input mr-2 h-5 w-5 text-blue-400 focus:ring-blue-400 border-gray-500"
+                                    className="form-check-input mr-2 h-5 w-5 text-orange-400 focus:ring-blue-400 border-gray-500"
                                     />
                                     <span className="flex items-center gap-2">
                                     <img
@@ -81,7 +82,7 @@ export default function PaymentSelectionCard({
                             </div>
                             
                             {/* Pay Later */}
-                            <div className="border p-3 rounded-2xl">
+                            {/* <div className="border p-3 rounded-2xl">
                                 <label className="flex items-center cursor-pointer">
                                     <input
                                     type="radio"
@@ -101,7 +102,8 @@ export default function PaymentSelectionCard({
                                     Pay Later
                                     </span>
                                 </label>
-                            </div>
+                            </div> */}
+
                         </div>
                     
                       </div>

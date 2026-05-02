@@ -415,6 +415,8 @@ export const rawAirlines = [
   { code: 'T7', name: 'Twin Jet', logo: '/assets/img/airlines/T7.png' },
   { code: 'KT', name: 'VickJet', logo: '/assets/img/airlines/KT.png' },
   { code: 'SE', name: 'XL Airways France', logo: '/assets/img/airlines/SE.png' },
+  { code: 'A1', name: 'APG Airlines', logo: '/assets/img/airlines/A1.png' },
+  { code: 'Z1', name: 'APG Airlines', logo: '/assets/img/airlines/Z1.png' },
 
   // -- French Guiana --
   { code: 'GG', name: 'Air Guyane', logo: '/assets/img/airlines/GG.png' },

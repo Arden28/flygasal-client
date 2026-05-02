@@ -1,44 +1,17 @@
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import FlightSegment from "./FlightSegment";
 import { formatDuration } from "../../../lib/helper";
-import { findLeg, formatDate, formatTime, getAirportName, getCityName, guessFirstChain, normalizeSegments, safeDate } from "../../../utils/utils";
+import { getCityName } from "../../../utils/utils";
 import { FaPersonWalking } from "react-icons/fa6";
 import { MdLuggage } from "react-icons/md";
-import { FaPlaneDeparture } from "react-icons/fa";
-import { FaPlaneArrival, FaInfo } from "react-icons/fa";
+import { FaPlaneDeparture, FaPlaneArrival, FaInfo } from "react-icons/fa";
 import { createPortal } from "react-dom";
 
 /* -------------------- tiny utils -------------------- */
 const money = (n, currency = "USD") =>
-  (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
-
-const computeItinKey = (it) => {
-  if (Array.isArray(it.legs) && it.legs.length) {
-    const legKeys = it.legs.map((leg) => {
-      const id = leg.id || leg.solutionId || "";
-      const mc = leg.marketingCarriers?.[0] || leg.segments?.[0]?.airline || "";
-      const fn = leg.flightNumber || "";
-      const dep = leg.departureTime || leg.segments?.[0]?.departureDate || "";
-      const arr = leg.arrivalTime || leg.segments?.slice(-1)?.[0]?.arrivalDate || "";
-      return `${id}-${mc}-${fn}-${dep}-${arr}`;
-    });
-    return `${legKeys.join("|")}|${it.totalPrice}`;
-  }
-  const out = it.outbound || {};
-  const ret = it.return || {};
-  const outKey =
-    out.id ||
-    out.solutionId ||
-    `${(out.marketingCarriers?.[0] || out.segments?.[0]?.airline || "")}-${out.flightNumber || ""}-${out.departureTime || ""}-${out.arrivalTime || ""}`;
-  const retKey = it.return
-    ? ret.id ||
-      ret.solutionId ||
-      `${(ret.marketingCarriers?.[0] || ret.segments?.[0]?.airline || "")}-${ret.flightNumber || ""}-${ret.departureTime || ""}-${ret.arrivalTime || ""}`
-    : "OW";
-  return `${outKey}|${retKey}|${it.totalPrice}`;
-};
+  (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency, maximumFractionDigits: 0 });
 
 /* -------------------- icons -------------------- */
 const Icon = ({ name, className = "h-4 w-4" }) => {
@@ -46,9 +19,9 @@ const Icon = ({ name, className = "h-4 w-4" }) => {
     case "info":
       return <FaInfo className="h-3 w-3" />;
     case "takeoff":
-      return <FaPlaneDeparture />;
+      return <FaPlaneDeparture className={className} />;
     case "landing":
-      return <FaPlaneArrival />;
+      return <FaPlaneArrival className={className} />;
     default:
       return null;
   }
@@ -68,17 +41,17 @@ function Row({ label, value, sub }) {
     </div>
   );
 }
+
 function PricingTooltip({
   open,
   onClose,
-  anchorId,            // << NEW: id of the trigger button
+  anchorId,
   currency = "USD",
   basePrice = 0,
   markupPercent = 0,
   markupAmount = 0,
   total = 0,
   paxSummary,
-  extra = {},
 }) {
   const [coords, setCoords] = useState(null);
 
@@ -106,14 +79,13 @@ function PricingTooltip({
       const cardW = Math.min(vw * 0.92, 520);
       const cardMaxH = Math.min(vh * 0.8, 560);
 
-      let left = r.right - cardW;       // align right edges with button
-      let top = r.bottom + 8;           // prefer below
+      let left = r.right - cardW;       
+      let top = r.bottom + 8;           
 
       if (left + cardW > vw - gutter) left = vw - gutter - cardW;
       if (left < gutter) left = gutter;
 
       if (top + cardMaxH > vh - gutter) {
-        // not enough space below → place above
         top = Math.max(gutter, r.top - 8 - cardMaxH);
       }
 
@@ -137,7 +109,6 @@ function PricingTooltip({
 
   return createPortal(
     <>
-      {/* Backdrop */}
       <motion.div
         key="price-backdrop"
         initial={{ opacity: 0 }}
@@ -147,8 +118,6 @@ function PricingTooltip({
         onClick={onClose}
         aria-hidden
       />
-
-      {/* Card */}
       <motion.div
         key="price-card"
         initial={{ opacity: 0, y: 6, scale: 0.98 }}
@@ -167,7 +136,6 @@ function PricingTooltip({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
           <div>
             <div className="text-sm font-semibold text-slate-900">Price breakdown</div>
@@ -184,12 +152,8 @@ function PricingTooltip({
           </button>
         </div>
 
-        {/* Body (scrolls if needed) */}
         <div className="px-4 pt-2 pb-4 overflow-auto" style={{ maxHeight: "calc(80vh - 52px)" }}>
           <Row label="Base price" value={fmt(basePrice)} />
-
-          {/* {"taxes" in extra && <Row label="Taxes" value={fmt(extra.taxes)} />}
-          {"fees" in extra && <Row label="Fees" value={fmt(extra.fees)} />} */}
 
           <div className="my-2 rounded-xl bg-amber-50/60 p-3 ring-1 ring-amber-100">
             <Row label="Agent markup" sub={`${pct}% applied`} value={fmt(markupAmount)} />
@@ -217,7 +181,6 @@ function PricingTooltip({
   );
 }
 
-
 /* -------------------- middle band -------------------- */
 const RailBand = ({
   progress = 0.62,
@@ -237,22 +200,18 @@ const RailBand = ({
       className="col-span-12 sm:col-span-6 md:col-span-6 grid w-full text-left"
       style={{ gridTemplateRows: "auto auto auto" }}
     >
-      {/* top row: plane icons + duration */}
       <div className="flex items-center justify-between text-[11px] leading-none text-slate-600 mb-1">
         <Icon name="takeoff" className="h-3.5 w-3.5 opacity-70" />
         <div className="text-xs font-medium text-slate-700">{durationText}</div>
         <Icon name="landing" className="h-3.5 w-3.5 opacity-70" />
       </div>
 
-      {/* middle row: the rail */}
       <div className="relative h-1.5 rounded-full bg-slate-200">
         <div className="absolute left-0 top-0 h-1.5 rounded-full bg-[#F68221]" style={{ width }} />
-        {/* end caps */}
         <span className="absolute left-0 -top-[3px] h-2.5 w-2.5 rounded-full bg-[#F68221]" />
         <span className="absolute right-0 -top-[3px] h-2.5 w-2.5 rounded-full bg-slate-300" />
       </div>
 
-      {/* bottom row: codes + stops */}
       <div className="mt-1 flex items-center justify-between text-[11px] leading-none text-slate-600">
         <span className="font-semibold tracking-wide">{depCode || "—"}</span>
         <span className="text-slate-500">{stopsText}</span>
@@ -264,126 +223,29 @@ const RailBand = ({
 
 /* -------------------- segment block -------------------- */
 const SegmentBlock = ({
-  flight,
+  leg, // Fix: Explicitly receive leg here so multi-logo display works
   id,
-  segmentType,
   openId,
   setOpenId,
   titleLeft,
   titleRight,
   logoSrc,
-  logoAlt,
-
   depDateText,
   depTime,
   depCity,
   depAirport,
-
   durationText,
   stopsText,
-
   arrDateText,
   arrTime,
   arrCity,
   arrAirport,
-  // optional anchors
-  expectedOutboundOrigin,
-  expectedOutboundDestination,
-  expectedReturnOrigin,
-  expectedReturnDestination,
-
   body,
 }) => {
   const open = openId === id;
   const toggle = () => setOpenId(open ? null : id);
-
-  // guess a simple progress: 60% so the bar looks alive even w/o true time ratio
   const progress = 0.62;
 
-  /* ---------------- Normalization & anchors ---------------- */
-  const allSegs = useMemo(() => normalizeSegments(flight), [flight]);
-  const guess = useMemo(() => guessFirstChain(allSegs), [allSegs]);
-
-  const OUT_O =
-    expectedOutboundOrigin ||
-    guess?.origin ||
-    allSegs[0]?.departure ||
-    flight?.origin ||
-    "";
-  const OUT_D =
-    expectedOutboundDestination ||
-    guess?.destination ||
-    allSegs.at?.(-1)?.arrival ||
-    flight?.destination ||
-    "";
-
-  const outboundSegs = useMemo(() => {
-    const found =
-      findLeg(allSegs, OUT_O, OUT_D, { prefer: "earliest" }) ||
-      null;
-    return found?.length ? found : guess?.chain || allSegs;
-  }, [allSegs, OUT_O, OUT_D, guess]);
-
-  const RET_O = expectedReturnOrigin || OUT_D;
-  const RET_D = expectedReturnDestination || OUT_O;
-
-  const outboundArrivesAt = outboundSegs.at?.(-1)?.arrivalAt || null;
-
-  const returnSegs = useMemo(() => {
-    let chain =
-      findLeg(allSegs, RET_O, RET_D, { prefer: "earliest", notBefore: outboundArrivesAt }) ||
-      findLeg(allSegs, RET_O, RET_D, { prefer: "earliest" }) ||
-      findLeg(allSegs, RET_D, RET_O, { prefer: "earliest" });
-    return chain || [];
-  }, [allSegs, RET_O, RET_D, outboundArrivesAt]);
-
-  const isReturn = segmentType === "Return";
-  let legSegs = isReturn ? returnSegs : outboundSegs;
-
-  const hasSegments = Array.isArray(legSegs) && legSegs.length > 0;
-  const firstSegment = hasSegments ? legSegs[0] : null;
-  const lastSegment = hasSegments ? legSegs[legSegs.length - 1] : null;
-
-  // ---------- SAFE fallbacks to avoid null crashes ----------
-  const leftDateText =
-    depDateText ||
-    (firstSegment ? safeDate(firstSegment?.departureAt || firstSegment?.departureDate || firstSegment?.departureTime) : "");
-
-  const leftTimeText =
-    firstSegment?.departureTimeAt ||
-    depTime ||
-    "";
-
-  const leftCity =
-    getCityName(firstSegment?.departure) ||
-    depCity ||
-    "";
-    
-    const leftAirportName =
-    getAirportName(firstSegment?.departure) ||
-    (depAirport ? getAirportName(depAirport) : "") ||
-    "";
-    
-    const rightDateText =
-    arrDateText ||
-    (lastSegment ? safeDate(lastSegment?.arrivalAt || lastSegment?.arrivalDate || lastSegment?.arrivalTime) : "");
-    
-    const rightTimeText =
-    lastSegment?.arrivalTimeAt ||
-    arrTime ||
-    "";
-    
-    const rightAirportName =
-    getAirportName(lastSegment?.arrival) ||
-    (arrAirport ? getAirportName(arrAirport) : "") ||
-    "";
-    
-    const rightCity =
-      getCityName(lastSegment?.arrival) ||
-      arrCity ||
-      "";
-
-    // console.log("Flight object:", flight);
   return (
     <div className="overflow-hidden bg-white">
       {/* Route bar */}
@@ -398,11 +260,13 @@ const SegmentBlock = ({
       {/* Summary row */}
       <div className="px-4 md:px-5">
         <div className="grid grid-cols-12 items-center gap-3 py-3">
-          {/* left column */}
+          {/* Left Column (Departure) - Takes 3 columns */}
           <div className="col-span-12 sm:col-span-3 md:col-span-3 flex items-center gap-3">
+            
+            {/* MULTI-LOGO DISPLAY */}
             <div className="flex items-center gap-2">
-              {Array.isArray(flight?.marketingCarriers) && flight.marketingCarriers.length > 0 ? (
-                flight.marketingCarriers.map((code, i) => (
+              {Array.isArray(leg?.marketingCarriers) && leg.marketingCarriers.length > 0 ? (
+                leg.marketingCarriers.map((code, i) => (
                   <img
                     key={i}
                     src={`/assets/img/airlines/${code}.png`}
@@ -416,22 +280,23 @@ const SegmentBlock = ({
                 ))
               ) : (
                 <img
-                  src="/assets/img/airlines/placeholder.png"
-                  alt="Airline"
+                  src={logoSrc || "/assets/img/airlines/placeholder.png"}
+                  alt="Airline Logo"
                   className="h-9 w-9 rounded-full object-contain ring-1 ring-slate-200 bg-white"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = "/assets/img/airlines/placeholder.png";
+                  }}
                 />
               )}
             </div>
 
             <div className="min-w-0">
-              <div className="text-[11px] text-slate-500">{leftDateText}</div>
-              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{leftTimeText}</div>
-              <div className="text-[11px] text-slate-600 truncate">{leftCity || "—"}</div>
-              <div
-                className="text-[11px] text-slate-500 truncate max-w-[120px]"
-                title={leftAirportName}
-              >
-                {leftAirportName || "—"}
+              <div className="text-[11px] text-slate-500 truncate">{depDateText}</div>
+              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{depTime}</div>
+              <div className="text-[11px] text-slate-600 truncate">{depCity || "—"}</div>
+              <div className="text-[11px] text-slate-500 truncate max-w-[120px]" title={depAirport}>
+                {depAirport || "—"}
               </div>
             </div>
           </div>
@@ -450,39 +315,40 @@ const SegmentBlock = ({
           {/* right column */}
           <div className="col-span-12 sm:col-span-3 md:col-span-3 ml-auto flex items-center justify-end gap-3">
             <div className="min-w-0 text-right">
-              <div className="text-[11px] text-rose-600">{rightDateText}</div>
-              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{rightTimeText}</div>
-              <div className="text-[11px] text-slate-600 truncate">{rightCity || "—"}</div>
-              <div
-                className="text-[11px] text-slate-500 truncate max-w-[120px]"
-                title={rightAirportName}
-              >
-                {rightAirportName || "—"}
+              <div className="text-[11px] text-rose-600">{arrDateText}</div>
+              <div className="text-slate-900 font-semibold leading-5 tabular-nums">{arrTime}</div>
+              <div className="text-[11px] text-slate-600 truncate">{arrCity || "—"}</div>
+              <div className="text-[11px] text-slate-500 truncate max-w-[120px]" title={arrAirport}>
+                {arrAirport || "—"}
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={toggle}
-              className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-700"
-            >
-              Details
-              <motion.svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                initial={false}
-                animate={{ rotate: open ? 180 : 0 }}
-                className="shrink-0"
-              >
-                <path d="M6 9l6 6 6-6" />
-              </motion.svg>
-            </button>
           </div>
         </div>
+
+        {/* Details Button Row - Guaranteed to be on its own line! */}
+        <div className="flex justify-end pb-3">
+          <button
+            type="button"
+            onClick={toggle}
+            className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-200 transition-colors"
+          >
+            Details
+            <motion.svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              initial={false}
+              animate={{ rotate: open ? 180 : 0 }}
+              className="shrink-0"
+            >
+              <path d="M6 9l6 6 6-6" />
+            </motion.svg>
+          </button>
+        </div>
+        
       </div>
 
       {/* Collapsible body */}
@@ -496,7 +362,7 @@ const SegmentBlock = ({
             transition={{ duration: 0.22 }}
             className="p-3 bg-[#F6F6F7]"
           >
-            <div className="">{body}</div>
+            <div>{body}</div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -505,7 +371,7 @@ const SegmentBlock = ({
 };
 
 /* ===================================================== */
-/*                    Itinerary List                     */
+/* Itinerary List                     */
 /* ===================================================== */
 const ItineraryList = ({
   paginatedItineraries,
@@ -514,32 +380,17 @@ const ItineraryList = ({
   searchParams,
   getAirlineLogo,
   getAirlineName,
-  formatToYMD,
-  formatTime,
-  formatTimeOnly,
-  calculateDuration,
   getAirportName,
+  formatDate,
+  formatTime,
   agentMarkupPercent = 0,
-  currency = "USD",
-  totalCount,
-  currentPage,
-  pageSize,
+  currency = "USD"
 }) => {
   const navigate = useNavigate();
-
-  const pageSummary = useMemo(() => {
-    if (!totalCount || !currentPage || !pageSize) return null;
-    const start = (currentPage - 1) * pageSize + 1;
-    const end = Math.min(currentPage * pageSize, totalCount);
-    return { start, end, total: totalCount };
-  }, [totalCount, currentPage, pageSize]);
-
-  // --- NEW: pricing tooltip control (only one open at a time) ---
   const [openPriceKey, setOpenPriceKey] = useState(null);
   const togglePrice = (k) => setOpenPriceKey((p) => (p === k ? null : k));
   const closePrice = () => setOpenPriceKey(null);
 
-  // --- NEW: pax summary for tooltip header ---
   const paxSummary = useMemo(() => {
     const a = Number(searchParams?.adults || 1);
     const c = Number(searchParams?.children || 0);
@@ -549,82 +400,23 @@ const ItineraryList = ({
     if (c) parts.push(`${c} child${c > 1 ? "ren" : ""}`);
     if (i) parts.push(`${i} infant${i > 1 ? "s" : ""}`);
     return parts.join(", ") || "1 adult";
-  }, [searchParams?.adults, searchParams?.children, searchParams?.infants]);
+  }, [searchParams]);
 
   const selectItinerary = (itinerary) => {
-    const isMulti =
-      (searchParams?.tripType || "").toLowerCase() === "multi" ||
-      (Array.isArray(itinerary.legs) && itinerary.legs.length > 0);
-
     const params = new URLSearchParams();
-
-    if (isMulti) {
-      params.set("tripType", "multi");
-      params.set("solutionId", itinerary.solutionId || itinerary.legs?.[0]?.solutionId || "");
-      params.set("cabin", itinerary.cabin || itinerary.legs?.[0]?.cabin || "Economy");
-    } else {
-      const out = itinerary.outbound || {};
-      params.set("solutionKey", out.solutionKey || "");
-      params.set("solutionId", out.solutionId || "");
-      params.set("tripType", itinerary.return ? "return" : "oneway");
-      if (itinerary.return?.segments?.[0]?.departureTime) {
-        params.set("returnDate", formatToYMD(itinerary.return.segments[0].departureTime));
-      }
-      params.set("cabin", itinerary.outbound?.cabin || "Economy");
-      params.set("flightId", itinerary.outbound?.id || "");
-      params.set("returnFlightId", itinerary.return ? itinerary.return.id : "");
-      params.set("flightNumber", itinerary.outbound?.flightNumber || "");
-    }
-
-    params.set("adults", `${searchParams?.adults || 1}`);
-    params.set("children", `${searchParams?.children || 0}`);
-    params.set("infants", `${searchParams?.infants || 0}`);
-
-    let idx = 0;
-    const writeSeg = (seg, ji = 0) => {
-      params.set(`flights[${idx}][origin]`, seg.departure);
-      params.set(`flights[${idx}][destination]`, seg.arrival);
-      params.set(`flights[${idx}][airline]`, seg.airline);
-      params.set(`flights[${idx}][flightNum]`, seg.flightNum);
-      params.set(`flights[${idx}][arrival]`, seg.arrival);
-      params.set(`flights[${idx}][arrivalDate]`, seg.strArrivalDate || seg.arrivalDate || "");
-      params.set(`flights[${idx}][arrivalTime]`, seg.strArrivalTime || seg.arrivalTime || "");
-      params.set(`flights[${idx}][departure]`, seg.departure);
-      params.set(`flights[${idx}][departureDate]`, seg.strDepartureDate || seg.departureDate || "");
-      params.set(`flights[${idx}][departureTime]`, seg.strDepartureTime || seg.departureTime || "");
-      params.set(`flights[${idx}][bookingCode]`, seg.bookingCode || "");
-      params.set(`flights[${idx}][journeyIndex]`, String(ji));
-      idx += 1;
-    };
-
-    const isMultiTrip =
-      (searchParams?.tripType || "").toLowerCase() === "multi" || Array.isArray(itinerary.legs);
-    if (isMultiTrip) {
-      (itinerary.legs || []).forEach((leg, ji) => (leg.segments || []).forEach((seg) => writeSeg(seg, ji)));
-    } else {
-      (itinerary.outbound?.segments || []).forEach((seg) => writeSeg(seg, 0));
-      (itinerary.return?.segments || []).forEach((seg) => writeSeg(seg, 1));
-    }
-
-    const pb = itinerary.priceBreakdown || {};
-    const pbCurrency = pb.currency || currency;
-    const backendGrand = Number(pb?.totals?.grand || itinerary.totalPrice || 0);
-    const markupAmount = +((backendGrand || 0) * (agentMarkupPercent / 100)).toFixed(2);
-    const totalWithMarkup = +((backendGrand || 0) + markupAmount).toFixed(2);
-
-    params.set("basePrice", String(backendGrand));
-    params.set("agentMarkupPercent", String(agentMarkupPercent));
-    params.set("agentMarkupAmount", String(markupAmount));
-    params.set("totalWithMarkup", String(totalWithMarkup));
-    params.set("currency", pbCurrency);
-
-    // console.info("Soulution Id: ", itinerary.solutionId);
-
+    
+    // Pass the rawOffer JSON straight into the URL so the checkout page can read it natively
+    params.set("offer", JSON.stringify(itinerary.rawOffer));
+    
+    const backendGrand = itinerary.totalPrice || 0;
+    const markupAmount = +((backendGrand) * (agentMarkupPercent / 100)).toFixed(2);
+    
+    params.set("markupPercent", String(agentMarkupPercent));
+    params.set("markupAmount", String(markupAmount));
+    params.set("grandTotal", String(backendGrand + markupAmount));
+    
     navigate(`/flight/booking/details?${params.toString()}`);
   };
-
-  const isOpen = (id) => openDetailsId === id;
-  const setOpen = (id) => setOpenDetailsId(id);
 
   if (!paginatedItineraries || paginatedItineraries.length === 0) {
     return (
@@ -640,43 +432,15 @@ const ItineraryList = ({
       <motion.ul layout className="space-y-3">
         <AnimatePresence mode="sync" initial={false}>
           {paginatedItineraries.map((itinerary) => {
-            const key = computeItinKey(itinerary);
+            const key = itinerary.id;
 
-            const pb = itinerary.priceBreakdown || {};
-            const pbCurrency = pb.currency || currency;
-            const totals = pb.totals || {};
-            const backendGrand = Number(totals.grand || itinerary.totalPrice || 0);
+            const backendGrand = Number(itinerary.totalPrice || 0);
             const markupAmount = +((backendGrand || 0) * ((agentMarkupPercent || 0) / 100)).toFixed(2);
             const grandWithMarkup = +((backendGrand || 0) + markupAmount).toFixed(2);
-
-            const airlines = itinerary.airlines || [];
-
-            const isMulti =
-              (searchParams?.tripType || "").toLowerCase() === "multi" ||
-              (Array.isArray(itinerary.legs) && itinerary.legs.length > 0);
-            const isRoundTrip = !isMulti && !!itinerary.return;
-
-            // helpers
-            const outSeg0 = itinerary?.outbound?.segments?.[0];
-            const outSegLast = itinerary?.outbound?.segments?.slice(-1)?.[0];
-            const outLeft = getCityName(itinerary?.outbound)
-              ? `${(getCityName(itinerary.outbound.origin) || getCityName(outSeg0?.departure)) ?? "—"} → ${(getCityName(itinerary.outbound.destination) || getCityName(outSegLast?.arrival)) ?? "—"}`
-              : "—";
-            const outDateRight = outSeg0?.departureTime || itinerary?.outbound?.departureTime;
-
-            const retSeg0 = itinerary?.return?.segments?.[0];
-            const retSegLast = itinerary?.return?.segments?.slice(-1)?.[0];
-            const retLeft = itinerary?.return
-              ? `${(getCityName(itinerary.return.origin) || getCityName(retSeg0?.departure)) ?? "—"} → ${(getCityName(itinerary.return.destination) || getCityName(retSegLast?.arrival)) ?? "—"}`
-              : "—";
-            const retDateRight = retSeg0?.departureTime || itinerary?.return?.departureTime;
-
-            const airlineCode = itinerary.airlines?.[0];
-            const airlineLogo = airlineCode ? `/assets/img/airlines/${airlineCode}.png` : "/assets/img/airlines/placeholder.png";
-            const airlineName = airlineCode ? (typeof getAirlineName === "function" ? getAirlineName(airlineCode) : airlineCode) : "Airline";
+            
+            const pbCurrency = itinerary.priceBreakdown?.currency || currency;
             const anchorId = `price-btn-${key}`;
 
-            // console.log("Itinerary object:", itinerary);
             return (
               <motion.li
                 key={key}
@@ -693,7 +457,7 @@ const ItineraryList = ({
                   <div className="relative inline-flex items-center gap-2 text-xl md:text-2xl font-bold text-slate-900">
                     {money(grandWithMarkup, pbCurrency)}
 
-                    {/* Trigger (replaces the small span) */}
+                    {/* Trigger */}
                     <button
                       type="button"
                       id={anchorId}  
@@ -711,232 +475,78 @@ const ItineraryList = ({
                       open={openPriceKey === key}
                       onClose={closePrice}
                       anchorId={anchorId}  
-                      anchorClassName="self-start"
                       currency={pbCurrency}
                       basePrice={backendGrand}
                       markupPercent={agentMarkupPercent || 0}
                       markupAmount={markupAmount}
                       total={grandWithMarkup}
                       paxSummary={paxSummary}
-                      extra={{
-                        ...(totals?.taxes ? { taxes: totals.taxes } : {}),
-                        ...(totals?.fees ? { fees: totals.fees } : {}),
-                      }}
                     />
                   </div>
                 </div>
 
                 {/* SEGMENTS */}
                 <div className="px-0 pb-2 md:pb-3 space-y-2">
-                  {/* Outbound */}
-                  {itinerary.outbound && (
-                    <SegmentBlock
-                      id={`${key}-out`}
-                      flight={itinerary.outbound}
-                      segmentType="Outbound"
-                      baggage={itinerary.baggage}
-                      openId={openDetailsId}
-                      setOpenId={setOpen}
-                      titleLeft={outLeft}
-                      titleRight={outDateRight ? formatDate(outDateRight) : ""}
+                  
+                  {/* Loop directly over pre-processed legs */}
+                  {(itinerary.legs || []).map((leg, li) => {
+                      const firstSeg = leg.segments?.[0] || {};
+                      const lastSeg = leg.segments?.[leg.segments.length - 1] || {};
+                      
+                      // Title left: NBO -> DXB
+                      const depCode = leg.origin || firstSeg.departure || "—";
+                      const arrCode = leg.destination || lastSeg.arrival || "—";
+                      const titleLeft = `${depCode} → ${arrCode}`;
 
-                      logoSrc={airlineLogo}
-                      logoAlt={`${airlineName} logo`}
+                      const airlineCode = firstSeg.airline || itinerary.airlines?.[0];
+                      const logoSrc = airlineCode ? (typeof getAirlineLogo === "function" ? getAirlineLogo(airlineCode) : `/assets/img/airlines/${airlineCode}.png`) : "/assets/img/airlines/placeholder.png";
 
-                      depDateText={outSeg0?.departureTime ? formatDate(outSeg0.departureTime) : ""}
-                      depTime={
-                        itinerary.outbound.departureTime
-                          ? formatTime(itinerary.outbound.departureTime)
-                          : outSeg0?.departureTime
-                          ? formatTime(outSeg0.departureTime)
-                          : ""
-                      }
-                      depCity={airlineName}
-                      depAirport={(itinerary.outbound.origin || outSeg0?.departure || "—")}
-
-                      durationText={formatDuration(itinerary?.outbound?.journeyTime || 0)}
-                      stopsText={
-                        Number(itinerary?.outbound?.stops || 0) === 0
-                          ? "Non-stop"
-                          : `${itinerary.outbound.stops} stop${itinerary.outbound.stops > 1 ? "s" : ""}`
-                      }
-
-                      arrDateText={outSegLast?.arrivalTime ? formatDate(outSegLast.arrivalTime) : ""}
-                      arrTime={
-                        itinerary.outbound.arrivalTime
-                          ? formatTime(itinerary.outbound.arrivalTime)
-                          : outSegLast?.arrivalTime
-                          ? formatTime(outSegLast.arrivalTime)
-                          : ""
-                      }
-                      arrCity={(itinerary.outbound.destination || outSegLast?.arrival || "—")}
-                      arrAirport={(itinerary.outbound.destination || outSegLast?.arrival || "—")}
-                      expectedOutboundOrigin={searchParams?.origin}
-                      expectedOutboundDestination={searchParams?.destination}
-
-                      body={
-                        <FlightSegment
-                          flight={itinerary.outbound}
-                          segmentType="Outbound"
-                          baggage={itinerary.baggage || itinerary.baggageMap}
-                          globalIdxToSegId={itinerary.summary?.globalIdxToSegId || itinerary.globalIdxToSegId}
-                          formatDate={formatDate}
-                          formatTime={formatTime}
-                          calculateDuration={calculateDuration}
-                          getAirportName={getAirportName}
-                          getAirlineName={getAirlineName}
-                          getAirlineLogo={getAirlineLogo}
-                          expectedOutboundOrigin={searchParams?.origin}
-                          expectedOutboundDestination={searchParams?.destination}
-                        />
-                      }
-                    />
-                  )}
-
-                  {/* Return */}
-                  {isRoundTrip && itinerary.return && (
-                    <SegmentBlock
-                      flight={itinerary.return}
-                      id={`${key}-ret`}
-                      segmentType="Return"
-                      baggage={itinerary.baggage}
-                      openId={openDetailsId}
-                      setOpenId={setOpen}
-                      titleLeft={retLeft}
-                      titleRight={retDateRight ? formatDate(retDateRight) : ""}
-
-                      logoSrc={airlineLogo}
-                      logoAlt={`${airlineName} logo`}
-
-                      depDateText={retSeg0?.departureTime ? formatDate(retSeg0.departureTime) : ""}
-                      depTime={
-                        itinerary.return.departureTime
-                          ? formatTime(itinerary.return.departureTime)
-                          : retSeg0?.departureTime
-                          ? formatTime(retSeg0.departureTime)
-                          : ""
-                      }
-                      depCity={airlineName}
-                      depAirport={(itinerary.return.origin || retSeg0?.departure || "—")}
-
-                      durationText={formatDuration(itinerary?.return?.journeyTime || 0)}
-                      stopsText={
-                        Number(itinerary?.return?.stops || 0) === 0
-                          ? "Non-stop"
-                          : `${itinerary.return.stops} stop${itinerary.return.stops > 1 ? "s" : ""}`
-                      }
-
-                      arrDateText={retSegLast?.arrivalTime ? formatDate(retSegLast.arrivalTime) : ""}
-                      arrTime={
-                        itinerary.return.arrivalTime
-                          ? formatTime(itinerary.return.arrivalTime)
-                          : retSegLast?.arrivalTime
-                          ? formatTime(retSegLast.arrivalTime)
-                          : ""
-                      }
-                      arrCity={(itinerary.return.destination || retSegLast?.arrival || "—")}
-                      arrAirport={(itinerary.return.destination || retSegLast?.arrival || "—")}
-                      expectedReturnOrigin={searchParams?.origin}
-                      expectedReturnDestination={searchParams?.destination}
-
-                      body={
-                        <FlightSegment
-                          flight={itinerary.return}
-                          segmentType="Return"
-                          baggage={itinerary.baggage || itinerary.baggageMap}
-                          globalIdxToSegId={itinerary.summary?.globalIdxToSegId || itinerary.globalIdxToSegId}
-                          formatDate={formatDate}
-                          formatTime={formatTime}
-                          calculateDuration={calculateDuration}
-                          getAirportName={getAirportName}
-                          getAirlineName={getAirlineName}
-                          getAirlineLogo={getAirlineLogo}
-                          expectedReturnOrigin={searchParams?.destination}
-                          expectedReturnDestination={searchParams?.origin}
-                        />
-                      }
-                    />
-                  )}
-
-                  {/* Multi-city */}
-                  {Array.isArray(itinerary.legs) &&
-                    itinerary.legs.length > 0 &&
-                    itinerary.legs.map((leg, li) => {
-                      const seg0 = leg?.segments?.[0];
-                      const segLast = leg?.segments?.slice(-1)?.[0];
-                      const left = `${(leg.origin || seg0?.departure || "—")} → ${(leg.destination || segLast?.arrival || "—")}`;
-                      const right = leg?.departureTime || seg0?.departureDate || seg0?.departureTime || "";
-                      const logoCode = seg0?.airline || itinerary.airlines?.[0];
-                      const logoSrc = logoCode ? `/assets/img/airlines/${logoCode}.png` : "/assets/img/airlines/placeholder.png";
-                      const aName = logoCode ? (typeof getAirlineName === "function" ? getAirlineName(logoCode) : logoCode) : "Airline";
                       return (
                         <SegmentBlock
-                          flight={leg}
                           key={`${key}-leg-${li}`}
                           id={`${key}-leg-${li}`}
-                          segmentType={`Leg ${li + 1}`}
+                          leg={leg} // Ensure leg is passed
                           openId={openDetailsId}
-                          setOpenId={setOpen}
-                          titleLeft={`${left}`}
-                          titleRight={
-                            right
-                              ? // Only call formatDate when we have a date or datetime (leg.departureTime or seg0.departureDate)
-                                (leg?.departureTime || seg0?.departureDate ? formatDate(leg?.departureTime || seg0?.departureDate) : "")
-                              : ""
-                          }
+                          setOpenId={setOpenDetailsId}
+                          titleLeft={titleLeft}
+                          titleRight={firstSeg.departureIso ? formatDate(firstSeg.departureIso) : ""}
 
                           logoSrc={logoSrc}
-                          logoAlt={`${aName} logo`}
+                          
+                          // Formatted dates/times using backend ISO string
+                          depDateText={firstSeg.departureIso ? formatDate(firstSeg.departureIso) : ""}
+                          depTime={firstSeg.departureIso ? formatTime(firstSeg.departureIso) : ""}
+                          
+                          // FIX: Left side = City name, Right side = City name
+                          depCity={getCityName(depCode)}
+                          depAirport={getAirportName(depCode)}
 
-                          depDateText={
-                            seg0?.departureDate
-                              ? formatDate(seg0.departureDate)
-                              : leg?.departureTime
-                              ? formatDate(leg.departureTime)
-                              : ""
-                          }
-                          depTime={leg.departureTime ? formatTime(leg.departureTime) : seg0?.departureTime ? formatTime(seg0.departureTime) : ""}
-                          depCity={aName}
-                          depAirport={(leg.origin || seg0?.departure || "—")}
+                          durationText={formatDuration(leg.journeyTime || 0)}
+                          stopsText={Number(leg.stops || 0) === 0 ? "Non-stop" : `${leg.stops} stop${leg.stops > 1 ? "s" : ""}`}
 
-                          durationText={formatDuration(leg?.journeyTime || 0)}
-                          stopsText={Number(leg?.stops || 0) === 0 ? "Non-stop" : `${leg.stops} stop${leg.stops > 1 ? "s" : ""}`}
-
-                          arrDateText={
-                            segLast?.arrivalDate
-                              ? formatDate(segLast.arrivalDate)
-                              : leg?.arrivalTime
-                              ? formatDate(leg.arrivalTime)
-                              : ""
-                          }
-
-                          arrTime={
-                            leg.arrivalTime
-                              ? formatTime(leg.arrivalTime)
-                              : segLast?.arrivalTime
-                              ? formatTime(segLast.arrivalTime)
-                              : ""
-                          }
-                          arrCity={(leg.destination || segLast?.arrival || "—")}
-                          arrAirport={(leg.destination || segLast?.arrival || "—")}
+                          arrDateText={lastSeg.arrivalIso ? formatDate(lastSeg.arrivalIso) : ""}
+                          arrTime={lastSeg.arrivalIso ? formatTime(lastSeg.arrivalIso) : ""}
+                          arrCity={getCityName(arrCode)}
+                          arrAirport={getAirportName(arrCode)}
 
                           body={
                             <FlightSegment
-                              flight={leg}
-                              segmentType={`Leg ${li + 1}`}
-                              baggage={itinerary.baggage || itinerary.baggageMap}
-                              globalIdxToSegId={itinerary.summary?.globalIdxToSegId || itinerary.globalIdxToSegId}
-                              formatDate={formatDate}
-                              formatTime={formatTime}
-                              calculateDuration={calculateDuration}
+                              leg={leg}
+                              idx={li}
+                              totalLegs={itinerary.legs.length}
+                              baggage={itinerary.rawOffer.baggage} 
+                              openId={openDetailsId}
+                              setOpenId={setOpenDetailsId}
                               getAirportName={getAirportName}
                               getAirlineName={getAirlineName}
                               getAirlineLogo={getAirlineLogo}
+                              formatDate={formatDate}
+                              formatTime={formatTime}
                             />
                           }
                         />
                       );
-                    })}
+                  })}
                 </div>
 
                 {/* Bottom badges + CTA */}

@@ -3,71 +3,35 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import BookingHeader from "../../../components/client/Flight/BookingHeader";
 import BookingForm from "../../../components/client/Flight/BookingForm";
-import { PayPalScriptProvider } from "@paypal/react-paypal-js";
-import { flights, airlines, airports, countries } from "../../../data/fakeData";
+import { airports, airlines, countries } from "../../../data/fakeData";
 import flygasal from "../../../api/flygasalService";
 import { AuthContext } from "../../../context/AuthContext";
 
 /* ----------------------- constants ----------------------- */
-// const countries = [
-//   { code: "US", name: "United States", flag: "/assets/img/flags/us.png" },
-//   { code: "GB", name: "United Kingdom", flag: "/assets/img/flags/gb.png" },
-//   { code: "AE", name: "United Arab Emirates", flag: "/assets/img/flags/ae.png" },
-//   { code: "AU", name: "Australia", flag: "/assets/img/flags/au.png" },
-//   { code: "FR", name: "France", flag: "/assets/img/flags/fr.png" },
-//   { code: "ET", name: "Ethiopia", flag: "/assets/img/flags/et.png" },
-//   { code: "KE", name: "Kenya", flag: "/assets/img/flags/ke.png" },
-//   { code: "ZA", name: "South Africa", flag: "/assets/img/flags/za.png" },
-//   { code: "EG", name: "Egypt", flag: "/assets/img/flags/eg.png" },
-//   { code: "MA", name: "Morocco", flag: "/assets/img/flags/ma.png" },
-// ];
-
 const months = [
-  { value: "01", label: "01 January" },
-  { value: "02", label: "02 February" },
-  { value: "03", label: "03 March" },
-  { value: "04", label: "04 April" },
-  { value: "05", label: "05 May" },
-  { value: "06", label: "06 June" },
-  { value: "07", label: "07 July" },
-  { value: "08", label: "08 August" },
-  { value: "09", label: "09 September" },
-  { value: "10", label: "10 October" },
-  { value: "11", label: "11 November" },
-  { value: "12", label: "12 December" },
+  { value: "01", label: "January" }, { value: "02", label: "February" },
+  { value: "03", label: "March" }, { value: "04", label: "April" },
+  { value: "05", label: "May" }, { value: "06", label: "June" },
+  { value: "07", label: "July" }, { value: "08", label: "August" },
+  { value: "09", label: "September" }, { value: "10", label: "October" },
+  { value: "11", label: "November" }, { value: "12", label: "December" },
 ];
-const days = Array.from({ length: 31 }, (_, i) => ({
-  value: String(i + 1).padStart(2, "0"),
-  label: String(i + 1).padStart(2, "0"),
-}));
-const dobYears = Array.from({ length: new Date().getFullYear() - 1920 + 1 }, (_, i) => ({
-  value: String(new Date().getFullYear() - i),
-  label: String(new Date().getFullYear() - i),
-}));
+const days = Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1).padStart(2, "0"), label: String(i + 1).padStart(2, "0") }));
+const dobYears = Array.from({ length: new Date().getFullYear() - 1920 + 1 }, (_, i) => ({ value: String(new Date().getFullYear() - i), label: String(new Date().getFullYear() - i) }));
 const issuanceYears = dobYears;
-const expiryYears = Array.from({ length: 21 }, (_, i) => ({
-  value: String(new Date().getFullYear() + i),
-  label: String(new Date().getFullYear() + i),
-}));
+const expiryYears = Array.from({ length: 21 }, (_, i) => ({ value: String(new Date().getFullYear() + i), label: String(new Date().getFullYear() + i) }));
 
 /* ----------------------- utils ----------------------- */
-const toTimeOnly = (dt) => {
-  if (!dt) return "";
-  const d = new Date(dt);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-};
 const toYMD = (dt) => {
   if (!dt) return "";
   const d = new Date(dt);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
-const money = (n = 0, currency = "USD") =>
-  (Number(n) || 0).toLocaleString("en-US", { style: "currency", currency });
 
-/** Build a "back to search" URL that keeps user inputs but strips selection-only params */
+/** Navigates safely back to the search page, removing checkout-specific state */
 const buildAvailabilitySearch = (search) => {
   const keep = new URLSearchParams(search);
-  ["solutionId", "solutionKey", "flightId", "returnFlightId"].forEach((k) => keep.delete(k));
+  ["offer", "markupPercent", "markupAmount", "grandTotal"].forEach((k) => keep.delete(k));
   const q = keep.toString();
   return `/flight/availability${q ? `?${q}` : ""}`;
 };
@@ -76,49 +40,26 @@ const buildAvailabilitySearch = (search) => {
    AirLoading — centered, modern, brand-colored
    ====================================================== */
 const AirLoading = () => {
-  const BRAND = "#F68221"; // primary
+  const BRAND = "#F68221";
 
   return (
     <div className="min-h-screen bg-[#F6F6F7]">
       <div className="container mx-auto px-4">
         <div className="flex min-h-screen items-center justify-center">
           <motion.div
-            initial={{ opacity: 0, scale: 0.98, y: 6 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
-            className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm"
-            role="status"
-            aria-live="polite"
+            initial={{ opacity: 0, scale: 0.98, y: 6 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.2 }}
+            className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm" role="status" aria-live="polite"
           >
-            {/* Icon circle */}
-            <div className="mx-auto grid h-16 w-16 place-items-center rounded-full"
-                 style={{ backgroundColor: "#FFF3E8", border: "1px solid #FED7B4", color: BRAND }}>
-              <motion.svg
-                width="28" height="28" viewBox="0 0 24 24" fill="none"
-                animate={{ rotate: 360 }}
-                transition={{ repeat: Infinity, duration: 1.4, ease: "linear" }}
-              >
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-full" style={{ backgroundColor: "#FFF3E8", border: "1px solid #FED7B4", color: BRAND }}>
+              <motion.svg width="28" height="28" viewBox="0 0 24 24" fill="none" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.4, ease: "linear" }}>
                 <path d="M12 4v2a6 6 0 016 6h2c0-4.418-3.582-8-8-8z" fill="currentColor" />
                 <path d="M12 20v-2a6 6 0 01-6-6H4c0 4.418 3.582 8 8 8z" fill="currentColor" opacity=".55" />
               </motion.svg>
             </div>
-
-            {/* Title */}
-            <h2 className="mt-5 text-center text-lg font-semibold text-zinc-900">
-              Checking availability
-            </h2>
-            <p className="mt-1 text-center text-sm text-zinc-600">
-              Fetching live prices and seats…
-            </p>
-
-            {/* Classic loader bar */}
+            <h2 className="mt-5 text-center text-lg font-semibold text-zinc-900">Confirming itinerary</h2>
+            <p className="mt-1 text-center text-sm text-zinc-600">Verifying live prices and seat availability…</p>
             <div className="mx-auto mt-5 h-1.5 w-48 overflow-hidden rounded-full bg-zinc-200" aria-hidden="true">
-              <motion.div
-                className="h-full w-1/3 rounded-full"
-                style={{ backgroundColor: BRAND }}
-                animate={{ x: ["-30%", "130%"] }}
-                transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-              />
+              <motion.div className="h-full w-1/3 rounded-full" style={{ backgroundColor: BRAND }} animate={{ x: ["-30%", "130%"] }} transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }} />
             </div>
           </motion.div>
         </div>
@@ -128,9 +69,9 @@ const AirLoading = () => {
 };
 
 /* ======================================================
-   Modern Error State — same visual language as loading
+   Modern Error State
    ====================================================== */
-const ErrorState = ({ message, onBack, onRetry, onReprice }) => {
+const ErrorState = ({ message, onBack, onReprice }) => {
   const BRAND = "#F68221";
 
   return (
@@ -138,16 +79,10 @@ const ErrorState = ({ message, onBack, onRetry, onReprice }) => {
       <div className="container mx-auto px-4">
         <div className="flex min-h-screen items-center justify-center">
           <motion.div
-            initial={{ opacity: 0, scale: 0.98, y: 6 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
-            className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm"
-            role="alertdialog"
-            aria-label="Flight selection error"
+            initial={{ opacity: 0, scale: 0.98, y: 6 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.2 }}
+            className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm" role="alertdialog"
           >
-            {/* Icon circle */}
-            <div className="mx-auto grid h-16 w-16 place-items-center rounded-full"
-                 style={{ backgroundColor: "#FFF3E8", border: "1px solid #FED7B4", color: BRAND }}>
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-full" style={{ backgroundColor: "#FFF3E8", border: "1px solid #FED7B4", color: BRAND }}>
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                 <path d="M12 2a10 10 0 100 20 10 10 0 000-20z" stroke="currentColor" strokeWidth="1.8" />
                 <path d="M12 7v6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -155,41 +90,26 @@ const ErrorState = ({ message, onBack, onRetry, onReprice }) => {
               </svg>
             </div>
 
-            <h3 className="mt-5 text-center text-lg font-semibold text-zinc-900">
-              We couldn’t get this fare
-            </h3>
+            <h3 className="mt-5 text-center text-lg font-semibold text-zinc-900">We couldn’t secure this fare</h3>
             <p className="mt-1 text-center text-sm text-zinc-600">{message}</p>
 
             <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-              <button
-                className="rounded-lg px-4 py-2 text-white"
-                style={{ backgroundColor: BRAND }}
-                onClick={onBack}
-              >
+              <button className="rounded-lg px-4 py-2 text-white shadow-sm hover:bg-[#E96806] transition-colors" style={{ backgroundColor: BRAND }} onClick={onBack}>
                 Back to Search
               </button>
-              <button
-                className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-700 hover:bg-zinc-50"
-                onClick={onRetry}
-              >
-                Try again
-              </button>
               {onReprice && (
-                <button
-                  className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-700 hover:bg-zinc-50"
-                  onClick={onReprice}
-                >
-                  Reprice
+                <button className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-700 hover:bg-zinc-50 transition-colors" onClick={onReprice}>
+                  Refresh Pricing
                 </button>
               )}
             </div>
 
             <details className="mx-auto mt-4 w-full text-xs text-zinc-600">
-              <summary className="cursor-pointer select-none text-zinc-700">Why this happens</summary>
+              <summary className="cursor-pointer select-none text-zinc-700">Why did this happen?</summary>
               <ul className="mt-2 list-disc pl-5">
-                <li>The fare changed or sold out while you were reviewing it.</li>
-                <li>The return leg no longer matches the outbound constraints.</li>
-                <li>A temporary network hiccup interrupted the request.</li>
+                <li>The fare sold out while you were reviewing it.</li>
+                <li>The airline changed the price dynamically.</li>
+                <li>A temporary network hiccup interrupted the request to the airline.</li>
               </ul>
             </details>
           </motion.div>
@@ -200,85 +120,14 @@ const ErrorState = ({ message, onBack, onRetry, onReprice }) => {
 };
 
 /* ======================================================
-   Helpers: build legs by flightId groups (ordered by offer.flightIds)
-   ====================================================== */
-function buildLegFromSegments(offer, segs) {
-  if (!segs?.length) return null;
-  const first = segs[0];
-  const last = segs[segs.length - 1];
-  return {
-    id: first?.segmentId || offer?.id || null,
-    airline: first?.airline || null,
-    flightNumber: `${first?.airline ?? ""}${first?.flightNum ?? ""}`,
-    origin: first?.departure ?? offer?.origin ?? null,
-    destination: last?.arrival ?? offer?.destination ?? null,
-    departureTime: first?.departureDate ? new Date(first.departureDate) : offer?.departureTime,
-    arrivalTime: last?.arrivalDate ? new Date(last.arrivalDate) : offer?.arrivalTime,
-    cabin: first?.cabinClass ?? offer?.cabin ?? null,
-    bookingCode: first?.bookingCode ?? offer?.bookingCode ?? null,
-    availabilityCount: first?.availabilityCount ?? 0,
-    equipment: first?.equipment ?? null,
-    terminals: {
-      from: first?.departureTerminal ?? null,
-      to: last?.arrivalTerminal ?? null,
-    },
-    segments: segs,
-    priceBreakdown: offer?.priceBreakdown ?? null, // single total still lives on the offer
-    marketingCarriers: offer?.marketingCarriers ?? [],
-    operatingCarriers: offer?.operatingCarriers ?? [],
-    lastTktTime: offer?.lastTktTime ? new Date(offer.lastTktTime) : null,
-  };
-}
-
-function groupOfferByFlights(offer) {
-  const segs = offer?.segments || [];
-  if (!segs.length) return [];
-
-  // If we have flightIds, preserve their order. Otherwise, single leg of all segs.
-  const fids = Array.isArray(offer?.flightIds) && offer.flightIds.length ? offer.flightIds : [null];
-
-  // Build mapping flightId -> segments (preserve sequence in offer.segments)
-  const buckets = new Map(fids.map((fid) => [fid, []]));
-  segs.forEach((s) => {
-    const fid = s?.flightId ?? null;
-    if (!buckets.has(fid)) buckets.set(fid, []);
-    buckets.get(fid).push(s);
-  });
-
-  // Produce legs in flightIds order (fallback: any remaining buckets in insertion order)
-  const legs = [];
-  const seen = new Set();
-  fids.forEach((fid) => {
-    const segList = buckets.get(fid) || [];
-    if (segList.length) {
-      legs.push(buildLegFromSegments(offer, segList));
-      seen.add(fid);
-    }
-  });
-  // Include any buckets not in fids (robustness)
-  buckets.forEach((segList, fid) => {
-    if (!seen.has(fid) && segList.length) {
-      legs.push(buildLegFromSegments(offer, segList));
-    }
-  });
-
-  return legs.filter(Boolean);
-}
-
-/* ======================================================
-   Booking Detail
+   Booking Detail Component
    ====================================================== */
 const BookingDetail = () => {
   const { user } = useContext(AuthContext);
-  const [agentData, setAgentData] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
 
-  // cleanup useEffect
-  useEffect(() => {
-    localStorage.removeItem("bookingFormDraft"); // legacy key cleanup
-  }, []);
-
+  // State Management
   const [tripDetails, setTripDetails] = useState(null);
   const [flight, setFlight] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -286,7 +135,7 @@ const BookingDetail = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
 
-  const [adults, setAdults] = useState(0);
+  const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
   const [infants, setInfants] = useState(0);
 
@@ -297,324 +146,245 @@ const BookingDetail = () => {
   const [showReadMore, setShowReadMore] = useState(false);
   const [isFormValid, setIsFormValid] = useState(false);
 
-  // --- 10-minute hold timer state ---
+  // Timer State
   const [holdUntil, setHoldUntil] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [repriceTrigger, setRepriceTrigger] = useState(0);
+  
   const searchKey = useMemo(() => {
     const sp = new URLSearchParams(location.search);
-    return `bc_hold:${sp.get("solutionId") || ""}:${sp.get("flightId") || ""}:${sp.get("returnFlightId") || ""}`;
-  }, [location.search]);
+    return `bc_hold:${sp.get("tripType") || "flight"}:${Date.now()}`;
+  }, [location.search, repriceTrigger]); // Tie it to repriceTrigger to restart the clock on reprice
+
   const timeLeftMs = Math.max(0, holdUntil - now);
   const holdExpired = timeLeftMs <= 0;
   const mm = String(Math.floor(timeLeftMs / 60000)).padStart(2, "0");
   const ss = String(Math.floor((timeLeftMs % 60000) / 1000)).padStart(2, "0");
   const timeLeftLabel = `${mm}:${ss}`;
 
-  /* ---------- Agency Markup ---------- */
   const agentMarkupPercent = user?.agency_markup || 0;
 
-  const draftKey = useMemo(() => {
-     const sp = new URLSearchParams(location.search);
-     // include identifiers that change per selection
-     return `bookingFormDraft:${sp.get("solutionId") || ""}:${sp.get("flightId") || ""}:${sp.get("returnFlightId") || ""}`;
+  // Retrieve raw offer from URL
+  const initialOffer = useMemo(() => {
+    try {
+      const sp = new URLSearchParams(location.search);
+      const offerStr = sp.get("offer");
+      return offerStr ? JSON.parse(offerStr) : null;
+    } catch (e) {
+      console.error("Failed to parse initial offer from URL.");
+      return null;
+    }
   }, [location.search]);
 
+  const draftKey = `bookingFormDraft:${initialOffer?.id || "draft"}`;
   const [formData, setFormData] = useState(() => {
-     const cached = localStorage.getItem(draftKey);
-    return (
-      (cached && JSON.parse(cached)) || {
-        full_name: "",
-        email: "",
-        phone: "",
-        travelers: [],
-        payment_method: "",
-        agree_terms: true,
-      }
-    );
+    const cached = localStorage.getItem(draftKey);
+    return cached ? JSON.parse(cached) : {
+      full_name: "", email: "", phone: "", travelers: [], payment_method: "", agree_terms: true,
+    };
   });
 
-  /* ---------- role ---------- */
+  useEffect(() => { setIsAgent(user?.role === "agent"); }, [user]);
+
+// Seed Travelers based on Initial Offer Passengers
   useEffect(() => {
-    setIsAgent(user?.role === "agent");
-  }, [user]);
+    if (!initialOffer) return;
+    const a = initialOffer.passengers?.adults || 1;
+    const c = initialOffer.passengers?.children || 0;
+    const i = initialOffer.passengers?.infants || 0;
 
-  /* ---------- parse counts & seed travelers (initial only from URL) ---------- */
-  useEffect(() => {
-    const sp = new URLSearchParams(location.search);
-    const adultsCount = parseInt(sp.get("adults")) || 2;
-    const childrenCount = parseInt(sp.get("children")) || 0;
-    const infantsCount = parseInt(sp.get("infants")) || 0;
+    setAdults(a); setChildren(c); setInfants(i);
 
-    setAdults(adultsCount);
-    setChildren(childrenCount);
-    setInfants(infantsCount);
-
-    // seed travelers only when empty to preserve edits
     setFormData((prev) => {
       if (prev.travelers?.length) return prev;
-      const dev = import.meta.env.ENV_MODE === "development";
-      const mk = (type, defaults = {}) => ({
-        type,
-        title: dev ? (type === "adult" ? "Mr" : "Miss") : "",
-        first_name: dev ? `Test${Math.random().toString(36).slice(2, 5)}` : "",
-        last_name: dev ? `User${Math.random().toString(36).slice(2, 5)}` : "",
-        nationality: dev ? "PK" : "",
-        dob_month: dev ? "01" : "",
-        dob_day: dev ? "01" : "",
-        dob_year: dev ? (type === "infant" ? "2023" : type === "child" ? "2015" : "1988") : "",
-        passport: dev ? "X1234567" : "",
-        passport_issuance_month: dev ? "01" : "",
-        passport_issuance_day: dev ? "01" : "",
-        passport_issuance_year: dev ? "2020" : "",
-        passport_expiry_month: dev ? "01" : "",
-        passport_expiry_day: dev ? "01" : "",
-        passport_expiry_year: dev ? String(new Date().getFullYear() + 2) : "",
-        ...defaults,
+      const mk = (type) => ({
+        type, gender: "", first_name: "", last_name: "", nationality: "",
+        dob_month: "", dob_day: "", dob_year: "", passport: "",
+        passport_issuance_month: "", passport_issuance_day: "", passport_issuance_year: "",
+        passport_expiry_month: "", passport_expiry_day: "", passport_expiry_year: "",
       });
       return {
         ...prev,
-        travelers: [
-          ...Array(adultsCount).fill(0).map(() => mk("adult")),
-          ...Array(childrenCount).fill(0).map(() => mk("child")),
-          ...Array(infantsCount).fill(0).map(() => mk("infant")),
-        ],
+        travelers: [ ...Array(a).fill(0).map(() => mk("adult")), ...Array(c).fill(0).map(() => mk("child")), ...Array(i).fill(0).map(() => mk("infant")) ],
       };
     });
-  }, [location.search]);
+  }, [initialOffer]);
 
-  /* ---------- form autosave ---------- */
-  useEffect(() => {
-    localStorage.setItem(draftKey, JSON.stringify(formData));
-  }, [formData, draftKey]);
+  useEffect(() => { localStorage.setItem(draftKey, JSON.stringify(formData)); }, [formData, draftKey]);
 
-  /* ---------- validation ---------- */
+  // Form Validation Logic
   useEffect(() => {
     const requiredTravelers = adults + children + infants;
-    const travelerComplete = (t) =>
-      t.title &&
-      t.first_name &&
-      t.last_name &&
-      t.nationality &&
-      t.dob_month &&
-      t.dob_day &&
+    
+    // Check if a single traveler has all required fields filled
+    const travelerComplete = (t) => 
+      t.gender && 
+      t.first_name && 
+      t.last_name && 
+      t.nationality && 
+      t.dob_month && 
+      t.dob_day && 
       t.dob_year &&
-      t.passport &&
-      t.passport_issuance_month &&
-      t.passport_issuance_day &&
-      t.passport_issuance_year &&
-      t.passport_expiry_month &&
-      t.passport_expiry_day &&
+      t.passport && 
+      t.passport_issuance_month && 
+      t.passport_issuance_day && 
+      t.passport_issuance_year && 
+      t.passport_expiry_month && 
+      t.passport_expiry_day && 
       t.passport_expiry_year;
 
-    const isValid =
-      formData.full_name &&
-      formData.email &&
-      formData.phone &&
-      formData.agree_terms &&
+    // The form is valid ONLY if all sections are completed
+    const isValid = 
+      formData.full_name && 
+      formData.email && 
+      formData.phone && 
+      formData.agree_terms && 
       formData.payment_method &&
-      formData.travelers.length >= requiredTravelers &&
-      formData.travelers.every(travelerComplete) &&
-      (formData.payment_method !== "credit_card" ||
-        (formData.card_full_name && formData.card_number && formData.card_expiration && formData.card_cvv));
-
+      formData.travelers.length >= requiredTravelers && 
+      formData.travelers.every(travelerComplete);
+      
     setIsFormValid(Boolean(isValid));
   }, [formData, adults, children, infants]);
 
-  /* ---------- helpers ---------- */
-  const getAirportName = (code) => {
-    const a = airports.find((x) => x.value === code);
-    return a ? `${a.label}` : code || "—";
+  /* ---------- Helpers ---------- */
+  const getAirportName = (code) => airports.find((x) => x.value === code)?.label || code || "—";
+  const getCityName = (code) => airports.find((x) => x.value === code)?.city || code || "—";
+  const getAirlineName = (code) => airlines.find((x) => x.code === code)?.name || code || "—";
+  const getAirlineLogo = (code) => airlines.find((x) => x.code === code)?.logo || "/assets/img/airlines/placeholder.png";
+  const formatTime = (s) => s ? new Date(s).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }) : "";
+  const formatDate = (s) => s ? new Date(s).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "";
+  const formatDateMonth = (s) => s ? new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+  const calculateDuration = (mins) => {
+    if (!mins) return "—";
+    const h = Math.floor(mins / 60);
+    return `${h}h ${mins % 60}m`;
   };
-  const getCityName = (code) => {
-    const a = airports.find((x) => x.value === code);
-    return a ? a.city : code || "—";
-  };
-  const getAirlineName = (code) => {
-    const a = airlines.find((x) => x.code === code);
-    return a ? a.name : code || "—";
-  };
-  const getAirlineLogo = (code) => {
-    const a = airlines.find((x) => x.code === code);
-    return a ? a.logo : "/assets/img/airlines/placeholder.png";
-  };
-  const calculateDuration = (departure, arrival) => {
-    const depart = new Date(departure);
-    const arrive = new Date(arrival);
-    const diff = Math.max(0, (arrive - depart) / (1000 * 60)); // in mins
-    const h = Math.floor(diff / 60);
-    const m = Math.round(diff % 60);
-    return `${h}h ${m}m`;
-  };
-  const formatTime = (s) =>
-    s ? new Date(s).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }) : "";
-  const formatDate = (s) =>
-    s ? new Date(s).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "";
-  const formatDateMonth = (s) =>
-    s ? new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+  const getPassengerSummary = (a, c, i) => [a > 0 && `${a} Adult${a > 1 ? "s" : ""}`, c > 0 && `${c} Child${c > 1 ? "ren" : ""}`, i > 0 && `${i} Infant${i > 1 ? "s" : ""}`].filter(Boolean).join(", ");
 
-  const getPassengerSummary = (a, c, i) => {
-    const parts = [];
-    if (a > 0) parts.push(`${a} Adult${a > 1 ? "s" : ""}`);
-    if (c > 0) parts.push(`${c} Child${c > 1 ? "ren" : ""}`);
-    if (i > 0) parts.push(`${i} Infant${i > 1 ? "s" : ""}`);
-    return parts.join(", ");
-  };
-
-  /* ---------- fetch precise pricing (single offer) ---------- */
+/* ---------- Fetch Precise Pricing ---------- */
   useEffect(() => {
-    const run = async () => {
+    const fetchPricing = async () => {
+      if (!initialOffer) {
+        setError("Invalid flight selection. Please return to the search page.");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
+
       try {
         const sp = new URLSearchParams(location.search);
+
+        const reqAdults = Number(initialOffer.passengers?.adults || sp.get("adults") || 1);
+        const reqChildren = Number(initialOffer.passengers?.children || sp.get("children") || 0);
+        const reqInfants = Number(initialOffer.passengers?.infants || sp.get("infants") || 0);
         
-        // Build request criteria from URL, grouped by journeyIndex (0,1,2,...)
-        const journeysBuckets = new Map(); // journeyIndex -> segment[]
-        let idx = 0;
-        while (sp.has(`flights[${idx}][origin]`)) {
-          const ji = parseInt(sp.get(`flights[${idx}][journeyIndex]`) || "0", 10) || 0;
-          const seg = {
-            airline: sp.get(`flights[${idx}][airline]`),
-            flightNum: sp.get(`flights[${idx}][flightNum]`),
-            arrival: sp.get(`flights[${idx}][arrival]`),
-            arrivalDate: sp.get(`flights[${idx}][arrivalDate]`),
-            arrivalTime: sp.get(`flights[${idx}][arrivalTime]`),
-            departure: sp.get(`flights[${idx}][departure]`),
-            departureDate: sp.get(`flights[${idx}][departureDate]`),
-            departureTime: sp.get(`flights[${idx}][departureTime]`),
-            bookingCode: sp.get(`flights[${idx}][bookingCode]`),
-            destination: sp.get(`flights[${idx}][arrival]`),
-            origin: sp.get(`flights[${idx}][departure]`),
-          };
-          if (!journeysBuckets.has(ji)) journeysBuckets.set(ji, []);
-          journeysBuckets.get(ji).push(seg);
-          idx++;
-        }
+        setAdults(reqAdults);
+        setChildren(reqChildren);
+        setInfants(reqInfants);
 
-        // Flatten to Array<Array<segment>> in ascending journey index order
-        const journeys = Array.from(journeysBuckets.keys())
-          .sort((a, b) => a - b)
-          .map((k) => journeysBuckets.get(k));
+        // Reconstruct the journeys payload EXACTLY as PKFare expects it
+        const journeys = (initialOffer.summary?.legs || []).map((leg) =>
+          (leg.segments || []).map((seg) => {
+            
+            // Helper to get time in HH:mm format
+            const getTimeOnly = (isoStr) => {
+                if (!isoStr) return "";
+                const d = new Date(isoStr);
+                return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+            };
 
-        const tripType = sp.get("tripType") || "oneway";
-        const cabinType = sp.get("flightType") || sp.get("cabin") || "Economy";
-        const adultsQ = parseInt(sp.get("adults")) || 1;
-        const childrenQ = parseInt(sp.get("children")) || 0;
-        const infantsQ = parseInt(sp.get("infants")) || 0;
-
-        const firstSeg = journeys[0]?.[0] || null;
-        const departureDateQ = sp.get("depart") || firstSeg?.departureDate || null;
-        const returnDateQ = sp.get("returnDate") || null;
+            return {
+              airline: seg.airline || "",
+              // Ensure we use flightNum (PKFare format), falling back to flightNo
+              flightNum: seg.flightNum || seg.flightNo || "",
+              arrival: seg.arrival || "",
+              // PKFare expects string dates like "2024-12-15"
+              arrivalDate: seg.strArrivalDate || (seg.arrivalIso ? toYMD(seg.arrivalIso) : ""),
+              // PKFare expects string times like "20:10"
+              arrivalTime: seg.strArrivalTime || (seg.arrivalIso ? getTimeOnly(seg.arrivalIso) : ""),
+              departure: seg.departure || "",
+              departureDate: seg.strDepartureDate || (seg.departureIso ? toYMD(seg.departureIso) : ""),
+              departureTime: seg.strDepartureTime || (seg.departureIso ? getTimeOnly(seg.departureIso) : ""),
+              bookingCode: seg.bookingCode || "",
+            };
+          })
+        );
 
         const params = {
-          journeys, // NESTED journeys: [[...outboundSegs], [...returnSegs], ...]
-          tripType,
-          cabinType,
-          adults: adultsQ,
-          children: childrenQ,
-          infants: infantsQ,
-          departureDate: departureDateQ,
-          returnDate: returnDateQ,
-          solutionId: sp.get("solutionId") || null,
-          solutionKey: sp.get("solutionKey") || null,
-          origin: sp.get("origin") || firstSeg?.origin || "",
-          destination: sp.get("destination") || firstSeg?.destination || "",
-          currency: sp.get("currency") || "USD",
+          journeys,
+          solutionId: initialOffer.solutionId || "",
+          solutionKey: initialOffer.solutionKey || "",
+          adults: reqAdults,
+          children: reqChildren,
+          infants: reqInfants,
+          cabinType: initialOffer.cabin || "Economy",
+          tag: "",
         };
 
-
-        // console.info("Pricing with params", params);
         const priceResp = await flygasal.precisePricing(params);
-        // console.info("Pricing Resp: ", priceResp);
-        
-        if (priceResp.errorCode !== "0" || priceResp.errorMsg !== "ok") {
-          const msg = priceResp.errorMsg || "We couldn’t confirm pricing for this itinerary.";
-          setError(msg);
+        console.info('Precise pricing response:', priceResp);
+
+        const preciseOffer = priceResp.offer;
+
+        if (!preciseOffer || preciseOffer.error) {
+          setError("We couldn’t confirm your selected flight. It may have sold out.");
           return;
         }
 
-        // transformPreciseData returns [offer] when response contains `offer`
-        const offers = flygasal.transformPreciseData(priceResp.offer) || [];
-        const offer = offers[0];
-        // console.log("Using offer:", offer);
-        setFlight(offer || null);
-        if (!offer) {
-          setError("We couldn’t confirm your selected flight. Please try again.");
-          return;
-        }
+        setFlight(preciseOffer);
 
-
-        // Prefer passenger counts from the offer
-        if (offer.passengers) {
-          setAdults(Number(offer.passengers.adults ?? adultsQ));
-          setChildren(Number(offer.passengers.children ?? childrenQ));
-          setInfants(Number(offer.passengers.infants ?? infantsQ));
-        }
-
-        // Group into legs by flightId (ordered by offer.flightIds)
-        const legs = groupOfferByFlights(offer);
-        if (!legs.length) {
-          setError("We couldn’t confirm your selected flight. Please try again.");
-          return;
-        }
-
-        // Derive outbound/return by leg index (future-safe for multi-city)
-        const outbound = legs[0] || null;
-        const returnFlight = tripType === "return" ? (legs[1] || null) : null;
-
-        // console.log({ legs, outbound, returnFlight });
-
-        // Compute totals from single-offer price breakdown
-        const currencyFromOffer = offer?.priceBreakdown?.currency || params.currency || "USD";
-        const totalPrice = Number(offer?.priceBreakdown?.grandTotal || 0);
-
-        // Build tripDetails from the offer (stop relying on URL past this point)
         setTripDetails({
-          tripType,
-          origin: offer.origin,
-          destination: offer.destination,
-          departDate: outbound?.departureTime ? toYMD(outbound.departureTime) : null,
-          returnDate: returnFlight?.departureTime ? toYMD(returnFlight.departureTime) : null,
-          fareSourceCode: offer?.solutionId || null,
-          solutionId: offer?.solutionId || null,
+          tripType: sp.get("tripType") || (preciseOffer.summary?.legs?.length > 1 ? "return" : "oneway"),
+          origin: preciseOffer.origin,
+          destination: preciseOffer.destination,
+          departDate: preciseOffer.departureTime ? toYMD(preciseOffer.departureTime) : null,
+          returnDate: preciseOffer.summary?.legs?.[1]?.departureTime ? toYMD(preciseOffer.summary.legs[1].departureTime) : null,
 
-          adults: offer?.passengers?.adults ?? adultsQ,
-          children: offer?.passengers?.children ?? childrenQ,
-          infants: offer?.passengers?.infants ?? infantsQ,
+          solutionId: preciseOffer.solutionId,
+          currency: preciseOffer.priceBreakdown?.currency || "USD",
 
-          currency: currencyFromOffer,
-          outbound,
-          return: returnFlight,
-          totalPrice,
-          legs, // keep all legs for future multi-city UI
-          cancellation_policy:
-            "Non-refundable after 24 hours. Cancellations within 24 hours of booking are refundable with a $50 fee.",
+          outbound: preciseOffer.summary?.legs?.[0] || null,
+          return: preciseOffer.summary?.legs?.[1] || null,
+          legs: preciseOffer.summary?.legs || [],
+
+          totalPrice: preciseOffer.priceBreakdown?.totals?.grand || 0,
+          cancellation_policy: "Non-refundable after 24 hours. Cancellations within 24 hours of booking are refundable with a $50 fee.",
         });
 
-        // Backend surfaced errors (mapped to friendly copy)
-        const errorCode = priceResp?.data?.errorCode;
-        const errorMsg = priceResp?.data?.errorMsg;
-        if (errorCode) {
-          if (errorCode === "B021") {
-            setError("The selected fare is no longer available. Please choose another flight or tap Reprice.");
-          } else if (errorCode === "B020") {
-            setError("We couldn’t find pricing for this itinerary. Try different dates or refresh with Reprice.");
-          } else {
-            setError(errorMsg || "Failed to load booking details. Please try again.");
-          }
-        }
       } catch (e) {
         console.error("Error loading confirmation:", e);
-        setError("Failed to load booking details. Please try again.");
+
+        // Handle Laravel Validation Errors (HTTP 422)
+        if (e?.response?.status === 422) {
+          const validationErrors = e.response.data.errors;
+          const firstError = Object.values(validationErrors).flat()[0];
+          setError(`Data Error: ${firstError}`);
+          return;
+        }
+
+        const errCode = e?.response?.data?.code;
+        const errMsg = e?.response?.data?.message;
+
+        if (errCode === "B021") {
+          setError("The selected fare is no longer available. Please choose another flight or tap Refresh Pricing.");
+        } else if (errCode === "B017" || errCode === "B005") {
+          setError("The airline has updated the price for this itinerary. Tap Refresh Pricing to get the latest fare.");
+        } else if (errMsg) {
+          setError(errMsg);
+        } else {
+          setError("Failed to communicate with the airline. Please try again.");
+        }
       } finally {
         setLoading(false);
       }
     };
-    run();
-  }, [location.search, repriceTrigger]);
 
-  /* ---------- start & tick the 10-minute hold ---------- */
+    fetchPricing();
+  }, [initialOffer, repriceTrigger, location.search]);
+
+  /* ---------- Timer ---------- */
   useEffect(() => {
     if (!tripDetails) return;
     let stored = Number(sessionStorage.getItem(searchKey) || 0);
@@ -631,19 +401,13 @@ const BookingDetail = () => {
     return () => clearInterval(id);
   }, []);
 
-  const reprice = () => {
+  const handleReprice = () => {
     sessionStorage.removeItem(searchKey);
     setHoldUntil(0);
     setRepriceTrigger((x) => x + 1);
   };
 
-  /* ---------- cancellation policy clamp ---------- */
-  useEffect(() => {
-    const p = document.querySelector(".to--be > p");
-    if (p && p.scrollHeight > p.offsetHeight) setShowReadMore(true);
-  }, [tripDetails]);
-
-  /* ---------- event handlers ---------- */
+  /* ---------- Submission & Payment ---------- */
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
     if (name.startsWith("traveler_")) {
@@ -661,26 +425,12 @@ const BookingDetail = () => {
     if (formData.travelers.length >= 9) return;
     setFormData((prev) => ({
       ...prev,
-      travelers: [
-        ...prev.travelers,
-        {
-          type,
-          title: "",
-          first_name: "",
-          last_name: "",
-          nationality: "",
-          dob_month: "",
-          dob_day: "",
-          dob_year: "",
-          passport: "",
-          passport_issuance_month: "",
-          passport_issuance_day: "",
-          passport_issuance_year: "",
-          passport_expiry_month: "",
-          passport_expiry_day: "",
-          passport_expiry_year: "",
-        },
-      ],
+      travelers: [...prev.travelers, {
+        type, gender: "", first_name: "", last_name: "", nationality: "",
+        dob_month: "", dob_day: "", dob_year: "", passport: "",
+        passport_issuance_month: "", passport_issuance_day: "", passport_issuance_year: "",
+        passport_expiry_month: "", passport_expiry_day: "", passport_expiry_year: "",
+      }],
     }));
   };
 
@@ -696,113 +446,86 @@ const BookingDetail = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.agree_terms) return;
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      navigate("/flight/confirmation-success");
-    }, 1200);
   };
 
   const typeMap = { adult: "ADT", child: "CHD", infant: "INF" };
 
   const handlePayment = async (formOverride) => {
     if (holdExpired) {
-      setError("Your fare hold has expired. Tap Reprice to refresh availability and pricing.");
+      setError("Your fare hold has expired. Tap Refresh Pricing to lock in live availability.");
       return;
     }
-    if (!tripDetails) return;
+    if (!tripDetails || !flight) return;
 
-    // prefer the live on-screen draft from BookingForm
     const workingForm = formOverride ?? formData;
-
     setIsProcessing(true);
+
     try {
-      const { outbound, return: rtn, totalPrice, currency } = tripDetails;
-
-      const priceBreakdown = (totalPrice) => {
-        const base = Number(totalPrice) || 0;
-        const markup = +(base * (agentMarkupPercent / 100)).toFixed(2);
-        const total = +(base + markup).toFixed(2);
-        return { base, markup, total };
-      };
-
-      const { base, markup, total } = priceBreakdown(totalPrice);
-
       const bookingDetails = {
+        solutionId: flight.solutionId,
         selectedFlight: flight,
-        // selectedFlight: outbound,
-        selectedReturnFlight: rtn || undefined,
-        solutionId: flight.solutionId || null,
         passengers: (workingForm.travelers || []).map((t) => ({
           firstName: t.first_name,
           lastName: t.last_name,
           nationality: t.nationality,
           type: typeMap[t.type?.toLowerCase()] || "ADT",
-          dob:
-            t.dob_year && t.dob_month && t.dob_day
-              ? `${t.dob_year}-${String(t.dob_month).padStart(2, "0")}-${String(t.dob_day).padStart(2, "0")}`
-              : null,
-          gender: t.gender || "Male",
+          dob: t.dob_year && t.dob_month && t.dob_day ? `${t.dob_year}-${String(t.dob_month).padStart(2, "0")}-${String(t.dob_day).padStart(2, "0")}` : null,
+          
+          // FIX: Map "Male" to "M" and "Female" to "F" for Laravel/PKFare
+          gender: t.gender || "M", 
+          
           passportNumber: t.passport || null,
-          passportExpiry:
-            t.passport_expiry_year && t.passport_expiry_month && t.passport_expiry_day
-              ? `${t.passport_expiry_year}-${String(t.passport_expiry_month).padStart(2, "0")}-${String(
-                  t.passport_expiry_day
-                ).padStart(2, "0")}`
-              : null,
+          passportExpiry: t.passport_expiry_year && t.passport_expiry_month && t.passport_expiry_day
+              ? `${t.passport_expiry_year}-${String(t.passport_expiry_month).padStart(2, "0")}-${String(t.passport_expiry_day).padStart(2, "0")}` : null,
         })),
         contactName: workingForm.full_name,
         contactEmail: workingForm.email,
         contactPhone: workingForm.phone,
-        totalPrice: Number(totalPrice || 0) + Number(agentFee || 0),
-        currency: currency || "USD",
-        agent_fee: markup || 0,
+        totalPrice: Number(tripDetails.totalPrice || 0) + Number(agentFee || 0),
+        currency: tripDetails.currency || "USD",
+        agent_fee: agentFee || 0,
         payment_method: workingForm.payment_method || "wallet",
       };
-      // console.log("Booking with details:", bookingDetails);
 
       const resp = await flygasal.createBooking(bookingDetails);
-      const booking = resp?.data?.booking;
+      const booking = resp?.booking;
 
       if (booking?.order_num) {
         navigate(`/flight/booking/invoice/${booking.order_num}`);
       } else {
-        const readable =
-          resp?.data?.errorMsg || "Booking failed. Please try again or select a different flight.";
-        throw new Error(readable);
+        throw new Error(resp?.message || "Booking failed. Please try again.");
       }
     } catch (err) {
       console.error("Flight booking error:", err);
-      setError(err?.message || "We couldn’t complete your booking. Please try again.");
+      
+      // Because we updated Laravel, we no longer need the complex 422 parsing. 
+      // Laravel now sends beautiful strings directly into err.response.data.message!
+      const errMsg = err?.response?.data?.message || err?.message;
+      
+      setError(errMsg || "We couldn’t complete your booking. Please check your form and try again.");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  /* ---------- loading & error UI ---------- */
+  /* ---------- Render Logic ---------- */
   if (error) {
     const backUrl = buildAvailabilitySearch(location.search);
-    return (
-      <ErrorState
-        message={error}
-        onBack={() => navigate(backUrl)}
-        onRetry={() => window.location.reload()}
-        onReprice={reprice}
-      />
-    );
+    return <ErrorState message={error} onBack={() => navigate(backUrl)} onReprice={handleReprice} />;
   }
 
   if (loading || !tripDetails?.outbound) {
     return <AirLoading />;
   }
 
-  /* ---------- render ---------- */
   const { tripType, outbound, return: returnFlight, totalPrice, cancellation_policy, currency } = tripDetails;
-  const finalPrice = Number(totalPrice || 0) + Number(agentFee || 0);
+  
+  // Calculate specific markup and final values
+  const markupAmount = +((totalPrice) * (agentMarkupPercent / 100)).toFixed(2);
+  const finalPrice = totalPrice + markupAmount;
 
   return (
     <div className="min-h-screen bg-slate-50 bg-[#F6F6F7]">
-      {/* Header */}
       <BookingHeader
         searchParams={new URLSearchParams(location.search)}
         adults={adults}
@@ -812,11 +535,12 @@ const BookingDetail = () => {
         returnFlight={returnFlight}
         tripType={tripType}
         totalPrice={totalPrice}
+        isAgent={isAgent}
+        agentMarkupPercent={agentMarkupPercent}
         getAirportName={getAirportName}
         formatDate={formatDate}
       />
 
-      {/* Main Content */}
       <div className="container px-0 lg:px-0 py-3">
         <form onSubmit={handleSubmit}>
           <BookingForm
@@ -873,121 +597,31 @@ const BookingDetail = () => {
             holdExpired={holdExpired}
             timeLeftLabel={timeLeftLabel}
           />
-
-          {/* Hidden Inputs */}
-          <input
-            type="hidden"
-            name="booking_data"
-            value={btoa(JSON.stringify({ cancellation_policy, adults, children, infants }))}
-          />
-          <input
-            type="hidden"
-            name="routes"
-            value={btoa(
-              JSON.stringify({
-                segments: [
-                  [
-                    {
-                      ...outbound,
-                      departure_code: outbound.origin,
-                      arrival_code: outbound.destination,
-                      departure_time: formatTime(outbound.departureTime),
-                      arrival_time: formatTime(outbound.arrivalTime),
-                      flight_no: `${outbound?.segments?.[0]?.airline ?? outbound?.airline ?? ""}${
-                        outbound?.segments?.[0]?.flightNum ?? outbound?.flightNumber ?? ""
-                      }`,
-                      class: outbound.cabin || "Economy",
-                      img: getAirlineLogo(outbound.airline),
-                      currency: outbound?.priceBreakdown?.currency || currency || "USD",
-                      // Only one grandTotal overall; put it on outbound and 0 on return for display
-                      price: outbound?.priceBreakdown?.grandTotal,
-                    },
-                  ],
-                  tripType === "return" && returnFlight
-                    ? [
-                        {
-                          ...returnFlight,
-                          departure_code: returnFlight.origin,
-                          arrival_code: returnFlight.destination,
-                          departure_time: formatTime(returnFlight.departureTime),
-                          arrival_time: formatTime(returnFlight.arrivalTime),
-                          flight_no: `${returnFlight?.segments?.[0]?.airline ?? returnFlight?.airline ?? ""}${
-                            returnFlight?.segments?.[0]?.flightNum ?? returnFlight?.flightNumber ?? ""
-                          }`,
-                          class: returnFlight.cabin || "Economy",
-                          img: getAirlineLogo(returnFlight.airline),
-                          currency: returnFlight?.priceBreakdown?.currency || currency || "USD",
-                          price: 0, // single grandTotal already captured on outbound
-                        },
-                      ]
-                    : [],
-                ],
-              })
-            )}
-          />
-          <input type="hidden" name="travellers" value={btoa(JSON.stringify(formData.travelers))} />
         </form>
       </div>
 
-      {/* Fullscreen overlay during submit */}
+      {/* Fullscreen Overlay During Submit */}
       <AnimatePresence>
-        {isSubmitting && (
+        {isProcessing && (
           <motion.div
             className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            role="dialog"
-            aria-label="Processing payment"
-            aria-live="assertive"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            role="dialog" aria-label="Processing payment" aria-live="assertive"
           >
-            {/* circular flight path */}
             <div className="relative h-24 w-24" aria-hidden="true">
               <svg viewBox="0 0 100 100" className="absolute inset-0">
                 <circle cx="50" cy="50" r="40" stroke="#e5e7eb" strokeWidth="8" fill="none" />
               </svg>
               <motion.svg viewBox="0 0 100 100" className="absolute inset-0" initial={false}>
-                <motion.circle
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  stroke="#F68221"
-                  strokeWidth="8"
-                  strokeDasharray="251.2"
-                  strokeLinecap="round"
-                  fill="none"
-                  animate={{ strokeDashoffset: [251.2, 0, 125, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                />
+                <motion.circle cx="50" cy="50" r="40" stroke="#F68221" strokeWidth="8" strokeDasharray="251.2" strokeLinecap="round" fill="none" animate={{ strokeDashoffset: [251.2, 0, 125, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} />
               </motion.svg>
-              {/* plane rotating */}
-              <motion.div
-                className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 text-zinc-800"
-                style={{ transformOrigin: "50px 50px" }}
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              >
+              <motion.div className="absolute left-1/2 top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 text-zinc-800" style={{ transformOrigin: "50px 50px" }} animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <path d="M2 16l20-8-9 9-2 5-3-4-6-2z" strokeWidth="1.2" />
                 </svg>
               </motion.div>
             </div>
-
-            <motion.div
-              className="mt-4 text-sm font-medium text-zinc-800"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              Processing payment…
-            </motion.div>
-            <div className="mt-2 h-1.5 w-48 overflow-hidden rounded-full bg-zinc-200" aria-hidden="true">
-              <motion.div
-                className="h-full w-1/3 rounded-full"
-                style={{ backgroundColor: "#F68221" }}
-                animate={{ x: ["-30%", "130%"] }}
-                transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-              />
-            </div>
+            <motion.div className="mt-4 text-sm font-medium text-zinc-800" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>Securing your booking…</motion.div>
           </motion.div>
         )}
       </AnimatePresence>

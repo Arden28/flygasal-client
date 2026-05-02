@@ -86,17 +86,27 @@ export default function BookingConfirmation() {
         try {
             setLoading(true);
             const [resBooking, resGateway] = await Promise.all([
-                flygasal.getBookingDetails(orderNumber),
-                apiService.post("/payment_gateways", { api_key: "none" })
+                flygasal.getBookingDetails(orderNumber).catch(e => e), // Prevent fast-fail
+                apiService.post("/payment_gateways", { api_key: "none" }).catch(() => null)
             ]);
 
             if (!mounted) return;
 
-            if (resBooking?.data?.booking) {
-                setBookingData(resBooking.data.booking);
+            // Handle HTTP Errors gracefully
+            if (resBooking instanceof Error || resBooking?.response) {
+                 const errResponse = resBooking.response?.data;
+                 throw new Error(errResponse?.message || resBooking.message || "Failed to load booking details");
+            }
+
+            // FIX: flygasalService returns res.data directly, so we check .booking or .data.booking
+            const actualBookingData = resBooking?.booking || resBooking?.data?.booking;
+
+            if (actualBookingData) {
+                setBookingData(actualBookingData);
                 setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(window.location.href)}`);
             } else {
-                const { errorCode, errorMsg } = resBooking?.data || {};
+                const errorCode = resBooking?.code || resBooking?.errorCode;
+                const errorMsg = resBooking?.message || resBooking?.errorMsg;
                 throw new Error(errorMsg || `Error ${errorCode || "Unknown"}`);
             }
 
@@ -106,7 +116,9 @@ export default function BookingConfirmation() {
 
         } catch (e) {
             console.error(e);
-            if (mounted) setError(e.message || "Failed to load booking details");
+            // Catch robust nested errors
+            const errMsg = e?.response?.data?.message || e.message || "Failed to load booking details";
+            if (mounted) setError(errMsg);
         } finally {
             if (mounted) setLoading(false);
         }
@@ -120,10 +132,17 @@ export default function BookingConfirmation() {
   const payStatus = bookingData?.payStatus?.toLowerCase();
   const isPaid = payStatus === "paid";
   
+  // FIX: Apply Agent Markup Logic
+  const isAgent = user?.role === "agent";
+  const agentMarkupPercent = isAgent ? (Number(user?.agency_markup) || 0) : 0;
+  
   const solutions0 = bookingData?.solutions?.[0];
   const currency = solutions0?.currency || bookingData?.currency || "USD";
-  const amount = solutions0?.buyerAmount ?? bookingData?.buyerAmount;
-  const amountDue = Number(amount || 0);
+  
+  // Calculate Base and Markup Amount
+  const baseAmount = Number(solutions0?.buyerAmount ?? bookingData?.buyerAmount ?? 0);
+  const markupAmount = +(baseAmount * (agentMarkupPercent / 100)).toFixed(2);
+  const amountDue = baseAmount + markupAmount;
   
   // Safe date handling (Booking Date)
   const rawBookingDate = bookingData?.createdTime || bookingData?.booking_date || bookingData?.createdAt;
@@ -193,7 +212,9 @@ export default function BookingConfirmation() {
   const refreshBooking = async () => {
     try {
       const fresh = await flygasal.getBookingDetails(orderNumber);
-      if (fresh?.data?.booking) setBookingData(fresh.data.booking);
+      // FIX: Apply the unwrapping fix here too
+      const freshData = fresh?.booking || fresh?.data?.booking;
+      if (freshData) setBookingData(freshData);
     } catch (e) { console.error(e); }
   };
 
@@ -238,7 +259,8 @@ export default function BookingConfirmation() {
           await refreshBooking();
 
       } catch (e) {
-          setPayError(e.message);
+          // FIX: Detailed error extraction for the payment block
+          setPayError(e?.response?.data?.message || e.message || "Payment Processing Error");
       } finally {
           setPaying(false);
       }
